@@ -1,0 +1,24 @@
+set dotenv-required := true
+set dotenv-filename := x"app.env"
+
+APP_NAME := env('APP_NAME', 'user-management')
+TARGET_ENV := env('TARGET_ENV', 'usr-develop')
+
+import "../../justlib/pyapp.just"
+import "../../justlib/python.just"
+import "../../justlib/postgres.just"
+
+# List of just commands
+@default:
+    just --list
+
+run-local:
+    @gunicorn user_management.bootstrap:app \
+        -k uvicorn.workers.UvicornWorker \
+        --workers ${GUNICORN_WORKER:-1} \
+        --bind localhost:${GUNICORN_PORT:-8000} \
+        --timeout ${GUNICORN_TIMEOUT:-120} \
+        --keep-alive 5
+
+echo-config:
+    echo "{{FLUVIUS_CONFIG_FILE}}"

@@ -1,6 +1,8 @@
 from . import aggregate, command, domain, model, state, message
 
-from .worker import UserManagementWorker, UserManagementWorkerClient
+from .domain import UserManagementDomain
+
+# from .worker import UserManagementWorker, UserManagementWorkerClient
 
 __all__ = [
 	"aggregate",
@@ -9,6 +11,7 @@ __all__ = [
 	"model",
 	"state",
 	"message",
-	"UserManagementWorker",
-	"UserManagementWorkerClient"
+	"UserManagementDomain"
+	# "UserManagementWorker",
+	# "UserManagementWorkerClient"
 ]
