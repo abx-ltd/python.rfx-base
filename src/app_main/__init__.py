@@ -1,4 +1,4 @@
 from . import setup
-from rfx_user import UserManagementDomain
+from rfx_idm import IDMDomain
 
-app = setup.bootstrap(UserManagementDomain)
+app = setup.bootstrap(IDMDomain)

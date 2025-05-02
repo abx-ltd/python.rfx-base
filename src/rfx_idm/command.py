@@ -1,10 +1,10 @@
 from fluvius.data import serialize_mapping, DataModel
-from .domain import _processor, UserManagementDomain
+from .domain import _processor, IDMDomain
 
 from . import logger
 
 
-class CreateUserCmd(UserManagementDomain.Command):
+class CreateUserCmd(IDMDomain.Command):
 	class Meta:
 		key = 'create-user'
 		name = 'Create User'

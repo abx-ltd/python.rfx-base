@@ -6,11 +6,11 @@ from sqlalchemy.dialects import postgresql as pg
 from . import types, config
 
 
-class UserManagementConnector(SqlaDriver):
+class IDMConnector(SqlaDriver):
 	__db_dsn__ = config.DB_DSN
 
 
-class UserManagementBaseModel(SqlaDataSchema):
+class IDMBaseModel(SqlaDataSchema):
     __abstract__ = True
     __table_args__ = {'schema': config.USER_MANAGEMENT_NAMESPACE}
 
@@ -23,38 +23,38 @@ class UserManagementBaseModel(SqlaDataSchema):
     _etag = sa.Column(sa.String)
 
     def __init_subclass__(cls):
-        cls._register_with_driver(UserManagementConnector)
+        cls._register_with_driver(IDMConnector)
 
 
-class RefAction(UserManagementBaseModel):
+class RefAction(IDMBaseModel):
     __tablename__ = "ref--action"
 
     key = sa.Column(sa.String(1024), nullable=False, unique=True)
     display = sa.Column(sa.String(1024), nullable=True)
 
 
-class RefOrganizationType(UserManagementBaseModel):
+class RefOrganizationType(IDMBaseModel):
     __tablename__ = "ref--organization-type"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
     display = sa.Column(sa.String, nullable=True)
 
 
-class RefRealm(UserManagementBaseModel):
+class RefRealm(IDMBaseModel):
     __tablename__ = "ref--realm"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
     display = sa.Column(sa.String, nullable=True)
 
 
-class RefRoleType(UserManagementBaseModel):
+class RefRoleType(IDMBaseModel):
     __tablename__ = "ref--role-type"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
     display = sa.Column(sa.String, nullable=True)
 
 
-class RefSystemRole(UserManagementBaseModel):
+class RefSystemRole(IDMBaseModel):
     __tablename__ = "ref--system-role"
 
     description = sa.Column(sa.String(1024))
@@ -69,7 +69,7 @@ class RefSystemRole(UserManagementBaseModel):
     role_type = sa.Column(sa.ForeignKey(RefRoleType.key), nullable=True)
 
 
-class UserSchema(UserManagementBaseModel):
+class UserSchema(IDMBaseModel):
     __tablename__ = "user"
 
     active = sa.Column(sa.Boolean)
@@ -95,7 +95,7 @@ class UserSchema(UserManagementBaseModel):
     status = sa.Column(sa.Enum(types.UserStatus), nullable=False)
 
 
-class UserIdentity(UserManagementBaseModel):
+class UserIdentity(IDMBaseModel):
     __tablename__ = "user-identity"
 
     provider = sa.Column(sa.String, nullable=False)
@@ -107,7 +107,7 @@ class UserIdentity(UserManagementBaseModel):
     user_id = sa.Column(sa.ForeignKey(UserSchema._id), nullable=False)
 
 
-class UserSession(UserManagementBaseModel):
+class UserSession(IDMBaseModel):
     __tablename__ = "user-session"
 
     source = sa.Column(sa.Enum(types.UserSource), nullable=True)
@@ -116,14 +116,14 @@ class UserSession(UserManagementBaseModel):
     user_identity_id = sa.Column(sa.ForeignKey(UserIdentity._id))
 
 
-class UserStatus(UserManagementBaseModel):
+class UserStatus(IDMBaseModel):
     __tablename__ = "user-status"
 
     status = sa.Column(sa.Enum(types.UserStatus), nullable=False)
     user_id = sa.Column(sa.ForeignKey(UserSchema._id), nullable=False)
 
 
-class UserVerification(UserManagementBaseModel):
+class UserVerification(IDMBaseModel):
     __tablename__ = "user-verification"
 
     verification = sa.Column(sa.String(1024), nullable=False)
@@ -133,7 +133,7 @@ class UserVerification(UserManagementBaseModel):
     user_identity_id = sa.Column(sa.ForeignKey(UserIdentity._id))
 
 
-class UserAction(UserManagementBaseModel):
+class UserAction(IDMBaseModel):
     __tablename__ = "user-action"
 
     _iid = sa.Column(pg.UUID)
@@ -144,7 +144,7 @@ class UserAction(UserManagementBaseModel):
     user_identity_id = sa.Column(sa.ForeignKey(UserIdentity._id))
 
 
-class Organization(UserManagementBaseModel):
+class Organization(IDMBaseModel):
     __tablename__ = "organization"
 
     description = sa.Column(sa.String)
@@ -167,7 +167,7 @@ class Organization(UserManagementBaseModel):
     type = sa.Column(sa.ForeignKey(RefOrganizationType.key))
 
 
-class OrganizationDelegatedAccess(UserManagementBaseModel):
+class OrganizationDelegatedAccess(IDMBaseModel):
     __tablename__ = "organization-delegated-access"
 
     organization_id = sa.Column(sa.ForeignKey(Organization._id))
@@ -176,7 +176,7 @@ class OrganizationDelegatedAccess(UserManagementBaseModel):
 
 
 
-class OrganizationRole(UserManagementBaseModel):
+class OrganizationRole(IDMBaseModel):
     __tablename__ = "organization-role"
 
     _iid = sa.Column(pg.UUID)
@@ -190,14 +190,14 @@ class OrganizationRole(UserManagementBaseModel):
     is_system_signer = sa.Column(sa.Boolean)
 
 
-class OrganizationStatus(UserManagementBaseModel):
+class OrganizationStatus(IDMBaseModel):
     __tablename__ = "organization-status"
 
     organization_id = sa.Column(sa.ForeignKey(Organization._id))
     status = sa.Column(sa.Enum(types.OrganizationStatus), nullable=False)
 
 
-class Profile(UserManagementBaseModel):
+class Profile(IDMBaseModel):
     __tablename__ = "profile"
 
     access_tags = sa.Column(pg.ARRAY(sa.String))
@@ -260,7 +260,7 @@ class Profile(UserManagementBaseModel):
     organization_id = sa.Column(sa.ForeignKey(Organization._id), nullable=True)
 
 
-class ProfileLocation(UserManagementBaseModel):
+class ProfileLocation(IDMBaseModel):
     __tablename__ = "profile-location"
 
     _iid = sa.Column(pg.UUID)
@@ -274,14 +274,14 @@ class ProfileLocation(UserManagementBaseModel):
     lng = sa.Column(sa.Float)
 
 
-class ProfileStatus(UserManagementBaseModel):
+class ProfileStatus(IDMBaseModel):
     __tablename__ = "profile-status"
 
     status = sa.Column(sa.Enum(types.ProfileStatus), nullable=False)
     profile_id = sa.Column(sa.ForeignKey(Profile._id), nullable=False)
 
 
-class OrganizationMember(UserManagementBaseModel):
+class OrganizationMember(IDMBaseModel):
     __tablename__ = "organization-member"
 
     member_id = sa.Column(sa.ForeignKey(Profile._id))
@@ -291,7 +291,7 @@ class OrganizationMember(UserManagementBaseModel):
     _source_id = sa.Column(sa.Integer)
 
 
-class Group(UserManagementBaseModel):
+class Group(IDMBaseModel):
     __tablename__ = "group"
 
     _txt = sa.Column(pg.TSVECTOR)
@@ -301,7 +301,7 @@ class Group(UserManagementBaseModel):
     resource_id = sa.Column(pg.UUID)
 
 
-class GroupMember(UserManagementBaseModel):
+class GroupMember(IDMBaseModel):
     __tablename__ = "group-member"
 
     group_id = sa.Column(pg.UUID, sa.ForeignKey(Group._id))
