@@ -36,9 +36,9 @@ executors:
     environment:
       PATH                 : /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:~/python-env/bin
       TSRC_PARALLEL_JOBS   : 50
-      BASE_WORKSPACE_DIR : /private/abx/base-service
-      BASE_MANIFEST      : git@gh_abx:abx-ltd/manifest.base-backend.git
-      BASE_CONFIGURATION : /private/abx/base-service/env/current/usr-develop
+      BASE_WORKSPACE_DIR : /private/abx/rfx-platform
+      BASE_MANIFEST      : git@gh_abx:abx-ltd/manifest.rfx-platform.git
+      BASE_CONFIGURATION : /private/abx/rfx-platform/env/current/usr-develop
 
 jobs:
   sync_workspace:
