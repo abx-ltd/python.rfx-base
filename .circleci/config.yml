@@ -1,0 +1,91 @@
+version: 2.1
+
+# Define CI CD workflow
+workflows:
+  build-workflow:
+    jobs:
+      - sync_workspace:
+          context: Slack Integration
+          filters:
+            branches:
+              only: main
+      - deploy:
+          context: Slack Integration
+          requires:
+            - sync_workspace
+          filters:
+            branches:
+              only: main
+      - notify_slack:
+          requires:
+            - deploy
+          context: Slack Integration
+          filters:
+            branches:
+              only: main
+
+
+# Workflow configuration
+orbs:
+  slack: circleci/slack@4.13.3
+
+executors:
+  default-executor:
+    resource_class: abx-ltd/circle-01--dn1op-app
+    machine: true
+    environment:
+      PATH                 : /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:~/python-env/bin
+      TSRC_PARALLEL_JOBS   : 50
+      BASE_WORKSPACE_DIR : /private/abx/base-service
+      BASE_MANIFEST      : git@gh_abx:abx-ltd/manifest.base-backend.git
+      BASE_CONFIGURATION : /private/abx/base-service/env/current/usr-develop
+
+jobs:
+  sync_workspace:
+    executor: default-executor
+    steps:
+      - run:
+          name: Sync workspace
+          command: |
+            if [ ! -d $BASE_WORKSPACE_DIR/.tsrc ]; then
+              mkdir -p $BASE_WORKSPACE_DIR && cd $BASE_WORKSPACE_DIR && tsrc init $BASE_MANIFEST --branch main
+            else
+              cd $BASE_WORKSPACE_DIR && tsrc sync
+            fi
+
+      - run:
+          name: Symlink current env
+          command: |
+            cd $BASE_WORKSPACE_DIR/env
+            ln -sfn deploy.base-develop current
+
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
+
+  deploy:
+    executor: default-executor
+    steps:
+      - run:
+          name: Migrate Database
+          command: |
+            cd $BASE_CONFIGURATION
+            echo "Migrate Database"
+
+      - run:
+          name: Deploy
+          command: |
+            cd $BASE_CONFIGURATION
+            make deploy
+            sleep 10
+
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
+
+  notify_slack:
+    executor: default-executor
+    steps:
+      - slack/notify:
+          event: pass
+          template: success_tagged_deploy_1
