@@ -76,7 +76,7 @@ jobs:
           name: Deploy
           command: |
             cd $BASE_CONFIGURATION
-            make deploy
+            just deploy
             sleep 10
 
       - slack/notify:
