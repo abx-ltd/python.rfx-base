@@ -13,7 +13,7 @@ import "../../justlib/postgres.just"
     just --list
 
 run-local:
-    gunicorn user_management.bootstrap:app \
+    gunicorn app_main:app \
         --worker-class uvicorn.workers.UvicornWorker \
         --workers ${GUNICORN_WORKER:-1} \
         --bind localhost:${GUNICORN_PORT:-8000} \

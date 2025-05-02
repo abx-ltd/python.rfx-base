@@ -3,8 +3,7 @@ import sqlalchemy as sa
 from fluvius.data import SqlaDataSchema, SqlaDriver, UUID_GENR
 from sqlalchemy.dialects import postgresql as pg
 
-from . import types
-from user_management import config
+from . import types, config
 
 
 class UserManagementConnector(SqlaDriver):

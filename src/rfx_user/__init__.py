@@ -1,8 +1,7 @@
+from ._meta import config, logger
+from .domain import UserManagementDomain
 from . import aggregate, command, domain, model, state, message
 
-from .domain import UserManagementDomain
-
-# from .worker import UserManagementWorker, UserManagementWorkerClient
 
 __all__ = [
 	"aggregate",

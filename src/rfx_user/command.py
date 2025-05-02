@@ -1,29 +1,22 @@
 from fluvius.data import serialize_mapping, DataModel
-
-from user_management import logger
-
 from .domain import _processor, UserManagementDomain
 
-
-Command = UserManagementDomain.Command
-
-
-class UserModel(DataModel):
-	name__given: str
-	name__family: str
+from . import logger
 
 
-class CreateUserCmd(Command):
+class CreateUserCmd(UserManagementDomain.Command):
 	class Meta:
 		key = 'create-user'
 		name = 'Create User'
 		new_resource = True
 		resource_desc = 'Resource key. e.g. `user`'
 
-	Data = UserModel
+	class Data(DataModel):
+		name__given: str
+		name__family: str
 
 	@_processor
-	async def _process(self, aggregate, statemgr, payload):
+	async def process(self, aggregate, statemgr, payload):
 		data = serialize_mapping(payload)
 		logger.info("Workon data: %r" % data)
 

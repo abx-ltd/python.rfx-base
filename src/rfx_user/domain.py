@@ -4,7 +4,7 @@ from fluvius.domain.logstore import SQLDomainLogStore
 from .aggregate import UserManagementAggregate
 from .state import UserManagementStateManager
 
-from user_management import config
+from . import config
 
 
 class UserManagementDomain(Domain):
