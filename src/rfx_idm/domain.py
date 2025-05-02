@@ -8,7 +8,7 @@ from . import config
 
 
 class IDMDomain(Domain):
-	__domain__ = config.USER_MANAGEMENT_NAMESPACE
+	__domain__ = config.IDM_NAMESPACE
 	__aggregate__ = IDMAggregate
 	__statemgr__ = IDMStateManager
 	__logstore__ = SQLDomainLogStore
