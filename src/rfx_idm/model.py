@@ -12,7 +12,7 @@ class IDMConnector(SqlaDriver):
 
 class IDMBaseModel(SqlaDataSchema):
     __abstract__ = True
-    __table_args__ = {'schema': config.USER_MANAGEMENT_NAMESPACE}
+    __table_args__ = {'schema': config.IDM_SCHEMA}
 
     _id = sa.Column(pg.UUID, primary_key=True, nullable=False, default=UUID_GENR, server_default=sa.text("uuid_generate_v1()"))
     _created = sa.Column(sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))

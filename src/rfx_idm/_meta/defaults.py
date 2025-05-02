@@ -1,3 +1,2 @@
-APPLICATION_NAME = "User Management"
-USER_MANAGEMENT_NAMESPACE = "user-management"
+IDM_SCHEMA = "identity-management"
 DB_DSN = None
