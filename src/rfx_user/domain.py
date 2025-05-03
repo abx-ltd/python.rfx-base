@@ -7,7 +7,7 @@ from . import config
 
 
 class UserProfileDomain(Domain):
-    __namespace__      = 'user-profile'
+    __namespace__   = 'user-profile'
     __aggregate__   = UserProfileAggregate
     __statemgr__    = UserProfileStateManager
     __logstore__    = SQLDomainLogStore
