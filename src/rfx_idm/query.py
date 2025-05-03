@@ -14,12 +14,16 @@ class IDMQueryManager(DomainQueryManager):
 
 @IDMQueryManager.register_schema('user')
 class UserQuery(QuerySchema):
+    """ List all user accounts """
+
     _id = UUIDField("User ID", identifier=True)
     name__given = StringField("Given Name")
     name__family = StringField("Family Name")
 
 
 @IDMQueryManager.register_schema('organization')
-class OrganizationiQuery(QuerySchema):
+class OrganizationQuery(QuerySchema):
+    """ List all organizations """
+
     _id = UUIDField("Organization ID", identifier=True)
     name = StringField("Organization Name")
