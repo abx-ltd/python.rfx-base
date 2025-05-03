@@ -13,7 +13,7 @@ import "../../justlib/postgres.just"
     just --list
 
 run-local:
-    uvicorn app_main:app --host 0.0.0.0 --reload --reload-dir="./src" --reload-dir="./lib"
+    uvicorn app_main:app --host 0.0.0.0 --reload --reload-dir="./src" --reload-dir="../../lib/fluvius"
 
 run-gunicorn:
     gunicorn app_main:app \
