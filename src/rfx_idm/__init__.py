@@ -2,6 +2,8 @@
 
 from ._meta import config, logger
 from .domain import IDMDomain
+from .query import IDMQueryManager
+
 from . import aggregate, command, domain, model, state, message
 
 
@@ -12,7 +14,8 @@ __all__ = [
 	"model",
 	"state",
 	"message",
-	"IDMDomain"
+	"IDMDomain",
+	"IDMQueryManager",
 	# "IDMWorker",
 	# "IDMWorkerClient"
 ]
