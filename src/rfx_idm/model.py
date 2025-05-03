@@ -7,7 +7,8 @@ from . import types, config
 
 
 class IDMConnector(SqlaDriver):
-	__db_dsn__ = config.DB_DSN
+    assert config.DB_DSN, "[rfx_idm.DB_DSN] not set."
+    __db_dsn__ = config.DB_DSN
 
 
 class IDMBaseModel(SqlaDataSchema):
