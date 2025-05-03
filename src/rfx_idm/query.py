@@ -14,12 +14,12 @@ class IDMQueryManager(DomainQueryManager):
 
 @IDMQueryManager.register_schema('user')
 class UserQuery(QuerySchema):
-    _id = UUIDField("User ID", , identifier=True)
+    _id = UUIDField("User ID", identifier=True)
     name__given = StringField("Given Name")
     name__family = StringField("Family Name")
 
 
 @IDMQueryManager.register_schema('organization')
 class OrganizationiQuery(QuerySchema):
-    _id = UUIDField("Organization ID", , identifier=True)
+    _id = UUIDField("Organization ID", identifier=True)
     name = StringField("Organization Name")
