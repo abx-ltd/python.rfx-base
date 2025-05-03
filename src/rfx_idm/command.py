@@ -1,7 +1,8 @@
 from fluvius.data import serialize_mapping, DataModel
-from .domain import _processor, IDMDomain
-
+from .domain import IDMDomain
 from . import logger
+
+processor = IDMDomain.command_processor
 
 
 class CreateUserCmd(IDMDomain.Command):
@@ -15,7 +16,7 @@ class CreateUserCmd(IDMDomain.Command):
 		name__given: str
 		name__family: str
 
-	@_processor
+	@processor
 	async def process(self, aggregate, statemgr, payload):
 		data = serialize_mapping(payload)
 		logger.info("Workon data: %r" % data)
