@@ -6,8 +6,8 @@ from .state import UserProfileStateManager
 from . import config
 
 
-class IDMDomain(Domain):
-    __domain__      = config.IDM_NAMESPACE
+class UserProfileDomain(Domain):
+    __namespace__      = 'user-profile'
     __aggregate__   = UserProfileAggregate
     __statemgr__    = UserProfileStateManager
     __logstore__    = SQLDomainLogStore

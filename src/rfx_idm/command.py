@@ -6,11 +6,13 @@ processor = IDMDomain.command_processor
 
 
 class CreateUserCmd(IDMDomain.Command):
+	""" Create a new user account """
+
 	class Meta:
 		key = 'create-user'
 		name = 'Create User'
 		new_resource = True
-		resource_desc = 'Resource key. e.g. `user`'
+		resource_docs = 'Resource key. e.g. `user`'
 
 	class Data(DataModel):
 		name__given: str
