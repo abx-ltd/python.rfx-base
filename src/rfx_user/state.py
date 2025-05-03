@@ -1,4 +1,4 @@
-from rfx_idm import IDMStateManager
+from rfx_idm.state import IDMStateManager
 
 
 class UserProfileStateManager(IDMStateManager):

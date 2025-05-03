@@ -13,9 +13,9 @@ class UserProfileDomain(Domain):
     __logstore__    = SQLDomainLogStore
 
 
-class UserProfileResponse(IDMDomain.Response):
+class UserProfileResponse(UserProfileDomain.Response):
     pass
 
 
-class UserProfileMessage(IDMDomain.Message):
+class UserProfileMessage(UserProfileDomain.Message):
     pass

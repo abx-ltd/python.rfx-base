@@ -1,4 +1,4 @@
-from fluvius.query import DomainQueryManager
+from fluvius.query import DomainQueryManager, QuerySchema
 from fluvius.query.field import StringField, UUIDField
 from .state import IDMStateManager
 from .domain import IDMDomain
@@ -9,7 +9,7 @@ class IDMQueryManager(DomainQueryManager):
 
     class Meta:
         api_prefix = IDMDomain.Meta.api_prefix
-        api_tags = IDMDomain.Meta.api_docs
+        api_tags = IDMDomain.Meta.api_tags
 
 
 @IDMQueryManager.register_schema('user')
