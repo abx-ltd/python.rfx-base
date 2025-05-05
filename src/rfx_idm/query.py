@@ -15,6 +15,8 @@ class IDMQueryManager(DomainQueryManager):
 @IDMQueryManager.register_schema('user')
 class UserQuery(QuerySchema):
     """ List all user accounts """
+    class Meta:
+        select_all = True
 
     _id = UUIDField("User ID", identifier=True)
     name__given = StringField("Given Name")
@@ -25,5 +27,6 @@ class UserQuery(QuerySchema):
 class OrganizationQuery(QuerySchema):
     """ List all organizations """
 
-    _id = UUIDField("Organization ID", identifier=True)
+    _id  = UUIDField("Organization ID", identifier=True)
     name = StringField("Organization Name")
+    dba_name = StringField("Business Name", source="business_name")

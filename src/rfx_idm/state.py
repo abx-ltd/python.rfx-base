@@ -3,4 +3,4 @@ from .model import IDMConnector
 
 class IDMStateManager(DataAccessManager):
     __connector__ = IDMConnector
-    __auto_model__ = 'schema'
+    __auto_model__ = True
