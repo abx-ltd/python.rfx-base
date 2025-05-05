@@ -1,3 +1,3 @@
-IDM_SCHEMA = "identity-management"
+IDM_SCHEMA = "rfx--user"
 IDM_NAMESPACE = "idm"
 DB_DSN = None
