@@ -1,6 +1,6 @@
 from .model import IDMConnector
 from fluvius.fastapi.auth import FluviusAuthProfileProvider, TokenPayload
-from fluvius.fastapi import config, logger
+from fluvius.fastapi import config
 from fluvius.data import DataAccessManager
 
 
