@@ -96,6 +96,9 @@ class UserSchema(IDMBaseModel):
     # Enum: user_status (from PostgreSQL ENUM type)
     status = sa.Column(sa.Enum(types.UserStatus), nullable=False)
 
+    realm_access = sa.Column(sa.JSON)
+    resource_access = sa.Column(sa.JSON)
+
 
 class UserIdentity(IDMBaseModel):
     __tablename__ = "user-identity"
