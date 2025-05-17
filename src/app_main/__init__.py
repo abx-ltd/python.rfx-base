@@ -1,8 +1,22 @@
-from rfx_idm import IDMDomain, IDMQueryManager
-from rfx_user import UserProfileDomain, UserProfileQueryManager
+from fluvius.fastapi import (
+    create_app,
+    configure_authentication,
+    configure_domain_manager,
+    configure_query_manager)
 
-from . import setup
+domains = (
+    'rfx_idm.IDMDomain',
+    'rfx_user.UserProfileDomain',
+)
 
-app = setup.bootstrap()
-app = setup.configure_domain_manager(app, IDMDomain, UserProfileDomain)
-app = setup.configure_query_manager(app, IDMQueryManager, UserProfileQueryManager)
+queries = (
+    'rfx_idm.IDMQueryManager',
+    'rfx_user.UserProfileQueryManager',
+)
+
+app = (
+    create_app() |
+    configure_authentication() |
+    configure_domain_manager(*domains) |
+    configure_query_manager(*queries)
+)

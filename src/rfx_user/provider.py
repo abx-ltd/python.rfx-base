@@ -6,8 +6,7 @@ from fluvius.data import DataAccessManager
 
 class RFXAuthProfileProvider(
     FluviusAuthProfileProvider,
-    DataAccessManager,
-    key=config.AUTH_PROFILE_PROVIDER
+    DataAccessManager
 ):
     __connector__ = IDMConnector
     __auto_model__ = True
