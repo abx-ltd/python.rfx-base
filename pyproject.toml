@@ -1,0 +1,31 @@
+[project]
+name = "rfx-base"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp==3.11.11",
+    "arq==0.26.3",
+    "asyncpg==0.30.0",
+    "authlib>=1.5.2",
+    "blinker==1.9.0",
+    "click==8.1.8",
+    "fastapi>=0.115.12",
+    "gunicorn>=23.0.0",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
+    "jsonurl-py==0.4.0",
+    "pydantic[email]>=2.11.4",
+    "pypika>=0.48.9",
+    "pyrsistent==0.20.0",
+    "ruff==0.9.1",
+    "sanic==25.3.0",
+    "sanic-jwt==1.8.0",
+    "sanic-security==1.16.8",
+    "sqlalchemy==2.0.37",
+    "starlette>=0.46.2",
+    "ulid-py==1.1.0",
+    "uvicorn>=0.34.2",
+    "whenever==0.7.3",
+]

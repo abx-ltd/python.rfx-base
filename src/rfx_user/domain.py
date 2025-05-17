@@ -3,9 +3,6 @@ from fluvius.domain import Domain, SQLDomainLogStore
 from .aggregate import UserProfileAggregate
 from .state import IDMStateManager
 
-from . import config
-
-
 class UserProfileDomain(Domain):
     __namespace__   = 'user-profile'
     __aggregate__   = UserProfileAggregate
