@@ -1,5 +1,5 @@
 from typing import Optional
-from fluvius.query import DomainQueryManager, QuerySchema, endpoint
+from fluvius.query import DomainQueryManager, QueryResource, endpoint
 from fluvius.query.field import StringField, UUIDField
 from fastapi import Request
 from .state import IDMStateManager
@@ -13,15 +13,15 @@ class UserProfileQueryManager(DomainQueryManager):
         api_tags = UserProfileDomain.Meta.api_tags
 
 
-schema = UserProfileQueryManager.register_schema
+schema = UserProfileQueryManager.register_resource
 endpoint = UserProfileQueryManager.register_endpoint
 
 
 @schema('user')
-class UserQuery(QuerySchema):
+class UserQuery(QueryResource):
     """ List current user accounts """
 
-    class Meta(QuerySchema.Meta):
+    class Meta(QueryResource.Meta):
         select_all = True
         allow_item_view = False
         allow_list_view = False
@@ -38,7 +38,7 @@ async def my_profile(query: UserProfileQueryManager, request: Request, profile_i
 
 
 @schema('profile')
-class ProfileQuery(QuerySchema):
+class ProfileQuery(QueryResource):
     """ List current user's organizations """
 
     _id  = UUIDField("Organization ID", identifier=True)
@@ -47,7 +47,7 @@ class ProfileQuery(QuerySchema):
 
 
 @schema('organization')
-class OrganizationQuery(QuerySchema):
+class OrganizationQuery(QueryResource):
     """ List current user's organizations """
 
     _id  = UUIDField("Organization ID", identifier=True)
