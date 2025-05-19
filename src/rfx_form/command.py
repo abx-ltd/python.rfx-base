@@ -6,14 +6,14 @@ processor = FormManagementDomain.command_processor
 Command = FormManagementDomain.Command
 
 
-class SubmitFormCmd(Command):
-    """ Create a new user account """
+class SubmitForm(Command):
+    """ Submit and lock the form """
 
     class Meta(Command.Meta):
-        key = 'create-user'
-        name = 'Create User'
+        key = 'submit-form'
+        name = 'Submit Form'
         new_resource = True
-        resource_docs = 'Resource key. e.g. `user`'
+        resource_desc = 'Resource key. e.g. `user`'
 
     class Data(DataModel):
         name__given: str
@@ -29,3 +29,55 @@ class SubmitFormCmd(Command):
         # user = statemgr.create('user', data, _id=aggroot.identifier)
         # logger.info('/3rd/ Non-annotated processor (default) called: %s', aggroot)
         # yield aggregate.create_response(serialize_mapping(user), _type="user-response")
+
+
+class UnsubmitForm(Command):
+    """ Unlock the form """
+
+    class Meta(Command.Meta):
+        key = 'unsubmit-form'
+        name = 'Unsubmit Form'
+        new_resource = True
+        resource_desc = 'Resource key. e.g. `user`'
+
+
+class SaveForm(Command):
+    """ Submit and lock the form """
+
+    class Meta(Command.Meta):
+        key = 'save-form'
+        name = 'Save Form'
+        new_resource = True
+        resource_desc = 'Resource key. e.g. `user`'
+
+
+class DeleteForm(Command):
+    """ Submit and lock the form """
+
+    class Meta(Command.Meta):
+        key = 'delete-form'
+
+class SaveElement(Command):
+    """ Submit and lock the form """
+
+    class Meta(Command.Meta):
+        key = 'save-element'
+        name = 'Save Element'
+        new_resource = True
+        resource_desc = 'Resource key. e.g. `user`'
+
+
+class DeleteElemenet(Command):
+    """ Submit and lock the form """
+
+    class Meta(Command.Meta):
+        key = 'delete-form'
+
+class CreatePackage(Command):
+    """ Submit and lock the form """
+
+    class Meta(Command.Meta):
+        key = 'save-element'
+        name = 'Save Element'
+        new_resource = True
+        resource_desc = 'Resource key. e.g. `user`'

@@ -12,7 +12,7 @@ class CreateUserCmd(IDMDomain.Command):
 		key = 'create-user'
 		name = 'Create User'
 		new_resource = True
-		resource_docs = 'Resource key. e.g. `user`'
+		resource_desc = 'Resource key. e.g. `user`'
 
 	class Data(DataModel):
 		name__given: str
