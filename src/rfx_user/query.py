@@ -13,11 +13,11 @@ class UserProfileQueryManager(DomainQueryManager):
         api_tags = UserProfileDomain.Meta.api_tags
 
 
-schema = UserProfileQueryManager.register_resource
+resource = UserProfileQueryManager.register_resource
 endpoint = UserProfileQueryManager.register_endpoint
 
 
-@schema('user')
+@resource('user')
 class UserQuery(QueryResource):
     """ List current user accounts """
 
@@ -37,7 +37,7 @@ async def my_profile(query: UserProfileQueryManager, request: Request, profile_i
     return f"ENDPOINT: {request} {query} {profile_id}"
 
 
-@schema('profile')
+@resource('profile')
 class ProfileQuery(QueryResource):
     """ List current user's organizations """
 
@@ -46,7 +46,7 @@ class ProfileQuery(QueryResource):
 
 
 
-@schema('organization')
+@resource('organization')
 class OrganizationQuery(QueryResource):
     """ List current user's organizations """
 

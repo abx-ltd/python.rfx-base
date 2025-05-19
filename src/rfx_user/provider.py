@@ -13,29 +13,36 @@ class RFXAuthProfileProvider(
 
     def user_data(self, data):
         return dict(
+            _id=data.sub,
             name__family=data.family_name,
             name__given=data.given_name,
-            username=data.preferred_username,
-            telecom__email=data.email,
-            verified_email=data.email if data.email_verified else None,
-            _id=data.sub,
             realm_access=data.realm_access,
-            resource_access=data.resource_access
+            resource_access=data.resource_access,
+            telecom__email=data.email,
+            username=data.preferred_username,
+            verified_email=data.email if data.email_verified else None,
         )
-    """ Lookup services for user related info """
+
     def __init__(self, user_claims, active_profile=None):
+        """ Lookup services for user related info """
+
         self._claims = TokenPayload(**user_claims)
         DataAccessManager.__init__(self, None)
 
     async def get_user(self):
-        if not hasattr(self, '_user'):
-            self._user = await self.find_one('user', identifier=self._claims.sub)
-            if not self._user:
-                user = self.create('user', self.user_data(self._claims))
-                await self.insert(user)
-            else:
-                await self.update_one('user', identifier=self._user._id, **self.user_data(self._claims))
-            self._user = await self.find_one('user', identifier=self._claims.sub)
+        if hasattr(self, '_user'):
+            return self._user
+
+        user_id = self._claims.sub
+        user_data = self.user_data(self._claims)
+        user_record = await self.find_one('user', identifier=self._claims.sub)
+
+        if not user_record:
+            await self.insert(self.create('user', user_data))
+        else:
+            await self.update_one('user', identifier=user_id, **user_data)
+
+        self._user = await self.find_one('user', identifier=user_id)
         return self._user
 
     async def get_profile(self):
