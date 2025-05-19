@@ -1,18 +1,23 @@
+from typing import Optional
 from fluvius.query import DomainQueryManager, QuerySchema, endpoint
 from fluvius.query.field import StringField, UUIDField
+from fastapi import Request
 from .state import IDMStateManager
 from .domain import UserProfileDomain
-
 
 class UserProfileQueryManager(DomainQueryManager):
     __data_manager__ = IDMStateManager
 
-    class Meta:
+    class Meta(DomainQueryManager.Meta):
         api_prefix = UserProfileDomain.Meta.api_prefix
         api_tags = UserProfileDomain.Meta.api_tags
 
 
-@UserProfileQueryManager.register_schema('user')
+schema = UserProfileQueryManager.register_schema
+endpoint = UserProfileQueryManager.register_endpoint
+
+
+@schema('user')
 class UserQuery(QuerySchema):
     """ List current user accounts """
 
@@ -26,12 +31,13 @@ class UserQuery(QuerySchema):
     name__given = StringField("Given Name")
     name__family = StringField("Family Name")
 
-    @endpoint(':active-profile')
-    async def my_profile(request, query_manager, *args, **kwargs):
-        return f"ENDPOINT: {request} {query_manager}"
+
+@endpoint('active-profile/{profile_id}')
+async def my_profile(query: UserProfileQueryManager, request: Request, profile_id: str):
+    return f"ENDPOINT: {request} {query} {profile_id}"
 
 
-@UserProfileQueryManager.register_schema('profile')
+@schema('profile')
 class ProfileQuery(QuerySchema):
     """ List current user's organizations """
 
@@ -40,7 +46,7 @@ class ProfileQuery(QuerySchema):
 
 
 
-@UserProfileQueryManager.register_schema('organization')
+@schema('organization')
 class OrganizationQuery(QuerySchema):
     """ List current user's organizations """
 
