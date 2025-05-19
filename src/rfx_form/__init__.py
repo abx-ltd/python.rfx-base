@@ -6,20 +6,20 @@ from fluvius.data import DataModel, Field, UUID_TYPE
 
 
 class DataElement(DataModel):
-    group_id: UUID_TYPE = Field(alias='_created')
-    package_id: UUID_TYPE = Field(alias='_created')
-    schema_name: UUID_TYPE = Field(alias='_created')
-    schema_revision: int = 0
+    form_id: UUID_TYPE
+    package_id: UUID_TYPE
 
-    id_: UUID_TYPE = Field(alias='_id')
-    created_: str = Field(alias='_created')
-    updated_: str = Field(alias='_updated')
-    creator_: str = Field(alias='_creator')
-    updater_: str = Field(alias='_updater')
+    schema_name: str = Field(alias='_schema')
+    revision_number: int = Field(alias='_revision')
+    element_id: UUID_TYPE = Field(alias='_id')
+    created_time: str = Field(alias='_created')
+    updated_time: str = Field(alias='_updated')
+    creator_profile: str = Field(alias='_creator')
+    updater_profile: str = Field(alias='_updater')
 
 
 
-class DataGroup(DataModel):
+class DataForm(DataModel):
     pass
 
 
