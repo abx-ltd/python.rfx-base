@@ -4,3 +4,4 @@ from ._meta import config, logger
 from .domain import UserProfileDomain
 from .query import UserProfileQueryManager
 from .provider import RFXAuthProfileProvider
+from . import command

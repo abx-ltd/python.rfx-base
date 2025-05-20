@@ -21,6 +21,7 @@ class IDMBaseModel(SqlaDataSchema):
     _updated = sa.Column(sa.DateTime(timezone=True), nullable=True)
     _creator = sa.Column(pg.UUID, default=UUID_GENR)
     _updater = sa.Column(pg.UUID, nullable=True)
+    _realm = sa.Column(pg.UUID, nullable=True)
     _deleted = sa.Column(sa.DateTime(timezone=True))
     _etag = sa.Column(sa.String)
 
@@ -154,7 +155,7 @@ class Organization(IDMBaseModel):
 
     description = sa.Column(sa.String)
     name = sa.Column(sa.String(255))
-    gov_id = sa.Column(sa.String(10))  # government issued id
+    # gov_id = sa.Column(sa.String(10))  # government issued id
     tax_id = sa.Column(sa.String(9))   # tax authority issued id
     business_name = sa.Column(sa.String(255))
     system_entity = sa.Column(sa.Boolean)
@@ -163,7 +164,10 @@ class Organization(IDMBaseModel):
     user_tag = sa.Column(pg.ARRAY(sa.String))
     organization_code = sa.Column(sa.String(255))
 
-    status = sa.Column(sa.Enum(types.OrganizationStatus), nullable=False)
+    status = sa.Column(
+        sa.Enum(types.OrganizationStatus, name="organization_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
 
     invitation_code = sa.Column(sa.String(10))
     type = sa.Column(sa.ForeignKey(RefOrganizationType.key))
@@ -195,7 +199,15 @@ class OrganizationStatus(IDMBaseModel):
     __tablename__ = "organization-status"
 
     organization_id = sa.Column(sa.ForeignKey(Organization._id))
-    status = sa.Column(sa.Enum(types.OrganizationStatus), nullable=False)
+    src_state = sa.Column(
+        sa.Enum(types.OrganizationStatus, name="organization_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    dst_state = sa.Column(
+        sa.Enum(types.OrganizationStatus, name="organization_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    note = sa.Column(sa.String())
 
 
 class Profile(IDMBaseModel):
