@@ -25,7 +25,7 @@ class IDMBaseModel(SqlaDataSchema):
     _etag = sa.Column(sa.String)
 
     def __init_subclass__(cls):
-        cls._register_with_driver(IDMConnector)
+        IDMConnector.register_schema(cls)
 
 
 class RefAction(IDMBaseModel):
