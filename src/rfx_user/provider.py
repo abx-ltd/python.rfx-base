@@ -9,7 +9,7 @@ class RFXAuthProfileProvider(
     DataAccessManager
 ):
     __connector__ = IDMConnector
-    __auto_model__ = True
+    __automodel__ = True
 
     def user_data(self, data):
         return dict(
