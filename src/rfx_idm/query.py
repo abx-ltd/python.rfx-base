@@ -1,4 +1,4 @@
-from fluvius.query import DomainQueryManager, QuerySchema
+from fluvius.query import DomainQueryManager, QueryResource
 from fluvius.query.field import StringField, UUIDField
 from .state import IDMStateManager
 from .domain import IDMDomain
@@ -12,8 +12,8 @@ class IDMQueryManager(DomainQueryManager):
         api_tags = IDMDomain.Meta.api_tags
 
 
-@IDMQueryManager.register_schema('user')
-class UserQuery(QuerySchema):
+@IDMQueryManager.register_resource('user')
+class UserQuery(QueryResource):
     """ List all user accounts """
     class Meta:
         select_all = True
@@ -23,8 +23,8 @@ class UserQuery(QuerySchema):
     name__family = StringField("Family Name")
 
 
-@IDMQueryManager.register_schema('organization')
-class OrganizationQuery(QuerySchema):
+@IDMQueryManager.register_resource('organization')
+class OrganizationQuery(QueryResource):
     """ List all organizations """
 
     _id  = UUIDField("Organization ID", identifier=True)
