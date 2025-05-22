@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 
-from fluvius.data import SqlaDataSchema, SqlaDriver, UUID_GENR
+from fluvius.data import DomainDataSchema, SqlaDriver, UUID_GENR
 from sqlalchemy.dialects import postgresql as pg
 
 from . import types, config
@@ -12,21 +12,12 @@ class IDMConnector(SqlaDriver):
     __db_dsn__ = config.DB_DSN
 
 
-class IDMBaseModel(SqlaDataSchema):
+class IDMBaseModel(DomainDataSchema):
     __abstract__ = True
     __table_args__ = {'schema': config.USER_PROFILE_SCHEMA}
 
-    _id = sa.Column(pg.UUID, primary_key=True, nullable=False, default=UUID_GENR, server_default=sa.text("uuid_generate_v1()"))
-    _created = sa.Column(sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
-    _updated = sa.Column(sa.DateTime(timezone=True), nullable=True)
-    _creator = sa.Column(pg.UUID, default=UUID_GENR)
-    _updater = sa.Column(pg.UUID, nullable=True)
-    _realm = sa.Column(pg.UUID, nullable=True)
-    _deleted = sa.Column(sa.DateTime(timezone=True))
-    _etag = sa.Column(sa.String)
-
     def __init_subclass__(cls):
-        cls._register_with_driver(IDMConnector)
+        IDMConnector.register_schema(cls)
 
 
 class RefAction(IDMBaseModel):

@@ -1,7 +1,8 @@
 from typing import Optional
 from fluvius.query import DomainQueryManager, QuerySchema, endpoint
-from fluvius.query.field import StringField, UUIDField
 from fastapi import Request
+from fluvius.query.field import StringField, UUIDField
+
 from .state import IDMStateManager
 from .domain import UserProfileDomain
 
