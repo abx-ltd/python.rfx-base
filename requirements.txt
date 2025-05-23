@@ -1,2 +1,3 @@
 pydantic[email]
 coloredlogs
+pipe
