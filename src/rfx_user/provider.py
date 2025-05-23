@@ -1,8 +1,10 @@
-from .model import IDMConnector
-from fluvius.fastapi.auth import FluviusAuthProfileProvider, TokenPayload
-from fluvius.fastapi import config
+from types import SimpleNamespace
 from fluvius.data import DataAccessManager
+from fluvius.auth import AuthorizationContext
+from fluvius.fastapi.auth import FluviusAuthProfileProvider, KeycloakTokenPayload
+from fluvius.fastapi import config
 
+from .model import IDMConnector
 
 class RFXAuthProfileProvider(
     FluviusAuthProfileProvider,
@@ -11,7 +13,7 @@ class RFXAuthProfileProvider(
     __connector__ = IDMConnector
     __automodel__ = True
 
-    def user_data(self, data):
+    def format_user_data(self, data):
         return dict(
             _id=data.sub,
             name__family=data.family_name,
@@ -23,43 +25,73 @@ class RFXAuthProfileProvider(
             verified_email=data.email if data.email_verified else None,
         )
 
-    def __init__(self, user_claims, active_profile=None):
+    def __init__(self, app):
         """ Lookup services for user related info """
+        super(DataAccessManager, self).__init__(app)
 
-        self._claims = TokenPayload(**user_claims)
-        DataAccessManager.__init__(self, None)
+    async def setup_context(self, auth_user: KeycloakTokenPayload) -> AuthorizationContext:
+        user_id = auth_user.sub
+        profile = SimpleNamespace(
+            _id=auth_user.jti,
+            name=auth_user.name,
+            roles=('user', 'staff', 'provider')
+        )
 
-    async def get_user(self):
-        if hasattr(self, '_user'):
-            return self._user
+        organization = SimpleNamespace(
+            _id=auth_user.sub,
+            name=auth_user.family_name
+        )
+        iamroles = ('sysadmin', 'operator')
+        realm = 'default'
 
-        user_id = self._claims.sub
-        user_data = self.user_data(self._claims)
-        user_record = await self.find_one('user', identifier=self._claims.sub)
+        user_data = self.format_user_data(auth_user)
+        user_record = await self.find_one('user', identifier=user_id)
 
         if not user_record:
-            await self.insert(self.create('user', user_data))
+            await self.insert_one('user', user_data)
         else:
             await self.update_one('user', identifier=user_id, **user_data)
 
-        self._user = await self.find_one('user', identifier=user_id)
-        return self._user
+        return AuthorizationContext(
+            realm = realm,
+            user = user_record,
+            profile = profile,
+            organization = organization,
+            iamroles = iamroles
+        )
 
-    async def get_profile(self):
-        if not hasattr(self, '_profile'):
-            self._profile = None
-        return self._profile
+    # async def get_auth_context(self, user_claims):
+    #     user_id = user_claims.sub
+    #     user_data = self.user_data(user_claims)
+    #     user_record = await self.find_one('user', identifier=user_id)
 
-    async def get_organization(self):
-        if not hasattr(self, '_organization'):
-            self._organization = None
-        return self._organization
+    #     if not user_record:
+    #         await self.insert(self.create('user', user_data))
+    #     else:
+    #         await self.update_one('user', identifier=user_id, **user_data)
 
-    async def get_iamroles(self):
-        if not hasattr(self, '_iamroles'):
-            self._iamroles = dict(
-                realm_access=self._claims.realm_access,
-                resource_access=self._claims.resource_access,
-            )
-        ''' Identity and Access Management Roles '''
-        return self._iamroles
+    #     user = await self.find_one('user', identifier=user_id)
+
+    #     profile = SimpleNamespace(
+    #         _id=user_data.jti,
+    #         name=user_data.name,
+    #         roles=('user', 'staff', 'provider')
+    #     )
+
+    #     organization = SimpleNamespace(
+    #         _id=user_data.sub,
+    #         name=user_data.family_name
+    #     )
+    #     iamroles = ('user', 'staff', 'provider')
+    #     realm = 'default'
+    #         # dict(
+    #         #     realm_access=self._claims.realm_access,
+    #         #     resource_access=self._claims.resource_access,
+    #         # )
+    #     return AuthorizationContext(
+    #         realm = realm,
+    #         user = user,
+    #         profile = profile,
+    #         organization = organization,
+    #         iamroles = iamroles
+    #     )
