@@ -41,8 +41,8 @@ class RFXAuthProfileProvider(
             _id=auth_user.sub,
             name=auth_user.family_name
         )
-        iamroles = ('sysadmin', 'operator')
-        realm = 'default'
+        iamroles = auth_user.realm_access['roles']
+        realm = str(auth_user.iss).rsplit("/", 1)[1]
 
         user_data = self.format_user_data(auth_user)
         user_record = await self.find_one('user', identifier=user_id)
@@ -54,7 +54,7 @@ class RFXAuthProfileProvider(
 
         return AuthorizationContext(
             realm = realm,
-            user = user_record,
+            user = auth_user,
             profile = profile,
             organization = organization,
             iamroles = iamroles
