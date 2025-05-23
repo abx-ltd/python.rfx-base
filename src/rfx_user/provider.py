@@ -1,16 +1,11 @@
-from .model import IDMConnector
+from .state import IDMStateManager
+from types import SimpleNamespace
 from fluvius.fastapi.auth import FluviusAuthProfileProvider, TokenPayload
-from fluvius.fastapi import config
-from fluvius.data import DataAccessManager
+from fluvius.auth import AuthorizationContext
+from fluvius.error import UnauthorizedError
 
 
-class RFXAuthProfileProvider(
-    FluviusAuthProfileProvider,
-    DataAccessManager
-):
-    __connector__ = IDMConnector
-    __automodel__ = True
-
+class RFXAuthProfileProvider(FluviusAuthProfileProvider):
     def user_data(self, data):
         return dict(
             _id=data.sub,
@@ -23,11 +18,20 @@ class RFXAuthProfileProvider(
             verified_email=data.email if data.email_verified else None,
         )
 
-    def __init__(self, user_claims, active_profile=None):
+    def __init__(self, app, active_profile=None):
+        self._manager = IDMStateManager(app)
+        self._active_profile = active_profile
         """ Lookup services for user related info """
 
+    async def get_auth_context(self, user_claims):
         self._claims = TokenPayload(**user_claims)
-        DataAccessManager.__init__(self, None)
+        return AuthorizationContext(
+            realm='default',
+            user=await self.get_user(),
+            profile=await self.get_profile(),
+            organization=await self.get_organization(),
+            iam_roles=await self.get_iamroles()
+        )
 
     async def get_user(self):
         if hasattr(self, '_user'):
@@ -35,31 +39,50 @@ class RFXAuthProfileProvider(
 
         user_id = self._claims.sub
         user_data = self.user_data(self._claims)
-        user_record = await self.find_one('user', identifier=self._claims.sub)
+        user_record = await self._manager.find_one('user', identifier=self._claims.sub)
 
         if not user_record:
-            await self.insert(self.create('user', user_data))
+            await self._manager.insert(self.create('user', user_data))
         else:
-            await self.update_one('user', identifier=user_id, **user_data)
+            await self._manager.update_one('user', identifier=user_id, **user_data)
 
-        self._user = await self.find_one('user', identifier=user_id)
+        self._user = await self._manager.find_one('user', identifier=user_id)
         return self._user
 
     async def get_profile(self):
         if not hasattr(self, '_profile'):
-            self._profile = None
+            q = dict(where=dict(user_id=self._claims.sub, current_profile=True, status='ACTIVE'))
+            current_profile = await self._manager.find_all('profile', q)
+            if not current_profile:
+                self._profile = SimpleNamespace(_id=self._claims.sub)
+
+            current_profile = current_profile[0]
+            self._profile = current_profile
+
+            if self._active_profile:
+                active_profile = await self._manager.find_one('profile', identifier=self._active_profile)
+                if not active_profile:
+                    raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
+
+                self._profile = active_profile
+                if current_profile._id != active_profile._id:
+                    await self._manager.update_one('profile', identifier=current_profile._id, current_profile=False)
+                    await self._manager.update_one('profile', identifier=active_profile._id, current_profile=True)
+
         return self._profile
 
     async def get_organization(self):
         if not hasattr(self, '_organization'):
-            self._organization = None
+            if not getattr(self._profile, 'organization_id', None):
+                self._organization = SimpleNamespace(_id=self._claims.sub)
+            else:
+                self._organization = await self._manager.fetch('organization', self._profile.organization_id)
+
         return self._organization
 
     async def get_iamroles(self):
         if not hasattr(self, '_iamroles'):
-            self._iamroles = dict(
-                realm_access=self._claims.realm_access,
-                resource_access=self._claims.resource_access,
-            )
+            self._iamroles = self._claims.realm_access['roles']
+            
         ''' Identity and Access Management Roles '''
         return self._iamroles

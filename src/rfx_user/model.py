@@ -16,6 +16,8 @@ class IDMBaseModel(DomainDataSchema):
     __abstract__ = True
     __table_args__ = {'schema': config.USER_PROFILE_SCHEMA}
 
+    _realm = sa.Column(sa.String)
+
     def __init_subclass__(cls):
         IDMConnector.register_schema(cls)
 
@@ -254,8 +256,10 @@ class Profile(IDMBaseModel):
     last_sync = sa.Column(sa.DateTime(timezone=True))
     is_super_admin = sa.Column(sa.Boolean)
     system_tag = sa.Column(pg.ARRAY(sa.String))
-    status = sa.Column(sa.Enum(types.ProfileStatus), nullable=False)
-
+    status = sa.Column(
+        sa.Enum(types.ProfileStatus, name="profile_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
     preferred_name = sa.Column(sa.String(255))
     default_theme = sa.Column(sa.String(255))
 
@@ -280,8 +284,15 @@ class ProfileLocation(IDMBaseModel):
 
 class ProfileStatus(IDMBaseModel):
     __tablename__ = "profile-status"
-
-    status = sa.Column(sa.Enum(types.ProfileStatus), nullable=False)
+    src_state = sa.Column(
+        sa.Enum(types.ProfileStatus, name="profile_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    dst_state = sa.Column(
+        sa.Enum(types.ProfileStatus, name="profile_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    note = sa.Column(sa.String())
     profile_id = sa.Column(sa.ForeignKey(Profile._id), nullable=False)
 
 
