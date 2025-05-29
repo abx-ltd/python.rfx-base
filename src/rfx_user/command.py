@@ -1,14 +1,93 @@
+from datetime import datetime
 from fluvius.data import serialize_mapping, DataModel, UUID_GENR
+
 from .domain import UserProfileDomain
-from . import datadef
+from .integration import kc_admin
+from . import datadef, config
 
 processor = UserProfileDomain.command_processor
 Command = UserProfileDomain.Command
 
 
 # ---------- User Context ----------
+# Need usecase for create-user command.
+# class CreateUser(Command):
+#     class Meta:
+#         key = "create-user"
+#         resources = ("user",)
+#         tags = ["user"]
+#         new_resource = True
+#         auth_required = True
+
+# class UpdateUser(Command):
+#     class Meta:
+#         key = "update-user"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
+
+class SendAction(Command):
+    class Meta:
+        key = "send-action"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+
+    Data = datadef.SendActionPayload
+
+    async def _process(self, agg, stm, payload):
+        rootobj = agg.get_rootobj()
+        user_id = rootobj._id
+        
+        await kc_admin.execute_actions(user_id=user_id, actions=payload.actions, redirect_uri=config.REDIRECT_URL)
+        await agg.track_user_action(payload)
+
+        if payload.required:
+            kc_user = await kc_admin.get_user(user_id)
+            required_action = kc_user.requiredActions
+            actions = [action for action in payload.actions if action not in required_action]
+            required_action.extend(actions)
+            await kc_admin.update_user(user_id=user_id, payload={"requiredActions": required_action})
+
+
+class SendVerification(Command):
+    class Meta:
+        key = "send-verification"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        rootobj = agg.get_rootobj()
+        await kc_admin.send_verify_email(rootobj._id)
+        await agg.update_user(dict(last_verified_request=datetime.utcnow()))
+
+
 class DeactivateUser(Command):
-    pass
+    class Meta:
+        key = "deactivate-user"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        rootobj = agg.get_rootobj()
+        await kc_admin.update_user(rootobj._id, dict(enabled=False))
+        await agg.deactivate_user()
+
+
+class ActivateUser(Command):
+    class Meta:
+        key = "activate-user"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        rootobj = agg.get_rootobj()
+        await kc_admin.update_user(rootobj._id, dict(enabled=True))
+        await agg.activate_user()
+
 
 # ---------- Organization Context ----------
 class CreateOrganization(Command):
@@ -72,6 +151,75 @@ class DeactivateOrganization(Command):
         await agg.deactivate_organization()
 
 
+# ---------- Organization Role Context -------
+class CreateOrgRole(Command):
+    class Meta:
+        key = "create-org-role"
+        resources = ("organization",)
+        tags = ["organization"]
+        auth_required = True
+        new_resource = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
+
+class UpdateOrgRole(Command):
+    class Meta:
+        key = "update-org-role"
+        resources = ("organization",)
+        tags = ["organization"]
+        auth_required = True
+        new_resource = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
+
+class DeleteOrgRole(Command):
+    class Meta:
+        key = "delete-org-role"
+        resources = ("organization",)
+        tags = ["organization"]
+        auth_required = True
+        new_resource = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
+
+# ---------- Invitation Context -------
+class SendInvitation(Command):
+    class Meta:
+        key = "send-invitation"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+        new_resource = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
+class AcceptInvitation(Command):
+    class Meta:
+        key = "accept-invitation"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
+class RejectInvitation(Command):
+    class Meta:
+        key = "reject-invitation"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
 # ---------- Profile Context ----------
 class CreateProfile(Command):
     class Meta:
@@ -84,7 +232,7 @@ class CreateProfile(Command):
     Data = datadef.CreateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        profile = yield agg.create_profile(serialize_mapping(payload))
+        profile = yield agg.create_profile(payload)
         yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
 
 class UpdateProfile(Command):
@@ -97,7 +245,7 @@ class UpdateProfile(Command):
     Data = datadef.UpdateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        yield agg.update_profile(serialize_mapping(payload))
+        yield agg.update_profile(payload)
 
 class DeactivateProfile(Command):
     class Meta:
@@ -108,3 +256,24 @@ class DeactivateProfile(Command):
 
     async def _process(self, agg, stm, payload):
         yield agg.deactivate_profile()
+
+# ---------- Profile Role ----------
+class AssignRoleToProfile(Command):
+    class Meta:
+        key = "assign-role-to-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
+class RevokeRoleFromProfile(Command):
+    class Meta:
+        key = "revoke-role-from-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        pass
