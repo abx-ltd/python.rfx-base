@@ -333,3 +333,34 @@ class GroupMember(IDMBaseModel):
 
     group_id = sa.Column(pg.UUID, sa.ForeignKey(Group._id))
     profile_id = sa.Column(pg.UUID, sa.ForeignKey(Profile._id))
+
+
+class Invitation(IDMBaseModel):
+    __tablename__ = "invitation"
+
+    organization_id = sa.Column(pg.UUID, sa.ForeignKey(Organization._id))
+    user_id = sa.Column(pg.UUID, sa.ForeignKey(UserSchema._id), nullable=True)
+    profile_id = sa.Column(pg.UUID, nullable=False)
+    email = sa.Column(sa.String)
+    token = sa.Column(sa.String)
+    status = sa.Column(
+        sa.Enum(types.InvitationStatus, name="invitation_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    expires_at = sa.Column(sa.DateTime(timezone=True))
+    message = sa.Column(sa.String)
+
+
+class InvitationStatus(IDMBaseModel):
+    __tablename__ = "invitation-status"
+
+    invitation_id = sa.Column(pg.UUID, sa.ForeignKey(Invitation._id))
+    src_state = sa.Column(
+        sa.Enum(types.InvitationStatus, name="invitation_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    dst_state = sa.Column(
+        sa.Enum(types.InvitationStatus, name="invitation_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    note = sa.Column(sa.String)
