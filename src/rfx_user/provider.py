@@ -50,7 +50,7 @@ class RFXAuthProfileProvider(
         if not user_record:
             await self.insert_one('user', user_data)
         else:
-            await self.update_one('user', identifier=user_id, **user_data)
+            await self.update_one('user', user_id, **user_data)
 
         return AuthorizationContext(
             realm = realm,

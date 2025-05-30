@@ -33,7 +33,7 @@ class UserQuery(QueryResource):
     name__family = StringField("Family Name")
 
 
-@endpoint('active-profile/{profile_id}')
+@endpoint('~active-profile/{profile_id}')
 async def my_profile(query: UserProfileQueryManager, request: Request, profile_id: str):
     return f"ENDPOINT: {request} {query} {profile_id}"
 
