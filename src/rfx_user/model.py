@@ -88,10 +88,14 @@ class UserSchema(IDMBaseModel):
     is_super_admin = sa.Column(sa.Boolean, default=False)
 
     # Enum: user_status (from PostgreSQL ENUM type)
-    status = sa.Column(sa.Enum(types.UserStatus), nullable=False)
-
+    status = sa.Column(
+        sa.Enum(types.UserStatus, name="user_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
     realm_access = sa.Column(sa.JSON)
     resource_access = sa.Column(sa.JSON)
+
+    last_verified_request = sa.Column(sa.DateTime(timezone=True))
 
 
 class UserIdentity(IDMBaseModel):
@@ -118,8 +122,16 @@ class UserSession(IDMBaseModel):
 class UserStatus(IDMBaseModel):
     __tablename__ = "user-status"
 
-    status = sa.Column(sa.Enum(types.UserStatus), nullable=False)
+    src_state = sa.Column(
+        sa.Enum(types.UserStatus, name="user_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    dst_state = sa.Column(
+        sa.Enum(types.UserStatus, name="user_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
     user_id = sa.Column(sa.ForeignKey(UserSchema._id), nullable=False)
+    note = sa.Column(sa.String)
 
 
 class UserVerification(IDMBaseModel):

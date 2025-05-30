@@ -2,10 +2,11 @@ from enum import Enum
 
 
 class OrganizationStatus(Enum):
-    ACTIVE   = "ACTIVE"
-    INACTIVE = "INACTIVE"
-    SETUP    = "SETUP"
-    REVIEW   = "REVIEW"
+    ACTIVE      = "ACTIVE"
+    INACTIVE    = "INACTIVE"
+    SETUP       = "SETUP"
+    REVIEW      = "REVIEW"
+    DEACTIVATED = "DEACTIVATED"
 
 
 class ProfileStatus(Enum):
@@ -25,7 +26,8 @@ class UserSource(Enum):
 
 
 class UserStatus(Enum):
-    ACTIVE   = "ACTIVE"
-    INACTIVE = "INACTIVE"
-    EXPIRED  = "EXPIRED"
-    PENDING  = "PENDING"
+    ACTIVE      = "ACTIVE"
+    INACTIVE    = "INACTIVE"
+    EXPIRED     = "EXPIRED"
+    PENDING     = "PENDING"
+    DEACTIVATED = "DEACTIVATED"

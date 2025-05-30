@@ -81,3 +81,7 @@ class ProfilePayload(DataModel):
 
 UpdateProfilePayload = ProfilePayload
 CreateProfilePayload = ProfilePayload
+
+class SendActionPayload(DataModel):
+    actions: list
+    required: Optional[bool] = False
