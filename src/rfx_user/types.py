@@ -31,3 +31,10 @@ class UserStatus(Enum):
     EXPIRED     = "EXPIRED"
     PENDING     = "PENDING"
     DEACTIVATED = "DEACTIVATED"
+
+
+class InvitationStatus(Enum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    EXPIRED = "EXPIRED"
+    REVOKED = "REVOKED"

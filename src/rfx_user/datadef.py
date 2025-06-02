@@ -1,7 +1,9 @@
-# models.py
-from fluvius.data import DataModel
 from typing import Optional, List
 from pydantic import Field
+from datetime import datetime
+
+from fluvius.data import DataModel, UUID_TYPE
+
 from .types import OrganizationStatus
 
 class OrganizationPayload(DataModel):
@@ -85,3 +87,13 @@ CreateProfilePayload = ProfilePayload
 class SendActionPayload(DataModel):
     actions: list
     required: Optional[bool] = False
+
+class SendInvitationPayload(DataModel):
+    organization_id: UUID_TYPE
+    profile_id: UUID_TYPE
+    email: str
+    token: str
+    status: str
+    expires_at: datetime
+    message: str | None = None
+    user_id: UUID_TYPE | None = None

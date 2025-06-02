@@ -1,6 +1,9 @@
+import secrets
+from datetime import datetime, timedelta
 from fluvius.domain.aggregate import Aggregate, action
 from fluvius.data import serialize_mapping
-from .types import OrganizationStatus, ProfileStatus, UserStatus
+from .types import OrganizationStatus, ProfileStatus, UserStatus, InvitationStatus
+
 
 class UserProfileAggregate(Aggregate):
     async def set_org_status(self, org, status, note=None):
@@ -88,6 +91,71 @@ class UserProfileAggregate(Aggregate):
         await stm.update(item, status=OrganizationStatus.INACTIVE)
         await self.set_org_status(item, OrganizationStatus.INACTIVE)
 
+    # =========== Invitation Context ============
+    async def set_invitation_status(self, invitation, new_status: InvitationStatus, note=None):
+        status_record = self.init_resource("invitation-status",
+            invitation_id=invitation._id,
+            src_state=invitation.status,
+            dst_state=new_status.value,
+            note=note
+        )
+        await self.statemgr.insert(status_record)
+
+    @action("invitation-sent", resources="invitation")
+    async def send_invitation(self, stm, /, data):
+        token = secrets.token_urlsafe(16)
+        record = self.init_resource("invitation", {
+            **serialize_mapping(data),
+            "token": token,
+            "status": InvitationStatus.PENDING.value,
+            "expires_at": datetime.utcnow() + timedelta(days=7)
+        })
+        await stm.insert(record)
+        await self.set_invitation_status(record, InvitationStatus.PENDING, "Initial invitation sent")
+        return {"_id": record._id}
+
+    @action("invitation-resent", resources="invitation")
+    async def resend_invitation(self, stm, /):
+        invitation = self.rootobj
+        updates = {
+            "token": secrets.token_urlsafe(16),
+            "status": InvitationStatus.PENDING.value,
+            "expires_at": datetime.utcnow() + timedelta(days=7)
+        }
+        await stm.update(invitation, **updates)
+        await self.set_invitation_status(invitation, InvitationStatus.PENDING, "Invitation resent")
+        return {"_id": invitation._id, "resend": True}
+
+    @action("invitation-revoked", resources="invitation")
+    async def revoke_invitation(self, stm, /):
+        invitation = self.rootobj
+        await stm.update(invitation, status=InvitationStatus.REVOKED)
+        await self.set_invitation_status(invitation, InvitationStatus.REVOKED, "Invitation revoked")
+        return {"_id": invitation._id, "revoked": True}
+
+    @action("invitation-accepted", resources="invitation")
+    async def accept_invitation(self, stm, /):
+        invitation = self.rootobj
+
+        if invitation.status != InvitationStatus.PENDING.value:
+            raise ValueError("Only PENDING invitations can be accepted.")
+
+        await stm.update(invitation, status=InvitationStatus.ACCEPTED)
+        await self.set_invitation_status(invitation, InvitationStatus.ACCEPTED, "Invitation accepted")
+        return {"_id": invitation._id, "accepted": True}
+
+    @action("invitation-rejected", resources="invitation")
+    async def reject_invitation(self, stm, /):
+        invitation = self.rootobj
+
+        if invitation.status != InvitationStatus.PENDING.value:
+            raise ValueError("Only PENDING invitations can be rejected.")
+
+        await stm.update(invitation, status=InvitationStatus.REJECTED)
+        await self.set_invitation_status(invitation, InvitationStatus.REJECTED, "Invitation rejected")
+        return {"_id": invitation._id, "rejected": True}
+
+    # =========== Profile Context ============
     @action("profile-created", resources=("organization", "profile"))
     async def create_profile(self, stm, /, data):
         record = self.init_resource(
@@ -113,3 +181,20 @@ class UserProfileAggregate(Aggregate):
         item = self.rootobj
         await stm.update(item, status=ProfileStatus.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatus.DEACTIVATED)
+
+    # =========== Group Context ==========
+    @action("group-created", resources="group")
+    async def create_group(self, stm, /, data):
+        record = self.init_resource("group", data)
+        await stm.insert(record)
+        return {"_id": record._id}
+
+    @action("group-updated", resources="group")
+    async def update_group(self, stm, /, data):
+        await stm.update(self.rootobj, **serialize_mapping(data))
+        return {"updated": True}
+
+    @action("group-deleted", resources="group")
+    async def delete_group(self, stm, /):
+        await stm.invalidate_one("group", identifier=self.rootobj._id)
+        return {"deleted": True}

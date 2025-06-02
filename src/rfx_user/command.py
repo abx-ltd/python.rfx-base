@@ -38,7 +38,7 @@ class SendAction(Command):
     async def _process(self, agg, stm, payload):
         rootobj = agg.get_rootobj()
         user_id = rootobj._id
-        
+
         await kc_admin.execute_actions(user_id=user_id, actions=payload.actions, redirect_uri=config.REDIRECT_URL)
         await agg.track_user_action(payload)
 
@@ -107,7 +107,7 @@ class CreateOrganization(Command):
         org = await agg.create_organization(payload)
 
         context = agg.get_context()
-        user = await stm.fetch("user", context.user_id) 
+        user = await stm.fetch("user", context.user_id)
         profile_data = dict(
             _id=profile_id,
             user_id=user._id,
@@ -192,13 +192,36 @@ class DeleteOrgRole(Command):
 class SendInvitation(Command):
     class Meta:
         key = "send-invitation"
-        resources = ("profile",)
-        tags = ["profile"]
+        resources = ("invitation",)
+        tags = ["invitation"]
         auth_required = True
         new_resource = True
 
+    Data = datadef.SendInvitationPayload
+
     async def _process(self, agg, stm, payload):
-        pass
+        invitation = await agg.send_invitation(payload)
+        yield agg.create_response(serialize_mapping(invitation), _type="user-profile-response")
+
+class ResendInvitation(Command):
+    class Meta:
+        key = "resend-invitation"
+        resources = ("invitation",)
+        tags = ["invitation"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.resend_invitation(payload)
+
+class RevokeInvitation(Command):
+    class Meta:
+        key = "revoke-invitation"
+        resources = ("invitation",)
+        tags = ["invitation"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.revoke_invitation(payload)
 
 class AcceptInvitation(Command):
     class Meta:
@@ -208,7 +231,7 @@ class AcceptInvitation(Command):
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        pass
+        await agg.accept_invitation(payload)
 
 class RejectInvitation(Command):
     class Meta:
@@ -218,7 +241,7 @@ class RejectInvitation(Command):
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        pass
+        await agg.reject_invitation(payload)
 
 # ---------- Profile Context ----------
 class CreateProfile(Command):
@@ -277,3 +300,63 @@ class RevokeRoleFromProfile(Command):
 
     async def _process(self, agg, stm, payload):
         pass
+
+class ClearAllRoleFromProfile(Command):
+    class Meta:
+        key = "clear-role-from-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
+
+# ============ Group Context =============
+class CreateGroupCmd(Command):
+    class Meta:
+        key = "create-group"
+        new_resource = True
+        resources = ("group",)
+        description = "Create a new group"
+
+    class Data(DataModel):
+        name: str
+        description: str | None = None
+        resource: str | None = None
+        resource_id: str | None = None
+
+    @processor
+    async def _process(self, agg, stm, payload):
+        yield agg.create_group(payload)
+
+class UpdateGroupCmd(Command):
+    class Meta:
+        key = "update-group"
+        new_resource = False
+        resources = ("group",)
+        description = "Update an existing group"
+
+    class Data(DataModel):
+        group_id: str
+        name: str | None = None
+        description: str | None = None
+        resource: str | None = None
+        resource_id: str | None = None
+
+    @processor
+    async def _process(self, agg, stm, payload):
+        yield agg.update_group(payload)
+
+
+class DeleteGroupCmd(Command):
+    class Meta:
+        key = "delete-group"
+        new_resource = False
+        resources = ("group", )
+        description = "Delete (soft) a group"
+
+    @processor
+    async def _process(self, agg, stm, payload):
+        yield agg.delete_group()
+
