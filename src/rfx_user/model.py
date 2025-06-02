@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 
-from fluvius.data import DomainDataSchema, SqlaDriver, UUID_GENR
+from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
 from sqlalchemy.dialects import postgresql as pg
 
 from . import types, config
@@ -12,14 +12,11 @@ class IDMConnector(SqlaDriver):
     __db_dsn__ = config.DB_DSN
 
 
-class IDMBaseModel(DomainDataSchema):
+class IDMBaseModel(IDMConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
     __table_args__ = {'schema': config.USER_PROFILE_SCHEMA}
 
     _realm = sa.Column(sa.String)
-
-    def __init_subclass__(cls):
-        IDMConnector.register_schema(cls)
 
 
 class RefAction(IDMBaseModel):
