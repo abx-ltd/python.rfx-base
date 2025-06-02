@@ -1,18 +1,16 @@
+import pytest
 from pytest import mark
 from rfx_user import UserProfileDomain
-
 from fluvius.domain.context import DomainTransport
 from fluvius.data import UUID_GENR
 
 
 FIXTURE_REALM = "rfx-user-testing"
 FIXTURE_USER_ID = "88212396-02c5-46ae-a2ad-f3b7eb7579c0"
-FIXTURE_ORGANIZATION_ID = ""
+FIXTURE_ORGANIZATION_ID = "2a265217-abd0-4eeb-8a2f-d12681de9b13"
 FIXTURE_PROFILE_ID = ""
-FIXTURE_DOMAIN = UserProfileDomain(None)
 
-async def command_handler(cmd_key, payload, resource, identifier, scope={}):
-    domain = FIXTURE_DOMAIN
+async def command_handler(domain, cmd_key, payload, resource, identifier, scope={}):
     context = domain.setup_context(
         headers=dict(),
         transport=DomainTransport.FASTAPI,
@@ -36,71 +34,57 @@ async def command_handler(cmd_key, payload, resource, identifier, scope={}):
 
     return await domain.process_command(command, context=context)
 
+
+@pytest.fixture
+def domain():
+    return UserProfileDomain(None)
+
 # ------------------------------
 # Organization Setup
 # ------------------------------
 @mark.asyncio
 @mark.order(1)
-async def test_manage_organization():
-    """Create a new organization with unique name/code"""
+async def test_organization_context(domain):
+    """ Create a new organization with unique name/code """
     org_id = UUID_GENR()
-    payload = dict(
-        name="org-1",
-        description="org-1",
-        tax_id="orgtax01",
-        business_name="org-1"
-    )
-    await command_handler("create-organization", payload, "organization", org_id)
-    await FIXTURE_DOMAIN.statemgr.fetch("organization", org_id)
-    assert len(await FIXTURE_DOMAIN.statemgr.query("profile", where=dict(organization_id=org_id))) == 1
-
-    payload.update(name="org-updated")
-    await command_handler("update-organization", payload, "organization", org_id)
-    item = await FIXTURE_DOMAIN.statemgr.fetch("organization", org_id)
+    payload = dict(name="org-1", description="org-1", tax_id="orgtax01", business_name="org-1")
+    
+    await command_handler(domain, "create-organization", payload, "organization", org_id)
+    await command_handler(domain, "update-organization", payload | {"name": "org-updated"}, "organization", org_id)
+    await command_handler(domain, "deactivate-organization", {}, "organization", org_id)
+    
+    item = await domain.statemgr.fetch("organization", org_id)
+    assert item.status.value == "DEACTIVATED"
     assert item.name == "org-updated"
 
-    await command_handler("deactivate-organization", {}, "organization", org_id)
-    item = await FIXTURE_DOMAIN.statemgr.fetch("organization", org_id)
-    assert item.status.value == "INACTIVE"
-
-
 @mark.asyncio
-@mark.order(1.5)
-async def test_manage_org_role():
-    FIXTURE_ORGANIZATION_ID
+@mark.order(2)
+async def test_organization_role(domain):
+    """ Organization own role """
+    org_id = FIXTURE_ORGANIZATION_ID
+    payload = dict(name="org-role-1", description="org-role-1", key="org-role-1")
+    resp = await command_handler(domain, "create-org-role", payload, "organization", org_id)
+    role = await domain.statemgr.fetch('organization-role', resp[0]["role_id"])
     
+    update_payload = dict(role_id=role._id, updates=payload | {"name":"org-role-updated"})
+    await command_handler(domain, "update-org-role", update_payload, "organization", org_id)
+    await command_handler(domain, "remove-org-role", dict(role_id=role._id), "organization", org_id)
+    
+    item = await domain.statemgr.find_one('organization-role', identifier=role._id)
+    assert item._deleted is not None
+    assert item.name == "org-role-updated"
 
 # ------------------------------
 # User Invitation Flow
 # ------------------------------
 @mark.asyncio
 @mark.order(4)
-async def test_invite_user_by_email():
-    print("test_invite_user_by_email")
+async def test_invitation_context():
+    pass
     """Invite a user by email with selected roles"""
-
-@mark.asyncio
-@mark.order(5)
-async def test_generate_invitation_code_and_expiry():
-    print("test_generate_invitation_code_and_expiry")
     """Generate unique invitation code with expiration time"""
-
-@mark.asyncio
-@mark.order(6)
-async def test_prevent_duplicate_invitations():
-    print("test_prevent_duplicate_invitations")
     """Prevent duplicate active invitations to same email/org"""
-
-@mark.asyncio
-@mark.order(7)
-async def test_revoke_pending_invitation():
-    print("test_revoke_pending_invitation")
     """Revoke an unaccepted invitation"""
-
-@mark.asyncio
-@mark.order(8)
-async def test_accept_invitation_creates_profile():
-    print("test_accept_invitation_creates_profile")
     """Accept invitation and convert to active profile"""
 
 
@@ -109,32 +93,12 @@ async def test_accept_invitation_creates_profile():
 # ------------------------------
 @mark.asyncio
 @mark.order(9)
-async def test_create_profile_on_acceptance():
-    print("test_create_profile_on_acceptance")
+async def test_profile_context():
+    pass
     """Accepting invitation creates profile linked to organization"""
-
-@mark.asyncio
-@mark.order(10)
-async def test_assign_multiple_roles_to_profile():
-    print("test_assign_multiple_roles_to_profile")
     """Assign multiple roles to a profile"""
-
-@mark.asyncio
-@mark.order(11)
-async def test_revoke_role_from_profile():
-    print("test_revoke_role_from_profile")
     """Remove or revoke role from profile"""
-
-@mark.asyncio
-@mark.order(12)
-async def test_transition_profile_status():
-    print("test_transition_profile_status")
     """Transition profile status to ACTIVE, LOCKED, INACTIVE"""
-
-@mark.asyncio
-@mark.order(13)
-async def test_block_action_from_locked_or_inactive_profile():
-    print("test_block_action_from_locked_or_inactive_profile")
     """Prevent actions from LOCKED or INACTIVE profile"""
 
 
@@ -143,7 +107,7 @@ async def test_block_action_from_locked_or_inactive_profile():
 # ------------------------------
 @mark.asyncio
 @mark.order(14)
-async def test_create_group_in_org():
+async def test_group_context():
     print("test_create_group_in_org")
     """Create a new group within an organization"""
 

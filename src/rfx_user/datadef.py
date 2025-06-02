@@ -6,7 +6,7 @@ from fluvius.data import DataModel, UUID_TYPE
 
 from .types import OrganizationStatus
 
-class OrganizationPayload(DataModel):
+class CreateOrganizationPayload(DataModel):
     description: Optional[str]
     name: str = Field(max_length=255)
     tax_id: Optional[str] = Field(max_length=9)
@@ -20,10 +20,9 @@ class OrganizationPayload(DataModel):
     invitation_code: Optional[str] = Field(max_length=10, default=None)
     type: Optional[str] = None # FK to RefOrganizationType.key
 
-UpdateOrganizationPayload = OrganizationPayload
-CreateOrganizationPayload = OrganizationPayload
+UpdateOrganizationPayload = CreateOrganizationPayload
 
-class ProfilePayload(DataModel):
+class CreateProfilePayload(DataModel):
     access_tags: list[str] = []
     active: bool
 
@@ -81,22 +80,16 @@ class ProfilePayload(DataModel):
     current_profile: bool
     organization_id: str | None
 
-UpdateProfilePayload = ProfilePayload
-CreateProfilePayload = ProfilePayload
+UpdateProfilePayload = CreateProfilePayload
 
 class SendActionPayload(DataModel):
     actions: list
     required: Optional[bool] = False
 
 class SendInvitationPayload(DataModel):
-    organization_id: UUID_TYPE
-    profile_id: UUID_TYPE
     email: str
-    token: str
-    status: str
-    expires_at: datetime
+    duration: int
     message: str | None = None
-    user_id: UUID_TYPE | None = None
 
 class AssignRolePayload(DataModel):
     role_key: str
@@ -106,21 +99,16 @@ class RevokeRolePayload(DataModel):
     profile_role_id: UUID_TYPE
 
 class CreateOrgRolePayload(DataModel):
-    active: Optional[bool]
-    description: Optional[str]
-    name: str
-    key: str
-    organization_id: UUID_TYPE
-
-class UpdateOrgRolePayload(DataModel):
-    role_id: UUID_TYPE
     active: Optional[bool] = True
     description: Optional[str]
     name: str
     key: str
-    organization_id: UUID_TYPE
 
-class DeleteOrgRolePayload(DataModel):
+class UpdateOrgRolePayload(DataModel):
+    role_id: UUID_TYPE
+    updates: CreateOrgRolePayload
+
+class RemoveOrgRolePayload(DataModel):
     role_id: UUID_TYPE
 
 class AddGroupToProfilePayload(DataModel): pass

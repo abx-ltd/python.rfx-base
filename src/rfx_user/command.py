@@ -181,15 +181,15 @@ class UpdateOrgRole(Command):
         await agg.update_org_role(payload)
 
 
-class DeleteOrgRole(Command):
+class RemoveOrgRole(Command):
     class Meta:
-        key = "delete-org-role"
+        key = "remove-org-role"
         resources = ("organization",)
         tags = ["organization"]
         auth_required = True
         new_resource = True
 
-    Data = datadef.DeleteOrgRolePayload
+    Data = datadef.RemoveOrgRolePayload
 
     async def _process(self, agg, stm, payload):
         await agg.remove_org_role(payload)
@@ -218,37 +218,56 @@ class ResendInvitation(Command):
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.resend_invitation(payload)
+        await agg.resend_invitation()
 
-class RevokeInvitation(Command):
+class CancelInvitation(Command):
     class Meta:
-        key = "revoke-invitation"
+        key = "cancel-invitation"
         resources = ("invitation",)
         tags = ["invitation"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.revoke_invitation(payload)
+        await agg.cancel_invitation()
 
 class AcceptInvitation(Command):
     class Meta:
         key = "accept-invitation"
-        resources = ("profile",)
-        tags = ["profile"]
+        resources = ("invitation",)
+        tags = ["invitation"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.accept_invitation(payload)
+        await agg.accept_invitation()
+
+        rootobj = agg.get_rootobj()
+        context = agg.get_context()
+        user = await stm.fetch("user", context.user_id)
+        profile_data = dict(
+            _id=rootobj.profile_id,
+            organization_id=rootobj.organization_id,
+            user_id=user._id,
+            name__family=user.name__family,
+            name__given=user.name__given,
+            name__middle=user.name__middle,
+            name__prefix=user.name__prefix,
+            name__suffix=user.name__suffix,
+            telecom__email=user.telecom__email,
+            telecom__phone=user.telecom__phone,
+            status='ACTIVE',
+            current_profile=True
+        )
+        await agg.create_profile(profile_data)
 
 class RejectInvitation(Command):
     class Meta:
         key = "reject-invitation"
-        resources = ("profile",)
-        tags = ["profile"]
+        resources = ("invitation",)
+        tags = ["invitation"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.reject_invitation(payload)
+        await agg.reject_invitation()
 
 # ---------- Profile Context ----------
 class CreateProfile(Command):

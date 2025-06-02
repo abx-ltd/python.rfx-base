@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta
 from fluvius.domain.aggregate import Aggregate, action
-from fluvius.data import serialize_mapping
+from fluvius.data import serialize_mapping, UUID_GENR
 from .types import OrganizationStatus, ProfileStatus, UserStatus, InvitationStatus
 
 
@@ -88,25 +88,30 @@ class UserProfileAggregate(Aggregate):
     @action("organization-deactivated", resources="organization")
     async def deactivate_organization(self, stm, /, data=None):
         item = self.rootobj
-        await stm.update(item, status=OrganizationStatus.INACTIVE)
-        await self.set_org_status(item, OrganizationStatus.INACTIVE)
+        await stm.update(item, status=OrganizationStatus.DEACTIVATED)
+        await self.set_org_status(item, OrganizationStatus.DEACTIVATED)
 
     @action("org-role-created", resources="organization")
     async def create_org_role(self, stm, /, data):
-        record = self.init_resource("organization-role", data)
+        record = self.init_resource(
+            "organization-role",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+            organization_id=self.aggroot.identifier
+        )
         await stm.insert(record)
-        return {"_id": record._id}
+        return {"role_id": record._id}
 
     @action("org-role-updated", resources="organization")
     async def update_org_role(self, stm, /, data):
-        item = await stm.find_one('organization-role', data.role_id, organization_id=self.aggroot.identifier)
-        await stm.update(item, data)
+        item = await stm.fetch('organization-role', data.role_id, organization_id=self.aggroot.identifier)
+        await stm.update(item, **serialize_mapping(data.updates))
         return {"updated": True}
 
     @action("org-role-removed", resources="organization")
     async def remove_org_role(self, stm, /, data):
-        item = await stm.find_one('organization-role', data.role_id, organization_id=self.aggroot.identifier)
-        await stm.invalidate_one("organization-role", identifier=item._id)
+        item = await stm.fetch('organization-role', data.role_id, organization_id=self.aggroot.identifier)
+        await stm.invalidate_one("organization-role", item._id)
         return {"removed": True}
 
     # =========== Invitation Context ============
@@ -121,13 +126,18 @@ class UserProfileAggregate(Aggregate):
 
     @action("invitation-sent", resources="invitation")
     async def send_invitation(self, stm, /, data):
-        token = secrets.token_urlsafe(16)
-        record = self.init_resource("invitation", {
-            **serialize_mapping(data),
-            "token": token,
-            "status": InvitationStatus.PENDING.value,
-            "expires_at": datetime.utcnow() + timedelta(days=7)
-        })
+        user = stm.query('user', where=dict(email=data.email, status=UserStatus.ACTIVE), limit=1)
+        user_id = None if not user else user[0]._id
+
+        record = self.init_resource("invitation",
+            serialize_mapping(data),
+            organization_id=self.context.organization_id,
+            profile_id=UUID_GENR(),
+            user_id=user_id,
+            token=secrets.token_urlsafe(16),
+            status=InvitationStatus.PENDING,
+            expires_at=datetime.utcnow() + timedelta(days=data.duration)
+        )
         await stm.insert(record)
         await self.set_invitation_status(record, InvitationStatus.PENDING, "Initial invitation sent")
         return {"_id": record._id}
@@ -137,28 +147,26 @@ class UserProfileAggregate(Aggregate):
         invitation = self.rootobj
         updates = {
             "token": secrets.token_urlsafe(16),
-            "status": InvitationStatus.PENDING.value,
+            "status": InvitationStatus.PENDING,
             "expires_at": datetime.utcnow() + timedelta(days=7)
         }
         await stm.update(invitation, **updates)
         await self.set_invitation_status(invitation, InvitationStatus.PENDING, "Invitation resent")
         return {"_id": invitation._id, "resend": True}
 
-    @action("invitation-revoked", resources="invitation")
-    async def revoke_invitation(self, stm, /):
+    @action("invitation-canceled", resources="invitation")
+    async def cancel_invitation(self, stm, /):
         invitation = self.rootobj
-        await stm.update(invitation, status=InvitationStatus.REVOKED)
-        await self.set_invitation_status(invitation, InvitationStatus.REVOKED, "Invitation revoked")
-        return {"_id": invitation._id, "revoked": True}
+        await stm.update(invitation, status=InvitationStatus.CANCELED)
+        await self.set_invitation_status(invitation, InvitationStatus.CANCELED, "Invitation canceled")
+        return {"_id": invitation._id, "canceled": True}
 
     @action("invitation-accepted", resources="invitation")
     async def accept_invitation(self, stm, /):
         invitation = self.rootobj
-
-        if invitation.status != InvitationStatus.PENDING.value:
+        if invitation.status != InvitationStatus.PENDING:
             raise ValueError("Only PENDING invitations can be accepted.")
-
-        await stm.update(invitation, status=InvitationStatus.ACCEPTED)
+        await stm.update(invitation, status=InvitationStatus.ACCEPTED, user_id=self.context.user_id)
         await self.set_invitation_status(invitation, InvitationStatus.ACCEPTED, "Invitation accepted")
         return {"_id": invitation._id, "accepted": True}
 
@@ -166,7 +174,7 @@ class UserProfileAggregate(Aggregate):
     async def reject_invitation(self, stm, /):
         invitation = self.rootobj
 
-        if invitation.status != InvitationStatus.PENDING.value:
+        if invitation.status != InvitationStatus.PENDING:
             raise ValueError("Only PENDING invitations can be rejected.")
 
         await stm.update(invitation, status=InvitationStatus.REJECTED)

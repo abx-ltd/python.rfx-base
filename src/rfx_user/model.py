@@ -11,7 +11,6 @@ class IDMConnector(SqlaDriver):
 
     __db_dsn__ = config.DB_DSN
 
-
 class IDMBaseModel(DomainDataSchema):
     __abstract__ = True
     __table_args__ = {'schema': config.USER_PROFILE_SCHEMA}
@@ -345,6 +344,7 @@ class Invitation(IDMBaseModel):
     )
     expires_at = sa.Column(sa.DateTime(timezone=True))
     message = sa.Column(sa.String)
+    duration = sa.Column(sa.Integer)
 
 
 class InvitationStatus(IDMBaseModel):
