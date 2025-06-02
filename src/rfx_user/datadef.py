@@ -16,9 +16,9 @@ class OrganizationPayload(DataModel):
     system_tag: Optional[List[str]] = []
     user_tag: Optional[List[str]] = []
     status: OrganizationStatus = 'ACTIVE'
-    organization_code: Optional[str] = Field(max_length=255)
-    invitation_code: Optional[str] = Field(max_length=10)
-    type: Optional[str]  # FK to RefOrganizationType.key
+    organization_code: Optional[str] = Field(max_length=255, default=None)
+    invitation_code: Optional[str] = Field(max_length=10, default=None)
+    type: Optional[str] = None # FK to RefOrganizationType.key
 
 UpdateOrganizationPayload = OrganizationPayload
 CreateOrganizationPayload = OrganizationPayload
@@ -97,3 +97,33 @@ class SendInvitationPayload(DataModel):
     expires_at: datetime
     message: str | None = None
     user_id: UUID_TYPE | None = None
+
+class AssignRolePayload(DataModel):
+    role_key: str
+    role_id: UUID_TYPE
+
+class RevokeRolePayload(DataModel):
+    profile_role_id: UUID_TYPE
+
+class CreateOrgRolePayload(DataModel):
+    active: Optional[bool]
+    description: Optional[str]
+    name: str
+    key: str
+    organization_id: UUID_TYPE
+
+class UpdateOrgRolePayload(DataModel):
+    role_id: UUID_TYPE
+    active: Optional[bool] = True
+    description: Optional[str]
+    name: str
+    key: str
+    organization_id: UUID_TYPE
+
+class DeleteOrgRolePayload(DataModel):
+    role_id: UUID_TYPE
+
+class AddGroupToProfilePayload(DataModel): pass
+class RemoveGroupFromProfilePayload(DataModel): pass
+class CreateGroupPayload(DataModel): pass
+class UpdateGroupPayload(DataModel): pass

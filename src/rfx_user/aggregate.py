@@ -91,6 +91,24 @@ class UserProfileAggregate(Aggregate):
         await stm.update(item, status=OrganizationStatus.INACTIVE)
         await self.set_org_status(item, OrganizationStatus.INACTIVE)
 
+    @action("org-role-created", resources="organization")
+    async def create_org_role(self, stm, /, data):
+        record = self.init_resource("organization-role", data)
+        await stm.insert(record)
+        return {"_id": record._id}
+
+    @action("org-role-updated", resources="organization")
+    async def update_org_role(self, stm, /, data):
+        item = await stm.find_one('organization-role', data.role_id, organization_id=self.aggroot.identifier)
+        await stm.update(item, data)
+        return {"updated": True}
+
+    @action("org-role-removed", resources="organization")
+    async def remove_org_role(self, stm, /, data):
+        item = await stm.find_one('organization-role', data.role_id, organization_id=self.aggroot.identifier)
+        await stm.invalidate_one("organization-role", identifier=item._id)
+        return {"removed": True}
+
     # =========== Invitation Context ============
     async def set_invitation_status(self, invitation, new_status: InvitationStatus, note=None):
         status_record = self.init_resource("invitation-status",

@@ -160,8 +160,11 @@ class CreateOrgRole(Command):
         auth_required = True
         new_resource = True
 
+    Data = datadef.CreateOrgRolePayload
+
     async def _process(self, agg, stm, payload):
-        pass
+        role = await agg.create_org_role(payload)
+        yield agg.create_response(serialize_mapping(role), _type="user-profile-response")
 
 
 class UpdateOrgRole(Command):
@@ -172,8 +175,10 @@ class UpdateOrgRole(Command):
         auth_required = True
         new_resource = True
 
+    Data = datadef.UpdateOrgRolePayload
+
     async def _process(self, agg, stm, payload):
-        pass
+        await agg.update_org_role(payload)
 
 
 class DeleteOrgRole(Command):
@@ -184,8 +189,10 @@ class DeleteOrgRole(Command):
         auth_required = True
         new_resource = True
 
+    Data = datadef.DeleteOrgRolePayload
+
     async def _process(self, agg, stm, payload):
-        pass
+        await agg.remove_org_role(payload)
 
 
 # ---------- Invitation Context -------
@@ -288,8 +295,11 @@ class AssignRoleToProfile(Command):
         tags = ["profile"]
         auth_required = True
 
+    Data = datadef.AssignRolePayload
+
     async def _process(self, agg, stm, payload):
-        pass
+        role = await agg.assign_role_to_profile(payload)
+        yield agg.create_response(serialize_mapping(role), _type="user-profile-response")
 
 class RevokeRoleFromProfile(Command):
     class Meta:
@@ -298,8 +308,10 @@ class RevokeRoleFromProfile(Command):
         tags = ["profile"]
         auth_required = True
 
+    Data = datadef.RevokeRolePayload
+
     async def _process(self, agg, stm, payload):
-        pass
+        await agg.revoke_role_from_profile(payload)
 
 class ClearAllRoleFromProfile(Command):
     class Meta:
@@ -309,8 +321,31 @@ class ClearAllRoleFromProfile(Command):
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        pass
+        await agg.clear_all_role_from_profile()
 
+class AddGroupToProfile(Command):
+    class Meta:
+        key = "add-group-to-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    Data = datadef.AddGroupToProfilePayload
+
+    async def _process(self, agg, stm, payload):
+        await agg.add_group_to_profile(payload)
+
+class RemoveGroupFromProfile(Command):
+    class Meta:
+        key = "remove-group-from-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    Data = datadef.RemoveGroupFromProfilePayload
+
+    async def _process(self, agg, stm, payload):
+        await agg.remove_group_from_profile(payload)
 
 # ============ Group Context =============
 class CreateGroupCmd(Command):
@@ -320,15 +355,12 @@ class CreateGroupCmd(Command):
         resources = ("group",)
         description = "Create a new group"
 
-    class Data(DataModel):
-        name: str
-        description: str | None = None
-        resource: str | None = None
-        resource_id: str | None = None
+    Data = datadef.CreateGroupPayload
 
     @processor
     async def _process(self, agg, stm, payload):
-        yield agg.create_group(payload)
+        group = await agg.create_group(payload)
+        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
 
 class UpdateGroupCmd(Command):
     class Meta:
@@ -337,17 +369,11 @@ class UpdateGroupCmd(Command):
         resources = ("group",)
         description = "Update an existing group"
 
-    class Data(DataModel):
-        group_id: str
-        name: str | None = None
-        description: str | None = None
-        resource: str | None = None
-        resource_id: str | None = None
+    Data = datadef.UpdateGroupPayload
 
     @processor
     async def _process(self, agg, stm, payload):
-        yield agg.update_group(payload)
-
+        await agg.update_group(payload)
 
 class DeleteGroupCmd(Command):
     class Meta:
@@ -358,5 +384,4 @@ class DeleteGroupCmd(Command):
 
     @processor
     async def _process(self, agg, stm, payload):
-        yield agg.delete_group()
-
+        await agg.delete_group()

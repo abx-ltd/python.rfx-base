@@ -196,8 +196,6 @@ class OrganizationRole(IDMBaseModel):
     name = sa.Column(sa.String(1024))
     key = sa.Column(sa.String(255))
     organization_id = sa.Column(sa.ForeignKey(Organization._id))
-    is_system_owner = sa.Column(sa.Boolean)
-    is_system_signer = sa.Column(sa.Boolean)
 
 
 class OrganizationStatus(IDMBaseModel):
@@ -308,14 +306,12 @@ class ProfileStatus(IDMBaseModel):
     profile_id = sa.Column(sa.ForeignKey(Profile._id), nullable=False)
 
 
-class OrganizationMember(IDMBaseModel):
-    __tablename__ = "organization-member"
+class ProfileRole(IDMBaseModel):
+    __tablename__ = "profile-role"
 
-    member_id = sa.Column(sa.ForeignKey(Profile._id))
-    organization_id = sa.Column(sa.ForeignKey(Organization._id))
+    profile_id = sa.Column(sa.ForeignKey(Profile._id))
     role_key = sa.Column(sa.String(255))
     role_id = sa.Column(pg.UUID)
-    _source_id = sa.Column(sa.Integer)
 
 
 class Group(IDMBaseModel):
