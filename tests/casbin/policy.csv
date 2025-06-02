@@ -1,0 +1,17 @@
+# Policies
+p, org-admin, org-2, project:*, update
+p, org-admin, org-2, group:*, manage
+p, reviewer,  org-2, project:*, read
+p, org-admin, org-1, project:*, update
+p, org-admin, org-1, group:*, manage
+p, reviewer,  org-1, project:*, read
+
+# Domain Role Assignments
+g, profile-2, org-admin, org-2
+g, profile-3, reviewer,  org-2
+g, profile-1, org-admin, org-1
+
+# Explicit Resource Grants
+g2, profile-2, project:123
+g2, profile-2, group:abc
+g2, profile-3, project:124

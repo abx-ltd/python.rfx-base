@@ -181,3 +181,20 @@ class UserProfileAggregate(Aggregate):
         item = self.rootobj
         await stm.update(item, status=ProfileStatus.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatus.DEACTIVATED)
+
+    # =========== Group Context ==========
+    @action("group-created", resources="group")
+    async def create_group(self, stm, /, data):
+        record = self.init_resource("group", data)
+        await stm.insert(record)
+        return {"_id": record._id}
+
+    @action("group-updated", resources="group")
+    async def update_group(self, stm, /, data):
+        await stm.update(self.rootobj, **serialize_mapping(data))
+        return {"updated": True}
+
+    @action("group-deleted", resources="group")
+    async def delete_group(self, stm, /):
+        await stm.invalidate_one("group", identifier=self.rootobj._id)
+        return {"deleted": True}

@@ -300,3 +300,63 @@ class RevokeRoleFromProfile(Command):
 
     async def _process(self, agg, stm, payload):
         pass
+
+class ClearAllRoleFromProfile(Command):
+    class Meta:
+        key = "clear-role-from-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        pass
+
+
+# ============ Group Context =============
+class CreateGroupCmd(Command):
+    class Meta:
+        key = "create-group"
+        new_resource = True
+        resources = ("group",)
+        description = "Create a new group"
+
+    class Data(DataModel):
+        name: str
+        description: str | None = None
+        resource: str | None = None
+        resource_id: str | None = None
+
+    @processor
+    async def _process(self, agg, stm, payload):
+        yield agg.create_group(payload)
+
+class UpdateGroupCmd(Command):
+    class Meta:
+        key = "update-group"
+        new_resource = False
+        resources = ("group",)
+        description = "Update an existing group"
+
+    class Data(DataModel):
+        group_id: str
+        name: str | None = None
+        description: str | None = None
+        resource: str | None = None
+        resource_id: str | None = None
+
+    @processor
+    async def _process(self, agg, stm, payload):
+        yield agg.update_group(payload)
+
+
+class DeleteGroupCmd(Command):
+    class Meta:
+        key = "delete-group"
+        new_resource = False
+        resources = ("group", )
+        description = "Delete (soft) a group"
+
+    @processor
+    async def _process(self, agg, stm, payload):
+        yield agg.delete_group()
+
