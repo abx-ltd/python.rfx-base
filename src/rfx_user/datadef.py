@@ -126,5 +126,8 @@ class CreateGroupPayload(DataModel):
     resource_id: Optional[UUID_TYPE] = None
 
 class UpdateGroupPayload(DataModel):
-    group_id: UUID_TYPE
-    updates: CreateGroupPayload
+    description: Optional[str] = Field(max_length=1024)
+    name: Optional[str] = Field(max_length=1024)
+    resource: Optional[str] = None
+    resource_id: Optional[UUID_TYPE] = None
+    active: Optional[bool] = None

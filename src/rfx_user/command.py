@@ -426,7 +426,6 @@ class CreateGroup(Command):
 class UpdateGroup(Command):
     class Meta:
         key = "update-group"
-        new_resource = False
         resources = ("group",)
         tags = ["group"]
         auth_required = True
@@ -442,7 +441,6 @@ class UpdateGroup(Command):
 class DeleteGroup(Command):
     class Meta:
         key = "delete-group"
-        new_resource = False
         resources = ("group",)
         tags = ["group"]
         auth_required = True

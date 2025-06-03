@@ -273,21 +273,20 @@ class UserProfileAggregate(Aggregate):
         for group in groups:
             await stm.invalidate_one('profile-group', group._id)
 
-    @action("group-created", resources="group")
+    @action("group-created", resources="group", emit_event=True)
     async def create_group(self, stm, /, data):
-        record = self.init_resource("group",
+        record = self.init_resource(
+            "group",
             serialize_mapping(data),
-            _id=UUID_GENR(),
+            _id=self.aggroot.identifier,
             _txt=None  # TSVECTOR will be handled by database trigger
         )
         await stm.insert(record)
         return record
 
-    @action("group-updated", resources="group")
+    @action("group-updated", resources="group", emit_event=True)
     async def update_group(self, stm, /, data):
-        item = await stm.fetch('group', data.group_id)
-        if not item:
-            raise ValueError(f"Group with id {data.group_id} not found!")
+        item = self.rootobj
         await stm.update(item, **serialize_mapping(data.updates))
         return item
 
