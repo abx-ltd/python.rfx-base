@@ -239,18 +239,64 @@ class UserProfileAggregate(Aggregate):
             await stm.invalidate_one('profile-role', role._id)
 
     # =========== Group Context ==========
+    @action("group-assigned-to-profile", resources="profile")
+    async def assign_group_to_profile(self, stm, /, data):
+        group = await stm.fetch('group', data.group_id)
+        if not group:
+            raise ValueError(f"Group with id {data.group_id} not found!")
+
+        # Check if group is already assigned
+        if await stm.find_all("profile-group", where=dict(
+            profile_id=data.profile_id or self.aggroot.identifier,
+            group_id=data.group_id
+        )):
+            raise ValueError(f"Group {group.name} already assigned to profile!")
+
+        record = self.init_resource("profile-group",
+            _id=UUID_GENR(),
+            group_id=data.group_id,
+            profile_id=data.profile_id or self.aggroot.identifier
+        )
+        await stm.insert(record)
+        return record
+
+    @action("group-revoked-from-profile", resources="profile")
+    async def revoke_group_from_profile(self, stm, /, data):
+        item = await stm.fetch('profile-group', data.profile_group_id)
+        if not item:
+            raise ValueError(f"Profile-group association with id {data.profile_group_id} not found!")
+        await stm.invalidate_one('profile-group', item._id)
+
+    @action("group-cleared-from-profile", resources="profile")
+    async def clear_all_group_from_profile(self, stm, /):
+        groups = await stm.find_all('profile-group', where=dict(profile_id=self.aggroot.identifier))
+        for group in groups:
+            await stm.invalidate_one('profile-group', group._id)
+
     @action("group-created", resources="group")
     async def create_group(self, stm, /, data):
-        record = self.init_resource("group", data)
+        record = self.init_resource("group",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+            _txt=None  # TSVECTOR will be handled by database trigger
+        )
         await stm.insert(record)
-        return {"_id": record._id}
+        return record
 
     @action("group-updated", resources="group")
     async def update_group(self, stm, /, data):
-        await stm.update(self.rootobj, **serialize_mapping(data))
-        return {"updated": True}
+        item = await stm.fetch('group', data.group_id)
+        if not item:
+            raise ValueError(f"Group with id {data.group_id} not found!")
+        await stm.update(item, **serialize_mapping(data.updates))
+        return item
 
     @action("group-deleted", resources="group")
     async def delete_group(self, stm, /):
-        await stm.invalidate_one("group", identifier=self.rootobj._id)
-        return {"deleted": True}
+        # First remove all profile associations
+        groups = await stm.find_all('profile-group', where=dict(group_id=self.aggroot.identifier))
+        for group in groups:
+            await stm.invalidate_one('profile-group', group._id)
+        
+        # Then delete the group
+        await stm.invalidate_one('group', self.aggroot.identifier)

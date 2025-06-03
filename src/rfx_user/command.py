@@ -367,40 +367,87 @@ class RemoveGroupFromProfile(Command):
         await agg.remove_group_from_profile(payload)
 
 # ============ Group Context =============
-class CreateGroupCmd(Command):
+class AssignGroupToProfile(Command):
+    class Meta:
+        key = "assign-group-to-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    Data = datadef.AddGroupToProfilePayload
+
+    async def _process(self, agg, stm, payload):
+        group = await agg.assign_group_to_profile(payload)
+        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
+
+
+class RevokeGroupFromProfile(Command):
+    class Meta:
+        key = "revoke-group-from-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    Data = datadef.RemoveGroupFromProfilePayload
+
+    async def _process(self, agg, stm, payload):
+        await agg.revoke_group_from_profile(payload)
+        yield agg.create_response({"status": "success"}, _type="user-profile-response")
+
+
+class ClearAllGroupFromProfile(Command):
+    class Meta:
+        key = "clear-group-from-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.clear_all_group_from_profile()
+        yield agg.create_response({"status": "success"}, _type="user-profile-response")
+
+
+class CreateGroup(Command):
     class Meta:
         key = "create-group"
         new_resource = True
         resources = ("group",)
+        tags = ["group"]
+        auth_required = True
         description = "Create a new group"
 
     Data = datadef.CreateGroupPayload
 
-    @processor
     async def _process(self, agg, stm, payload):
         group = await agg.create_group(payload)
         yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
 
-class UpdateGroupCmd(Command):
+
+class UpdateGroup(Command):
     class Meta:
         key = "update-group"
         new_resource = False
         resources = ("group",)
+        tags = ["group"]
+        auth_required = True
         description = "Update an existing group"
 
     Data = datadef.UpdateGroupPayload
 
-    @processor
     async def _process(self, agg, stm, payload):
-        await agg.update_group(payload)
+        group = await agg.update_group(payload)
+        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
 
-class DeleteGroupCmd(Command):
+
+class DeleteGroup(Command):
     class Meta:
         key = "delete-group"
         new_resource = False
-        resources = ("group", )
-        description = "Delete (soft) a group"
+        resources = ("group",)
+        tags = ["group"]
+        auth_required = True
+        description = "Delete (soft) a group and remove all profile associations"
 
-    @processor
     async def _process(self, agg, stm, payload):
         await agg.delete_group()
+        yield agg.create_response({"status": "success"}, _type="user-profile-response")

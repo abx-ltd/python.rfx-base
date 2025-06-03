@@ -111,7 +111,20 @@ class UpdateOrgRolePayload(DataModel):
 class RemoveOrgRolePayload(DataModel):
     role_id: UUID_TYPE
 
-class AddGroupToProfilePayload(DataModel): pass
-class RemoveGroupFromProfilePayload(DataModel): pass
-class CreateGroupPayload(DataModel): pass
-class UpdateGroupPayload(DataModel): pass
+class AddGroupToProfilePayload(DataModel):
+    group_id: UUID_TYPE
+    profile_id: Optional[UUID_TYPE] = None
+
+class RemoveGroupFromProfilePayload(DataModel):
+    profile_group_id: UUID_TYPE
+
+class CreateGroupPayload(DataModel):
+    active: Optional[bool] = True
+    description: Optional[str] = Field(max_length=1024)
+    name: str = Field(max_length=1024)
+    resource: Optional[str] = None
+    resource_id: Optional[UUID_TYPE] = None
+
+class UpdateGroupPayload(DataModel):
+    group_id: UUID_TYPE
+    updates: CreateGroupPayload

@@ -320,12 +320,12 @@ class Group(IDMBaseModel):
     resource = sa.Column(sa.String)
     resource_id = sa.Column(pg.UUID)
 
-
-class GroupMember(IDMBaseModel):
-    __tablename__ = "group-member"
+class ProfileGroup(IDMBaseModel):
+    __tablename__ = "profile-group"
 
     group_id = sa.Column(pg.UUID, sa.ForeignKey(Group._id))
     profile_id = sa.Column(pg.UUID, sa.ForeignKey(Profile._id))
+
 
 
 class Invitation(IDMBaseModel):
