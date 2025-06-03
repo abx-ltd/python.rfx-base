@@ -1,24 +1,34 @@
 import casbin
+from pathlib import Path
 
-def run():
-    e = casbin.Enforcer("model.conf", "policy.csv")
+def main():
+    # Load model and policy files
+    model_path = Path("model.conf").resolve()
+    policy_path = Path("policy.csv").resolve()
+    enforcer = casbin.Enforcer(str(model_path), str(policy_path))
 
+    # List of test cases
     test_cases = [
-        ("profile-2", "org-2", "project:123", "update"),  # ✅ match all
-        ("profile-2", "org-2", "project:999", "update"),  # ❌ no g2
-        ("profile-2", "org-2", "group:abc", "manage"),    # ✅
-        ("profile-2", "org-2", "group:def", "manage"),    # ❌ no g2
-
-        ("profile-3", "org-2", "project:124", "read"),    # ✅ reviewer with g2
-        ("profile-3", "org-2", "project:123", "read"),    # ❌ no g2
-        ("profile-3", "org-2", "project:124", "update"),  # ❌ not allowed action
-
-        ("profile-1", "org-1", "project:124", "update"),  # ❌ not allowed action
+        # (profile, org, domain, resource, resource_id, action, expected_result, description)
+        ("profile-123", "org-1", "domain-1", "project", "",       "create", True,  "project-admin creating project (no resource_id)"),
+        ("profile-123", "org-1", "domain-1", "project", "proj-1", "update", True,  "project-admin updating granted project"),
+        ("profile-456", "org-1", "domain-1", "project", "proj-2", "view",   True,  "team-lead viewing granted project"),
+        ("profile-456", "org-1", "domain-1", "project", "proj-1", "update", False, "team-lead lacks update permission"),
+        ("profile-456", "org-1", "domain-1", "project", "",       "create", False, "team-lead not allowed to create"),
+        ("profile-123", "org-1", "domain-1", "project", "proj-X", "update", False, "resource not granted via g2"),
+        ("profile-123", "org-2", "domain-1", "project", "",       "create", False, "wrong organization for role"),
+        ("profile-999", "org-1", "domain-1", "project", "proj-1", "view",   False, "unknown profile"),
+        ("profile-123", "org-1", "domain-1", "project", "proj-2", "view",   True,  "project-admin has view via update policy"),
+        ("profile-123", "org-1", "domain-2", "project", "proj-1", "update", False, "wrong domain"),
+        ("profile-123", "org-1", "domain-1", "project", "proj-2", "delete", False, "no delete policy defined"),
     ]
 
-    for profile, dom, res, act in test_cases:
-        result = e.enforce(profile, dom, res, act)
-        print(f"[{profile}] -> ({dom}, {res}, {act}) = {'✅ ALLOWED' if result else '❌ DENIED'}")
+    print("🔐 Casbin Extended Test Results\n" + "-" * 70)
+    for i, (profile, org, domain, resource, res_id, action, expected, desc) in enumerate(test_cases, 1):
+        result, explain = enforcer.enforce_ex(profile, org, domain, resource, res_id, action)
+        print(explain)
+        status = "✅ PASS" if result == expected else "❌ FAIL"
+        print(f"{i:02d}) {status} | {desc:<45} → result: {result} | expected: {expected}")
 
 if __name__ == "__main__":
-    run()
+    main()

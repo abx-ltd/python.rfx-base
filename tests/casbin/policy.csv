@@ -1,17 +1,13 @@
-# Policies
-p, org-admin, org-2, project:*, update
-p, org-admin, org-2, group:*, manage
-p, reviewer,  org-2, project:*, read
-p, org-admin, org-1, project:*, update
-p, org-admin, org-1, group:*, manage
-p, reviewer,  org-1, project:*, read
+# Policy rules (who can do what — stable layer)
+p, project-admin, domain-1, project, create
+p, project-admin, domain-1, project, update
+p, project-admin, domain-1, project, view
+p, team-lead, domain-1, project, view
 
-# Domain Role Assignments
-g, profile-2, org-admin, org-2
-g, profile-3, reviewer,  org-2
-g, profile-1, org-admin, org-1
+# Role assignments (profile → role in org)
+g, profile-123, project-admin, org-1
+g, profile-456, team-lead, org-1
 
-# Explicit Resource Grants
-g2, profile-2, project:123
-g2, profile-2, group:abc
-g2, profile-3, project:124
+# Resource grants (resource_id → org, type)
+g2, org-1, project, proj-1
+g2, org-1, project, proj-2
