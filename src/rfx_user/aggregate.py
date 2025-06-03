@@ -63,6 +63,52 @@ class UserProfileAggregate(Aggregate):
         await stm.update(item, status=UserStatus.ACTIVE)
         await self.set_user_status(item, UserStatus.ACTIVE)
 
+    @action("user-synced", resources="user", emit_event=True)
+    async def sync_user(self, stm, /, data):
+        user = self.rootobj
+        await stm.update(user, **data.user_data)
+
+        # Handle user actions
+        if data.sync_actions:
+            # Get current pending actions from database
+            current_actions = await stm.find_all('user-action', where=dict(
+                user_id=user._id,
+                status='PENDING'
+            ))
+
+            # If there are required actions from Keycloak, update or create them
+            if data.required_actions:
+                # Track which actions we've seen
+                processed_actions = set()
+                
+                for action in data.required_actions:
+                    # Try to find existing action
+                    existing = next((a for a in current_actions if a.action == action), None)
+                    
+                    if existing:
+                        # Action already exists, mark as seen
+                        processed_actions.add(existing._id)
+                    else:
+                        # Create new action record
+                        record = self.init_resource('user-action', dict(
+                            user_id=user._id,
+                            action=action,
+                            name=action,
+                            status='PENDING'
+                        ))
+                        await self.statemgr.insert(record)
+
+                # Any current actions not in required_actions should be marked as completed
+                for action in current_actions:
+                    if action._id not in processed_actions:
+                        await stm.update(action, status='COMPLETED')
+            else:
+                # If no required actions, mark all pending actions as completed
+                for action in current_actions:
+                    await stm.update(action, status='COMPLETED')
+
+        return user
+
     # =========== Organization Context ============
     @action("organization-created", resources="organization", emit_event=True)
     async def create_organization(self, stm, /, data):

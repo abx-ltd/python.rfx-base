@@ -146,6 +146,11 @@ class UserAction(IDMBaseModel):
     _iid = sa.Column(pg.UUID)
     action = sa.Column(sa.ForeignKey(RefAction.key))
     name = sa.Column(sa.String(1024))
+    status = sa.Column(
+        sa.Enum(types.UserActionStatus, name="user_action_status", schema=config.USER_PROFILE_SCHEMA),
+        nullable=False,
+        server_default=types.UserActionStatus.PENDING.value
+    )
 
     user_id = sa.Column(sa.ForeignKey(UserSchema._id), nullable=False)
     user_identity_id = sa.Column(sa.ForeignKey(UserIdentity._id))

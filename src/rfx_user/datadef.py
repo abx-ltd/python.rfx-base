@@ -131,3 +131,9 @@ class UpdateGroupPayload(DataModel):
     resource: Optional[str] = None
     resource_id: Optional[UUID_TYPE] = None
     active: Optional[bool] = None
+
+class SyncUserPayload(DataModel):
+    force: Optional[bool] = False  # Force sync even if recently synced
+    sync_actions: Optional[bool] = True  # Whether to sync required actions
+    user_data: dict  # User data from Keycloak
+    required_actions: Optional[list[str]] = []  # Required actions from Keycloak

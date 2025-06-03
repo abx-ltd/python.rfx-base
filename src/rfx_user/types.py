@@ -38,3 +38,8 @@ class InvitationStatus(Enum):
     ACCEPTED = "ACCEPTED"
     EXPIRED = "EXPIRED"
     REVOKED = "REVOKED"
+
+
+class UserActionStatus(str, Enum):
+    PENDING = 'PENDING'
+    COMPLETED = 'COMPLETED'
