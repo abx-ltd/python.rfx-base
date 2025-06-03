@@ -7,19 +7,23 @@ from fluvius.data import UUID_GENR
 
 FIXTURE_REALM = "rfx-user-testing"
 FIXTURE_USER_ID = "88212396-02c5-46ae-a2ad-f3b7eb7579c0"
-FIXTURE_ORGANIZATION_ID = "2a265217-abd0-4eeb-8a2f-d12681de9b13"
-FIXTURE_PROFILE_ID = ""
+FIXTURE_ORGANIZATION_ID = "d36d4aac-e224-488a-a801-83fedcc2ab39"
+FIXTURE_PROFILE_ID = "3a93d8ad-23ad-4457-85c8-9e6cfcb1d6f4"
 
-async def command_handler(domain, cmd_key, payload, resource, identifier, scope={}):
-    context = domain.setup_context(
+async def command_handler(domain, cmd_key, payload, resource, identifier, scope={}, context={}):
+    _context = dict(
         headers=dict(),
         transport=DomainTransport.FASTAPI,
         source="rfx-base",
         realm=FIXTURE_REALM,
         user_id=FIXTURE_USER_ID,
         organization_id=FIXTURE_ORGANIZATION_ID,
-        profile_id=FIXTURE_PROFILE_ID,
+        profile_id=FIXTURE_PROFILE_ID
     )
+    if context:
+        _context.update(**context)
+
+    ctx = domain.setup_context(**_context)
 
     command = domain.create_command(
         cmd_key,
@@ -32,7 +36,7 @@ async def command_handler(domain, cmd_key, payload, resource, identifier, scope=
         )
     )
 
-    return await domain.process_command(command, context=context)
+    return await domain.process_command(command, context=ctx)
 
 
 @pytest.fixture
@@ -71,8 +75,7 @@ async def test_organization_role(domain):
     await command_handler(domain, "remove-org-role", dict(role_id=role._id), "organization", org_id)
     
     item = await domain.statemgr.find_one('organization-role', identifier=role._id)
-    assert item._deleted is not None
-    assert item.name == "org-role-updated"
+    assert item is None
 
 # ------------------------------
 # User Invitation Flow
@@ -101,6 +104,37 @@ async def test_profile_context():
     """Transition profile status to ACTIVE, LOCKED, INACTIVE"""
     """Prevent actions from LOCKED or INACTIVE profile"""
 
+@mark.asyncio
+@mark.order(9)
+async def test_profile_role_context(domain):
+    """ Test full lifecycle of profile-role: assign, duplicate, multiple, revoke, clear """
+    PROFILE_ID = FIXTURE_PROFILE_ID
+    ROLE_ID = "8094a542-cfea-4511-9fe2-9d57ff613189"
+    base_payload = dict(role_id=ROLE_ID)
+
+    # 0. Clear all role
+    await command_handler(domain, "clear-role-from-profile", {}, "profile", PROFILE_ID)
+    remaining = await domain.statemgr.find_all("profile-role", where=dict(profile_id=PROFILE_ID, _deleted=None))
+    assert len(remaining) == 0
+    # 1. Assign role
+    role = await command_handler(domain, "assign-role-to-profile", base_payload, "profile", PROFILE_ID)
+    assert len(role) == 1
+    # 2. Assign duplicate role (should not duplicate)
+    with pytest.raises(ValueError):
+        await command_handler(domain, "assign-role-to-profile", base_payload, "profile", PROFILE_ID)
+    # 4. Revoke one role
+    revoke_payload = dict(profile_role_id=role[0]["_id"])
+    await command_handler(domain, "revoke-role-from-profile", revoke_payload, "profile", PROFILE_ID)
+    assert (await domain.statemgr.find_one('profile-role', identifier=role[0]["_id"])) is None
+    # 3. Assign multiple roles
+    system_roles = await domain.statemgr.find_all("ref--system-role")
+    for _role in system_roles:
+        await command_handler(domain, "assign-role-to-profile", dict(role_id=_role._id), "profile", PROFILE_ID)
+    assert len(await domain.statemgr.find_all("profile-role", where={"profile_id": PROFILE_ID})) == len(system_roles)
+
+    # # 5. Revoke non-existent role
+    # # 6. Clear all roles
+    # # 7. Clear roles for invalid profile
 
 # ------------------------------
 # Group Context and Profile Group

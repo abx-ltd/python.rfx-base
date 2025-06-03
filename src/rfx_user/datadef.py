@@ -92,8 +92,8 @@ class SendInvitationPayload(DataModel):
     message: str | None = None
 
 class AssignRolePayload(DataModel):
-    role_key: str
     role_id: UUID_TYPE
+    role_source: str = 'SYSTEM'
 
 class RevokeRolePayload(DataModel):
     profile_role_id: UUID_TYPE

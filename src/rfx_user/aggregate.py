@@ -208,6 +208,36 @@ class UserProfileAggregate(Aggregate):
         await stm.update(item, status=ProfileStatus.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatus.DEACTIVATED)
 
+    @action("role-assigned-to-profile", resources="profile")
+    async def assign_role_to_profile(self, stm, /, data):
+        role = await stm.fetch('ref--system-role', data.role_id)
+        if await stm.find_all("profile-role", where=dict(
+            profile_id=self.aggroot.identifier,
+            role_id=data.role_id,
+            role_source=data.role_source
+        )):
+            raise ValueError(f"{role.key} already assigned to profile!")
+
+        record = self.init_resource("profile-role",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+            profile_id=self.aggroot.identifier,
+            role_key=role.key
+        )
+        await stm.insert(record)
+        return record
+
+    @action("role-revoked-from-profile", resources="profile")
+    async def revoke_role_from_profile(self, stm, /, data):
+        item = await stm.fetch('profile-role', data.profile_role_id, profile_id=self.aggroot.identifier)
+        await stm.invalidate_one('profile-role', item._id)
+
+    @action("role-cleared-from-profile", resources="profile")
+    async def clear_all_role_from_profile(self, stm, /):
+        roles = await stm.find_all('profile-role', where=dict(profile_id=self.aggroot.identifier))
+        for role in roles:
+            await stm.invalidate_one('profile-role', role._id)
+
     # =========== Group Context ==========
     @action("group-created", resources="group")
     async def create_group(self, stm, /, data):

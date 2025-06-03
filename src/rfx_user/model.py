@@ -311,6 +311,7 @@ class ProfileRole(IDMBaseModel):
     profile_id = sa.Column(sa.ForeignKey(Profile._id))
     role_key = sa.Column(sa.String(255))
     role_id = sa.Column(pg.UUID)
+    role_source = sa.Column(sa.String(255))
 
 
 class Group(IDMBaseModel):
