@@ -8,8 +8,8 @@ class IDMQueryManager(DomainQueryManager):
     __data_manager__ = IDMStateManager
 
     class Meta:
-        api_prefix = IDMDomain.Meta.api_prefix
-        api_tags = IDMDomain.Meta.api_tags
+        prefix = IDMDomain.Meta.prefix
+        tags = IDMDomain.Meta.tags
 
 
 @IDMQueryManager.register_resource('user')

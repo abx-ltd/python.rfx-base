@@ -10,8 +10,8 @@ class UserProfileQueryManager(DomainQueryManager):
     __data_manager__ = IDMStateManager
 
     class Meta(DomainQueryManager.Meta):
-        api_prefix = UserProfileDomain.Meta.api_prefix
-        api_tags = UserProfileDomain.Meta.api_tags
+        prefix = UserProfileDomain.Meta.prefix
+        tags = UserProfileDomain.Meta.tags
 
 
 resource = UserProfileQueryManager.register_resource
