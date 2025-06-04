@@ -89,6 +89,63 @@ class ActivateUser(Command):
         await agg.activate_user()
 
 
+class SyncUser(Command):
+    class Meta:
+        key = "sync-user"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+        description = "Synchronize user information from Keycloak"
+
+    Data = datadef.SyncUserPayload
+
+    async def _process(self, agg, stm, payload):
+        # Check if sync is needed
+        if not payload.force:
+            user = agg.get_rootobj()
+            if user.last_sync:
+                # Don't sync if last sync was less than 5 minutes ago
+                if (datetime.utcnow() - user.last_sync).total_seconds() < 300:
+                    yield agg.create_response({"status": "skipped", "reason": "Recently synced"}, _type="user-profile-response")
+                    return
+
+        # Get user info from Keycloak
+        user_id = agg.get_rootobj()._id
+        kc_user = await kc_admin.get_user(user_id)
+        if not kc_user:
+            raise ValueError(f"User {user_id} not found in Keycloak")
+
+        # Extract user data from Keycloak response
+        user_data = {
+            "name__family": kc_user.lastName,
+            "name__given": kc_user.firstName,
+            "telecom__email": kc_user.email,
+            "username": kc_user.username,
+            "active": kc_user.enabled,
+            "realm_access": kc_user.realmRoles,
+            "resource_access": kc_user.clientRoles,
+            "verified_email": kc_user.emailVerified and kc_user.email,
+            "last_sync": datetime.utcnow()
+        }
+
+        # Get required actions
+        required_actions = []
+        if hasattr(kc_user, 'requiredActions'):
+            required_actions = kc_user.requiredActions
+
+        # Create sync payload with Keycloak data
+        sync_payload = datadef.SyncUserPayload(
+            force=payload.force,
+            sync_actions=payload.sync_actions,
+            user_data=user_data,
+            required_actions=required_actions
+        )
+
+        # Perform sync
+        user = await agg.sync_user(sync_payload)
+        yield agg.create_response(serialize_mapping(user), _type="user-profile-response")
+
+
 # ---------- Organization Context ----------
 class CreateOrganization(Command):
     Data = datadef.CreateOrganizationPayload
