@@ -32,6 +32,7 @@ class SendAction(Command):
         resources = ("user",)
         tags = ["user"]
         auth_required = True
+        policy_required = False
 
     Data = datadef.SendActionPayload
 
