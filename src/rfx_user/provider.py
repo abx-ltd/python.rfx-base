@@ -38,18 +38,18 @@ class RFXAuthProfileProvider(
         user = await self.fetch('user', user_id)
 
         # ---------- Proifle ----------
-        q = dict(where=dict(user_id=user_id, current_profile=True, status='ACTIVE'), limit=1)
-        curr_profile = await self.query('profile', q)
+        q = where=dict(user_id=user_id, current_profile=True, status='ACTIVE')
+        curr_profile = await self.find_one('profile', where=q)
 
         if not curr_profile:
-            profile = SimpleNamespace(_id=auth_user.sub)
-            organization = SimpleNamespace(_id=self._claims.sub)
+            profile = SimpleNamespace(_id=auth_user.sub, name="Default Profile")
+            organization = SimpleNamespace(_id=auth_user.sub, name="Default Organization")
         else:
-            curr_profile = curr_profile[0]
+            curr_profile = curr_profile
             profile = curr_profile
 
             if self._active_profile:
-                act_profile = await self.find_one('profile', self._active_profile)
+                act_profile = await self.find_one('profile', identifier=self._active_profile._id)
                 if not act_profile:
                     raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
 
