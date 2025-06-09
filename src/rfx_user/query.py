@@ -24,7 +24,7 @@ class UserQuery(QueryResource):
 
     class Meta(QueryResource.Meta):
         select_all = True
-        allow_item_view = False
+        allow_item_view = True
         allow_list_view = False
         allow_meta_view = False
 
@@ -55,3 +55,21 @@ class OrganizationQuery(QueryResource):
     name = StringField("Organization Name")
     dba_name = StringField("Business Name", source="business_name")
 
+
+@resource('organization-role')
+class OrganizationRoleQuery(QueryResource):
+    class Meta(QueryResource.Meta):
+        backend_model = "organization-role"
+        select_all = True
+        allow_item_view = False
+        allow_list_view = True
+        allow_meta_view = True
+
+        scope_required = {
+            "resource": str,
+            "resource_id": str
+        }
+
+    _id  = UUIDField("Organization ID", identifier=True)
+    name = StringField("Name")
+    description = StringField("Description")
