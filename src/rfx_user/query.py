@@ -1,13 +1,17 @@
+from fastapi import Request
 from typing import Optional
 from fluvius.query import DomainQueryManager, QueryResource, endpoint
-from fastapi import Request
-from fluvius.query.field import StringField, UUIDField
+from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField
+from fluvius.data import UUID_TYPE
 
 from .state import IDMStateManager
 from .domain import UserProfileDomain
+from .policy import UserProfilePolicyManager
+from .types import OrganizationStatus
 
 class UserProfileQueryManager(DomainQueryManager):
     __data_manager__ = IDMStateManager
+    __policymgr__ = UserProfilePolicyManager
 
     class Meta(DomainQueryManager.Meta):
         prefix = UserProfileDomain.Meta.prefix
@@ -18,50 +22,33 @@ resource = UserProfileQueryManager.register_resource
 endpoint = UserProfileQueryManager.register_endpoint
 
 
-@resource('user')
-class UserQuery(QueryResource):
-    """ List current user accounts """
+# @resource('user')
+# class UserQuery(QueryResource):
+#     """ List current user accounts """
 
-    class Meta(QueryResource.Meta):
-        select_all = True
-        allow_item_view = True
-        allow_list_view = False
-        allow_meta_view = False
+#     class Meta(QueryResource.Meta):
+#         select_all = True
+#         allow_item_view = True
+#         allow_list_view = False
+#         allow_meta_view = False
 
-    _id = UUIDField("User ID", identifier=True)
-    name__given = StringField("Given Name")
-    name__family = StringField("Family Name")
+#     _id = UUIDField("User ID", identifier=True)
+#     name__given = StringField("Given Name")
+#     name__family = StringField("Family Name")
 
 
-@endpoint('~active-profile/{profile_id}')
-async def my_profile(query: UserProfileQueryManager, request: Request, profile_id: str):
-    return f"ENDPOINT: {request} {query} {profile_id}"
+# @endpoint('~active-profile/{profile_id}')
+# async def my_profile(query: UserProfileQueryManager, request: Request, profile_id: str):
+#     return f"ENDPOINT: {request} {query} {profile_id}"
 
 
 @resource('profile')
 class ProfileQuery(QueryResource):
-    """ List current user's organizations """
+    """ List current profile's user """
 
-    _id  = UUIDField("Organization ID", identifier=True)
-    name = StringField("Organization Name")
-
-
-
-@resource('organization')
-class OrganizationQuery(QueryResource):
-    """ List current user's organizations """
-
-    _id  = UUIDField("Organization ID", identifier=True)
-    name = StringField("Organization Name")
-    dba_name = StringField("Business Name", source="business_name")
-
-
-@resource('organization-role')
-class OrganizationRoleQuery(QueryResource):
     class Meta(QueryResource.Meta):
-        backend_model = "organization-role"
         select_all = True
-        allow_item_view = False
+        allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
 
@@ -69,7 +56,62 @@ class OrganizationRoleQuery(QueryResource):
             "resource": str,
             "resource_id": str
         }
+        policy_required = True
+
+    _id  = UUIDField("Profile ID", identifier=True)
+    user_id  = UUIDField("User ID")
+    address__city = StringField("City")
+    address__country = StringField("Country")
+    address__line1 = StringField("Address Line 1")
+    address__line2 = StringField("Address Line 2")
+    address__postal = StringField("Postal Code")
+    address__state = StringField("State/Province")
+
+
+@resource('profile-role')
+class ProfileRole(QueryResource):
+    class Meta(QueryResource.Meta):
+        select_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        scope_required = {
+            "resource": str,
+            "resource_id": UUID_TYPE
+        }
+        policy_required = True
+
+    _id  = UUIDField("Profile ID", identifier=True)
+    profile_id = StringField("Profile Id")
+    role_key = StringField("Role Key")
+    role_id = UUIDField("Role ID")
+    role_source = StringField("Role Source")
+
+
+@resource('organization')
+class OrganizationQuery(QueryResource):
+    """ List current user's organizations """
+
+    class Meta(QueryResource.Meta):
+        select_all = True
+        allow_item_view = True
+        allow_list_view = False
+        allow_meta_view = True
+
+        policy_required = True
+        scope_required = {"resource": str, "resource_id": str}
 
     _id  = UUIDField("Organization ID", identifier=True)
-    name = StringField("Name")
+    name = StringField("Organization name")
     description = StringField("Description")
+    tax_id = StringField("Tax ID")
+    business_name = StringField("Business Name")
+    system_entity = BooleanField("System Entity")
+    active = BooleanField("Active")
+    system_tag = StringField("System Tag", array=True)
+    user_tag = StringField("User Tag", array=True)
+    organization_code = StringField("Organization Code")
+    status = EnumField("Status", enum=OrganizationStatus)
+    invitation_code = StringField("Invitation Code")
+    type = StringField("Organization Type Key (ForeignKey)")
