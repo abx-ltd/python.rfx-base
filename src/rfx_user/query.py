@@ -118,6 +118,6 @@ class OrganizationQuery(QueryResource):
     system_tag: str = StringField("System Tag", array=True)
     user_tag: str = StringField("User Tag", array=True)
     organization_code: str = StringField("Organization Code")
-    status: str = EnumField("Status", enum=OrganizationStatus)
+    status: str = EnumField("Status")
     invitation_code: str = StringField("Invitation Code")
     type: str = StringField("Organization Type Key (ForeignKey)")
