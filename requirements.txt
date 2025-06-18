@@ -2,3 +2,4 @@ pydantic[email]
 coloredlogs
 pipe
 casbin
+pyyaml

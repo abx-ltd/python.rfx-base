@@ -9,4 +9,4 @@ class UserProfilePolicy(IDMConnector.__data_schema_base__, PolicySchema):
 
 class UserProfilePolicyManager(PolicyManager):
 	__schema__ = UserProfilePolicy
-	__model__ = "tests/_conf/model.conf"
+	# __model__ = "tests/_conf/model.conf"
