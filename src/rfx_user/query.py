@@ -1,7 +1,7 @@
 from typing import Optional
 from fluvius.query import DomainQueryManager, QueryResource, endpoint
 from fastapi import Request
-from fluvius.query.field import StringField, UUIDField
+from fluvius.query.field import StringField, PrimaryID
 
 from .state import IDMStateManager
 from .domain import UserProfileDomain
@@ -28,9 +28,9 @@ class UserQuery(QueryResource):
         allow_list_view = False
         allow_meta_view = False
 
-    _id = UUIDField("User ID", identifier=True)
-    name__given = StringField("Given Name")
-    name__family = StringField("Family Name")
+    id: str = PrimaryID("User ID")
+    name__given: str = StringField("Given Name")
+    name__family: str = StringField("Family Name")
 
 
 @endpoint('~active-profile/{profile_id}')
@@ -42,8 +42,8 @@ async def my_profile(query: UserProfileQueryManager, request: Request, profile_i
 class ProfileQuery(QueryResource):
     """ List current user's organizations """
 
-    _id  = UUIDField("Organization ID", identifier=True)
-    name = StringField("Organization Name")
+    id: str  = PrimaryID("Organization ID", identifier=True)
+    name: str = StringField("Organization Name")
 
 
 
@@ -51,9 +51,9 @@ class ProfileQuery(QueryResource):
 class OrganizationQuery(QueryResource):
     """ List current user's organizations """
 
-    _id  = UUIDField("Organization ID", identifier=True)
-    name = StringField("Organization Name")
-    dba_name = StringField("Business Name", source="business_name")
+    id: str  = PrimaryID("Organization ID", identifier=True)
+    name: str = StringField("Organization Name")
+    dba_name: str = StringField("Business Name", source="business_name")
 
 
 @resource('organization-role')
@@ -70,6 +70,6 @@ class OrganizationRoleQuery(QueryResource):
             "resource_id": str
         }
 
-    _id  = UUIDField("Organization ID", identifier=True)
-    name = StringField("Name")
-    description = StringField("Description")
+    id: str  = PrimaryID("Organization ID", identifier=True)
+    name: str = StringField("Name")
+    description: str = StringField("Description")
