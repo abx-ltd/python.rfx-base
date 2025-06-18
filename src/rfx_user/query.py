@@ -1,13 +1,9 @@
 from fastapi import Request
 from typing import Optional
 from fluvius.query import DomainQueryManager, QueryResource, endpoint
-<<<<<<< HEAD
 from fastapi import Request
-from fluvius.query.field import StringField, PrimaryID
-=======
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField
+from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID
 from fluvius.data import UUID_TYPE
->>>>>>> 699659a85ea312e4260e4a987dce023ad188b6a9
 
 from .state import IDMStateManager
 from .domain import UserProfileDomain
@@ -55,16 +51,6 @@ class ProfileQuery(QueryResource):
     name: str = StringField("Organization Name")
 
 
-
-@resource('organization')
-class OrganizationQuery(QueryResource):
-    """ List current user's organizations """
-
-    id: str  = PrimaryID("Organization ID", identifier=True)
-    name: str = StringField("Organization Name")
-    dba_name: str = StringField("Business Name", source="business_name")
-
-
 class OrganizationRoleQuery(QueryResource):
     class Meta(QueryResource.Meta):
         select_all = True
@@ -78,14 +64,14 @@ class OrganizationRoleQuery(QueryResource):
         }
         policy_required = True
 
-    id = PrimaryID("Profile ID", identifier=True)
-    user_id  = UUIDField("User ID")
-    address__city = StringField("City")
-    address__country = StringField("Country")
-    address__line1 = StringField("Address Line 1")
-    address__line2 = StringField("Address Line 2")
-    address__postal = StringField("Postal Code")
-    address__state = StringField("State/Province")
+    id: UUID_TYPE = PrimaryID("Profile ID", identifier=True)
+    user_id: UUID_TYPE  = UUIDField("User ID")
+    address__city: str = StringField("City")
+    address__country: str = StringField("Country")
+    address__line1: str = StringField("Address Line 1")
+    address__line2: str = StringField("Address Line 2")
+    address__postal: str = StringField("Postal Code")
+    address__state: str = StringField("State/Province")
 
 
 @resource('profile-role')
@@ -102,11 +88,11 @@ class ProfileRole(QueryResource):
         }
         policy_required = True
 
-    id = PrimaryID("Profile ID", identifier=True)
-    profile_id = StringField("Profile Id")
-    role_key = StringField("Role Key")
-    role_id = UUIDField("Role ID")
-    role_source = StringField("Role Source")
+    id: UUID_TYPE = PrimaryID("Profile ID", identifier=True)
+    profile_id: str = StringField("Profile Id")
+    role_key: str = StringField("Role Key")
+    role_id: str = UUIDField("Role ID")
+    role_source: str = StringField("Role Source")
 
 
 @resource('organization')
@@ -122,7 +108,7 @@ class OrganizationQuery(QueryResource):
         policy_required = True
         scope_required = {"resource": str, "resource_id": str}
 
-    id = PrimaryID("Organization ID", identifier=True)
+    id: UUID_TYPE = PrimaryID("Organization ID", identifier=True)
     name: str = StringField("Organization name")
     description: str = StringField("Description")
     tax_id: str = StringField("Tax ID")
