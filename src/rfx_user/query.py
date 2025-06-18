@@ -47,8 +47,8 @@ endpoint = UserProfileQueryManager.register_endpoint
 class ProfileQuery(QueryResource):
     """ List current profile's user """
 
-    id: str  = PrimaryID("Organization ID", identifier=True)
-    name: str = StringField("Organization Name")
+    id: UUID_TYPE = PrimaryID("Profile ID")
+    name: str = StringField("Profile Name")
 
 
 class OrganizationRoleQuery(QueryResource):
@@ -64,7 +64,7 @@ class OrganizationRoleQuery(QueryResource):
         }
         policy_required = True
 
-    id: UUID_TYPE = PrimaryID("Profile ID", identifier=True)
+    id: UUID_TYPE = PrimaryID("Profile ID")
     user_id: UUID_TYPE  = UUIDField("User ID")
     address__city: str = StringField("City")
     address__country: str = StringField("Country")
@@ -88,7 +88,7 @@ class ProfileRole(QueryResource):
         }
         policy_required = True
 
-    id: UUID_TYPE = PrimaryID("Profile ID", identifier=True)
+    id: UUID_TYPE = PrimaryID("Profile ID")
     profile_id: str = StringField("Profile Id")
     role_key: str = StringField("Role Key")
     role_id: str = UUIDField("Role ID")
@@ -108,7 +108,7 @@ class OrganizationQuery(QueryResource):
         policy_required = True
         scope_required = {"resource": str, "resource_id": str}
 
-    id: UUID_TYPE = PrimaryID("Organization ID", identifier=True)
+    id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
     description: str = StringField("Description")
     tax_id: str = StringField("Tax ID")
