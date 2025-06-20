@@ -1,9 +1,9 @@
 from fastapi import Request
-from typing import Optional
-from fluvius.query import DomainQueryManager, QueryResource, endpoint
-from fastapi import Request
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID
+from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
+from fluvius.query import DomainQueryManager, QueryResource, endpoint
+from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID
+from typing import Optional
 
 from .state import IDMStateManager
 from .domain import UserProfileDomain
@@ -51,6 +51,11 @@ class ProfileQuery(QueryResource):
     name: str = StringField("Profile Name")
 
 
+class ResourceScope(BaseModel):
+    resource: str
+    resource_id: str
+
+
 class OrganizationRoleQuery(QueryResource):
     class Meta(QueryResource.Meta):
         select_all = True
@@ -58,10 +63,7 @@ class OrganizationRoleQuery(QueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        scope_required = {
-            "resource": str,
-            "resource_id": str
-        }
+        scope_required = ResourceScope
         policy_required = True
 
     id: UUID_TYPE = PrimaryID("Profile ID")
@@ -82,10 +84,7 @@ class ProfileRole(QueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        scope_required = {
-            "resource": str,
-            "resource_id": UUID_TYPE
-        }
+        scope_required = ResourceScope
         policy_required = True
 
     id: UUID_TYPE = PrimaryID("Profile ID")
@@ -106,7 +105,7 @@ class OrganizationQuery(QueryResource):
         allow_meta_view = True
 
         policy_required = True
-        scope_required = {"resource": str, "resource_id": str}
+        scope_required = ResourceScope
 
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
@@ -118,6 +117,6 @@ class OrganizationQuery(QueryResource):
     system_tag: str = StringField("System Tag", array=True)
     user_tag: str = StringField("User Tag", array=True)
     organization_code: str = StringField("Organization Code")
-    status: str = EnumField("Status", enum=OrganizationStatus)
+    status: str = EnumField("Status")
     invitation_code: str = StringField("Invitation Code")
     type: str = StringField("Organization Type Key (ForeignKey)")

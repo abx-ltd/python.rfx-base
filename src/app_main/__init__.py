@@ -4,8 +4,10 @@ from fluvius.fastapi import (
     configure_domain_manager,
     configure_query_manager)
 
+from rfx_idm import IDMDomain
+
 domains = (
-    'rfx_idm.IDMDomain',
+    IDMDomain,
     'rfx_user.UserProfileDomain',
 )
 
