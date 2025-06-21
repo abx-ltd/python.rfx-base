@@ -63,7 +63,7 @@ class OrganizationRoleQuery(QueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        # scope_required = ResourceScope
+        scope_required = ResourceScope
         policy_required = True
 
     id: UUID_TYPE = PrimaryID("Profile ID")
@@ -84,7 +84,7 @@ class ProfileRole(QueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        # scope_required = ResourceScope
+        scope_required = ResourceScope
         policy_required = True
 
     id: UUID_TYPE = PrimaryID("Profile ID")
@@ -105,7 +105,7 @@ class OrganizationQuery(QueryResource):
         allow_meta_view = True
 
         policy_required = True
-        # scope_required = ResourceScope
+        scope_required = ResourceScope
 
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
