@@ -10,7 +10,7 @@ class UserProfileDomain(Domain):
     __aggregate__   = UserProfileAggregate
     __statemgr__    = IDMStateManager
     __logstore__    = SQLDomainLogStore
-    __policymgr__   = UserProfilePolicyManager
+    # __policymgr__   = UserProfilePolicyManager
 
 
 class UserProfileResponse(UserProfileDomain.Response):
