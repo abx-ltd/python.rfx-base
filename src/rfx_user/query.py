@@ -28,7 +28,7 @@ endpoint = UserProfileQueryManager.register_endpoint
 #     """ List current user accounts """
 
 #     class Meta(QueryResource.Meta):
-#         select_all = True
+#         include_all = True
 #         allow_item_view = True
 #         allow_list_view = False
 #         allow_meta_view = False
@@ -58,7 +58,7 @@ class ResourceScope(BaseModel):
 
 class OrganizationRoleQuery(QueryResource):
     class Meta(QueryResource.Meta):
-        select_all = True
+        include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
@@ -79,7 +79,7 @@ class OrganizationRoleQuery(QueryResource):
 @resource('profile-role')
 class ProfileRole(QueryResource):
     class Meta(QueryResource.Meta):
-        select_all = True
+        include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
@@ -99,7 +99,7 @@ class OrganizationQuery(QueryResource):
     """ List current user's organizations """
 
     class Meta(QueryResource.Meta):
-        select_all = True
+        include_all = True
         allow_item_view = True
         allow_list_view = False
         allow_meta_view = True
