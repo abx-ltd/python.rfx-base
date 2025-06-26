@@ -1,7 +1,7 @@
 from fastapi import Request
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
-from fluvius.query import DomainQueryManager, QueryResource, endpoint
+from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID
 from typing import Optional
 
@@ -44,11 +44,11 @@ endpoint = UserProfileQueryManager.register_endpoint
 
 
 @resource('profile')
-class ProfileQuery(QueryResource):
+class ProfileQuery(DomainQueryResource):
     """ List current profile's user """
 
-    id: UUID_TYPE = PrimaryID("Profile ID")
-    name: str = StringField("Profile Name")
+    name__family: str = StringField("Family Name")
+    name__given: str = StringField("Given Name")
 
 
 class ResourceScope(BaseModel):
@@ -56,8 +56,8 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
-class OrganizationRoleQuery(QueryResource):
-    class Meta(QueryResource.Meta):
+class OrganizationRoleQuery(DomainQueryResource):
+    class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -66,7 +66,6 @@ class OrganizationRoleQuery(QueryResource):
         scope_required = ResourceScope
         policy_required = True
 
-    id: UUID_TYPE = PrimaryID("Profile ID")
     user_id: UUID_TYPE  = UUIDField("User ID")
     address__city: str = StringField("City")
     address__country: str = StringField("Country")
@@ -77,8 +76,8 @@ class OrganizationRoleQuery(QueryResource):
 
 
 @resource('profile-role')
-class ProfileRole(QueryResource):
-    class Meta(QueryResource.Meta):
+class ProfileRole(DomainQueryResource):
+    class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -95,10 +94,10 @@ class ProfileRole(QueryResource):
 
 
 @resource('organization')
-class OrganizationQuery(QueryResource):
+class OrganizationQuery(DomainQueryResource):
     """ List current user's organizations """
 
-    class Meta(QueryResource.Meta):
+    class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
         allow_list_view = False
