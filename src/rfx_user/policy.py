@@ -1,12 +1,12 @@
 from fluvius.casbin import PolicyManager, PolicySchema
 from .model import IDMConnector
+from . import config
 
 
 class UserProfilePolicy(IDMConnector.__data_schema_base__, PolicySchema):
-	__table_args__ = dict(schema="rfx--policy")
-	__tablename__ = "_policy--user-profile"
+	__table_args__ = dict(schema=config.POLICY_SCHEMA)
+	__tablename__ = config.POLICY_TABLE
 
 
 class UserProfilePolicyManager(PolicyManager):
 	__schema__ = UserProfilePolicy
-	# __model__ = "tests/_conf/model.conf"

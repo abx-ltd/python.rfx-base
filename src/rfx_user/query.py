@@ -12,7 +12,7 @@ from .types import OrganizationStatus
 
 class UserProfileQueryManager(DomainQueryManager):
     __data_manager__ = IDMStateManager
-    # __policymgr__ = UserProfilePolicyManager
+    __policymgr__ = UserProfilePolicyManager
 
     class Meta(DomainQueryManager.Meta):
         prefix = UserProfileDomain.Meta.prefix
