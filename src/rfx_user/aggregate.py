@@ -32,6 +32,7 @@ class UserProfileAggregate(Aggregate):
             note=note
         )
         await self.statemgr.insert(record)
+
     # =========== User Context ============
     @action("user-action-tracked", resources="user")
     async def track_user_action(self, stm, /, data):
@@ -63,7 +64,7 @@ class UserProfileAggregate(Aggregate):
         await stm.update(item, status=UserStatus.ACTIVE)
         await self.set_user_status(item, UserStatus.ACTIVE)
 
-    @action("user-synced", resources="user", emit_event=True)
+    @action("user-synced", resources="user")
     async def sync_user(self, stm, /, data):
         user = self.rootobj
         await stm.update(user, **data.user_data)
@@ -110,7 +111,7 @@ class UserProfileAggregate(Aggregate):
         return user
 
     # =========== Organization Context ============
-    @action("organization-created", resources="organization", emit_event=True)
+    @action("organization-created", resources="organization")
     async def create_organization(self, stm, /, data):
         record = self.init_resource(
             "organization",
@@ -122,7 +123,7 @@ class UserProfileAggregate(Aggregate):
         await self.set_org_status(record, record.status)
         return record
 
-    @action("organization-updated", resources="organization", emit_event=True)
+    @action("organization-updated", resources="organization")
     async def update_organization(self, stm, /, data):
         item = self.rootobj
         await stm.update(item, **serialize_mapping(data))
@@ -239,7 +240,7 @@ class UserProfileAggregate(Aggregate):
         await self.set_profile_status(record, record.status)
         return record
 
-    @action("profile-updated", resources="profile", emit_event=True)
+    @action("profile-updated", resources="profile")
     async def update_profile(self, stm, /, data):
         item = self.rootobj
         await stm.update(item, **serialize_mapping(data))
@@ -319,7 +320,7 @@ class UserProfileAggregate(Aggregate):
         for group in groups:
             await stm.invalidate_one('profile-group', group._id)
 
-    @action("group-created", resources="group", emit_event=True)
+    @action("group-created", resources="group")
     async def create_group(self, stm, /, data):
         record = self.init_resource(
             "group",
@@ -330,7 +331,7 @@ class UserProfileAggregate(Aggregate):
         await stm.insert(record)
         return record
 
-    @action("group-updated", resources="group", emit_event=True)
+    @action("group-updated", resources="group")
     async def update_group(self, stm, /, data):
         item = self.rootobj
         await stm.update(item, **serialize_mapping(data.updates))
