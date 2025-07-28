@@ -46,7 +46,8 @@ class SendAction(Command):
         if payload.required:
             kc_user = await kc_admin.get_user(user_id)
             required_action = kc_user.requiredActions
-            actions = [action for action in payload.actions if action not in required_action]
+            actions = [
+                action for action in payload.actions if action not in required_action]
             required_action.extend(actions)
             await kc_admin.update_user(user_id=user_id, payload={"requiredActions": required_action})
 
@@ -268,6 +269,7 @@ class SendInvitation(Command):
         invitation = await agg.send_invitation(payload)
         yield agg.create_response(serialize_mapping(invitation), _type="user-profile-response")
 
+
 class ResendInvitation(Command):
     class Meta:
         key = "resend-invitation"
@@ -278,6 +280,7 @@ class ResendInvitation(Command):
     async def _process(self, agg, stm, payload):
         await agg.resend_invitation()
 
+
 class CancelInvitation(Command):
     class Meta:
         key = "cancel-invitation"
@@ -287,6 +290,7 @@ class CancelInvitation(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.cancel_invitation()
+
 
 class AcceptInvitation(Command):
     class Meta:
@@ -317,6 +321,7 @@ class AcceptInvitation(Command):
         )
         await agg.create_profile(profile_data)
 
+
 class RejectInvitation(Command):
     class Meta:
         key = "reject-invitation"
@@ -328,6 +333,8 @@ class RejectInvitation(Command):
         await agg.reject_invitation()
 
 # ---------- Profile Context ----------
+
+
 class CreateProfile(Command):
     class Meta:
         key = "create-profile"
@@ -342,6 +349,7 @@ class CreateProfile(Command):
         profile = yield agg.create_profile(payload)
         yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
 
+
 class UpdateProfile(Command):
     class Meta:
         key = "update-profile"
@@ -354,6 +362,7 @@ class UpdateProfile(Command):
     async def _process(self, agg, stm, payload):
         yield agg.update_profile(payload)
 
+
 class DeactivateProfile(Command):
     class Meta:
         key = "deactivate-profile"
@@ -365,6 +374,8 @@ class DeactivateProfile(Command):
         yield agg.deactivate_profile()
 
 # ---------- Profile Role ----------
+
+
 class AssignRoleToProfile(Command):
     class Meta:
         key = "assign-role-to-profile"
@@ -378,6 +389,7 @@ class AssignRoleToProfile(Command):
         role = await agg.assign_role_to_profile(payload)
         yield agg.create_response(serialize_mapping(role), _type="user-profile-response")
 
+
 class RevokeRoleFromProfile(Command):
     class Meta:
         key = "revoke-role-from-profile"
@@ -390,6 +402,7 @@ class RevokeRoleFromProfile(Command):
     async def _process(self, agg, stm, payload):
         await agg.revoke_role_from_profile(payload)
 
+
 class ClearAllRoleFromProfile(Command):
     class Meta:
         key = "clear-role-from-profile"
@@ -399,6 +412,7 @@ class ClearAllRoleFromProfile(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.clear_all_role_from_profile()
+
 
 class AddGroupToProfile(Command):
     class Meta:
@@ -411,6 +425,7 @@ class AddGroupToProfile(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.add_group_to_profile(payload)
+
 
 class RemoveGroupFromProfile(Command):
     class Meta:
@@ -425,6 +440,8 @@ class RemoveGroupFromProfile(Command):
         await agg.remove_group_from_profile(payload)
 
 # ============ Group Context =============
+
+
 class AssignGroupToProfile(Command):
     class Meta:
         key = "assign-group-to-profile"

@@ -8,29 +8,29 @@ from .types import OrganizationStatus, ProfileStatus, UserStatus, InvitationStat
 class UserProfileAggregate(Aggregate):
     async def set_org_status(self, org, status, note=None):
         record = self.init_resource("organization-status",
-            organization_id=org._id,
-            src_state=org.status,
-            dst_state=status,
-            note=note
-        )
+                                    organization_id=org._id,
+                                    src_state=org.status,
+                                    dst_state=status,
+                                    note=note
+                                    )
         await self.statemgr.insert(record)
 
     async def set_profile_status(self, profile, status, note=None):
         record = self.init_resource("profile-status",
-            profile_id=profile._id,
-            src_state=profile.status,
-            dst_state=status,
-            note=note
-        )
+                                    profile_id=profile._id,
+                                    src_state=profile.status,
+                                    dst_state=status,
+                                    note=note
+                                    )
         await self.statemgr.insert(record)
 
     async def set_user_status(self, user, status, note=None):
         record = self.init_resource("user-status",
-            user_id=user._id,
-            src_state=user.status,
-            dst_state=status,
-            note=note
-        )
+                                    user_id=user._id,
+                                    src_state=user.status,
+                                    dst_state=status,
+                                    note=note
+                                    )
         await self.statemgr.insert(record)
 
     # =========== User Context ============
@@ -81,11 +81,12 @@ class UserProfileAggregate(Aggregate):
             if data.required_actions:
                 # Track which actions we've seen
                 processed_actions = set()
-                
+
                 for action in data.required_actions:
                     # Try to find existing action
-                    existing = next((a for a in current_actions if a.action == action), None)
-                    
+                    existing = next(
+                        (a for a in current_actions if a.action == action), None)
+
                     if existing:
                         # Action already exists, mark as seen
                         processed_actions.add(existing._id)
@@ -162,29 +163,32 @@ class UserProfileAggregate(Aggregate):
         return {"removed": True}
 
     # =========== Invitation Context ============
+
+    @action("invitation-status-set", resources="invitation")
     async def set_invitation_status(self, invitation, new_status: InvitationStatus, note=None):
         status_record = self.init_resource("invitation-status",
-            invitation_id=invitation._id,
-            src_state=invitation.status,
-            dst_state=new_status.value,
-            note=note
-        )
+                                           invitation_id=invitation._id,
+                                           src_state=invitation.status,
+                                           dst_state=new_status.value,
+                                           note=note
+                                           )
         await self.statemgr.insert(status_record)
 
     @action("invitation-sent", resources="invitation")
     async def send_invitation(self, stm, /, data):
-        user = stm.query('user', where=dict(email=data.email, status=UserStatus.ACTIVE), limit=1)
+        user = stm.query('user', where=dict(
+            email=data.email, status=UserStatus.ACTIVE), limit=1)
         user_id = None if not user else user[0]._id
 
         record = self.init_resource("invitation",
-            serialize_mapping(data),
-            organization_id=self.context.organization_id,
-            profile_id=UUID_GENR(),
-            user_id=user_id,
-            token=secrets.token_urlsafe(16),
-            status=InvitationStatus.PENDING,
-            expires_at=datetime.utcnow() + timedelta(days=data.duration)
-        )
+                                    serialize_mapping(data),
+                                    organization_id=self.context.organization_id,
+                                    profile_id=UUID_GENR(),
+                                    user_id=user_id,
+                                    token=secrets.token_urlsafe(16),
+                                    status=InvitationStatus.PENDING,
+                                    expires_at=datetime.utcnow() + timedelta(days=data.duration)
+                                    )
         await stm.insert(record)
         await self.set_invitation_status(record, InvitationStatus.PENDING, "Initial invitation sent")
         return {"_id": record._id}
@@ -266,11 +270,11 @@ class UserProfileAggregate(Aggregate):
             raise ValueError(f"{role.key} already assigned to profile!")
 
         record = self.init_resource("profile-role",
-            serialize_mapping(data),
-            _id=UUID_GENR(),
-            profile_id=self.aggroot.identifier,
-            role_key=role.key
-        )
+                                    serialize_mapping(data),
+                                    _id=UUID_GENR(),
+                                    profile_id=self.aggroot.identifier,
+                                    role_key=role.key
+                                    )
         await stm.insert(record)
         return record
 
@@ -297,13 +301,14 @@ class UserProfileAggregate(Aggregate):
             profile_id=data.profile_id or self.aggroot.identifier,
             group_id=data.group_id
         )):
-            raise ValueError(f"Group {group.name} already assigned to profile!")
+            raise ValueError(
+                f"Group {group.name} already assigned to profile!")
 
         record = self.init_resource("profile-group",
-            _id=UUID_GENR(),
-            group_id=data.group_id,
-            profile_id=data.profile_id or self.aggroot.identifier
-        )
+                                    _id=UUID_GENR(),
+                                    group_id=data.group_id,
+                                    profile_id=data.profile_id or self.aggroot.identifier
+                                    )
         await stm.insert(record)
         return record
 
@@ -311,7 +316,8 @@ class UserProfileAggregate(Aggregate):
     async def revoke_group_from_profile(self, stm, /, data):
         item = await stm.fetch('profile-group', data.profile_group_id)
         if not item:
-            raise ValueError(f"Profile-group association with id {data.profile_group_id} not found!")
+            raise ValueError(
+                f"Profile-group association with id {data.profile_group_id} not found!")
         await stm.invalidate_one('profile-group', item._id)
 
     @action("group-cleared-from-profile", resources="profile")
@@ -343,6 +349,6 @@ class UserProfileAggregate(Aggregate):
         groups = await stm.find_all('profile-group', where=dict(group_id=self.aggroot.identifier))
         for group in groups:
             await stm.invalidate_one('profile-group', group._id)
-        
+
         # Then delete the group
         await stm.invalidate_one('group', self.aggroot.identifier)
