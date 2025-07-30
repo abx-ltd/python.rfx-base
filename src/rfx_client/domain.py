@@ -22,6 +22,18 @@ class WorkPackageResponse(CPOPortalDomain.Response):
     pass
 
 
+class WorkPackageTypeResponse(CPOPortalDomain.Response):
+    pass
+
+
+class WorkPackageDeliverableResponse(CPOPortalDomain.Response):
+    pass
+
+
+class WorkItemResponse(CPOPortalDomain.Response):
+    pass
+
+
 class TicketResponse(CPOPortalDomain.Response):
     pass
 
@@ -43,4 +55,12 @@ class ResourceUploadResponse(CPOPortalDomain.Response):
 
 
 class SyncResultResponse(CPOPortalDomain.Response):
+    pass
+
+
+class TagResponse(CPOPortalDomain.Response):
+    pass
+
+
+class TicketTypeResponse(CPOPortalDomain.Response):
     pass

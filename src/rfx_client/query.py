@@ -1,14 +1,13 @@
+from .types import Priority, ProjectStatus, Availability, SyncStatus
+from .policy import CPOPortalPolicyManager
+from .domain import CPOPortalDomain
+from .state import CPOPortalStateManager
+from typing import Optional
 from fastapi import Request
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField
-from typing import Optional
-
-from .state import CPOPortalStateManager
-from .domain import CPOPortalDomain
-from .policy import CPOPortalPolicyManager
-from .types import Priority, ProjectStatus, Availability, SyncStatus
+from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField
 
 
 class CPOPortalQueryManager(DomainQueryManager):
@@ -131,12 +130,10 @@ class WorkPackageQuery(DomainQueryResource):
         allow_meta_view = True
 
     work_package_name: str = StringField("Work Package Name")
-    description: str = StringField("Description")
     type: str = StringField("Type")
     complexity_level: str = StringField("Complexity Level")
     credits: float = FloatField("Credits")
-    is_active: bool = BooleanField("Is Active")
-    example_description: str = StringField("Example Description")
+    is_custom: bool = BooleanField("Is Custom")
 
 
 @resource('ref--work-package-type')
@@ -151,7 +148,6 @@ class RefWorkPackageTypeQuery(DomainQueryResource):
 
     name: str = StringField("Name")
     description: str = StringField("Description")
-    is_active: bool = BooleanField("Is Active")
 
 
 @resource('ref--work-package-complexity')
@@ -166,7 +162,23 @@ class RefWorkPackageComplexityQuery(DomainQueryResource):
 
     code: str = StringField("Code")
     name: str = StringField("Name")
-    description: str = StringField("Description")
+
+
+@resource('_work-package-detail')
+class WorkPackageDetailQuery(DomainQueryResource):
+    """Work package detail queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
+    work_package_name: str = StringField("Work Package Name")
+    type: str = StringField("Type")
+    complexity_level: str = StringField("Complexity Level")
+    credits: float = FloatField("Credits")
 
 
 # Ticket Queries
@@ -192,287 +204,24 @@ class TicketQuery(DomainQueryResource):
     project_id: UUID_TYPE = UUIDField("Project ID")
 
 
-@resource('inquiry-listing')
+@resource('_inquiry-listing')
 class InquiryListingQuery(DomainQueryResource):
-    """Inquiry listing queries - Lists inquiries created by current user"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = False
-        allow_list_view = True
-        allow_meta_view = True
-
-    title: str = StringField("Title")
-    type: str = StringField("Type")
-    status: str = StringField("Status")
-    availability: Availability = EnumField("Availability")
-
-    @endpoint('inquiry-listing')
-    async def list_inquiries(self, request: Request):
-        """List inquiries created by current user"""
-        context = self.get_context()
-        user_id = context.user_id
-
-        # Get inquiries where _creator is current user and project_id is None
-        inquiries = await self.find_all(
-            where=dict(
-                _creator=user_id,
-                project_id=None
-            ),
-            order_by="_updated DESC"
-        )
-
-        # Transform to include additional info
-        result = []
-        for inquiry in inquiries:
-            # Get participants count
-            participants = await self.find_all(
-                'ticket-assignee',
-                where=dict(ticket_id=inquiry._id)
-            )
-
-            # Get replies count (comments)
-            replies = await self.find_all(
-                'ticket-comment',
-                where=dict(ticket_id=inquiry._id)
-            )
-
-            result.append({
-                "type": inquiry.type,
-                "inquiry": inquiry,
-                "participants": len(participants),
-                "repliesCount": len(replies),
-                "activity": inquiry._updated,
-                "status": inquiry.availability.value
-            })
-
-        return result
-
-
-@resource('ticket-listing')
-class TicketListingQuery(DomainQueryResource):
-    """Ticket listing queries - Lists tickets by project"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = False
-        allow_list_view = True
-        allow_meta_view = True
-
-    title: str = StringField("Title")
-    type: str = StringField("Type")
-    status: str = StringField("Status")
-    availability: Availability = EnumField("Availability")
-    project_id: UUID_TYPE = UUIDField("Project ID")
-
-    @endpoint('ticket-listing')
-    async def list_tickets(self, request: Request):
-        """List tickets by project"""
-        project_id = request.query_params.get('project_id')
-        if not project_id:
-            return []
-
-        # Get tickets for specific project
-        tickets = await self.find_all(
-            where=dict(
-                project_id=project_id
-            ),
-            order_by="_updated DESC"
-        )
-
-        # Transform to include additional info
-        result = []
-        for ticket in tickets:
-            # Get participants count
-            participants = await self.find_all(
-                'ticket-assignee',
-                where=dict(ticket_id=ticket._id)
-            )
-
-            # Get replies count (comments)
-            replies = await self.find_all(
-                'ticket-comment',
-                where=dict(ticket_id=ticket._id)
-            )
-
-            result.append({
-                "type": ticket.type,
-                "ticket": ticket,
-                "participants": len(participants),
-                "repliesCount": len(replies),
-                "activity": ticket._updated,
-                "status": ticket.availability.value
-            })
-
-        return result
-
-
-@resource('ticket-detail')
-class TicketDetailQuery(DomainQueryResource):
-    """Ticket detail queries"""
+    """Inquiry listing queries"""
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
-        allow_list_view = False
+        allow_list_view = True
         allow_meta_view = True
 
-    title: str = StringField("Title")
-    description: str = StringField("Description")
     type: str = StringField("Type")
-    priority: Priority = EnumField("Priority")
-    status: str = StringField("Status")
+    type_icon_color: str = StringField("Type Icon Color")
+    title: str = StringField("Title")
+    tag_names: list[str] = ListField("Tag Names")
+    inquiry_id:  UUID_TYPE = UUIDField("Inquiry ID")
+    participants: list[dict] = ListField("Participants")
+    activity: str = DatetimeField("Activity")
     availability: Availability = EnumField("Availability")
-    project_id: UUID_TYPE = UUIDField("Project ID")
-    assignee: UUID_TYPE = UUIDField("Assignee")
-    parent_id: UUID_TYPE = UUIDField("Parent ID")
-
-    @endpoint('ticket-detail')
-    async def get_ticket_detail(self, request: Request):
-        """Get ticket detail with comments and status history"""
-        ticket_id = request.path_params.get('ticket_id')
-        if not ticket_id:
-            return None
-
-        # Get ticket
-        ticket = await self.fetch('ticket', ticket_id)
-        if not ticket:
-            return None
-
-        # Get comments
-        comments = await self.find_all(
-            'ticket-comment',
-            where=dict(ticket_id=ticket_id)
-        )
-
-        # Get status history
-        status_history = await self.find_all(
-            'ticket-status',
-            where=dict(ticket_id=ticket_id),
-            order_by="_created ASC"
-        )
-
-        return {
-            "ticket": ticket,
-            "comments": comments,
-            "status_history": status_history
-        }
-
-
-@resource('ticket-status-history-listing')
-class TicketStatusHistoryQuery(DomainQueryResource):
-    """Ticket status history queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = False
-        allow_list_view = True
-        allow_meta_view = True
-
-    ticket_id: UUID_TYPE = UUIDField("Ticket ID")
-    src_state: str = StringField("Source State")
-    dst_state: str = StringField("Destination State")
-    note: str = StringField("Note")
-
-    @endpoint('ticket-status-history-listing')
-    async def list_ticket_status_history(self, request: Request):
-        """List ticket status history"""
-        ticket_id = request.path_params.get('ticket_id')
-        if not ticket_id:
-            return []
-
-        status_transitions = await self.find_all(
-            'ticket-status',
-            where=dict(ticket_id=ticket_id),
-            order_by="_created ASC"
-        )
-
-        return status_transitions
-
-
-@resource('ticket-comment-listing')
-class TicketCommentQuery(DomainQueryResource):
-    """Ticket comment queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = False
-        allow_list_view = True
-        allow_meta_view = True
-
-    ticket_id: UUID_TYPE = UUIDField("Ticket ID")
-    comment_id: UUID_TYPE = UUIDField("Comment ID")
-
-    @endpoint('ticket-comment-listing')
-    async def list_ticket_comments(self, request: Request):
-        """List comments for a ticket"""
-        ticket_id = request.path_params.get('ticket_id')
-        if not ticket_id:
-            return []
-
-        comments = await self.find_all(
-            'ticket-comment',
-            where=dict(ticket_id=ticket_id),
-            order_by="_created ASC"
-        )
-
-        return comments
-
-
-@resource('ticket-tag-listing')
-class TicketTagQuery(DomainQueryResource):
-    """Ticket tag queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = False
-        allow_list_view = True
-        allow_meta_view = True
-
-    ticket_id: UUID_TYPE = UUIDField("Ticket ID")
-    tag_id: UUID_TYPE = UUIDField("Tag ID")
-
-    @endpoint('ticket-tag-listing')
-    async def list_ticket_tags(self, request: Request):
-        """List tags for a ticket"""
-        ticket_id = request.path_params.get('ticket_id')
-        if not ticket_id:
-            return []
-
-        tags = await self.find_all(
-            'ticket-tag',
-            where=dict(ticket_id=ticket_id)
-        )
-
-        return tags
-
-
-@resource('ticket-type-listing')
-class TicketTypeQuery(DomainQueryResource):
-    """Ticket type queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = False
-        allow_list_view = True
-        allow_meta_view = True
-
-    key: str = StringField("Key")
-    name: str = StringField("Name")
-    description: str = StringField("Description")
-    icon_color: str = StringField("Icon Color")
-    is_active: bool = BooleanField("Is Active")
-
-    @endpoint('ticket-type-listing')
-    async def list_ticket_types(self, request: Request):
-        """List available ticket types/categories"""
-        ticket_types = await self.find_all(
-            'ref--ticket-type',
-            where=dict(is_active=True),
-            order_by="name ASC"
-        )
-
-        return ticket_types
 
 
 @resource('ticket-status')

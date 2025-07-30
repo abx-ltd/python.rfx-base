@@ -11,15 +11,15 @@ Command = CPOPortalDomain.Command
 
 # ---------- Project Context ----------
 
-class CreateProjectEstimator(Command):
-    """Create Project Estimator - Creates a new project estimator draft"""
+class CreateEstimator(Command):
+    """Create Estimator - Creates a new estimator (project draft)"""
 
     class Meta:
-        key = "create-project-estimator"
+        key = "create-estimator"
         resources = ("project",)
         tags = ["project", "estimator"]
         auth_required = True
-        description = "Create a new project estimator draft"
+        description = "Create a new estimator (project draft)"
         new_resource = True
 
     Data = datadef.CreateProjectEstimatorPayload
@@ -31,7 +31,7 @@ class CreateProjectEstimator(Command):
 
 
 class CreateProject(Command):
-    """Create Project - Creates a new project directly"""
+    """Create Project - Creates a new project - this is a conversion from estimator"""
 
     class Meta:
         key = "create-project"
@@ -49,22 +49,22 @@ class CreateProject(Command):
         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
 
-class ConvertEstimatorToProject(Command):
-    """Convert Estimator to Project - Converts an estimator draft to active project"""
+# class ConvertEstimatorToProject(Command):
+#     """Convert Estimator to Project - Converts an estimator draft to active project"""
 
-    class Meta:
-        key = "convert-estimator-to-project"
-        resources = ("project",)
-        tags = ["project", "estimator"]
-        auth_required = True
-        description = "Convert estimator draft to active project"
+#     class Meta:
+#         key = "convert-estimator-to-project"
+#         resources = ("project",)
+#         tags = ["project", "estimator"]
+#         auth_required = True
+#         description = "Convert estimator draft to active project"
 
-    Data = datadef.ConvertEstimatorToProjectPayload
+#     Data = datadef.ConvertEstimatorToProjectPayload
 
-    async def _process(self, agg, stm, payload):
-        """Convert estimator to project"""
-        result = await agg.convert_estimator_to_project(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="project-response")
+#     async def _process(self, agg, stm, payload):
+#         """Convert estimator to project"""
+#         result = await agg.convert_estimator_to_project(data=payload)
+#         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
 
 class AddWorkPackageToEstimator(Command):
@@ -471,6 +471,23 @@ class CreateTicket(Command):
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
 
+class UpdateInquiryInfo(Command):
+    """Update Inquiry Info - Updates inquiry information"""
+
+    class Meta:
+        key = "update-inquiry"
+        resources = ("ticket",)
+        tags = ["inquiry", "update"]
+        auth_required = True
+        description = "Update inquiry information"
+
+    Data = datadef.UpdateInquiryPayload
+
+    async def _process(self, agg, stm, payload):
+        ticket = await agg.update_ticket_info(payload)
+        yield agg.create_response(ticket, _type="ticket-response")
+
+
 class UpdateTicketInfo(Command):
     """Update Ticket Info - Updates ticket information"""
 
@@ -605,6 +622,63 @@ class AddTicketComment(Command):
         yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
 
 
+class AddParticipantToTicket(Command):
+    """Add Participant to Ticket - Adds a participant to ticket"""
+
+    class Meta:
+        key = "add-participant-to-ticket"
+        resources = ("ticket",)
+        tags = ["ticket", "participant"]
+        auth_required = True
+        description = "Add participant to ticket"
+
+    Data = datadef.AddTicketParticipantPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add participant to ticket"""
+        await agg.add_ticket_participant(payload.participant_id)
+
+# Tag Context
+
+
+class CreateTag(Command):
+    """Create Tag - Creates a new tag"""
+
+    class Meta:
+        key = "create-tag"
+        resources = ("tag",)
+        tags = ["tag"]
+        auth_required = True
+        description = "Create a new tag in project"
+        new_resource = True
+
+    Data = datadef.CreateTagPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create tag"""
+        result = await agg.create_tag(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="tag-response")
+
+
+class CreateTicketType(Command):
+    """Create Ticket Type - Creates a new ticket type"""
+
+    class Meta:
+        key = "create-ticket-type"
+        resources = ("ticket",)
+        tags = ["ticket", "ticket-type", "reference"]
+        auth_required = True
+        description = "Create a new ticket type"
+        new_resource = True
+
+    Data = datadef.CreateTicketTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Create ticket type"""
+        result = await agg.create_ticket_type(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="ticket-type-response")
+
+
 class AddTicketTag(Command):
     """Add Tag to Ticket - Adds a tag to ticket"""
 
@@ -620,9 +694,6 @@ class AddTicketTag(Command):
     async def _process(self, agg, stm, payload):
         """Add tag to ticket"""
         await agg.add_ticket_tag(payload.tag_id)
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
 
 
 class RemoveTicketTag(Command):
@@ -646,7 +717,6 @@ class RemoveTicketTag(Command):
 
 
 # ---------- Work Package Context ----------
-
 class CreateWorkPackage(Command):
     """Create Work Package - For internal/admin use — adds new reusable WP"""
 
@@ -662,16 +732,77 @@ class CreateWorkPackage(Command):
 
     async def _process(self, agg, stm, payload):
         """Create new work package"""
-        result = await agg.create_work_package(
-            work_package_name=payload.work_package_name,
-            description=payload.description,
-            type=payload.type,
-            complexity_level=payload.complexity_level,
-            credits=payload.credits,
-            example_description=payload.example_description,
-            is_active=payload.is_active
-        )
+        result = await agg.create_work_package(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="work-package-response")
+
+
+class CreateWorkPackageType(Command):
+    """Create Work Package Type - Creates a new work package type reference"""
+
+    class Meta:
+        key = "create-workpackage-type"
+        resources = ("work-package",)
+        tags = ["workpackage", "type", "reference"]
+        new_resource = True
+        auth_required = True
+        description = "Create new work package type"
+
+    Data = datadef.CreateWorkPackageTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Create new work package type"""
+        result = await agg.create_work_package_type(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="work-package-type-response")
+
+
+# class InvalidateWorkPackageType(Command):
+#     """Invalidate Work Package Type - Invalidate a work package type"""
+
+#     class Meta:
+#         key = "invalidate-workpackage-type"
+#         resources = ("work-package",)
+#         tags = ["workpackage", "type", "reference", "invalidate"]
+#         auth_required = True
+#         description = "Invalidate work package type"
+
+#     async def _process(self, aggregate, stm, payload):
+#         await aggregate.invalidate_work_package_type()
+
+
+class CreateWorkPackageDeliverable(Command):
+    """Create Work Package Deliverable - Creates a new deliverable for a work package"""
+
+    class Meta:
+        key = "create-workpackage-deliverable"
+        resources = ("work-package",)
+        tags = ["workpackage", "deliverable", "create"]
+        new_resource = True
+        auth_required = True
+        description = "Create new work package deliverable"
+
+    Data = datadef.CreateWorkPackageDeliverablePayload
+
+    async def _process(self, agg, stm, payload):
+        """Create new work package deliverable"""
+        result = await agg.create_work_package_deliverable(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="work-package-deliverable-response")
+
+
+class InvalidateWorkPackageDeliverable(Command):
+    """Invalidate Work Package Deliverable - Invalidate a work package deliverable"""
+
+    class Meta:
+        key = "invalidate-workpackage-deliverable"
+        resources = ("work-package",)
+        tags = ["workpackage", "deliverable", "invalidate"]
+        auth_required = True
+        description = "Invalidate work package deliverable"
+
+    Data = datadef.InvalidateWorkPackageDeliverablePayload
+
+    async def _process(self, agg, stm, payload):
+        """Invalidate work package deliverable"""
+        await agg.invalidate_work_package_deliverable(data=payload)
 
 
 class UpdateWorkPackage(Command):
@@ -689,50 +820,57 @@ class UpdateWorkPackage(Command):
     async def _process(self, agg, stm, payload):
         """Update work package"""
         update_data = payload.dict(exclude_none=True)
-        await agg.update_work_package(update_data)
-        # Get the updated work package data
-        work_package = await stm.fetch("work-package", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(work_package), _type="work-package-response")
+        result = await agg.update_work_package(update_data)
+        yield agg.create_response(serialize_mapping(result), _type="work-package-response")
 
 
-class DeactivateWorkPackage(Command):
-    """Deactivate Work Package - Sets is_active = false, hiding it from estimators"""
+class InvalidateWorkPackage(Command):
+    """Invalidate Work Package - Invalidate a work package"""
 
     class Meta:
-        key = "disable-workpackage"
-        resources = ("work-package",)
-        tags = ["workpackage", "deactivate"]
+        key = "invalidate-workpackage"
+        resources = ('work-package', )
+        tags = ['workpackage', 'invalidate']
         auth_required = True
-        description = "Deactivate work package"
+        description = "Invalidate work package"
 
-    async def _process(self, agg, stm, payload):
-        """Deactivate work package"""
-        await agg.deactivate_work_package()
-        # Get the updated work package data
-        work_package = await stm.fetch("work-package", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(work_package), _type="work-package-response")
+    async def _process(self, aggregate, stm, payload):
+        await aggregate.invalidate_work_package()
 
 
-class ReactivateWorkPackage(Command):
-    """Reactivate Work Package - Sets is_active = true"""
+# ---------- Work Item Context ----------
+
+class CreateWorkItem(Command):
+    """Create Work Item - Creates a new work item"""
 
     class Meta:
-        key = "enable-workpackage"
-        resources = ("work-package",)
-        tags = ["workpackage", "reactivate"]
-        auth_required = True
-        description = "Reactivate work package"
+        key = "create-work-item"
+        resources = ("work-item",)
+        tags = ["work-item", "create"]
+
+    Data = datadef.CreateWorkItemPayload
 
     async def _process(self, agg, stm, payload):
-        """Reactivate work package"""
-        await agg.reactivate_work_package()
-        # Get the updated work package data
-        work_package = await stm.fetch("work-package", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(work_package), _type="work-package-response")
+        """Create new work item"""
+        result = await agg.create_work_item(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="work-item-response")
+
+
+class AddWorkItemToWorkPackage(Command):
+    """Add Work Item to Work Package - Adds a work item to a work package"""
+
+    class Meta:
+        key = "add-work-item-to-workpackage"
+        resources = ("work-package",)
+        tags = ["work-package", "work-item", "add"]
+
+    Data = datadef.AddWorkItemToWorkPackagePayload
+
+    async def _process(self, agg, stm, payload):
+        await agg.add_work_item_to_work_package(payload.work_item_id)
 
 
 # ---------- Notification Context ----------
-
 class MarkNotificationAsRead(Command):
     """Mark Notification As Read - Update is_read status of a specific notification to true"""
 
@@ -747,10 +885,6 @@ class MarkNotificationAsRead(Command):
 
     async def _process(self, agg, stm, payload):
         """Mark notification as read"""
-        await agg.mark_notification_as_read(payload.notification_id)
-        # Get the updated notification data
-        notification = await stm.fetch("notification", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(notification), _type="notification-response")
 
 
 class MarkAllNotificationsAsRead(Command):
@@ -767,14 +901,9 @@ class MarkAllNotificationsAsRead(Command):
 
     async def _process(self, agg, stm, payload):
         """Mark all notifications as read"""
-        await agg.mark_all_notifications_as_read()
-        # Get the updated notification data
-        notification = await stm.fetch("notification", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(notification), _type="notification-response")
+
 
 # ---------- Integration Context ----------
-
-
 class UnifiedSync(Command):
     """Sync Client Portal items to External System - Unified sync command to sync data of client portal system to other external resource"""
 
@@ -789,14 +918,3 @@ class UnifiedSync(Command):
 
     async def _process(self, agg, stm, payload):
         """Unified sync command"""
-        result = await agg.unified_sync(
-            action=payload.action,
-            entity_type=payload.entity_type,
-            entity_id=payload.entity_id,
-            provider=payload.provider,
-            direction=payload.direction,
-            options=payload.options,
-            method=payload.method,
-            params=payload.params
-        )
-        yield agg.create_response(result, _type="sync-result")

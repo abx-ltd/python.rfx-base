@@ -40,6 +40,7 @@ class ProjectStatus(Enum):
     CANCELLED = "CANCELLED"
     ON_HOLD = "ON_HOLD"
 
+
 class WorkflowStatus(Enum):
     DRAFT = "DRAFT"
     ACTIVE = "ACTIVE"
@@ -52,3 +53,6 @@ class NotificationType(Enum):
     TICKET_ASSIGNED = "TICKET_ASSIGNED"
     MILESTONE_DUE = "MILESTONE_DUE"
     SYSTEM_ALERT = "SYSTEM_ALERT"
+
+
+

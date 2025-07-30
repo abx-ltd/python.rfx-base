@@ -27,15 +27,15 @@ class CreateProjectPayload(DataModel):
     lead_id: Optional[UUID_TYPE] = None
 
 
-class ConvertEstimatorToProjectPayload(DataModel):
-    """Payload for converting estimator to project"""
-    name: Optional[str] = Field(max_length=255)
-    description: Optional[str] = None
-    category: Optional[str] = None
-    priority: Optional[Priority] = None
-    start_date: Optional[datetime] = None
-    target_date: Optional[datetime] = None
-    lead_id: Optional[UUID_TYPE] = None
+# class ConvertEstimatorToProjectPayload(DataModel):
+#     """Payload for converting estimator to project"""
+#     name: Optional[str] = Field(max_length=255)
+#     description: Optional[str] = None
+#     category: Optional[str] = None
+#     priority: Optional[Priority] = None
+#     start_date: Optional[datetime] = None
+#     target_date: Optional[datetime] = None
+#     lead_id: Optional[UUID_TYPE] = None
 
 
 class UpdateProjectPayload(DataModel):
@@ -63,6 +63,17 @@ class UpdateWorkPackageQuantityPayload(DataModel):
 
 class RemoveWorkPackagePayload(DataModel):
     work_package_id: UUID_TYPE
+
+
+class CreateWorkItemPayload(DataModel):
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+    type: str
+    price_unit: float = Field(gt=0)
+
+
+class AddWorkItemToWorkPackagePayload(DataModel):
+    work_item_id: UUID_TYPE
 
 
 class ApplyReferralCodePayload(DataModel):
@@ -123,7 +134,7 @@ class CreateWorkPackagePayload(DataModel):
     complexity_level: str
     credits: float = Field(gt=0)
     example_description: Optional[str] = None
-    is_active: bool = True
+    is_custom: bool = False
 
 
 class UpdateWorkPackagePayload(DataModel):
@@ -133,7 +144,27 @@ class UpdateWorkPackagePayload(DataModel):
     complexity_level: Optional[str] = None
     credits: Optional[float] = Field(gt=0)
     example_description: Optional[str] = None
-    is_active: Optional[bool] = None
+    is_custom: Optional[bool] = None
+
+
+class CreateWorkPackageTypePayload(DataModel):
+    """Payload for creating work package type"""
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+    is_active: bool = True
+
+
+class CreateWorkPackageDeliverablePayload(DataModel):
+    """Payload for creating work package deliverable"""
+    work_package_id: UUID_TYPE
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+    status: str = Field(max_length=100)
+    due_date: Optional[datetime] = None
+
+
+class InvalidateWorkPackageDeliverablePayload(DataModel):
+    deliverable_id: UUID_TYPE
 
 # Ticket related payloads
 
@@ -154,6 +185,14 @@ class CreateProjectTicketPayload(DataModel):
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
     project_id: UUID_TYPE
+
+
+class UpdateInquiryPayload(DataModel):
+    title: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    type: Optional[str] = None
+    priority: Optional[Priority] = None
+    availability: Optional[Availability] = None
 
 
 class UpdateTicketPayload(DataModel):
@@ -179,6 +218,10 @@ class RemoveTicketMemberPayload(DataModel):
 
 class AddTicketCommentPayload(DataModel):
     comment_id: UUID_TYPE
+
+
+class AddTicketParticipantPayload(DataModel):
+    participant_id: UUID_TYPE
 
 
 class AddTicketTagPayload(DataModel):
@@ -230,7 +273,14 @@ class CreateTagPayload(DataModel):
     name: str = Field(max_length=255)
     description: Optional[str] = None
     target_resource: str
-    target_resource_id: Optional[str] = None
+
+
+class CreateTicketTypePayload(DataModel):
+    key: str = Field(max_length=50)
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+    icon_color: Optional[str] = Field(max_length=7, default=None)
+    is_active: bool = True
 
 
 class UpdateTagPayload(DataModel):

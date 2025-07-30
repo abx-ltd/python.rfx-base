@@ -11,9 +11,9 @@ class CPOPortalAggregate(Aggregate):
     """CPO Portal Aggregate Root - Handles all project, work package, ticket, workflow, tag, integration, and notification operations"""
 
     # =========== Project Context ============
-    @action('project-estimator-created', resources='project')
+    @action('estimator-created', resources='project')
     async def create_project_estimator(self, stm, /):
-        """Create a new project estimator draft"""
+        """Create a new estimator (project draft)"""
         record = self.init_resource(
             "project",
             {
@@ -66,50 +66,23 @@ class CPOPortalAggregate(Aggregate):
     @action('estimator-converted', resources='project')
     async def convert_estimator_to_project(self, stm, /, data=None):
         """Convert estimator draft to active project"""
-        project = self.rootobj
-        if project is None:
-            raise ValueError("Project not found")
-
-        if project.status == ProjectStatus.DRAFT:
-            # Update project with new data and change status
-            update_data = {}
-            if data:
-                if hasattr(data, 'name') and data.name:
-                    update_data['name'] = data.name
-                if hasattr(data, 'description') and data.description:
-                    update_data['description'] = data.description
-                if hasattr(data, 'category') and data.category:
-                    update_data['category'] = data.category
-                if hasattr(data, 'priority') and data.priority:
-                    update_data['priority'] = data.priority
-                if hasattr(data, 'start_date') and data.start_date:
-                    update_data['start_date'] = data.start_date
-                if hasattr(data, 'target_date') and data.target_date:
-                    update_data['target_date'] = data.target_date
-                if hasattr(data, 'lead_id') and data.lead_id:
-                    update_data['lead_id'] = data.lead_id
-
-            update_data['status'] = ProjectStatus.ACTIVE
-            update_data['sync_status'] = SyncStatus.PENDING
-
-            await stm.update(project, **update_data)
-
-        return project
 
     @action('work-package-added', resources='project')
     async def add_work_package_to_estimator(self, stm, /, work_package_id: str, quantity: int):
         """Add work package to estimator"""
+        project = self.rootobj
+
         record = self.init_resource(
             "project-work-package",
             {
                 "work_package_id": work_package_id,
                 "quantity": quantity,
-                "project_id": self.aggroot.identifier
+                "project_id": project._id
             },
             _id=UUID_GENR(),
-            added_at=datetime.utcnow()
         )
         await stm.insert(record)
+        return record
 
     @action('credit-cost-calculated', resources='project')
     async def calculate_credit_cost(self, stm, /) -> Dict[str, Any]:
@@ -305,12 +278,40 @@ class CPOPortalAggregate(Aggregate):
         """Delete project resource"""
         await stm.invalidate_one("project-resource", resource_id)
 
+    # =========== Tag Context ============
+    @action("tag-created", resources="tag")
+    async def create_tag(self, stm, /, data):
+        """Create a new tag"""
+        record = self.init_resource(
+            "tag",
+            serialize_mapping(data),
+        )
+        await stm.insert(record)
+        return record
+
+    @action("tag-updated", resources="tag")
+    async def update_tag(self, stm, /, data):
+        """Update tag"""
+        tag = self.rootobj
+        await stm.update(tag, **serialize_mapping(data))
+        return tag
+
     # =========== Ticket Context ============
+    @action("ticket-type-created", resources="ticket")
+    async def create_ticket_type(self, stm, /, data):
+        """Create a new ticket type"""
+        record = self.init_resource(
+            "ref--ticket-type",
+            serialize_mapping(data),
+        )
+        await stm.insert(record)
+        return record
+
     @action('inquiry-created', resources='ticket')
     async def create_inquiry(self, stm, /, data):
         record = self.init_resource(
             "ticket",
-            data.model_dump(),
+            serialize_mapping(data),
             status="DRAFT",
             availability=Availability.OPEN,
         )
@@ -320,7 +321,8 @@ class CPOPortalAggregate(Aggregate):
     @action('ticket-created', resources='ticket')
     async def create_ticket(self, stm, /, data):
         """Create a new ticket tied to project"""
-        ticket_data = data.model_dump(exclude={'project_id'})
+        # ticket_data = data.model_dump(exclude={'project_id'})
+        ticket_data = serialize_mapping(data)
         ticket_data.update({
             "_id": self.aggroot.identifier,
             "status": "DRAFT",
@@ -426,6 +428,20 @@ class CPOPortalAggregate(Aggregate):
         await stm.insert(record)
         return record
 
+    @action('participant-added-to-ticket', resources='ticket')
+    async def add_ticket_participant(self, stm, /, participant_id: str):
+        """Add participant to ticket"""
+        record = self.init_resource(
+            "ticket-participants",
+            {
+                "ticket_id": self.aggroot.identifier,
+                "participant_id": participant_id
+            },
+            _id=UUID_GENR()
+        )
+        await stm.insert(record)
+        return record
+
     @action('tag-added-to-ticket', resources='ticket')
     async def add_ticket_tag(self, stm, /, tag_id: str):
         """Add tag to ticket"""
@@ -435,8 +451,7 @@ class CPOPortalAggregate(Aggregate):
                 "ticket_id": self.aggroot.identifier,
                 "tag_id": tag_id
             },
-            _id=UUID_GENR(),
-            added_at=datetime.utcnow()
+            _id=UUID_GENR()
         )
         await stm.insert(record)
         return record
@@ -455,92 +470,108 @@ class CPOPortalAggregate(Aggregate):
 
     # =========== Work Package Context ============
     @action('work-package-created', resources='work-package')
-    async def create_work_package(self, stm, /, work_package_name: str, description: Optional[str],
-                                  type: str, complexity_level: str, credits: float,
-                                  example_description: Optional[str] = None, is_active: bool = True):
+    async def create_work_package(self, stm, /, data):
         """Create new work package"""
         record = self.init_resource(
             "work-package",
-            {
-                "work_package_name": work_package_name,
-                "description": description,
-                "type": type,
-                "complexity_level": complexity_level,
-                "credits": credits,
-                "example_description": example_description,
-                "is_active": is_active
-            },
-            _id=self.aggroot.identifier,
-            is_active=is_active
+            serialize_mapping(data)
         )
         await stm.insert(record)
         return record
 
     @action('work-package-updated', resources='work-package')
-    async def update_work_package(self, stm, /, update_data: Dict[str, Any]):
+    async def update_work_package(self, stm, /, data):
         """Update work package details"""
         work_package = self.rootobj
-        await stm.update(work_package, **serialize_mapping(update_data))
+        await stm.update(work_package, **serialize_mapping(data))
         return work_package
 
-    @action('work-package-deactivated', resources='work-package')
-    async def deactivate_work_package(self, stm, /):
-        """Deactivate work package"""
+    @action('work-package-invalidated', resources='work-package')
+    async def invalidate_work_package(self, stm, /):
+        """Invalidate work package"""
         work_package = self.rootobj
-        await stm.update(work_package, is_active=False)
+        await stm.invalidate(work_package)
+        return work_package
 
-    @action('work-package-reactivated', resources='work-package')
-    async def reactivate_work_package(self, stm, /):
-        """Reactivate work package"""
+    @action('work-package-type-created', resources='work-package')
+    async def create_work_package_type(self, stm, /, data):
+        """Create new work package type"""
+        record = self.init_resource(
+            "ref--work-package-type",
+            serialize_mapping(data)
+        )
+        await stm.insert(record)
+        return record
+
+    @action('work-package-deliverable-created', resources='work-package')
+    async def create_work_package_deliverable(self, stm, /, data):
+        """Create new work package deliverable"""
+        record = self.init_resource(
+            "work-package-deliverable",
+            serialize_mapping(data)
+        )
+        await stm.insert(record)
+        return record
+
+        # """ Fetch exactly 1 item from the data store using either a query object or where statements
+        #     Raises an error if there are 0 or multiple results """
+        # q = BackendQuery.create(q, **query, limit=1, offset=0)
+        # if q.limit != 1 or q.offset != 0:
+        #     raise ValueError(f'Invalid find_one query: {q}')
+
+        # try:
+        #     item = await self.connector.find_one(model_name, q)
+        #     return self._wrap_item(model_name, item)
+        # except ItemNotFoundError:
+        #     return None
+
+    @action('work-package-deliverable-invalidated', resources='work-package')
+    async def invalidate_work_package_deliverable(self, stm, /, data):
+        """Invalidate work package deliverable"""
+        deliverable = await stm.find_one('work-package-deliverable', where=dict(
+            work_package_id=self.rootobj._id,
+            _id=data.deliverable_id
+        ))
+        if deliverable:
+            await stm.invalidate_one('work-package-deliverable', deliverable._id)
+
+    # =========== Work Item Context ============
+
+    @action('work-item-created', resources='work-item')
+    async def create_work_item(self, stm, /, data):
+        """Create new work item"""
+        record = self.init_resource(
+            "work-item",
+            serialize_mapping(data)
+        )
+        await stm.insert(record)
+        return record
+
+    @action('work-item-added-to-work-package', resources='work-package')
+    async def add_work_item_to_work_package(self, stm, /, work_item_id):
+        """Add work item to work package"""
         work_package = self.rootobj
-        await stm.update(work_package, is_active=True)
+        data = {
+            "work_package_id": work_package._id,
+            "work_item_id": work_item_id
+        }
+        record = self.init_resource(
+            "work-package-work-item",
+            serialize_mapping(data)
+        )
+        await stm.insert(record)
+        return record
 
     # =========== Integration Context ============
     @action('integration-sync', resources='integration')
-    async def unified_sync(self, stm, /, action: str, provider: str, entity_type: Optional[str] = None,
-                           entity_id: Optional[str] = None, direction: Optional[str] = None,
-                           options: Optional[Dict[str, Any]] = None, method: Optional[str] = None,
-                           params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def unified_sync(self, stm, /, data):
         """Unified sync method for integrations"""
-        integration = self.rootobj
-
-        sync_result = {
-            "action": action,
-            "provider": provider,
-            "entity_type": entity_type,
-            "entity_id": entity_id,
-            "direction": direction,
-            "status": "success",
-            "timestamp": datetime.utcnow(),
-            "details": {}
-        }
-
-        if options:
-            sync_result["details"].update(options)
-
-        if params:
-            sync_result["details"]["params"] = params
-
-        # Update integration with sync result
-        await stm.update(integration,
-                         last_sync=datetime.utcnow(),
-                         status=SyncStatus.SYNCED.value)
-
-        return sync_result
 
     # =========== Notification Context ============
     @action('notification-marked-read', resources='notification')
     async def mark_notification_as_read(self, stm, /, notification_id: str):
         """Mark notification as read"""
-        notification = self.rootobj
-        await stm.update(notification,
-                         is_read=True,
-                         read_at=datetime.utcnow())
 
     @action('all-notifications-marked-read', resources='notification')
     async def mark_all_notifications_as_read(self, stm, /):
         """Mark all notifications as read"""
-        notification = self.rootobj
-        await stm.update(notification,
-                         is_read=True,
-                         read_at=datetime.utcnow())
