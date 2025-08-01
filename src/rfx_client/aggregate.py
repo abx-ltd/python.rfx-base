@@ -68,15 +68,15 @@ class CPOPortalAggregate(Aggregate):
         """Convert estimator draft to active project"""
 
     @action('work-package-added', resources='project')
-    async def add_work_package_to_estimator(self, stm, /, work_package_id: str, quantity: int):
+    async def add_work_package_to_estimator(self, stm, /, data):
         """Add work package to estimator"""
         project = self.rootobj
 
         record = self.init_resource(
             "project-work-package",
             {
-                "work_package_id": work_package_id,
-                "quantity": quantity,
+                "work_package_id": data.work_package_id,
+                # "quantity": data.quantity,
                 "project_id": project._id
             },
             _id=UUID_GENR(),
@@ -278,6 +278,16 @@ class CPOPortalAggregate(Aggregate):
         """Delete project resource"""
         await stm.invalidate_one("project-resource", resource_id)
 
+    @action('project-category-created', resources='project')
+    async def create_project_category(self, stm, /, data):
+        """Create project category"""
+        record = self.init_resource(
+            "ref--project-category",
+            serialize_mapping(data),
+        )
+        await stm.insert(record)
+        return record
+
     # =========== Tag Context ============
     @action("tag-created", resources="tag")
     async def create_tag(self, stm, /, data):
@@ -321,7 +331,6 @@ class CPOPortalAggregate(Aggregate):
     @action('ticket-created', resources='ticket')
     async def create_ticket(self, stm, /, data):
         """Create a new ticket tied to project"""
-        # ticket_data = data.model_dump(exclude={'project_id'})
         ticket_data = serialize_mapping(data)
         ticket_data.update({
             "_id": self.aggroot.identifier,
@@ -493,50 +502,27 @@ class CPOPortalAggregate(Aggregate):
         await stm.invalidate(work_package)
         return work_package
 
-    @action('work-package-type-created', resources='work-package')
-    async def create_work_package_type(self, stm, /, data):
-        """Create new work package type"""
+    @action('work-item-deliverable-created', resources='work-item')
+    async def create_work_item_deliverable(self, stm, /, data):
+        """Create new work item deliverable"""
         record = self.init_resource(
-            "ref--work-package-type",
+            "work-item-deliverable",
             serialize_mapping(data)
         )
         await stm.insert(record)
         return record
 
-    @action('work-package-deliverable-created', resources='work-package')
-    async def create_work_package_deliverable(self, stm, /, data):
-        """Create new work package deliverable"""
-        record = self.init_resource(
-            "work-package-deliverable",
-            serialize_mapping(data)
-        )
-        await stm.insert(record)
-        return record
-
-        # """ Fetch exactly 1 item from the data store using either a query object or where statements
-        #     Raises an error if there are 0 or multiple results """
-        # q = BackendQuery.create(q, **query, limit=1, offset=0)
-        # if q.limit != 1 or q.offset != 0:
-        #     raise ValueError(f'Invalid find_one query: {q}')
-
-        # try:
-        #     item = await self.connector.find_one(model_name, q)
-        #     return self._wrap_item(model_name, item)
-        # except ItemNotFoundError:
-        #     return None
-
-    @action('work-package-deliverable-invalidated', resources='work-package')
-    async def invalidate_work_package_deliverable(self, stm, /, data):
-        """Invalidate work package deliverable"""
-        deliverable = await stm.find_one('work-package-deliverable', where=dict(
-            work_package_id=self.rootobj._id,
+    @action('work-item-deliverable-invalidated', resources='work-item')
+    async def invalidate_work_item_deliverable(self, stm, /, data):
+        """Invalidate work item deliverable"""
+        deliverable = await stm.find_one('work-item-deliverable', where=dict(
+            work_item_id=self.rootobj._id,
             _id=data.deliverable_id
         ))
         if deliverable:
-            await stm.invalidate_one('work-package-deliverable', deliverable._id)
+            await stm.invalidate_one('work-item-deliverable', deliverable._id)
 
     # =========== Work Item Context ============
-
     @action('work-item-created', resources='work-item')
     async def create_work_item(self, stm, /, data):
         """Create new work item"""
@@ -557,6 +543,16 @@ class CPOPortalAggregate(Aggregate):
         }
         record = self.init_resource(
             "work-package-work-item",
+            serialize_mapping(data)
+        )
+        await stm.insert(record)
+        return record
+
+    @action('work-item-type-created', resources='work-item')
+    async def create_work_item_type(self, stm, /, data):
+        """Create new work item type"""
+        record = self.init_resource(
+            "ref--work-item-type",
             serialize_mapping(data)
         )
         await stm.insert(record)

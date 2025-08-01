@@ -1,3 +1,4 @@
+import select
 from .types import Priority, ProjectStatus, Availability, SyncStatus
 from .policy import CPOPortalPolicyManager
 from .domain import CPOPortalDomain
@@ -7,7 +8,12 @@ from fastapi import Request
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField
+from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
+from . import scope
+
+
+default_exclude_fields = ["realm", "deleted", "etag",
+                          "created", "updated", "creator", "updater"]
 
 
 class CPOPortalQueryManager(DomainQueryManager):
@@ -102,6 +108,28 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     quantity: int = IntegerField("Quantity")
 
 
+@resource('work-item-listing')
+class WorkItemListingQuery(DomainQueryResource):
+    """Work item listing queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_work-item-listing"
+
+        scope_required = scope.WorkItemListingScopeSchema
+
+    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
+    work_item_id: UUID_TYPE = UUIDField("Work Item ID")
+    work_item_name: str = StringField("Work Item Name")
+    work_item_description: str = StringField("Work Item Description")
+    work_item_type_code: str = StringField("Work Item Type Code")
+    work_item_type_name: str = StringField("Work Item Type Name")
+
+
 @resource('project-status')
 class ProjectStatusQuery(DomainQueryResource):
     """Project status queries"""
@@ -117,8 +145,9 @@ class ProjectStatusQuery(DomainQueryResource):
     dst_state: str = StringField("Destination State")
     note: str = StringField("Note")
 
-
 # Work Package Queries
+
+
 @resource('work-package')
 class WorkPackageQuery(DomainQueryResource):
     """Work package queries"""
@@ -136,7 +165,7 @@ class WorkPackageQuery(DomainQueryResource):
     is_custom: bool = BooleanField("Is Custom")
 
 
-@resource('ref--work-package-type')
+@resource('work-package-type')
 class RefWorkPackageTypeQuery(DomainQueryResource):
     """Work package type reference queries"""
 
@@ -145,12 +174,13 @@ class RefWorkPackageTypeQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        backend_model = "ref--work-package-type"
 
     name: str = StringField("Name")
     description: str = StringField("Description")
 
 
-@resource('ref--work-package-complexity')
+@resource('work-package-complexity')
 class RefWorkPackageComplexityQuery(DomainQueryResource):
     """Work package complexity reference queries"""
 
@@ -159,12 +189,13 @@ class RefWorkPackageComplexityQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        backend_model = "ref--work-package-complexity"
 
     code: str = StringField("Code")
     name: str = StringField("Name")
 
 
-@resource('_work-package-detail')
+@resource('work-package-detail')
 class WorkPackageDetailQuery(DomainQueryResource):
     """Work package detail queries"""
 
@@ -173,12 +204,11 @@ class WorkPackageDetailQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        backend_model = "_work-package-detail"
 
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     work_package_name: str = StringField("Work Package Name")
-    type: str = StringField("Type")
-    complexity_level: str = StringField("Complexity Level")
-    credits: float = FloatField("Credits")
+    type_list: list[str] = ArrayField("Type List")
 
 
 # Ticket Queries
@@ -204,23 +234,21 @@ class TicketQuery(DomainQueryResource):
     project_id: UUID_TYPE = UUIDField("Project ID")
 
 
-@resource('_inquiry-listing')
+@resource('inquiry-listing')
 class InquiryListingQuery(DomainQueryResource):
     """Inquiry listing queries"""
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
-        allow_item_view = True
         allow_list_view = True
+        allow_item_view = False
         allow_meta_view = True
+        backend_model = "_inquiry-listing"
 
     type: str = StringField("Type")
     type_icon_color: str = StringField("Type Icon Color")
     title: str = StringField("Title")
-    tag_names: list[str] = ListField("Tag Names")
-    inquiry_id:  UUID_TYPE = UUIDField("Inquiry ID")
-    participants: list[dict] = ListField("Participants")
-    activity: str = DatetimeField("Activity")
+    tag_names: list[str] = ArrayField("Tag Names")
     availability: Availability = EnumField("Availability")
 
 
@@ -283,21 +311,20 @@ class TicketParticipantsQuery(DomainQueryResource):
     participant_id: UUID_TYPE = UUIDField("Participant ID")
 
 
-@resource('ref--ticket-type')
+@resource('ticket-type')
 class RefTicketTypeQuery(DomainQueryResource):
     """Ticket type reference queries"""
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
+        excluded_fields = default_exclude_fields
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        backend_model = "ref--ticket-type"
 
-    key: str = StringField("Key")
-    name: str = StringField("Name")
-    description: str = StringField("Description")
-    icon_color: str = StringField("Icon Color")
     is_active: bool = BooleanField("Is Active")
+    is_inquiry: bool = BooleanField("Is Inquiry")
 
 
 # Workflow Queries
@@ -405,7 +432,7 @@ class NotificationQuery(DomainQueryResource):
     is_read: bool = BooleanField("Is Read")
 
 
-@resource('ref--notification-type')
+@resource('notification-type')
 class RefNotificationTypeQuery(DomainQueryResource):
     """Notification type reference queries"""
 
@@ -414,6 +441,7 @@ class RefNotificationTypeQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        backend_model = "ref--notification-type"
 
     name: str = StringField("Name")
     description: str = StringField("Description")
@@ -421,7 +449,7 @@ class RefNotificationTypeQuery(DomainQueryResource):
 
 
 # Reference Queries
-@resource('ref--project-category')
+@resource('project-category')
 class RefProjectCategoryQuery(DomainQueryResource):
     """Project category reference queries"""
 
@@ -430,6 +458,7 @@ class RefProjectCategoryQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        backend_model = "ref--project-category"
 
     code: str = StringField("Code")
     name: str = StringField("Name")
@@ -437,7 +466,7 @@ class RefProjectCategoryQuery(DomainQueryResource):
     is_active: bool = BooleanField("Is Active")
 
 
-@resource('ref--project-role')
+@resource('project-role')
 class RefProjectRoleQuery(DomainQueryResource):
     """Project role reference queries"""
 
@@ -446,6 +475,7 @@ class RefProjectRoleQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        backend_model = "ref--project-role"
 
     code: str = StringField("Code")
     name: str = StringField("Name")

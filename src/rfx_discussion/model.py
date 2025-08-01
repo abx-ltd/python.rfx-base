@@ -190,16 +190,10 @@ class WorkItemDeliverable(CPOPortalBaseModel):
 
 
 class WorkPackageWorkItem(CPOPortalBaseModel):
-    __tablename__ = "work-package-work-item"
+    __tablename__ = "work-package-item-instance"
 
     work_package_id = sa.Column(sa.ForeignKey(WorkPackage._id), nullable=False)
     work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
-    status = sa.Column(sa.String(100), nullable=False)
-    custom_name = sa.Column(sa.String(255))
-    custom_description = sa.Column(sa.Text)
-    custom_price_unit = sa.Column(sa.Numeric(10, 2))
-    custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
-
 
 class ViewWorkItemListing(CPOPortalConnector.__data_schema_base__):
     __tablename__ = "_work-item-listing"

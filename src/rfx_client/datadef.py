@@ -1,5 +1,7 @@
 from typing import Optional, List
 from uuid import UUID
+
+from sqlalchemy.engine import default
 from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
@@ -14,7 +16,7 @@ class CreateProjectEstimatorPayload(DataModel):
     name: Optional[str] = Field(max_length=255, default="")
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: Priority = Priority.MEDIUM
+    priority: Optional[Priority] = None
 
 
 class CreateProjectPayload(DataModel):
@@ -53,12 +55,11 @@ class UpdateProjectPayload(DataModel):
 
 class AddWorkPackageToProjectPayload(DataModel):
     work_package_id: UUID_TYPE
-    quantity: int = Field(ge=1)
 
 
-class UpdateWorkPackageQuantityPayload(DataModel):
-    work_package_id: UUID_TYPE
-    quantity: int = Field(ge=1)
+# class UpdateWorkPackageQuantityPayload(DataModel):
+#     work_package_id: UUID_TYPE
+#     quantity: int = Field(ge=1)
 
 
 class RemoveWorkPackagePayload(DataModel):
@@ -70,6 +71,12 @@ class CreateWorkItemPayload(DataModel):
     description: Optional[str] = None
     type: str
     price_unit: float = Field(gt=0)
+    credit_per_unit: float = Field(gt=0)
+
+
+class CreateWorkItemTypePayload(DataModel):
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
 
 
 class AddWorkItemToWorkPackagePayload(DataModel):
@@ -124,43 +131,37 @@ class UploadProjectResourcePayload(DataModel):
 class DeleteProjectResourcePayload(DataModel):
     resource_id: UUID_TYPE
 
+
+class CreateProjectCategoryPayload(DataModel):
+    key: str = Field(max_length=50)
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+    is_active: bool = True
+
 # Work Package related payloads
 
 
 class CreateWorkPackagePayload(DataModel):
     work_package_name: str = Field(max_length=255)
     description: Optional[str] = None
-    type: str
-    complexity_level: str
-    credits: float = Field(gt=0)
     example_description: Optional[str] = None
     is_custom: bool = False
+    complexity_level: Optional[int] = None
 
 
 class UpdateWorkPackagePayload(DataModel):
     work_package_name: Optional[str] = Field(max_length=255)
     description: Optional[str] = None
     type: Optional[str] = None
-    complexity_level: Optional[str] = None
-    credits: Optional[float] = Field(gt=0)
     example_description: Optional[str] = None
     is_custom: Optional[bool] = None
 
 
-class CreateWorkPackageTypePayload(DataModel):
-    """Payload for creating work package type"""
+class CreateWorkItemDeliverablePayload(DataModel):
+    """Payload for creating work item deliverable"""
+    work_item_id: UUID_TYPE
     name: str = Field(max_length=255)
     description: Optional[str] = None
-    is_active: bool = True
-
-
-class CreateWorkPackageDeliverablePayload(DataModel):
-    """Payload for creating work package deliverable"""
-    work_package_id: UUID_TYPE
-    name: str = Field(max_length=255)
-    description: Optional[str] = None
-    status: str = Field(max_length=100)
-    due_date: Optional[datetime] = None
 
 
 class InvalidateWorkPackageDeliverablePayload(DataModel):
@@ -269,7 +270,7 @@ class UpdateWorkflowTransitionPayload(DataModel):
 
 
 class CreateTagPayload(DataModel):
-    code: str = Field(max_length=50)
+    key: str = Field(max_length=50)
     name: str = Field(max_length=255)
     description: Optional[str] = None
     target_resource: str
@@ -281,6 +282,7 @@ class CreateTicketTypePayload(DataModel):
     description: Optional[str] = None
     icon_color: Optional[str] = Field(max_length=7, default=None)
     is_active: bool = True
+    is_inquiry: bool = False
 
 
 class UpdateTagPayload(DataModel):

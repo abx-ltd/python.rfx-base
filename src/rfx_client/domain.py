@@ -18,6 +18,10 @@ class ProjectResponse(CPOPortalDomain.Response):
     pass
 
 
+class ProjectCategoryResponse(CPOPortalDomain.Response):
+    pass
+
+
 class WorkPackageResponse(CPOPortalDomain.Response):
     pass
 
@@ -63,4 +67,8 @@ class TagResponse(CPOPortalDomain.Response):
 
 
 class TicketTypeResponse(CPOPortalDomain.Response):
+    pass
+
+
+class WorkItemTypeResponse(CPOPortalDomain.Response):
     pass
