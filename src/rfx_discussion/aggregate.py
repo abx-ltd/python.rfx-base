@@ -35,53 +35,29 @@ class RFXDiscussionAggregate(Aggregate):
     @action('ticket-created', resources='ticket')
     async def create_ticket(self, stm, /, data):
         """Create a new ticket tied to project"""
-        ticket_data = serialize_mapping(data)
-        ticket_data.update({
-            "_id": self.aggroot.identifier,
-            "status": "DRAFT",
-            "availability": Availability.OPEN,
-            "sync_status": SyncStatus.PENDING
-        })
-        ticket = self.init_resource("ticket", ticket_data)
-
-        logger.info(f"Ticket data: {ticket}")
-
-        await stm.insert(ticket)
-    # TH command goi 2 domain khac nhau
-        await stm.insert(self.init_resource("project-ticket", {
-            "project_id": data.project_id,
-            "ticket_id": ticket._id
-        }))
-
-        return ticket
+        record = self.init_resource(
+            "ticket",
+            serialize_mapping(data),
+            _id=self.aggroot.identifier,
+            status="DRAFT",
+            availability=Availability.OPEN,
+            sync_status=SyncStatus.PENDING,
+            is_inquiry=False
+        )
+        await stm.insert(record)
+        return record
 
     @action('ticket-updated', resources='ticket')
     async def update_ticket_info(self, stm, /, data):
         """Update ticket information"""
         ticket = self.rootobj
         await stm.update(ticket, **serialize_mapping(data))
-        return ticket
-
-    @action('ticket-closed', resources='ticket')
-    async def close_ticket(self, stm, /):
-        """Close ticket"""
-        ticket = self.rootobj
-        await stm.update(ticket, availability=Availability.CLOSED)
-        return ticket
-
-    @action('ticket-reopened', resources='ticket')
-    async def reopen_ticket(self, stm, /):
-        """Reopen ticket"""
-        ticket = self.rootobj
-        await stm.update(ticket, availability=Availability.AVAILABLE)
-        return ticket
 
     @action('ticket-status-changed', resources='ticket')
     async def change_ticket_status(self, stm, /, next_status: str, note: Optional[str] = None):
         """Change ticket status using workflow"""
         ticket = self.rootobj
 
-        # Create status transition record
         status_record = self.init_resource(
             "ticket-status",
             {
@@ -94,9 +70,8 @@ class RFXDiscussionAggregate(Aggregate):
         )
         await stm.insert(status_record)
 
-        # Update ticket status
-        await stm.update(ticket, status=next_status)
-        return ticket
+        result = await stm.update(ticket, status=next_status)
+        return result
 
     @action('member-assigned-to-ticket', resources='ticket')
     async def assign_member_to_ticket(self, stm, /, member_id: str):
@@ -109,7 +84,6 @@ class RFXDiscussionAggregate(Aggregate):
                 "role": "ASSIGNEE"
             },
             _id=UUID_GENR(),
-            assigned_at=datetime.utcnow()
         )
         await stm.insert(record)
         return record
@@ -145,7 +119,7 @@ class RFXDiscussionAggregate(Aggregate):
     async def add_ticket_participant(self, stm, /, participant_id: str):
         """Add participant to ticket"""
         record = self.init_resource(
-            "ticket-participants",
+            "ticket-participant",
             {
                 "ticket_id": self.aggroot.identifier,
                 "participant_id": participant_id

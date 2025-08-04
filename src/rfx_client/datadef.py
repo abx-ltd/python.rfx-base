@@ -4,7 +4,7 @@ from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import Priority, Availability
+from .types import Priority, Availability, SyncStatus
 
 # Project related payloads
 
@@ -21,10 +21,27 @@ class CreateProjectPayload(DataModel):
     name: str = Field(max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: Priority = Priority.MEDIUM
+    priority: str
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     lead_id: Optional[UUID_TYPE] = None
+    type: str
+
+
+class AddTicketToProjectPayload(DataModel):
+    ticket_id: UUID_TYPE
+
+
+class CreateProjectTicketPayload(DataModel):
+    title: str = Field(max_length=255)
+    description: Optional[str] = None
+    type: str  # Changed from 'type' to avoid reserved keyword conflict
+    priority: Optional[Priority] = Priority.MEDIUM
+    assignee: Optional[UUID_TYPE] = None
+    parent_id: Optional[UUID_TYPE] = None
+    availability: Optional[Availability] = Availability.OPEN
+    status: Optional[str] = "DRAFT"
+    sync_status: Optional[SyncStatus] = SyncStatus.PENDING
 
 
 # class ConvertEstimatorToProjectPayload(DataModel):
@@ -164,71 +181,6 @@ class CreateWorkItemDeliverablePayload(DataModel):
 
 class InvalidateWorkPackageDeliverablePayload(DataModel):
     deliverable_id: UUID_TYPE
-
-# Ticket related payloads
-
-
-class CreateInquiryPayload(DataModel):
-    title: str = Field(max_length=255)
-    description: Optional[str] = None
-    type: str
-    priority: Optional[Priority] = Priority.MEDIUM
-    availability: Optional[Availability] = Availability.OPEN
-
-
-class CreateProjectTicketPayload(DataModel):
-    title: str = Field(max_length=255)
-    description: Optional[str] = None
-    type: str
-    priority: Optional[Priority] = Priority.MEDIUM
-    assignee: Optional[UUID_TYPE] = None
-    parent_id: Optional[UUID_TYPE] = None
-    project_id: UUID_TYPE
-
-
-class UpdateInquiryPayload(DataModel):
-    title: Optional[str] = Field(max_length=255)
-    description: Optional[str] = None
-    type: Optional[str] = None
-    priority: Optional[Priority] = None
-    availability: Optional[Availability] = None
-
-
-class UpdateTicketPayload(DataModel):
-    title: Optional[str] = Field(max_length=255)
-    description: Optional[str] = None
-    type: Optional[str] = None
-    priority: Optional[Priority] = None
-    assignee: Optional[UUID_TYPE] = None
-
-
-class ChangeTicketStatusPayload(DataModel):
-    next_status: str
-    note: Optional[str] = None
-
-
-class AssignTicketMemberPayload(DataModel):
-    member_id: UUID_TYPE
-
-
-class RemoveTicketMemberPayload(DataModel):
-    member_id: UUID_TYPE
-
-
-class AddTicketCommentPayload(DataModel):
-    comment_id: UUID_TYPE
-
-
-class AddTicketParticipantPayload(DataModel):
-    participant_id: UUID_TYPE
-
-
-class AddTicketTagPayload(DataModel):
-    tag_id: UUID_TYPE
-
-
-class RemoveTicketTagPayload(DataModel):
-    tag_id: UUID_TYPE
 
 # Workflow related payloads
 

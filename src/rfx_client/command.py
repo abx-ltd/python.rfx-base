@@ -2,6 +2,7 @@ from fluvius.data import serialize_mapping
 
 from .domain import CPOPortalDomain
 from . import datadef, config
+from fluvius.data import UUID_TYPE, UUID_GENR
 
 processor = CPOPortalDomain.command_processor
 Command = CPOPortalDomain.Command
@@ -63,6 +64,58 @@ class AddWorkPackageToEstimator(Command):
         """Add work package to estimator draft"""
         await agg.add_work_package_to_estimator(data=payload)
 
+
+class AddTicketToProject(Command):
+    class Meta:
+        key = "add-ticket-to-project"
+        resources = ("project",)
+        tags = ["project", "ticket"]
+        auth_required = True
+        description = "Add ticket to project"
+        new_resource = True
+        internal = True
+
+    Data = datadef.AddTicketToProjectPayload
+
+    async def _process(self, agg, sta, payload):
+
+        result = await agg.add_ticket_to_project(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="project-response")
+
+
+class CreateProjectTicker(Command):
+    class Meta:
+        key = "create-project-ticket"
+        resources = ("project",)
+        tags = ["project", "ticket"]
+        auth_required = True
+        description = "Create project ticket"
+
+    Data = datadef.CreateProjectTicketPayload
+
+    async def _process(self, agg, sta, payload):
+        aggroot = agg.get_aggroot()
+        project_id = aggroot.identifier
+        ticket_id = UUID_GENR()
+        yield agg.create_message(
+            "discussion-message",
+            data={
+                "command": "create-ticket",
+                "ticket_id": str(ticket_id),
+                "payload": serialize_mapping(payload),
+                "context": {}  # Added missing context field
+            }
+        )
+        yield agg.create_message(
+            "project-message",
+            data={
+                "command": "add-ticket-to-project",
+                "project_id": str(project_id),
+                "payload": {
+                    "ticket_id": ticket_id
+                }
+            }
+        )
 
 # class ApplyReferralCodeToEstimator(Command):
 #     """Apply Referral Code to Estimator - Applies a referral code to the current estimator draft"""
@@ -166,6 +219,9 @@ class AddProjectMember(Command):
             member_id=payload.member_id,
             role=payload.role
         )
+
+# ---------- Project Ticket Context ----------
+
 
 # class AssignTeamToProject(Command):
 #     """Assign Team to Project - Assigns an existing team to a specific project"""

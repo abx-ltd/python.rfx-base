@@ -48,6 +48,7 @@ class Ticket(RFXDiscussionBaseModel):
                 schema=config.RFX_DISCUSSION_SCHEMA),
         default=types.SyncStatus.PENDING
     )
+    is_inquiry = sa.Column(sa.Boolean, default=True)
 
 
 # Ticket Status Entity
@@ -81,7 +82,7 @@ class TicketAssignee(RFXDiscussionBaseModel):
 
 # Ticket Participants Entity
 class TicketParticipants(RFXDiscussionBaseModel):
-    __tablename__ = "ticket-participants"
+    __tablename__ = "ticket-participant"
 
     ticket_id = sa.Column(sa.ForeignKey(Ticket._id), nullable=False)
     participant_id = sa.Column(pg.UUID, nullable=False)  # FK to profile(_id)

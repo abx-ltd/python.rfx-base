@@ -16,35 +16,28 @@ class CreateInquiryPayload(DataModel):
     availability: Optional[Availability] = Availability.OPEN
 
 
-class CreateProjectTicketPayload(DataModel):
+class CreateTicketPayload(DataModel):
     title: str = Field(max_length=255)
     description: Optional[str] = None
     type: str
-    priority: Optional[Priority] = Priority.MEDIUM
+    priority: str
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
-    project_id: UUID_TYPE
-
-
-class UpdateInquiryPayload(DataModel):
-    title: Optional[str] = Field(max_length=255)
-    description: Optional[str] = None
-    type: Optional[str] = None
-    priority: Optional[Priority] = None
-    availability: Optional[Availability] = None
 
 
 class UpdateTicketPayload(DataModel):
-    title: Optional[str] = Field(max_length=255)
+    title: Optional[str] = None
     description: Optional[str] = None
     type: Optional[str] = None
     priority: Optional[Priority] = None
     assignee: Optional[UUID_TYPE] = None
+    availability: Optional[Availability] = None
+    status: Optional[str] = None
 
 
 class ChangeTicketStatusPayload(DataModel):
     next_status: str
-    note: Optional[str] = None
+    note: Optional[str]
 
 
 class AssignTicketMemberPayload(DataModel):

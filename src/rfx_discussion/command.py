@@ -1,4 +1,4 @@
-from fluvius.data import serialize_mapping
+from fluvius.data import serialize_mapping, logger
 
 from .domain import RFXDiscussionDomain
 from . import datadef, config
@@ -40,30 +40,14 @@ class CreateTicket(Command):
         auth_required = True
         description = "Create a new ticket in project"
         new_resource = True
+        internal = True
 
-    Data = datadef.CreateProjectTicketPayload
+    Data = datadef.CreateTicketPayload
 
     async def _process(self, agg, stm, payload):
         """Create a new ticket in project"""
         result = await agg.create_ticket(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
-
-
-class UpdateInquiryInfo(Command):
-    """Update Inquiry Info - Updates inquiry information"""
-
-    class Meta:
-        key = "update-inquiry"
-        resources = ("ticket",)
-        tags = ["inquiry", "update"]
-        auth_required = True
-        description = "Update inquiry information"
-
-    Data = datadef.UpdateInquiryPayload
-
-    async def _process(self, agg, stm, payload):
-        ticket = await agg.update_ticket_info(payload)
-        yield agg.create_response(ticket, _type="ticket-response")
 
 
 class UpdateTicketInfo(Command):
@@ -79,65 +63,29 @@ class UpdateTicketInfo(Command):
     Data = datadef.UpdateTicketPayload
 
     async def _process(self, agg, stm, payload):
-        ticket = await agg.update_ticket_info(payload)
-        yield agg.create_response(ticket, _type="ticket-response")
+        await agg.update_ticket_info(payload)
 
+# class ChangeTicketStatus(Command):
+#     """Change Ticket Status - Changes ticket status using workflow"""
 
-class CloseTicket(Command):
-    """Close Ticket - Closes a specific ticket"""
+#     class Meta:
+#         key = "change-ticket-status"
+#         resources = ("ticket",)
+#         tags = ["ticket", "workflow"]
+#         auth_required = True
+#         description = "Change ticket status using workflow"
 
-    class Meta:
-        key = "close-ticket"
-        resources = ("ticket",)
-        tags = ["ticket"]
-        auth_required = True
-        description = "Close a specific ticket"
+#     Data = datadef.ChangeTicketStatusPayload
 
-    async def _process(self, agg, stm, payload):
-        """Close ticket"""
-        ticket = await agg.close_ticket()
-        yield agg.create_response(ticket, _type="ticket-response")
-
-
-class ReopenTicket(Command):
-    """Reopen Ticket - Reopens a specific ticket"""
-
-    class Meta:
-        key = "reopen-ticket"
-        resources = ("ticket",)
-        tags = ["ticket"]
-        auth_required = True
-        description = "Reopen a specific ticket"
-
-    async def _process(self, agg, stm, payload):
-        """Reopen ticket"""
-        await agg.reopen_ticket()
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
-
-
-class ChangeTicketStatus(Command):
-    """Change Ticket Status - Changes ticket status using workflow"""
-
-    class Meta:
-        key = "change-ticket-status"
-        resources = ("ticket",)
-        tags = ["ticket", "workflow"]
-        auth_required = True
-        description = "Change ticket status using workflow"
-
-    Data = datadef.ChangeTicketStatusPayload
-
-    async def _process(self, agg, stm, payload):
-        """Change ticket status"""
-        await agg.change_ticket_status(
-            next_status=payload.next_status,
-            note=payload.note
-        )
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
+#     async def _process(self, agg, stm, payload):
+#         """Change ticket status"""
+#         await agg.change_ticket_status(
+#             next_status=payload.next_status,
+#             note=payload.note
+#         )
+#         # Get the updated ticket data
+#         ticket = await stm.fetch("ticket", self.aggroot.identifier)
+#         yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
 
 
 class AssignMemberToTicket(Command):
@@ -155,9 +103,6 @@ class AssignMemberToTicket(Command):
     async def _process(self, agg, stm, payload):
         """Assign member to ticket"""
         await agg.assign_member_to_ticket(payload.member_id)
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
 
 
 class RemoveMemberFromTicket(Command):
@@ -175,29 +120,26 @@ class RemoveMemberFromTicket(Command):
     async def _process(self, agg, stm, payload):
         """Remove member from ticket"""
         await agg.remove_member_from_ticket(payload.member_id)
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
 
 
-class AddTicketComment(Command):
-    """Add Comment to Ticket - Adds a comment to ticket"""
+# class AddTicketComment(Command):
+#     """Add Comment to Ticket - Adds a comment to ticket"""
 
-    class Meta:
-        key = "add-ticket-comment"
-        resources = ("ticket",)
-        tags = ["ticket", "comment"]
-        auth_required = True
-        description = "Add comment to ticket"
+#     class Meta:
+#         key = "add-ticket-comment"
+#         resources = ("ticket",)
+#         tags = ["ticket", "comment"]
+#         auth_required = True
+#         description = "Add comment to ticket"
 
-    Data = datadef.AddTicketCommentPayload
+#     Data = datadef.AddTicketCommentPayload
 
-    async def _process(self, agg, stm, payload):
-        """Add comment to ticket"""
-        await agg.add_ticket_comment(payload.comment_id)
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
+#     async def _process(self, agg, stm, payload):
+#         """Add comment to ticket"""
+#         await agg.add_ticket_comment(payload.comment_id)
+#         # Get the updated ticket data
+#         ticket = await stm.fetch("ticket", self.aggroot.identifier)
+#         yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
 
 
 class AddParticipantToTicket(Command):

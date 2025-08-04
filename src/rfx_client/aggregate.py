@@ -62,6 +62,20 @@ class CPOPortalAggregate(Aggregate):
         await stm.insert(record)
         return record
 
+    @action('ticket-added-to-project', resources='project')
+    async def add_ticket_to_project(self, stm, /, data):
+        project_id = self.aggroot.identifier
+        """Add ticket to project"""
+        record = self.init_resource(
+            "project-ticket",
+            {
+                "project_id": project_id,
+                "ticket_id": data.ticket_id
+            }
+        )
+        await stm.insert(record)
+        return record
+
     @action('estimator-converted', resources='project')
     async def convert_estimator_to_project(self, stm, /, data=None):
         """Convert estimator draft to active project"""
@@ -183,7 +197,6 @@ class CPOPortalAggregate(Aggregate):
                 "project_id": self.aggroot.identifier
             },
             _id=UUID_GENR(),
-            assigned_at=datetime.utcnow()
         )
         await stm.insert(record)
 
