@@ -1,12 +1,10 @@
-from typing import Optional, List
-from uuid import UUID
+from typing import Optional
 
-from sqlalchemy.engine import default
 from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import Priority, ProjectStatus, Availability, SyncStatus
+from .types import Priority, Availability
 
 # Project related payloads
 
@@ -75,6 +73,7 @@ class CreateWorkItemPayload(DataModel):
 
 
 class CreateWorkItemTypePayload(DataModel):
+    key: str = Field(max_length=50)
     name: str = Field(max_length=255)
     description: Optional[str] = None
 
@@ -152,7 +151,6 @@ class CreateWorkPackagePayload(DataModel):
 class UpdateWorkPackagePayload(DataModel):
     work_package_name: Optional[str] = Field(max_length=255)
     description: Optional[str] = None
-    type: Optional[str] = None
     example_description: Optional[str] = None
     is_custom: Optional[bool] = None
 

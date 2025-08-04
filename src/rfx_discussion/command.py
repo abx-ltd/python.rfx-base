@@ -1,12 +1,10 @@
-from datetime import datetime
-from hmac import new
-from fluvius.data import serialize_mapping, DataModel, UUID_GENR
+from fluvius.data import serialize_mapping
 
-from .domain import CPOPortalDomain
+from .domain import RFXDiscussionDomain
 from . import datadef, config
 
-processor = CPOPortalDomain.command_processor
-Command = CPOPortalDomain.Command
+processor = RFXDiscussionDomain.command_processor
+Command = RFXDiscussionDomain.Command
 
 # ---------- Ticket Context ----------
 
@@ -47,9 +45,6 @@ class CreateTicket(Command):
 
     async def _process(self, agg, stm, payload):
         """Create a new ticket in project"""
-        context = agg.get_context()
-        user_id = context.user_id
-
         result = await agg.create_ticket(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 

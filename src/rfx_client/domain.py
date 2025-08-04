@@ -14,12 +14,24 @@ class CPOPortalDomain(Domain):
 
 
 # Specific response types for different commands
+
+# Project related responses
 class ProjectResponse(CPOPortalDomain.Response):
     pass
 
 
 class ProjectCategoryResponse(CPOPortalDomain.Response):
     pass
+
+
+class ProjectTicketResponse(CPOPortalDomain.Response):
+    pass
+
+
+class ResourceUploadResponse(CPOPortalDomain.Response):
+    pass
+
+# Work Package related responses
 
 
 class WorkPackageResponse(CPOPortalDomain.Response):
@@ -34,41 +46,31 @@ class WorkPackageDeliverableResponse(CPOPortalDomain.Response):
     pass
 
 
+# Work Item related responses
+
 class WorkItemResponse(CPOPortalDomain.Response):
     pass
 
 
-class TicketResponse(CPOPortalDomain.Response):
+class WorkItemDeliverableResponse(CPOPortalDomain.Response):
     pass
 
 
-class ProjectTicketResponse(CPOPortalDomain.Response):
+class WorkItemTypeResponse(CPOPortalDomain.Response):
     pass
 
+
+# Notification related responses
 
 class NotificationResponse(CPOPortalDomain.Response):
     pass
 
 
-class CreditBreakdownResponse(CPOPortalDomain.Response):
-    pass
+# class CreditBreakdownResponse(CPOPortalDomain.Response):
+#     pass
 
 
-class ResourceUploadResponse(CPOPortalDomain.Response):
-    pass
-
+# Integration related responses
 
 class SyncResultResponse(CPOPortalDomain.Response):
-    pass
-
-
-class TagResponse(CPOPortalDomain.Response):
-    pass
-
-
-class TicketTypeResponse(CPOPortalDomain.Response):
-    pass
-
-
-class WorkItemTypeResponse(CPOPortalDomain.Response):
     pass

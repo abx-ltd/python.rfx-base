@@ -1,13 +1,13 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
-from typing import List, Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
-from rfx_client import logger
-from .types import Priority, ProjectStatus, Availability, SyncStatus
+from rfx_discussion import logger
+from .types import Availability, SyncStatus
 
 
-class CPOPortalAggregate(Aggregate):
+class RFXDiscussionAggregate(Aggregate):
     """CPO Portal Aggregate Root - Handles  ticket, comment, external """
 
     # =========== Ticket Context ============
@@ -47,7 +47,7 @@ class CPOPortalAggregate(Aggregate):
         logger.info(f"Ticket data: {ticket}")
 
         await stm.insert(ticket)
-
+    # TH command goi 2 domain khac nhau
         await stm.insert(self.init_resource("project-ticket", {
             "project_id": data.project_id,
             "ticket_id": ticket._id
@@ -180,3 +180,21 @@ class CPOPortalAggregate(Aggregate):
         for tag in tags:
             await stm.invalidate_one('ticket-tag', tag._id)
         return {"removed": True}
+
+    # =========== Tag Context ============
+    @action("tag-created", resources="tag")
+    async def create_tag(self, stm, /, data):
+        """Create a new tag"""
+        record = self.init_resource(
+            "tag",
+            serialize_mapping(data),
+        )
+        await stm.insert(record)
+        return record
+
+    @action("tag-updated", resources="tag")
+    async def update_tag(self, stm, /, data):
+        """Update tag"""
+        tag = self.rootobj
+        await stm.update(tag, **serialize_mapping(data))
+        return tag

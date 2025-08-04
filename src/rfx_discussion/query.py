@@ -1,32 +1,28 @@
-import select
-from .types import Priority, ProjectStatus, Availability, SyncStatus
-from .policy import CPOPortalPolicyManager
-from .domain import CPOPortalDomain
-from .state import CPOPortalStateManager
-from typing import Optional
-from fastapi import Request
+from .types import Priority, Availability, SyncStatus
+from .policy import RFXDiscussionPolicyManager
+from .domain import RFXDiscussionDomain
+from .state import RFXDiscussionStateManager
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
-from . import scope
 
 
 default_exclude_fields = ["realm", "deleted", "etag",
                           "created", "updated", "creator", "updater"]
 
 
-class CPOPortalQueryManager(DomainQueryManager):
-    __data_manager__ = CPOPortalStateManager
-    __policymgr__ = CPOPortalPolicyManager
+class RFXDiscussionQueryManager(DomainQueryManager):
+    __data_manager__ = RFXDiscussionStateManager
+    __policymgr__ = RFXDiscussionPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = CPOPortalDomain.Meta.prefix
-        tags = CPOPortalDomain.Meta.tags
+        prefix = RFXDiscussionDomain.Meta.prefix
+        tags = RFXDiscussionDomain.Meta.tags
 
 
-resource = CPOPortalQueryManager.register_resource
-endpoint = CPOPortalQueryManager.register_endpoint
+resource = RFXDiscussionQueryManager.register_resource
+endpoint = RFXDiscussionQueryManager.register_endpoint
 
 
 class ResourceScope(BaseModel):
@@ -34,6 +30,8 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 # Ticket Queries
+
+
 @resource('ticket')
 class TicketQuery(DomainQueryResource):
     """Ticket queries"""

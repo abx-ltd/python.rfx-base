@@ -1,7 +1,7 @@
 from fluvius.domain.state import DataAccessManager
-from .model import CPOPortalConnector
+from .model import RFXDiscussionConnector
 
 
-class CPOPortalStateManager(DataAccessManager):
-    __connector__ = CPOPortalConnector
+class RFXDiscussionStateManager(DataAccessManager):
+    __connector__ = RFXDiscussionConnector
     __automodel__ = True

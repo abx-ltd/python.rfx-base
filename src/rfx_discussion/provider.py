@@ -1,12 +1,12 @@
 from fluvius.data import DataAccessManager
 from fluvius.fastapi.auth import FluviusAuthProfileProvider
 
-from .model import CPOPortalConnector
+from .model import RFXDiscussionConnector
 
 
-class RFXClientProfileProvider(
+class RFXDiscussionProfileProvider(
     FluviusAuthProfileProvider,
     DataAccessManager
 ):
-    __connector__ = CPOPortalConnector
+    __connector__ = RFXDiscussionConnector
     __automodel__ = True

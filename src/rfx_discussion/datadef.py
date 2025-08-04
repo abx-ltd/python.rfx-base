@@ -1,12 +1,9 @@
-from typing import Optional, List
-from uuid import UUID
+from typing import Optional
 
-from sqlalchemy.engine import default
 from pydantic import Field
-from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import Priority, ProjectStatus, Availability, SyncStatus
+from .types import Priority, Availability
 
 # Ticket related payloads
 

@@ -1,22 +1,23 @@
 from fluvius.domain import Domain, SQLDomainLogStore
 
-from .aggregate import CPOPortalAggregate
-from .state import CPOPortalStateManager
-# from .policy import CPOPortalPolicyManager
+from .aggregate import RFXDiscussionAggregate
+from .state import RFXDiscussionStateManager
+# from .policy import RFXDiscussionAggregatePolicyManager
 
 
-class CPOPortalDomain(Domain):
-    __namespace__ = 'cpo-portal'
-    __aggregate__ = CPOPortalAggregate
-    __statemgr__ = CPOPortalStateManager
+class RFXDiscussionDomain(Domain):
+    __namespace__ = 'rfx-discussion'
+    __aggregate__ = RFXDiscussionAggregate
+    __statemgr__ = RFXDiscussionStateManager
     __logstore__ = SQLDomainLogStore
-    # __policymgr__   = CPOPortalPolicyManager
+    # __policymgr__   = RFXDiscussionPolicyManager
 
 
-
-class TicketResponse(CPOPortalDomain.Response):
+class TicketResponse(RFXDiscussionDomain.Response):
     pass
 
+class TicketTypeResponse(RFXDiscussionDomain.Response):
+    pass
 
-class TagResponse(CPOPortalDomain.Response):
+class TagResponse(RFXDiscussionDomain.Response):
     pass

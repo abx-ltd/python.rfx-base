@@ -1,6 +1,4 @@
-from datetime import datetime
-from hmac import new
-from fluvius.data import serialize_mapping, DataModel, UUID_GENR
+from fluvius.data import serialize_mapping
 
 from .domain import CPOPortalDomain
 from . import datadef, config
@@ -64,7 +62,6 @@ class AddWorkPackageToEstimator(Command):
     async def _process(self, agg, stm, payload):
         """Add work package to estimator draft"""
         await agg.add_work_package_to_estimator(data=payload)
-
 
 
 # class ApplyReferralCodeToEstimator(Command):
@@ -169,10 +166,6 @@ class AddProjectMember(Command):
             member_id=payload.member_id,
             role=payload.role
         )
-        # Get the updated project data
-        project = await stm.fetch("project", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(project), _type="project-response")
-
 
 # class AssignTeamToProject(Command):
 #     """Assign Team to Project - Assigns an existing team to a specific project"""
@@ -405,297 +398,9 @@ class CreateProjectCategory(Command):
         result = await agg.create_project_category(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="project-category-response")
 
-
-# ---------- Ticket Context ----------
-
-class CreateInquiry(Command):
-    """Create Inquiry - Creates a new inquiry (ticket not tied to project)"""
-
-    class Meta:
-        key = "create-inquiry"
-        resources = ("ticket",)
-        tags = ["ticket", "inquiry"]
-        auth_required = True
-        description = "Create a new inquiry"
-        new_resource = True
-
-    Data = datadef.CreateInquiryPayload
-
-    async def _process(self, agg, stm, payload):
-        context = agg.get_context()
-        user_id = context.user_id
-        payload = payload.set(creator=user_id)
-        result = await agg.create_inquiry(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
-
-
-class CreateTicket(Command):
-    """Create Ticket - Creates a new ticket tied to a project"""
-
-    class Meta:
-        key = "create-ticket"
-        resources = ("ticket",)
-        tags = ["ticket"]
-        auth_required = True
-        description = "Create a new ticket in project"
-        new_resource = True
-
-    Data = datadef.CreateProjectTicketPayload
-
-    async def _process(self, agg, stm, payload):
-        """Create a new ticket in project"""
-        context = agg.get_context()
-        user_id = context.user_id
-
-        result = await agg.create_ticket(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
-
-
-class UpdateInquiryInfo(Command):
-    """Update Inquiry Info - Updates inquiry information"""
-
-    class Meta:
-        key = "update-inquiry"
-        resources = ("ticket",)
-        tags = ["inquiry", "update"]
-        auth_required = True
-        description = "Update inquiry information"
-
-    Data = datadef.UpdateInquiryPayload
-
-    async def _process(self, agg, stm, payload):
-        ticket = await agg.update_ticket_info(payload)
-        yield agg.create_response(ticket, _type="ticket-response")
-
-
-class UpdateTicketInfo(Command):
-    """Update Ticket Info - Updates ticket information"""
-
-    class Meta:
-        key = "update-ticket"
-        resources = ("ticket",)
-        tags = ["ticket", "update"]
-        auth_required = True
-        description = "Update ticket information"
-
-    Data = datadef.UpdateTicketPayload
-
-    async def _process(self, agg, stm, payload):
-        ticket = await agg.update_ticket_info(payload)
-        yield agg.create_response(ticket, _type="ticket-response")
-
-
-class CloseTicket(Command):
-    """Close Ticket - Closes a specific ticket"""
-
-    class Meta:
-        key = "close-ticket"
-        resources = ("ticket",)
-        tags = ["ticket"]
-        auth_required = True
-        description = "Close a specific ticket"
-
-    async def _process(self, agg, stm, payload):
-        """Close ticket"""
-        ticket = await agg.close_ticket()
-        yield agg.create_response(ticket, _type="ticket-response")
-
-
-class ReopenTicket(Command):
-    """Reopen Ticket - Reopens a specific ticket"""
-
-    class Meta:
-        key = "reopen-ticket"
-        resources = ("ticket",)
-        tags = ["ticket"]
-        auth_required = True
-        description = "Reopen a specific ticket"
-
-    async def _process(self, agg, stm, payload):
-        """Reopen ticket"""
-        await agg.reopen_ticket()
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
-
-
-class ChangeTicketStatus(Command):
-    """Change Ticket Status - Changes ticket status using workflow"""
-
-    class Meta:
-        key = "change-ticket-status"
-        resources = ("ticket",)
-        tags = ["ticket", "workflow"]
-        auth_required = True
-        description = "Change ticket status using workflow"
-
-    Data = datadef.ChangeTicketStatusPayload
-
-    async def _process(self, agg, stm, payload):
-        """Change ticket status"""
-        await agg.change_ticket_status(
-            next_status=payload.next_status,
-            note=payload.note
-        )
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
-
-
-class AssignMemberToTicket(Command):
-    """Assign Member to Ticket - Assigns a member to ticket"""
-
-    class Meta:
-        key = "assign-member"
-        resources = ("ticket",)
-        tags = ["ticket", "member"]
-        auth_required = True
-        description = "Assign member to ticket"
-
-    Data = datadef.AssignTicketMemberPayload
-
-    async def _process(self, agg, stm, payload):
-        """Assign member to ticket"""
-        await agg.assign_member_to_ticket(payload.member_id)
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
-
-
-class RemoveMemberFromTicket(Command):
-    """Remove Member from Ticket - Removes a member from ticket"""
-
-    class Meta:
-        key = "remove-member-from-ticket"
-        resources = ("ticket",)
-        tags = ["ticket", "member"]
-        auth_required = True
-        description = "Remove member from ticket"
-
-    Data = datadef.RemoveTicketMemberPayload
-
-    async def _process(self, agg, stm, payload):
-        """Remove member from ticket"""
-        await agg.remove_member_from_ticket(payload.member_id)
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
-
-
-class AddTicketComment(Command):
-    """Add Comment to Ticket - Adds a comment to ticket"""
-
-    class Meta:
-        key = "add-ticket-comment"
-        resources = ("ticket",)
-        tags = ["ticket", "comment"]
-        auth_required = True
-        description = "Add comment to ticket"
-
-    Data = datadef.AddTicketCommentPayload
-
-    async def _process(self, agg, stm, payload):
-        """Add comment to ticket"""
-        await agg.add_ticket_comment(payload.comment_id)
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
-
-
-class AddParticipantToTicket(Command):
-    """Add Participant to Ticket - Adds a participant to ticket"""
-
-    class Meta:
-        key = "add-participant-to-ticket"
-        resources = ("ticket",)
-        tags = ["ticket", "participant"]
-        auth_required = True
-        description = "Add participant to ticket"
-
-    Data = datadef.AddTicketParticipantPayload
-
-    async def _process(self, agg, stm, payload):
-        """Add participant to ticket"""
-        await agg.add_ticket_participant(payload.participant_id)
-
-
-# ---------- Tag Context ----------
-class CreateTag(Command):
-    """Create Tag - Creates a new tag"""
-
-    class Meta:
-        key = "create-tag"
-        resources = ("tag",)
-        tags = ["tag"]
-        auth_required = True
-        description = "Create a new tag in project"
-        new_resource = True
-
-    Data = datadef.CreateTagPayload
-
-    async def _process(self, agg, stm, payload):
-        """Create tag"""
-        result = await agg.create_tag(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="tag-response")
-
-
-class CreateTicketType(Command):
-    """Create Ticket Type - Creates a new ticket type"""
-
-    class Meta:
-        key = "create-ticket-type"
-        resources = ("ticket",)
-        tags = ["ticket", "ticket-type", "reference"]
-        auth_required = True
-        description = "Create a new ticket type"
-        new_resource = True
-
-    Data = datadef.CreateTicketTypePayload
-
-    async def _process(self, agg, stm, payload):
-        """Create ticket type"""
-        result = await agg.create_ticket_type(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="ticket-type-response")
-
-
-class AddTicketTag(Command):
-    """Add Tag to Ticket - Adds a tag to ticket"""
-
-    class Meta:
-        key = "add-ticket-tag"
-        resources = ("ticket",)
-        tags = ["ticket", "tag"]
-        auth_required = True
-        description = "Add tag to ticket"
-
-    Data = datadef.AddTicketTagPayload
-
-    async def _process(self, agg, stm, payload):
-        """Add tag to ticket"""
-        await agg.add_ticket_tag(payload.tag_id)
-
-
-class RemoveTicketTag(Command):
-    """Remove Tag from Ticket - Removes a tag from ticket"""
-
-    class Meta:
-        key = "remove-ticket-tag"
-        resources = ("ticket",)
-        tags = ["ticket", "tag"]
-        auth_required = True
-        description = "Remove tag from ticket"
-
-    Data = datadef.RemoveTicketTagPayload
-
-    async def _process(self, agg, stm, payload):
-        """Remove tag from ticket"""
-        await agg.remove_ticket_tag(payload.tag_id)
-        # Get the updated ticket data
-        ticket = await stm.fetch("ticket", self.aggroot.identifier)
-        yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
-
-
 # ---------- Work Package Context ----------
+
+
 class CreateWorkPackage(Command):
     """Create Work Package - For internal/admin use — adds new reusable WP"""
 
@@ -748,7 +453,7 @@ class InvalidateWorkItemDeliverable(Command):
 
     async def _process(self, agg, stm, payload):
         """Invalidate work package deliverable"""
-        await agg.invalidate_work_package_deliverable(data=payload)
+        await agg.invalidate_work_item_deliverable(data=payload)
 
 
 class UpdateWorkPackage(Command):
@@ -833,51 +538,51 @@ class AddWorkItemToWorkPackage(Command):
         await agg.add_work_item_to_work_package(payload.work_item_id)
 
 
-# ---------- Notification Context ----------
-class MarkNotificationAsRead(Command):
-    """Mark Notification As Read - Update is_read status of a specific notification to true"""
+# # ---------- Notification Context ----------
+# class MarkNotificationAsRead(Command):
+#     """Mark Notification As Read - Update is_read status of a specific notification to true"""
 
-    class Meta:
-        key = "mark-notfication-as-read"
-        resources = ("notification",)
-        tags = ["notification"]
-        auth_required = True
-        description = "Mark notification as read"
+#     class Meta:
+#         key = "mark-notfication-as-read"
+#         resources = ("notification",)
+#         tags = ["notification"]
+#         auth_required = True
+#         description = "Mark notification as read"
 
-    Data = datadef.MarkNotificationAsReadPayload
+#     Data = datadef.MarkNotificationAsReadPayload
 
-    async def _process(self, agg, stm, payload):
-        """Mark notification as read"""
-
-
-class MarkAllNotificationsAsRead(Command):
-    """Mark All Notification As Read - Updates the is_read status of all notifications for the authenticated user to true"""
-
-    class Meta:
-        key = "mark-all-notfication-as-read"
-        resources = ("notification",)
-        tags = ["notification"]
-        auth_required = True
-        description = "Mark all notifications as read"
-
-    Data = datadef.MarkAllNotificationsAsReadPayload
-
-    async def _process(self, agg, stm, payload):
-        """Mark all notifications as read"""
+#     async def _process(self, agg, stm, payload):
+#         """Mark notification as read"""
 
 
-# ---------- Integration Context ----------
-class UnifiedSync(Command):
-    """Sync Client Portal items to External System - Unified sync command to sync data of client portal system to other external resource"""
+# class MarkAllNotificationsAsRead(Command):
+#     """Mark All Notification As Read - Updates the is_read status of all notifications for the authenticated user to true"""
 
-    class Meta:
-        key = "unified-sync"
-        resources = ("integration",)
-        tags = ["integration", "sync"]
-        auth_required = True
-        description = "Unified sync command"
+#     class Meta:
+#         key = "mark-all-notfication-as-read"
+#         resources = ("notification",)
+#         tags = ["notification"]
+#         auth_required = True
+#         description = "Mark all notifications as read"
 
-    Data = datadef.UnifiedSyncPayload
+#     Data = datadef.MarkAllNotificationsAsReadPayload
 
-    async def _process(self, agg, stm, payload):
-        """Unified sync command"""
+#     async def _process(self, agg, stm, payload):
+#         """Mark all notifications as read"""
+
+
+# # ---------- Integration Context ----------
+# class UnifiedSync(Command):
+#     """Sync Client Portal items to External System - Unified sync command to sync data of client portal system to other external resource"""
+
+#     class Meta:
+#         key = "unified-sync"
+#         resources = ("integration",)
+#         tags = ["integration", "sync"]
+#         auth_required = True
+#         description = "Unified sync command"
+
+#     Data = datadef.UnifiedSyncPayload
+
+#     async def _process(self, agg, stm, payload):
+#         """Unified sync command"""

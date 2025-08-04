@@ -1,227 +1,36 @@
 import sqlalchemy as sa
 
-from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
+from fluvius.data import DomainSchema, SqlaDriver
 from sqlalchemy.dialects import postgresql as pg
-from sqlalchemy.sql.expression import quoted_name
 
 
 from . import types, config
 
 
-class CPOPortalConnector(SqlaDriver):
-    assert config.DB_DSN, "[rfx_client.DB_DSN] not set."
+class RFXDiscussionConnector(SqlaDriver):
+    assert config.DB_DSN, "[rfx_discussion.DB_DSN] not set."
 
     __db_dsn__ = config.DB_DSN
 
 
-class CPOPortalBaseModel(CPOPortalConnector.__data_schema_base__, DomainSchema):
+class RFXDiscussionBaseModel(RFXDiscussionConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
 
     _realm = sa.Column(sa.String)
-
-
-# ================ Project Context ================
-# Project Aggregate Root
-class Project(CPOPortalBaseModel):
-    __tablename__ = "project"
-
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    category = sa.Column(sa.String(100))  # FK to ref--project-category
-    priority = sa.Column(
-        sa.Enum(types.Priority, name="priority",
-                schema=config.CPO_PORTAL_SCHEMA),
-        nullable=False
-    )
-    status = sa.Column(
-        sa.Enum(types.ProjectStatus, name="project_status",
-                schema=config.CPO_PORTAL_SCHEMA),
-        nullable=False
-    )
-    start_date = sa.Column(sa.DateTime(timezone=True))
-    target_date = sa.Column(sa.DateTime(timezone=True))
-    free_credit_applied = sa.Column(sa.Integer, default=0)
-    lead_id = sa.Column(pg.UUID)  # FK to profile(_id)
-    referral_code_used = sa.Column(pg.UUID)  # FK to referral_code(_id)
-    status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
-    sync_status = sa.Column(
-        sa.Enum(types.SyncStatus, name="sync_status",
-                schema=config.CPO_PORTAL_SCHEMA),
-        default=types.SyncStatus.PENDING
-    )
-
-
-# Project Resource Entity
-class ProjectResource(CPOPortalBaseModel):
-    __tablename__ = "project-resource"
-
-    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
-    resource_id = sa.Column(pg.UUID, nullable=False)  # FK to resource(_id)
-    # 'file', 'link', etc.
-    resource_type = sa.Column(sa.String(100), nullable=False)
-    filename = sa.Column(sa.String(255))
-    file_size = sa.Column(sa.Integer)
-    mime_type = sa.Column(sa.String(100))
-    url = sa.Column(sa.String(500))
-
-
-# Project Milestone Entity
-class ProjectMilestone(CPOPortalBaseModel):
-    __tablename__ = "project-milestone"
-
-    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    due_date = sa.Column(sa.DateTime(timezone=True), nullable=False)
-    completed_at = sa.Column(sa.DateTime(timezone=True))
-
-
-# Project Ticket Entity
-class ProjectTicket(CPOPortalBaseModel):
-    __tablename__ = "project-ticket"
-
-    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
-    ticket_id = sa.Column(pg.UUID, nullable=False)  # FK to ticket(_id)
-
-
-# Project Status Entity
-class ProjectStatus(CPOPortalBaseModel):
-    __tablename__ = "project-status"
-
-    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
-    # FK to workflow-status
-    src_state = sa.Column(sa.String(100), nullable=False)
-    # FK to workflow-status
-    dst_state = sa.Column(sa.String(100), nullable=False)
-    note = sa.Column(sa.Text)
-
-
-# Project Member Entity
-class ProjectMember(CPOPortalBaseModel):
-    __tablename__ = "project-member"
-
-    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
-    member_id = sa.Column(pg.UUID, nullable=False)  # FK to profile(_id)
-    role = sa.Column(sa.String(100), nullable=False)  # FK to ref--project-role
-    permission = sa.Column(sa.String(255))
-
-
-# Project Referral Code Entity
-class ProjectReferralCode(CPOPortalBaseModel):
-    __tablename__ = "project-referral-code"
-
-    code = sa.Column(sa.String(50), nullable=False, unique=True)
-    valid_from = sa.Column(sa.DateTime(timezone=True), nullable=False)
-    valid_until = sa.Column(sa.DateTime(timezone=True), nullable=False)
-    max_uses = sa.Column(sa.Integer, nullable=False)
-    current_uses = sa.Column(sa.Integer, default=0)
-    discount_value = sa.Column(sa.Numeric(10, 2), nullable=False)
-
-
-# Project Work Package Entity
-class ProjectWorkPackage(CPOPortalBaseModel):
-    __tablename__ = "project-work-package"
-
-    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
-    # FK to work_package(_id)
-    work_package_id = sa.Column(pg.UUID, nullable=False)
-    wp_code = sa.Column(sa.String(50), nullable=False)
-    quantity = sa.Column(sa.Integer, nullable=False, default=1)
-
-
-# Reference Tables
-class RefProjectCategory(CPOPortalBaseModel):
-    __tablename__ = "ref--project-category"
-
-    key = sa.Column(sa.String(50), nullable=False,
-                    unique=True, primary_key=True)
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    is_active = sa.Column(sa.Boolean, default=True)
-
-
-class RefProjectRole(CPOPortalBaseModel):
-    __tablename__ = "ref--project-role"
-
-    key = sa.Column(sa.String(50), nullable=False,
-                    unique=True, primary_key=True)
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    is_default = sa.Column(sa.Boolean, default=False)
-
-
-# ================ Work Item Context ================
-class WorkItem(CPOPortalBaseModel):
-    __tablename__ = "work-item"
-
-    type = sa.Column(sa.String(50), nullable=False)
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
-    credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
-
-
-class RefWorkItemType(CPOPortalBaseModel):
-    __tablename__ = "ref--work-item-type"
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-
-# ================ Work Package Context ================
-# Work Package Aggregate Root
-
-
-class WorkPackage(CPOPortalBaseModel):
-    __tablename__ = "work-package"
-
-    work_package_name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    example_description = sa.Column(sa.Text)
-    is_custom = sa.Column(sa.Boolean, default=False)
-    complexity_level = sa.Column(sa.Integer, default=1)
-
-
-class WorkItemDeliverable(CPOPortalBaseModel):
-    __tablename__ = "work-item-deliverable"
-
-    work_package_id = sa.Column(sa.ForeignKey(WorkPackage._id), nullable=False)
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-
-
-class WorkPackageWorkItem(CPOPortalBaseModel):
-    __tablename__ = "work-package-item-instance"
-
-    work_package_id = sa.Column(sa.ForeignKey(WorkPackage._id), nullable=False)
-    work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
-
-class ViewWorkItemListing(CPOPortalConnector.__data_schema_base__):
-    __tablename__ = "_work-item-listing"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
-
-    work_package_id = sa.Column(pg.UUID, primary_key=True)
-    work_item_id = sa.Column(pg.UUID, primary_key=True)
-    work_item_name = sa.Column(sa.String(255), nullable=False)
-    work_item_description = sa.Column(sa.Text)
-    price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
-    credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
-    work_item_type_code = sa.Column(sa.String(100), nullable=False)
-    total_credits_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
-    estimated_cost_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
-
 
 # ================ Ticket Context ================
 # Ticket Aggregate Root
 
 
-class Ticket(CPOPortalBaseModel):
+class Ticket(RFXDiscussionBaseModel):
     __tablename__ = "ticket"
 
     title = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
     priority = sa.Column(
         sa.Enum(types.Priority, name="priority",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.RFX_DISCUSSION_SCHEMA),
         nullable=False
     )
     type = sa.Column(sa.String(100), nullable=False)  # FK to ref--ticket-type
@@ -231,18 +40,18 @@ class Ticket(CPOPortalBaseModel):
     workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     availability = sa.Column(
         sa.Enum(types.Availability, name="availability",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.RFX_DISCUSSION_SCHEMA),
         nullable=False
     )
     sync_status = sa.Column(
         sa.Enum(types.SyncStatus, name="sync_status",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.RFX_DISCUSSION_SCHEMA),
         default=types.SyncStatus.PENDING
     )
 
 
 # Ticket Status Entity
-class TicketStatus(CPOPortalBaseModel):
+class TicketStatus(RFXDiscussionBaseModel):
     __tablename__ = "ticket-status"
 
     ticket_id = sa.Column(sa.ForeignKey(Ticket._id), nullable=False)
@@ -254,7 +63,7 @@ class TicketStatus(CPOPortalBaseModel):
 
 
 # Ticket Comment Entity
-class TicketComment(CPOPortalBaseModel):
+class TicketComment(RFXDiscussionBaseModel):
     __tablename__ = "ticket-comment"
 
     ticket_id = sa.Column(sa.ForeignKey(Ticket._id), nullable=False)
@@ -262,7 +71,7 @@ class TicketComment(CPOPortalBaseModel):
 
 
 # Ticket Assignee Entity
-class TicketAssignee(CPOPortalBaseModel):
+class TicketAssignee(RFXDiscussionBaseModel):
     __tablename__ = "ticket-assignee"
 
     ticket_id = sa.Column(sa.ForeignKey(Ticket._id), nullable=False)
@@ -271,7 +80,7 @@ class TicketAssignee(CPOPortalBaseModel):
 
 
 # Ticket Participants Entity
-class TicketParticipants(CPOPortalBaseModel):
+class TicketParticipants(RFXDiscussionBaseModel):
     __tablename__ = "ticket-participants"
 
     ticket_id = sa.Column(sa.ForeignKey(Ticket._id), nullable=False)
@@ -279,14 +88,14 @@ class TicketParticipants(CPOPortalBaseModel):
 
 
 # Ticket Tag Entity
-class TicketTag(CPOPortalBaseModel):
+class TicketTag(RFXDiscussionBaseModel):
     __tablename__ = "ticket-tag"
 
     ticket_id = sa.Column(sa.ForeignKey(Ticket._id), nullable=False)
     tag_id = sa.Column(pg.UUID, nullable=False)  # FK to tag(_id)
 
 
-class RefTicketType(CPOPortalBaseModel):
+class RefTicketType(RFXDiscussionBaseModel):
     __tablename__ = "ref--ticket-type"
 
     key = sa.Column(sa.String(50), nullable=False,
@@ -299,9 +108,9 @@ class RefTicketType(CPOPortalBaseModel):
 
 
 # View for inquiry listing
-class ViewInquiryListing(CPOPortalConnector.__data_schema_base__):
+class ViewInquiryListing(RFXDiscussionConnector.__data_schema_base__):
     __tablename__ = "_inquiry-listing"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
 
     type = sa.Column(sa.String(255), primary_key=True)
     type_icon_color = sa.Column(sa.String(7))  # Hex color code
@@ -312,51 +121,15 @@ class ViewInquiryListing(CPOPortalConnector.__data_schema_base__):
     activity = sa.Column(sa.Interval)
     availability = sa.Column(
         sa.Enum(types.Availability, name="availability",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.RFX_DISCUSSION_SCHEMA),
         nullable=False
     )
-
-
-# ================ Workflow Context ================
-# Workflow Aggregate Root
-class Workflow(CPOPortalBaseModel):
-    __tablename__ = "workflow"
-
-    entity_type = sa.Column(
-        sa.Enum(types.EntityType, name="entity_type",
-                schema=config.CPO_PORTAL_SCHEMA),
-        nullable=False
-    )
-    name = sa.Column(sa.String(255), nullable=False)
-
-
-# Workflow Status Entity
-class WorkflowStatus(CPOPortalBaseModel):
-    __tablename__ = "workflow-status"
-
-    workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
-    key = sa.Column(sa.String(100), nullable=False, unique=True)
-    is_start = sa.Column(sa.Boolean, default=False)
-    is_end = sa.Column(sa.Boolean, default=False)
-
-
-# Workflow Transition Entity
-class WorkflowTransition(CPOPortalBaseModel):
-    __tablename__ = "workflow-transition"
-
-    workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
-    src_status_id = sa.Column(sa.ForeignKey(
-        WorkflowStatus._id), nullable=False)
-    dst_status_id = sa.Column(sa.ForeignKey(
-        WorkflowStatus._id), nullable=False)
-    rule_code = sa.Column(sa.String(100))
-    condition = sa.Column(sa.Text)
 
 
 # ================ Tag Context ================s
 
 # Tag Aggregate Root
-class Tag(CPOPortalBaseModel):
+class Tag(RFXDiscussionBaseModel):
     __tablename__ = "tag"
 
     key = sa.Column(sa.String(50), nullable=False, unique=True)
@@ -366,56 +139,15 @@ class Tag(CPOPortalBaseModel):
     target_resource = sa.Column(sa.String(100), nullable=False)
 
 
-# ================ Integration Context ================
-# Integration Aggregate Root
-class Integration(CPOPortalBaseModel):
-    __tablename__ = "integration"
-
-    # 'ticket' or 'project'
-    entity_type = sa.Column(sa.String(100), nullable=False)
-    # FK to project(_id) or ticket(_id)
-    entity_id = sa.Column(pg.UUID, nullable=False)
-    provider = sa.Column(sa.String(100), nullable=False)  # FK to ref--provider
-    external_id = sa.Column(sa.String(255), nullable=False)
-    external_url = sa.Column(sa.String(500))
-    status = sa.Column(
-        sa.Enum(types.SyncStatus, name="sync_status",
-                schema=config.CPO_PORTAL_SCHEMA),
-        nullable=False
-    )
-
-
-# ================ Notification Context ================
-# Notification Aggregate Root
-class Notification(CPOPortalBaseModel):
-    __tablename__ = "notification"
-
-    user_id = sa.Column(pg.UUID, nullable=False)  # FK to profile(_id)
-    source_entity_type = sa.Column(sa.String(100), nullable=False)
-    source_entity_id = sa.Column(pg.UUID, nullable=False)
-    message = sa.Column(sa.Text, nullable=False)
-    # FK to ref--notification-type
-    type = sa.Column(sa.String(100), nullable=False)
-    is_read = sa.Column(sa.Boolean, default=False)
-
-
-class RefNotificationType(CPOPortalBaseModel):
-    __tablename__ = "ref--notification-type"
-
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    is_active = sa.Column(sa.Boolean, default=True)
-
-
-class ViewTicketWithTagNames(CPOPortalConnector.__data_schema_base__):
+class ViewTicketWithTagNames(RFXDiscussionConnector.__data_schema_base__):
     __tablename__ = "_ticket-with-tag-names"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
 
     ticket_id = sa.Column(pg.UUID, primary_key=True)
     title = sa.Column(sa.String(255), nullable=False)
     priority = sa.Column(
         sa.Enum(types.Priority, name="priority",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.RFX_DISCUSSION_SCHEMA),
         nullable=False
     )
     type = sa.Column(sa.String(100), nullable=False)
@@ -425,21 +157,7 @@ class ViewTicketWithTagNames(CPOPortalConnector.__data_schema_base__):
     workflow_id = sa.Column(pg.UUID)
     availability = sa.Column(
         sa.Enum(types.Availability, name="availability",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.RFX_DISCUSSION_SCHEMA),
         nullable=False
     )
     tag_names = sa.Column(pg.ARRAY(sa.String))
-
-
-class ViewWorkPackageDetail(CPOPortalConnector.__data_schema_base__):
-    __tablename__ = "_work-package-detail"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
-
-    work_package_id = sa.Column(pg.UUID, primary_key=True)
-    work_package_name = sa.Column(sa.String(255), nullable=False)
-    type_list = sa.Column(pg.ARRAY(sa.String))
-    complexity_level = sa.Column(sa.Integer, nullable=False)
-    credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    example_description = sa.Column(sa.Text)
