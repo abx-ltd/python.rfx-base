@@ -1,3 +1,10 @@
+"""
+RFX Authentication Profile Provider
+
+Integrates with Keycloak for user authentication and profile management.
+Handles user data synchronization and authorization context setup.
+"""
+
 from types import SimpleNamespace
 from fluvius.data import DataAccessManager
 from fluvius.auth import AuthorizationContext
@@ -10,10 +17,15 @@ class RFXAuthProfileProvider(
     FluviusAuthProfileProvider,
     DataAccessManager
 ):
+    """
+    Authentication provider for RFX User system.
+    Handles Keycloak token validation, user profile management, and authorization context.
+    """
     __connector__ = IDMConnector
     __automodel__ = True
 
     def format_user_data(self, data):
+        """Extract and format user data from Keycloak token payload."""
         return dict(
             _id=data.sub,
             name__family=data.family_name,
@@ -26,11 +38,15 @@ class RFXAuthProfileProvider(
         )
 
     def __init__(self, app, active_profile=None):
-        """ Lookup services for user related info """
+        """Initialize provider with optional active profile override."""
         super(DataAccessManager, self).__init__(app)
         self._active_profile = active_profile
 
     async def setup_context(self, auth_user: KeycloakTokenPayload) -> AuthorizationContext:
+        """
+        Set up authorization context from Keycloak token.
+        Handles user sync, profile management, and organization resolution.
+        """
         # ---------- User ----------
         user_id = auth_user.sub
         user_data = self.format_user_data(auth_user)

@@ -1,3 +1,33 @@
+"""
+RFX User Domain SQLAlchemy Data Models
+
+Comprehensive data model definitions for multi-tenant identity and access management system.
+Implements PostgreSQL-backed persistence layer with enum support, foreign key relationships,
+and audit trail capabilities through the Fluvius domain framework.
+
+Model Categories:
+- Reference Tables: Static lookup data for actions, roles, organization types
+- User Models: Core user identity, authentication, and session management
+- Organization Models: Multi-tenant organizational structure and custom roles
+- Profile Models: User profiles within organizational contexts with RBAC
+- Invitation Models: Secure organization invitation workflow with status tracking
+- Group Models: Security groups for permissions and access control
+
+Database Features:
+- PostgreSQL ENUM types for status values with schema qualification
+- Full-text search support via TSVECTOR columns
+- JSON columns for flexible role and access data storage
+- UUID primary keys with foreign key relationships
+- Timezone-aware datetime fields for audit trails
+- Array columns for tag-based categorization
+
+Integration Points:
+- Fluvius DomainSchema base class for event sourcing
+- SqlaDriver for database connection management
+- Schema-qualified enums matching domain types
+- Audit trail tables for status change tracking
+"""
+
 import sqlalchemy as sa
 
 from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
@@ -7,18 +37,29 @@ from . import types, config
 
 
 class IDMConnector(SqlaDriver):
+    """Database connection driver for Identity and Access Management schema."""
     assert config.DB_DSN, "[rfx_user.DB_DSN] not set."
 
     __db_dsn__ = config.DB_DSN
 
 class IDMBaseModel(IDMConnector.__data_schema_base__, DomainSchema):
+    """
+    Base model for all IDM entities with schema qualification and realm support.
+    Provides common structure for multi-tenant operations with realm isolation.
+    """
     __abstract__ = True
     __table_args__ = {'schema': config.USER_PROFILE_SCHEMA}
 
     _realm = sa.Column(sa.String)
 
 
+# ==========================================================================
+# REFERENCE TABLES
+# Static lookup data for system operations and classifications
+# ==========================================================================
+
 class RefAction(IDMBaseModel):
+    """Reference table for user actions that can be tracked and audited."""
     __tablename__ = "ref--action"
 
     key = sa.Column(sa.String(1024), nullable=False, unique=True)
@@ -26,6 +67,7 @@ class RefAction(IDMBaseModel):
 
 
 class RefOrganizationType(IDMBaseModel):
+    """Reference table for organization type classifications (e.g., healthcare, business)."""
     __tablename__ = "ref--organization-type"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
@@ -33,6 +75,7 @@ class RefOrganizationType(IDMBaseModel):
 
 
 class RefRealm(IDMBaseModel):
+    """Reference table for authentication realms in multi-tenant system."""
     __tablename__ = "ref--realm"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
@@ -40,6 +83,7 @@ class RefRealm(IDMBaseModel):
 
 
 class RefRoleType(IDMBaseModel):
+    """Reference table for role type classifications (system, organization, custom)."""
     __tablename__ = "ref--role-type"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
@@ -47,6 +91,10 @@ class RefRoleType(IDMBaseModel):
 
 
 class RefSystemRole(IDMBaseModel):
+    """
+    System-wide role definitions with priority and default assignments.
+    Defines roles that span across organizations with specific capabilities.
+    """
     __tablename__ = "ref--system-role"
 
     description = sa.Column(sa.String(1024))
@@ -61,7 +109,16 @@ class RefSystemRole(IDMBaseModel):
     role_type = sa.Column(sa.ForeignKey(RefRoleType.key), nullable=True)
 
 
+# ==========================================================================
+# USER MODELS
+# Core user identity, authentication, and session management
+# ==========================================================================
+
 class UserSchema(IDMBaseModel):
+    """
+    Primary user entity with identity information and Keycloak integration.
+    Stores user profile data, authentication status, and role access mappings.
+    """
     __tablename__ = "user"
 
     active = sa.Column(sa.Boolean)
@@ -95,6 +152,10 @@ class UserSchema(IDMBaseModel):
 
 
 class UserIdentity(IDMBaseModel):
+    """
+    External identity provider linkages for federated authentication.
+    Links users to external providers like social login or enterprise SSO.
+    """
     __tablename__ = "user-identity"
 
     provider = sa.Column(sa.String, nullable=False)
@@ -107,6 +168,10 @@ class UserIdentity(IDMBaseModel):
 
 
 class UserSession(IDMBaseModel):
+    """
+    User session tracking for authentication and activity monitoring.
+    Links sessions to users and identity providers for audit trails.
+    """
     __tablename__ = "user-session"
 
     source = sa.Column(sa.Enum(types.UserSource), nullable=True)
@@ -116,6 +181,10 @@ class UserSession(IDMBaseModel):
 
 
 class UserStatus(IDMBaseModel):
+    """
+    Audit trail for user status changes with source and destination states.
+    Tracks user lifecycle transitions for compliance and debugging.
+    """
     __tablename__ = "user-status"
 
     src_state = sa.Column(
@@ -131,6 +200,10 @@ class UserStatus(IDMBaseModel):
 
 
 class UserVerification(IDMBaseModel):
+    """
+    Email and phone verification tracking with timestamp history.
+    Manages verification codes and tracks verification request frequency.
+    """
     __tablename__ = "user-verification"
 
     verification = sa.Column(sa.String(1024), nullable=False)
@@ -141,6 +214,10 @@ class UserVerification(IDMBaseModel):
 
 
 class UserAction(IDMBaseModel):
+    """
+    User action tracking with status monitoring for Keycloak actions.
+    Records actions sent to users and tracks completion status.
+    """
     __tablename__ = "user-action"
 
     _iid = sa.Column(pg.UUID)
@@ -156,7 +233,16 @@ class UserAction(IDMBaseModel):
     user_identity_id = sa.Column(sa.ForeignKey(UserIdentity._id))
 
 
+# ==========================================================================
+# ORGANIZATION MODELS
+# Multi-tenant organizational structure and custom roles
+# ==========================================================================
+
 class Organization(IDMBaseModel):
+    """
+    Multi-tenant organization entity with business information and configuration.
+    Central entity for organizational boundaries and custom role definitions.
+    """
     __tablename__ = "organization"
 
     description = sa.Column(sa.String)
@@ -180,6 +266,10 @@ class Organization(IDMBaseModel):
 
 
 class OrganizationDelegatedAccess(IDMBaseModel):
+    """
+    Cross-organizational access delegation for shared resources.
+    Enables organizations to grant limited access to other organizations.
+    """
     __tablename__ = "organization-delegated-access"
 
     organization_id = sa.Column(sa.ForeignKey(Organization._id))
@@ -188,6 +278,10 @@ class OrganizationDelegatedAccess(IDMBaseModel):
 
 
 class OrganizationRole(IDMBaseModel):
+    """
+    Custom roles defined within organizational scope with full-text search.
+    Allows organizations to create specialized roles beyond system defaults.
+    """
     __tablename__ = "organization-role"
 
     _iid = sa.Column(pg.UUID)
@@ -200,6 +294,10 @@ class OrganizationRole(IDMBaseModel):
 
 
 class OrganizationStatus(IDMBaseModel):
+    """
+    Audit trail for organization status changes with transition tracking.
+    Records organizational lifecycle events for compliance and history.
+    """
     __tablename__ = "organization-status"
 
     organization_id = sa.Column(sa.ForeignKey(Organization._id))
@@ -214,7 +312,17 @@ class OrganizationStatus(IDMBaseModel):
     note = sa.Column(sa.String())
 
 
+# ==========================================================================
+# PROFILE MODELS  
+# User profiles within organizational contexts with RBAC
+# ==========================================================================
+
 class Profile(IDMBaseModel):
+    """
+    User profile within organizational context with comprehensive identity data.
+    Links users to organizations with role-based access control and preferences.
+    Supports multi-factor authentication, location tracking, and service access.
+    """
     __tablename__ = "profile"
 
     access_tags = sa.Column(pg.ARRAY(sa.String))
@@ -280,6 +388,10 @@ class Profile(IDMBaseModel):
 
 
 class ProfileLocation(IDMBaseModel):
+    """
+    Geographic and device tracking for profile security and analytics.
+    Records device information and location data for session management.
+    """
     __tablename__ = "profile-location"
 
     _iid = sa.Column(pg.UUID)
@@ -294,6 +406,10 @@ class ProfileLocation(IDMBaseModel):
 
 
 class ProfileStatus(IDMBaseModel):
+    """
+    Audit trail for profile status transitions within organizations.
+    Tracks profile lifecycle changes with notes for compliance.
+    """
     __tablename__ = "profile-status"
     src_state = sa.Column(
         sa.Enum(types.ProfileStatus, name="profile_status", schema=config.USER_PROFILE_SCHEMA),
@@ -308,6 +424,10 @@ class ProfileStatus(IDMBaseModel):
 
 
 class ProfileRole(IDMBaseModel):
+    """
+    Role assignments linking profiles to system or organizational roles.
+    Supports multiple role sources for flexible permission management.
+    """
     __tablename__ = "profile-role"
 
     profile_id = sa.Column(sa.ForeignKey(Profile._id))
@@ -316,7 +436,16 @@ class ProfileRole(IDMBaseModel):
     role_source = sa.Column(sa.String(255))
 
 
+# ==========================================================================
+# GROUP MODELS
+# Security groups for permissions and access control
+# ==========================================================================
+
 class Group(IDMBaseModel):
+    """
+    Security groups for organizing profiles with shared permissions.
+    Supports full-text search and resource-scoped group definitions.
+    """
     __tablename__ = "group"
 
     _txt = sa.Column(pg.TSVECTOR)
@@ -326,14 +455,26 @@ class Group(IDMBaseModel):
     resource_id = sa.Column(pg.UUID)
 
 class ProfileGroup(IDMBaseModel):
+    """
+    Many-to-many relationship linking profiles to security groups.
+    Enables group-based permission management and access control.
+    """
     __tablename__ = "profile-group"
 
     group_id = sa.Column(pg.UUID, sa.ForeignKey(Group._id))
     profile_id = sa.Column(pg.UUID, sa.ForeignKey(Profile._id))
 
 
+# ==========================================================================
+# INVITATION MODELS
+# Secure organization invitation workflow with status tracking
+# ==========================================================================
 
 class Invitation(IDMBaseModel):
+    """
+    Organization invitation with secure token and expiration management.
+    Handles invitation lifecycle from creation to acceptance/rejection.
+    """
     __tablename__ = "invitation"
 
     organization_id = sa.Column(pg.UUID, sa.ForeignKey(Organization._id))
@@ -351,6 +492,10 @@ class Invitation(IDMBaseModel):
 
 
 class InvitationStatus(IDMBaseModel):
+    """
+    Audit trail for invitation status changes with transition tracking.
+    Records invitation lifecycle events for security and compliance.
+    """
     __tablename__ = "invitation-status"
 
     invitation_id = sa.Column(pg.UUID, sa.ForeignKey(Invitation._id))

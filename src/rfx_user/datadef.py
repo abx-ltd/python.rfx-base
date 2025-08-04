@@ -1,3 +1,10 @@
+"""
+RFX User Domain Data Definitions
+
+Pydantic payload models for API operations and data validation.
+Used by command handlers for input validation and serialization.
+"""
+
 from typing import Optional, List
 from pydantic import Field
 from datetime import datetime
@@ -7,6 +14,7 @@ from fluvius.data import DataModel, UUID_TYPE
 from .types import OrganizationStatus
 
 class CreateOrganizationPayload(DataModel):
+    """Payload for creating new organizations."""
     description: Optional[str]
     name: str = Field(max_length=255)
     tax_id: Optional[str] = Field(max_length=9)
@@ -23,6 +31,7 @@ class CreateOrganizationPayload(DataModel):
 UpdateOrganizationPayload = CreateOrganizationPayload
 
 class CreateProfilePayload(DataModel):
+    """Payload for creating user profiles within organizations."""
     access_tags: list[str] = []
     active: bool
 
@@ -83,42 +92,52 @@ class CreateProfilePayload(DataModel):
 UpdateProfilePayload = CreateProfilePayload
 
 class SendActionPayload(DataModel):
+    """Payload for sending user actions (password reset, email verification)."""
     actions: list
     required: Optional[bool] = False
 
 class SendInvitationPayload(DataModel):
+    """Payload for sending organization invitations."""
     email: str
     duration: int
     message: str | None = None
 
 class AssignRolePayload(DataModel):
+    """Payload for assigning roles to profiles."""
     role_id: UUID_TYPE
     role_source: str = 'SYSTEM'
 
 class RevokeRolePayload(DataModel):
+    """Payload for revoking roles from profiles."""
     profile_role_id: UUID_TYPE
 
 class CreateOrgRolePayload(DataModel):
+    """Payload for creating custom organization roles."""
     active: Optional[bool] = True
     description: Optional[str]
     name: str
     key: str
 
 class UpdateOrgRolePayload(DataModel):
+    """Payload for updating organization roles."""
     role_id: UUID_TYPE
     updates: CreateOrgRolePayload
 
 class RemoveOrgRolePayload(DataModel):
+    """Payload for removing organization roles."""
     role_id: UUID_TYPE
 
 class AddGroupToProfilePayload(DataModel):
+    """Payload for adding profiles to security groups."""
     group_id: UUID_TYPE
     profile_id: Optional[UUID_TYPE] = None
 
 class RemoveGroupFromProfilePayload(DataModel):
+    """Payload for removing profiles from security groups."""
     profile_group_id: UUID_TYPE
 
 class CreateGroupPayload(DataModel):
+    """Payload for creating security groups."""
     active: Optional[bool] = True
     description: Optional[str] = Field(max_length=1024)
     name: str = Field(max_length=1024)
@@ -126,6 +145,7 @@ class CreateGroupPayload(DataModel):
     resource_id: Optional[UUID_TYPE] = None
 
 class UpdateGroupPayload(DataModel):
+    """Payload for updating security groups."""
     description: Optional[str] = Field(max_length=1024)
     name: Optional[str] = Field(max_length=1024)
     resource: Optional[str] = None
@@ -133,6 +153,7 @@ class UpdateGroupPayload(DataModel):
     active: Optional[bool] = None
 
 class SyncUserPayload(DataModel):
+    """Payload for synchronizing user data with Keycloak."""
     force: Optional[bool] = False  # Force sync even if recently synced
     sync_actions: Optional[bool] = True  # Whether to sync required actions
     user_data: dict  # User data from Keycloak

@@ -1,3 +1,18 @@
+"""
+RFX User Domain Aggregate - Business Logic and State Management
+
+This aggregate implements the domain model for the RFX User system, managing:
+- User lifecycle (activation, deactivation, synchronization with Keycloak)
+- Organization management (creation, role assignments, status tracking)
+- Invitation workflows (send, accept, reject, cancel)
+- Profile management (creation, updates, role/group assignments)
+- Group management (creation, member assignments, permissions)
+
+Uses the Fluvius framework's aggregate pattern with action decorators for
+event sourcing and state management. All operations include audit trails
+and status history tracking.
+"""
+
 import secrets
 from datetime import datetime, timedelta
 from fluvius.domain.aggregate import Aggregate, action
@@ -6,7 +21,17 @@ from .types import OrganizationStatus, ProfileStatus, UserStatus, InvitationStat
 
 
 class UserProfileAggregate(Aggregate):
+    """
+    Main aggregate for RFX User domain operations.
+    Handles business logic for users, organizations, profiles, invitations, and groups.
+    """
+    
+    # ==========================================================================
+    # STATUS TRACKING HELPERS
+    # ==========================================================================
+    
     async def set_org_status(self, org, status, note=None):
+        """Track organization status changes with audit trail."""
         record = self.init_resource("organization-status",
             organization_id=org._id,
             src_state=org.status,
@@ -16,6 +41,7 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.insert(record)
 
     async def set_profile_status(self, profile, status, note=None):
+        """Track profile status changes with audit trail."""
         record = self.init_resource("profile-status",
             profile_id=profile._id,
             src_state=profile.status,
@@ -25,6 +51,7 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.insert(record)
 
     async def set_user_status(self, user, status, note=None):
+        """Track user status changes with audit trail."""
         record = self.init_resource("user-status",
             user_id=user._id,
             src_state=user.status,
@@ -32,10 +59,15 @@ class UserProfileAggregate(Aggregate):
             note=note
         )
         await self.statemgr.insert(record)
+        
+    # ==========================================================================
+    # USER OPERATIONS
+    # ==========================================================================
 
     # =========== User Context ============
     @action("user-action-tracked", resources="user")
     async def track_user_action(self, stm, /, data):
+        """Track user actions (e.g., password reset, email verification) for audit purposes."""
         for _action in data.actions:
             record = self.init_resource('user-action', dict(
                 user_id=self.context.user_id,
@@ -46,6 +78,7 @@ class UserProfileAggregate(Aggregate):
 
     @action("user-updated", resources="user")
     async def update_user(self, stm, /, data):
+        """Update user information and track status changes."""
         item = self.rootobj
         await stm.update(item, **serialize_mapping(data))
         if getattr(data, "status", None) and item.status != data.status:
@@ -54,18 +87,24 @@ class UserProfileAggregate(Aggregate):
 
     @action("user-deactivated", resources="user")
     async def deactivate_user(self, stm, /, data):
+        """Deactivate user account and record status change."""
         item = self.rootobj
         await stm.update(item, status=UserStatus.DEACTIVATED)
         await self.set_user_status(item, UserStatus.DEACTIVATED)
 
     @action("user-activated", resources="user")
     async def activate_user(self, stm, /, data):
+        """Activate user account and record status change."""
         item = self.rootobj
         await stm.update(item, status=UserStatus.ACTIVE)
         await self.set_user_status(item, UserStatus.ACTIVE)
 
     @action("user-synced", resources="user")
     async def sync_user(self, stm, /, data):
+        """
+        Synchronize user data from Keycloak and manage required actions.
+        Handles action lifecycle (pending -> completed) based on Keycloak state.
+        """
         user = self.rootobj
         await stm.update(user, **data.user_data)
 
@@ -110,9 +149,13 @@ class UserProfileAggregate(Aggregate):
 
         return user
 
-    # =========== Organization Context ============
-    @action("organization-created", resources="organization")
+    # ==========================================================================
+    # ORGANIZATION OPERATIONS
+    # ==========================================================================
+    
+    @action("organization-created", resources="organization", emit_event=True)
     async def create_organization(self, stm, /, data):
+        """Create new organization with initial SETUP status."""
         record = self.init_resource(
             "organization",
             serialize_mapping(data),
@@ -123,8 +166,9 @@ class UserProfileAggregate(Aggregate):
         await self.set_org_status(record, record.status)
         return record
 
-    @action("organization-updated", resources="organization")
+    @action("organization-updated", resources="organization", emit_event=True)
     async def update_organization(self, stm, /, data):
+        """Update organization details and track status changes."""
         item = self.rootobj
         await stm.update(item, **serialize_mapping(data))
         if getattr(data, "status", None) and item.status != data.status:
@@ -134,12 +178,14 @@ class UserProfileAggregate(Aggregate):
 
     @action("organization-deactivated", resources="organization")
     async def deactivate_organization(self, stm, /, data=None):
+        """Deactivate organization and record status change."""
         item = self.rootobj
         await stm.update(item, status=OrganizationStatus.DEACTIVATED)
         await self.set_org_status(item, OrganizationStatus.DEACTIVATED)
 
     @action("org-role-created", resources="organization")
     async def create_org_role(self, stm, /, data):
+        """Create custom role within organization."""
         record = self.init_resource(
             "organization-role",
             serialize_mapping(data),
@@ -151,18 +197,23 @@ class UserProfileAggregate(Aggregate):
 
     @action("org-role-updated", resources="organization")
     async def update_org_role(self, stm, /, data):
+        """Update organization role permissions or details."""
         item = await stm.fetch('organization-role', data.role_id, organization_id=self.aggroot.identifier)
         await stm.update(item, **serialize_mapping(data.updates))
         return {"updated": True}
 
     @action("org-role-removed", resources="organization")
     async def remove_org_role(self, stm, /, data):
+        """Remove organization role and revoke from all profiles."""
         item = await stm.fetch('organization-role', data.role_id, organization_id=self.aggroot.identifier)
         await stm.invalidate_one("organization-role", item._id)
         return {"removed": True}
 
-    # =========== Invitation Context ============
+    # ==========================================================================
+    # INVITATION OPERATIONS
+    # ==========================================================================
     async def set_invitation_status(self, invitation, new_status: InvitationStatus, note=None):
+        """Track invitation status changes with audit trail."""
         status_record = self.init_resource("invitation-status",
             invitation_id=invitation._id,
             src_state=invitation.status,
@@ -173,6 +224,10 @@ class UserProfileAggregate(Aggregate):
 
     @action("invitation-sent", resources="invitation")
     async def send_invitation(self, stm, /, data):
+        """
+        Send invitation to join organization. 
+        Checks for existing user and generates secure token with expiration.
+        """
         user = stm.query('user', where=dict(email=data.email, status=UserStatus.ACTIVE), limit=1)
         user_id = None if not user else user[0]._id
 
@@ -191,6 +246,7 @@ class UserProfileAggregate(Aggregate):
 
     @action("invitation-resent", resources="invitation")
     async def resend_invitation(self, stm, /):
+        """Resend invitation with new token and extended expiry."""
         invitation = self.rootobj
         updates = {
             "token": secrets.token_urlsafe(16),
@@ -203,6 +259,7 @@ class UserProfileAggregate(Aggregate):
 
     @action("invitation-canceled", resources="invitation")
     async def cancel_invitation(self, stm, /):
+        """Cancel pending invitation to prevent acceptance."""
         invitation = self.rootobj
         await stm.update(invitation, status=InvitationStatus.CANCELED)
         await self.set_invitation_status(invitation, InvitationStatus.CANCELED, "Invitation canceled")
@@ -210,6 +267,7 @@ class UserProfileAggregate(Aggregate):
 
     @action("invitation-accepted", resources="invitation")
     async def accept_invitation(self, stm, /):
+        """Accept invitation and link to current user. Validates invitation is still pending."""
         invitation = self.rootobj
         if invitation.status != InvitationStatus.PENDING:
             raise ValueError("Only PENDING invitations can be accepted.")
@@ -219,6 +277,7 @@ class UserProfileAggregate(Aggregate):
 
     @action("invitation-rejected", resources="invitation")
     async def reject_invitation(self, stm, /):
+        """Reject invitation and prevent future acceptance. Validates invitation is still pending."""
         invitation = self.rootobj
 
         if invitation.status != InvitationStatus.PENDING:
@@ -228,9 +287,13 @@ class UserProfileAggregate(Aggregate):
         await self.set_invitation_status(invitation, InvitationStatus.REJECTED, "Invitation rejected")
         return {"_id": invitation._id, "rejected": True}
 
-    # =========== Profile Context ============
+    # ==========================================================================
+    # PROFILE OPERATIONS
+    # ==========================================================================
+    
     @action("profile-created", resources=("organization", "profile"))
     async def create_profile(self, stm, /, data):
+        """Create user profile within organization. Generates unique profile with default ACTIVE status."""
         record = self.init_resource(
             "profile",
             serialize_mapping(data),
@@ -242,6 +305,7 @@ class UserProfileAggregate(Aggregate):
 
     @action("profile-updated", resources="profile")
     async def update_profile(self, stm, /, data):
+        """Update profile information. Tracks status changes if updated."""
         item = self.rootobj
         await stm.update(item, **serialize_mapping(data))
         if getattr(data, "status", None) and item.status != data.status:
@@ -251,12 +315,14 @@ class UserProfileAggregate(Aggregate):
 
     @action("profile-deactivated", resources="profile")
     async def deactivate_profile(self, stm, /, data=None):
+        """Deactivate profile to prevent further access."""
         item = self.rootobj
         await stm.update(item, status=ProfileStatus.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatus.DEACTIVATED)
 
     @action("role-assigned-to-profile", resources="profile")
     async def assign_role_to_profile(self, stm, /, data):
+        """Assign system role to profile. Prevents duplicate role assignments."""
         role = await stm.fetch('ref--system-role', data.role_id)
         if await stm.find_all("profile-role", where=dict(
             profile_id=self.aggroot.identifier,
@@ -276,18 +342,24 @@ class UserProfileAggregate(Aggregate):
 
     @action("role-revoked-from-profile", resources="profile")
     async def revoke_role_from_profile(self, stm, /, data):
+        """Revoke specific role from profile."""
         item = await stm.fetch('profile-role', data.profile_role_id, profile_id=self.aggroot.identifier)
         await stm.invalidate_one('profile-role', item._id)
 
     @action("role-cleared-from-profile", resources="profile")
     async def clear_all_role_from_profile(self, stm, /):
+        """Remove all roles assigned to profile."""
         roles = await stm.find_all('profile-role', where=dict(profile_id=self.aggroot.identifier))
         for role in roles:
             await stm.invalidate_one('profile-role', role._id)
 
-    # =========== Group Context ==========
+    # ==========================================================================
+    # GROUP OPERATIONS
+    # ==========================================================================
+    
     @action("group-assigned-to-profile", resources="profile")
     async def assign_group_to_profile(self, stm, /, data):
+        """Assign profile to group. Validates group exists and prevents duplicates."""
         group = await stm.fetch('group', data.group_id)
         if not group:
             raise ValueError(f"Group with id {data.group_id} not found!")
