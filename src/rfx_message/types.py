@@ -1,0 +1,90 @@
+"""
+RFX Message Domain Type Definitions
+
+Enum definitions for message content types and status values used throughout
+the messaging system for content classification and delivery management.
+"""
+
+from enum import Enum
+
+
+class ContentType(Enum):
+    """
+    Message content type classifications for proper rendering and processing.
+    Determines how message content should be interpreted and displayed.
+    """
+    TEXT = "TEXT"           # Plain text content
+    HTML = "HTML"           # HTML formatted content
+    MARKDOWN = "MARKDOWN"   # Markdown formatted content  
+    JSON = "JSON"           # Structured JSON data
+    XML = "XML"             # XML formatted content
+    TEMPLATE = "TEMPLATE"   # Template-based content for variable substitution
+
+class PriorityLevel(Enum):
+    """
+    Message priority levels for delivery and processing urgency.
+    Determines how messages are prioritized in the system.
+    """
+    LOW = "LOW"             # Low priority, can be processed later
+    MEDIUM = "MEDIUM"       # Normal priority, standard processing
+    HIGH = "HIGH"           # High priority, urgent processing required
+
+class MessageType(Enum):
+    """
+    Message type classifications for routing and handling.
+    Determines how messages are categorized within the system.
+    """
+    NOTIFICATION = "NOTIFICATION"  # General notification message
+    ALERT = "ALERT"                # Urgent alert message
+    REMINDER = "REMINDER"          # Reminder message
+    SYSTEM = "SYSTEM"              # System-generated message
+    USER = "USER"                  # User-generated message
+
+class DirectionType(Enum):
+    """
+    Message direction classifications for routing and processing.
+    Determines the flow of messages within the system.
+    """
+    INCOMING = "INCOMING"  # Message received from external source
+    OUTGOING = "OUTGOING"  # Message sent to external recipient
+    SYSTEM = "SYSTEM"      # System-generated message, not user-initiated
+
+class ActionType(Enum):
+    """
+    Action type classifications for message processing actions.
+    Determines the type of action taken on a message.
+    """
+    HTTP = "HTTP"           # HTTP request action
+    LINK = "LINK"           # Link action, typically for external resources
+
+class HTTPMETHOD(Enum):
+    """
+    HTTP methods used for message actions.
+    Determines the type of HTTP request made.
+    """
+    GET = "GET"             # Retrieve resource
+    POST = "POST"           # Create resource
+    DELETE = "DELETE"       # Delete resource
+    PATCH = "PATCH"         # Partially update resource
+
+class HTTPTARGET(Enum):
+    """
+    HTTP target classifications for message actions.
+    Determines the target of the HTTP request.
+    """
+    BLANK = "BLANK"       # Open in new tab/window
+    IFRAME = "IFRAME"     # Open in an iframe
+
+class TAGGROUP(Enum):
+    """
+    Tag groups for organizing and categorizing tags.
+    """
+    APPLICATION = "APPLICATION"  # Tags related to application functionality
+    FUNCTION = "FUNCTION"        # Tags related to specific functions or features
+    
+class BOXTYPE(Enum):
+    """
+    Message box types for categorizing message boxes.
+    """ 
+    GROUP = "GROUP"         # Group message box, shared among users
+    SINGLE = "SINGLE"       # Single user message box, personal to the user
