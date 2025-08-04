@@ -2,7 +2,7 @@ set dotenv-required := true
 set dotenv-filename := x"app.env"
 
 APP_NAME := env('APP_NAME', 'rfx-base')
-TARGET_ENV := env('TARGET_ENV', 'usr-develop')
+TARGET_ENV := env('TARGET_ENV', 'usr-localhost')
 
 import "../../justlib/pyapp.just"
 import "../../justlib/python.just"

@@ -153,7 +153,7 @@ class UserProfileAggregate(Aggregate):
     # ORGANIZATION OPERATIONS
     # ==========================================================================
     
-    @action("organization-created", resources="organization", emit_event=True)
+    @action("organization-created", resources="organization")
     async def create_organization(self, stm, /, data):
         """Create new organization with initial SETUP status."""
         record = self.init_resource(
@@ -166,7 +166,7 @@ class UserProfileAggregate(Aggregate):
         await self.set_org_status(record, record.status)
         return record
 
-    @action("organization-updated", resources="organization", emit_event=True)
+    @action("organization-updated", resources="organization")
     async def update_organization(self, stm, /, data):
         """Update organization details and track status changes."""
         item = self.rootobj
