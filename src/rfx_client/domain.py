@@ -15,6 +15,12 @@ class CPOPortalDomain(Domain):
 
 # Specific response types for different commands
 
+# Promotion related responses
+
+class PromotionResponse(CPOPortalDomain.Response):
+    pass
+
+
 # Project related responses
 class ProjectResponse(CPOPortalDomain.Response):
     pass
@@ -30,6 +36,15 @@ class ProjectTicketResponse(CPOPortalDomain.Response):
 
 class ResourceUploadResponse(CPOPortalDomain.Response):
     pass
+
+
+class ProjectBDMContactResponse(CPOPortalDomain.Response):
+    pass
+
+
+class ProjectMilestoneResponse(CPOPortalDomain.Response):
+    pass
+
 
 # Work Package related responses
 

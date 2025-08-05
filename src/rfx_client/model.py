@@ -1,3 +1,4 @@
+import array
 import sqlalchemy as sa
 
 from fluvius.data import DomainSchema, SqlaDriver
@@ -19,6 +20,19 @@ class CPOPortalBaseModel(CPOPortalConnector.__data_schema_base__, DomainSchema):
 
     _realm = sa.Column(sa.String)
 
+# ================ Promotion Context ================
+
+
+class Promotion(CPOPortalBaseModel):
+    __tablename__ = "promotion"
+
+    code = sa.Column(sa.String(50), nullable=False, unique=True)
+    valid_from = sa.Column(sa.DateTime(timezone=True), nullable=False)
+    valid_until = sa.Column(sa.DateTime(timezone=True), nullable=False)
+    max_uses = sa.Column(sa.Integer, nullable=False)
+    current_uses = sa.Column(sa.Integer, default=0)
+    discount_value = sa.Column(sa.Numeric(10, 2), nullable=False)
+
 
 # ================ Project Context ================
 # Project Aggregate Root
@@ -33,16 +47,13 @@ class Project(CPOPortalBaseModel):
                 schema=config.CPO_PORTAL_SCHEMA),
         nullable=False
     )
-    status = sa.Column(
-        sa.Enum(types.ProjectStatus, name="project_status",
-                schema=config.CPO_PORTAL_SCHEMA),
-        nullable=False
-    )
+    status = sa.Column(sa.String(100), nullable=False)
     start_date = sa.Column(sa.DateTime(timezone=True))
     target_date = sa.Column(sa.DateTime(timezone=True))
+    duration = sa.Column(sa.Interval)
     free_credit_applied = sa.Column(sa.Integer, default=0)
     lead_id = sa.Column(pg.UUID)  # FK to profile(_id)
-    referral_code_used = sa.Column(pg.UUID)  # FK to referral_code(_id)
+    referral_code_used = sa.Column(pg.UUID)  # FK to promotion-code(_id)
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     sync_status = sa.Column(
         sa.Enum(types.SyncStatus, name="sync_status",
@@ -74,6 +85,7 @@ class ProjectMilestone(CPOPortalBaseModel):
     description = sa.Column(sa.Text)
     due_date = sa.Column(sa.DateTime(timezone=True), nullable=False)
     completed_at = sa.Column(sa.DateTime(timezone=True))
+    is_completed = sa.Column(sa.Boolean, default=False)
 
 
 # Project Ticket Entity
@@ -106,18 +118,6 @@ class ProjectMember(CPOPortalBaseModel):
     permission = sa.Column(sa.String(255))
 
 
-# Project Referral Code Entity
-class ProjectReferralCode(CPOPortalBaseModel):
-    __tablename__ = "project-referral-code"
-
-    code = sa.Column(sa.String(50), nullable=False, unique=True)
-    valid_from = sa.Column(sa.DateTime(timezone=True), nullable=False)
-    valid_until = sa.Column(sa.DateTime(timezone=True), nullable=False)
-    max_uses = sa.Column(sa.Integer, nullable=False)
-    current_uses = sa.Column(sa.Integer, default=0)
-    discount_value = sa.Column(sa.Numeric(10, 2), nullable=False)
-
-
 # Project Work Package Entity
 class ProjectWorkPackage(CPOPortalBaseModel):
     __tablename__ = "project-work-package"
@@ -129,7 +129,21 @@ class ProjectWorkPackage(CPOPortalBaseModel):
     quantity = sa.Column(sa.Integer, nullable=False, default=1)
 
 
+# Project BDM Contact Entity
+class ProjectBDMContact(CPOPortalBaseModel):
+    __tablename__ = "project-bdm-contact"
+
+    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
+    contact_method = sa.Column(pg.ARRAY(sa.Enum(types.ContactMethod, name="contact_method",
+                                                schema=config.CPO_PORTAL_SCHEMA)), nullable=False)
+    message = sa.Column(sa.Text)
+    meeting_time = sa.Column(sa.DateTime(timezone=True))
+    status = sa.Column(sa.String(100), nullable=False)
+    status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
+
 # Reference Tables
+
+
 class RefProjectCategory(CPOPortalBaseModel):
     __tablename__ = "ref--project-category"
 

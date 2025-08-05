@@ -4,7 +4,7 @@ from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import Priority, Availability, SyncStatus
+from .types import Priority, Availability, SyncStatus, ContactMethod
 
 # Project related payloads
 
@@ -21,11 +21,45 @@ class CreateProjectPayload(DataModel):
     name: str = Field(max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: str
+    priority: Optional[Priority] = None
     start_date: Optional[datetime] = None
-    target_date: Optional[datetime] = None
+    duration: Optional[str] = None
     lead_id: Optional[UUID_TYPE] = None
-    type: str
+
+
+class CreateProjectBDMContactPayload(DataModel):
+    contact_method: Optional[list[ContactMethod]] = None
+    message: Optional[str] = None
+    meeting_time: Optional[datetime] = None
+    status: Optional[str] = None
+
+
+class UpdateProjectBDMContactPayload(DataModel):
+    bdm_contact_id: UUID_TYPE
+    contact_method: Optional[list[ContactMethod]] = None
+    message: Optional[str] = None
+    meeting_time: Optional[datetime] = None
+    status: Optional[str] = None
+
+
+class DeleteProjectBDMContactPayload(DataModel):
+    bdm_contact_id: UUID_TYPE
+
+
+class CreatePromotionPayload(DataModel):
+    code: str
+    valid_from: datetime
+    valid_until: datetime
+    max_uses: int
+    discount_value: float
+
+
+class UpdatePromotionPayload(DataModel):
+    code: Optional[str] = None
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+    max_uses: Optional[int] = None
+    discount_value: Optional[float] = None
 
 
 class AddTicketToProjectPayload(DataModel):
@@ -42,17 +76,6 @@ class CreateProjectTicketPayload(DataModel):
     availability: Optional[Availability] = Availability.OPEN
     status: Optional[str] = "DRAFT"
     sync_status: Optional[SyncStatus] = SyncStatus.PENDING
-
-
-# class ConvertEstimatorToProjectPayload(DataModel):
-#     """Payload for converting estimator to project"""
-#     name: Optional[str] = Field(max_length=255)
-#     description: Optional[str] = None
-#     category: Optional[str] = None
-#     priority: Optional[Priority] = None
-#     start_date: Optional[datetime] = None
-#     target_date: Optional[datetime] = None
-#     lead_id: Optional[UUID_TYPE] = None
 
 
 class UpdateProjectPayload(DataModel):
@@ -117,24 +140,22 @@ class RemoveProjectMemberPayload(DataModel):
     member_id: UUID_TYPE
 
 
-class CreateMilestonePayload(DataModel):
+class CreateProjectMilestonePayload(DataModel):
     name: str = Field(max_length=255)
     due_date: datetime
     description: Optional[str] = None
+    is_completed: Optional[bool] = False
 
 
-class UpdateMilestonePayload(DataModel):
+class UpdateProjectMilestonePayload(DataModel):
     milestone_id: UUID_TYPE
     name: Optional[str] = Field(max_length=255)
     due_date: Optional[datetime] = None
     description: Optional[str] = None
+    is_completed: Optional[bool] = False
 
 
-class CompleteMilestonePayload(DataModel):
-    milestone_id: UUID_TYPE
-
-
-class DeleteMilestonePayload(DataModel):
+class DeleteProjectMilestonePayload(DataModel):
     milestone_id: UUID_TYPE
 
 

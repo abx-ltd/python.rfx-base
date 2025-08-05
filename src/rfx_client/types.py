@@ -33,13 +33,6 @@ class EntityType(Enum):
     WORKFLOW = "workflow"
 
 
-class ProjectStatus(Enum):
-    DRAFT = "DRAFT"
-    ACTIVE = "ACTIVE"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
-    ON_HOLD = "ON_HOLD"
-
 
 class WorkflowStatus(Enum):
     DRAFT = "DRAFT"
@@ -55,4 +48,8 @@ class NotificationType(Enum):
     SYSTEM_ALERT = "SYSTEM_ALERT"
 
 
+class ContactMethod(Enum):
+    MESSAGE = "MESSAGE"
+    PHONE_CALL = "PHONE_CALL"
+    MEETING = "MEETING"
 

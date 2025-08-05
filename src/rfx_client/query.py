@@ -7,6 +7,9 @@ from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, IntegerField, FloatField, DatetimeField, ArrayField
 from . import scope
+from .types import ContactMethod
+from datetime import datetime
+from typing import Optional
 
 
 default_exclude_fields = ["realm", "deleted", "etag",
@@ -31,46 +34,65 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
-# Project Queries
-# @resource('project')
-# class ProjectQuery(DomainQueryResource):
-#     """Project queries"""
+@resource('project')
+class ProjectQuery(DomainQueryResource):
+    """Project queries"""
 
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
 
-#     name: str = StringField("Project Name")
-#     description: str = StringField("Description")
-#     category: str = StringField("Category")
-#     priority: Priority = EnumField("Priority")
-#     status: str = StringField("Status")
-#     start_date: str = DatetimeField("Start Date")
-#     target_date: str = DatetimeField("Target Date")
-#     free_credit_applied: int = IntegerField("Free Credit Applied")
-#     lead_id: UUID_TYPE = UUIDField("Lead ID")
-#     referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
-#     status_workflow_id: UUID_TYPE = UUIDField("Status Workflow ID")
-#     sync_status: SyncStatus = EnumField("Sync Status")
+    name: str = StringField("Project Name")
+    description: str = StringField("Description")
+    category: str = StringField("Category")
+    priority: Priority = EnumField("Priority")
+    status: str = StringField("Status")
+    start_date: str = DatetimeField("Start Date")
+    target_date: str = DatetimeField("Target Date")
+    free_credit_applied: int = IntegerField("Free Credit Applied")
+    lead_id: UUID_TYPE = UUIDField("Lead ID")
+    referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
+    status_workflow_id: UUID_TYPE = UUIDField("Status Workflow ID")
+    sync_status: SyncStatus = EnumField("Sync Status")
 
 
-# @resource('project-milestone')
-# class ProjectMilestoneQuery(DomainQueryResource):
-#     """Project milestone queries"""
+@resource('project-bdm-contact')
+class ProjectBDMContactQuery(DomainQueryResource):
+    """Project BDM contact queries"""
 
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
 
-#     project_id: UUID_TYPE = UUIDField("Project ID")
-#     name: str = StringField("Milestone Name")
-#     description: str = StringField("Description")
-#     due_date: str = DatetimeField("Due Date")
-#     completed_at: str = DatetimeField("Completed At")
+        scope_required = scope.ProjectBDMContactScopeSchema
+
+    contact_method: list[ContactMethod] = ArrayField("Contact Method")
+    message: str = StringField("Message")
+    meeting_time: datetime = DatetimeField("Meeting Time")
+    status: str = StringField("Status")
+
+
+@resource('project-milestone')
+class ProjectMilestoneQuery(DomainQueryResource):
+    """Project milestone queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        scope_required = scope.ProjectMilestoneScopeSchema
+
+    name: str = StringField("Milestone Name")
+    description: str = StringField("Description")
+    due_date: Optional[datetime] = DatetimeField("Due Date")
+    completed_at: Optional[datetime] = DatetimeField("Completed At")
+    is_completed: bool = BooleanField("Is Completed")
 
 
 # @resource('project-member')
@@ -203,55 +225,6 @@ class WorkPackageQuery(DomainQueryResource):
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     work_package_name: str = StringField("Work Package Name")
     type_list: list[str] = ArrayField("Type List")
-
-# Workflow Queries
-
-
-# @resource('workflow')
-# class WorkflowQuery(DomainQueryResource):
-#     """Workflow queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-
-#     entity_type: str = EnumField("Entity Type")
-#     name: str = StringField("Name")
-
-
-# @resource('workflow-status')
-# class WorkflowStatusQuery(DomainQueryResource):
-#     """Workflow status queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-
-#     workflow_id: UUID_TYPE = UUIDField("Workflow ID")
-#     key: str = StringField("Key")
-#     is_start: bool = BooleanField("Is Start")
-#     is_end: bool = BooleanField("Is End")
-
-
-# @resource('workflow-transition')
-# class WorkflowTransitionQuery(DomainQueryResource):
-#     """Workflow transition queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-
-#     workflow_id: UUID_TYPE = UUIDField("Workflow ID")
-#     src_status_id: UUID_TYPE = UUIDField("Source Status ID")
-#     dst_status_id: UUID_TYPE = UUIDField("Destination Status ID")
-#     rule_code: str = StringField("Rule Code")
-#     condition: str = StringField("Condition")
 
 
 # Integration Queries
