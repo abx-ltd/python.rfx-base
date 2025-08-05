@@ -25,6 +25,8 @@ class MServiceBaseModel(MessageConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
     __table_args__ = {'schema': config.MESSAGE_SERVICE_SCHEMA}
 
+    _realm = sa.Column(sa.String)
+
 class Message(MServiceBaseModel):
     """
     Core message entity containing content, metadata, and relationships.
@@ -44,7 +46,7 @@ class Message(MServiceBaseModel):
     expiration_date = sa.Column(sa.DateTime(timezone=True))
     request_read_receipt = sa.Column(sa.DateTime(timezone=True))
     priority = sa.Column(
-        sa.Enum(types.PriorityLevel, name="priority", schema=config.MESSAGE_SERVICE_SCHEMA),
+        sa.Enum(types.PriorityLevel, name="priority_level", schema=config.MESSAGE_SERVICE_SCHEMA),
         default=types.PriorityLevel.MEDIUM,
         nullable=False
     )
@@ -63,7 +65,6 @@ class Message(MServiceBaseModel):
     data = sa.Column(pg.JSONB, default=dict)
     context = sa.Column(pg.JSONB, default=dict)
     mtype = sa.Column(sa.String(255), nullable=False)
-    _txt = sa.Column(pg.TSVECTOR)  # Full-text search vector
 
 class MessageAction(MServiceBaseModel):
     """
@@ -136,7 +137,7 @@ class MessageRecipient(MServiceBaseModel):
     read = sa.Column(sa.Boolean, default=False)
     mark_as_read = sa.Column(sa.DateTime(timezone=True))
     archived = sa.Column(sa.Boolean, default=False)
-    is_ignored = sa.Column(sa.Boolean, default=False)
+    is_ignored = sa.Column(sa.DateTime(timezone=True))
     label = sa.Column(sa.ARRAY(pg.UUID), default=list)
     direction = sa.Column(
         sa.Enum(types.MessageType, name="message_direction", schema=config.MESSAGE_SERVICE_SCHEMA),
