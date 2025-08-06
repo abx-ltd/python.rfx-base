@@ -53,7 +53,7 @@ class Project(CPOPortalBaseModel):
     duration = sa.Column(sa.Interval)
     free_credit_applied = sa.Column(sa.Integer, default=0)
     lead_id = sa.Column(pg.UUID)  # FK to profile(_id)
-    referral_code_used = sa.Column(pg.UUID)  # FK to promotion-code(_id)
+    referral_code_used = sa.Column(sa.String(50))
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     sync_status = sa.Column(
         sa.Enum(types.SyncStatus, name="sync_status",
@@ -141,6 +141,22 @@ class ProjectBDMContact(CPOPortalBaseModel):
     status = sa.Column(sa.String(100), nullable=False)
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
 
+
+class ViewProjectEstimateSummary(CPOPortalConnector.__data_schema_base__):
+    __tablename__ = "_project-estimate-summary"
+    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+
+    project_id = sa.Column(pg.UUID, primary_key=True)
+    architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    discount_value = sa.Column(sa.Numeric(10, 2), nullable=False)
+    free_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    total_credits_raw = sa.Column(sa.Numeric(10, 2), nullable=False)
+    total_credits_after_discount = sa.Column(sa.Numeric(10, 2), nullable=False)
+    total_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+
+
 # Reference Tables
 
 
@@ -173,6 +189,7 @@ class WorkItem(CPOPortalBaseModel):
     description = sa.Column(sa.Text)
     price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
     credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
+    estimate = sa.Column(sa.Interval)
 
 
 class RefWorkItemType(CPOPortalBaseModel):
@@ -182,19 +199,6 @@ class RefWorkItemType(CPOPortalBaseModel):
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
 
-# ================ Work Package Context ================
-# Work Package Aggregate Root
-
-
-class WorkPackage(CPOPortalBaseModel):
-    __tablename__ = "work-package"
-
-    work_package_name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    example_description = sa.Column(sa.Text)
-    is_custom = sa.Column(sa.Boolean, default=False)
-    complexity_level = sa.Column(sa.Integer, default=1)
-
 
 class WorkItemDeliverable(CPOPortalBaseModel):
     __tablename__ = "work-item-deliverable"
@@ -202,18 +206,6 @@ class WorkItemDeliverable(CPOPortalBaseModel):
     work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
-
-
-class WorkPackageWorkItem(CPOPortalBaseModel):
-    __tablename__ = "work-package-work-item"
-
-    work_package_id = sa.Column(sa.ForeignKey(WorkPackage._id), nullable=False)
-    work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
-    status = sa.Column(sa.String(100), nullable=False)
-    custom_name = sa.Column(sa.String(255))
-    custom_description = sa.Column(sa.Text)
-    custom_price_unit = sa.Column(sa.Numeric(10, 2))
-    custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
 
 
 class ViewWorkItemListing(CPOPortalConnector.__data_schema_base__):
@@ -229,10 +221,53 @@ class ViewWorkItemListing(CPOPortalConnector.__data_schema_base__):
     work_item_type_code = sa.Column(sa.String(100), nullable=False)
     total_credits_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
     estimated_cost_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
+    estimate = sa.Column(sa.Interval)
 
+
+# ================ Work Package Context ================
+# Work Package Aggregate Root
+
+
+class WorkPackage(CPOPortalBaseModel):
+    __tablename__ = "work-package"
+
+    work_package_name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    example_description = sa.Column(sa.Text)
+    is_custom = sa.Column(sa.Boolean, default=False)
+    complexity_level = sa.Column(sa.Integer, default=1)
+
+
+class WorkPackageWorkItem(CPOPortalBaseModel):
+    __tablename__ = "work-package-work-item"
+
+    work_package_id = sa.Column(sa.ForeignKey(WorkPackage._id), nullable=False)
+    work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
+    status = sa.Column(sa.String(100), nullable=False)
+    custom_name = sa.Column(sa.String(255))
+    custom_description = sa.Column(sa.Text)
+    custom_price_unit = sa.Column(sa.Numeric(10, 2))
+    custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
+
+
+class ViewWorkPackageDetail(CPOPortalConnector.__data_schema_base__):
+    __tablename__ = "_work-package-detail"
+    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+
+    work_package_id = sa.Column(pg.UUID, primary_key=True)
+    work_package_name = sa.Column(sa.String(255), nullable=False)
+    type_list = sa.Column(pg.ARRAY(sa.String))
+    complexity_level = sa.Column(sa.Integer, nullable=False)
+    credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    example_description = sa.Column(sa.Text)
+    estimate = sa.Column(sa.Interval)
 
 # ================ Workflow Context ================
 # Workflow Aggregate Root
+
+
 class Workflow(CPOPortalBaseModel):
     __tablename__ = "workflow"
 
@@ -307,17 +342,3 @@ class RefNotificationType(CPOPortalBaseModel):
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
     is_active = sa.Column(sa.Boolean, default=True)
-
-
-class ViewWorkPackageDetail(CPOPortalConnector.__data_schema_base__):
-    __tablename__ = "_work-package-detail"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
-
-    work_package_id = sa.Column(pg.UUID, primary_key=True)
-    work_package_name = sa.Column(sa.String(255), nullable=False)
-    type_list = sa.Column(pg.ARRAY(sa.String))
-    complexity_level = sa.Column(sa.Integer, nullable=False)
-    credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    example_description = sa.Column(sa.Text)

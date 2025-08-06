@@ -135,6 +135,23 @@ class UpdatePromotion(Command):
         await agg.update_promotion(data=payload)
 
 
+class ApplyPromotion(Command):
+    """Apply Promotion - Applies a promotion code to a project"""
+
+    class Meta:
+        key = "apply-promotion"
+        resources = ("project",)
+        tags = ["project", "promotion"]
+        auth_required = True
+        description = "Apply a promotion code to a project"
+
+    Data = datadef.ApplyPromotionPayload
+
+    async def _process(self, agg, stm, payload):
+        """Apply a promotion code to a project"""
+        await agg.apply_promotion(data=payload)
+
+
 class AddWorkPackageToProject(Command):
     """Add Work Package to Project - Adds a specific Work Package to the project"""
 

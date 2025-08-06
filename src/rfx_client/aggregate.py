@@ -1,8 +1,8 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
-from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.data import serialize_mapping, UUID_GENR, logger, timestamp
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from isodate import parse_duration
 from .types import Priority, SyncStatus
 
@@ -81,6 +81,31 @@ class CPOPortalAggregate(Aggregate):
                 "BDM contact not found or does not belong to this project")
 
         await stm.invalidate(record)
+
+    @action('promotion-applied', resources='project')
+    async def apply_promotion(self, stm, /, data):
+        """Apply a promotion code to a project"""
+        project = self.rootobj
+        logger.info(f"Project: {project}")
+        promotion = await stm.find_one('promotion', where=dict(
+            code=data.promotion_code
+        ))
+
+        logger.info(f"Promotion: {promotion}")
+
+        if not promotion:
+            raise ValueError("Promotion code not found")
+
+        if promotion.max_uses <= promotion.current_uses:
+            raise ValueError(
+                "Promotion code has reached the maximum number of uses")
+
+        now = datetime.now(timezone.utc)
+        if promotion.valid_from > now or promotion.valid_until < now:
+            raise ValueError("Promotion code is not valid")
+
+        await stm.update(promotion, current_uses=promotion.current_uses + 1)
+        await stm.update(project, referral_code_used=promotion.code)
 
     @action('promotion-created', resources='promotion')
     async def create_promotion(self, stm, /, data):

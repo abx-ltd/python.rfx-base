@@ -62,6 +62,9 @@ class UpdatePromotionPayload(DataModel):
     discount_value: Optional[float] = None
 
 
+class ApplyPromotionPayload(DataModel):
+    promotion_code: str
+
 class AddTicketToProjectPayload(DataModel):
     ticket_id: UUID_TYPE
 

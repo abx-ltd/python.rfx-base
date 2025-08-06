@@ -95,6 +95,21 @@ class ProjectMilestoneQuery(DomainQueryResource):
     is_completed: bool = BooleanField("Is Completed")
 
 
+@resource('project-estimate-summary')
+class ProjectEstimateSummaryQuery(DomainQueryResource):
+    """Project estimate summary queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_project-estimate-summary"
+
+    project_id: UUID_TYPE = UUIDField("Project ID")
+
+
 # @resource('project-member')
 # class ProjectMemberQuery(DomainQueryResource):
 #     """Project member queries"""
