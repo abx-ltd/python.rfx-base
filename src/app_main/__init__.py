@@ -2,7 +2,8 @@ from fluvius.fastapi import (
     create_app,
     configure_authentication,
     configure_domain_manager,
-    configure_query_manager)
+    configure_query_manager,
+)
 
 from rfx_idm import IDMDomain
 
