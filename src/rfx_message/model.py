@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as pg
 from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
 
-from . import types, config
+from . import config, types
 
 class MessageConnector(SqlaDriver):
     """Database connector for the message service."""
@@ -26,6 +26,11 @@ class MServiceBaseModel(MessageConnector.__data_schema_base__, DomainSchema):
     __table_args__ = {'schema': config.MESSAGE_SERVICE_SCHEMA}
 
     _realm = sa.Column(sa.String)
+
+class ViewBaseModel(MessageConnector.__data_schema_base__):
+    """Base model class for views in the message service."""
+    __abstract__ = True
+    __table_args__ = {'schema': config.MESSAGE_SERVICE_SCHEMA}
 
 class Message(MServiceBaseModel):
     """
@@ -260,3 +265,38 @@ class RefRole(MServiceBaseModel):
     __tablename__ = "ref--role"
 
     key = sa.Column(sa.String(255), primary_key=True, nullable=False, unique=True)
+
+class MessageRecipientsView(ViewBaseModel):
+    """
+    Database view that joins message and message-recipient tables.
+    Provides a flattened view for notification queries with recipient-specific data.
+    """
+    __tablename__ = "_message_recipients"
+
+    # Primary composite key
+    record_id = sa.Column(pg.UUID, primary_key=True)
+    message_id = sa.Column(pg.UUID)
+    recipient_id = sa.Column(pg.UUID)
+
+    # Message content fields
+    subject = sa.Column(sa.String(1024))
+    content = sa.Column(sa.String(1024))
+    content_type = sa.Column(
+        sa.Enum(types.ContentType, name="content_type", schema=config.MESSAGE_SERVICE_SCHEMA)
+    )
+    
+    # Message metadata fields  
+    sender_id = sa.Column(pg.UUID)
+    tags = sa.Column(pg.ARRAY(sa.String))
+    expirable = sa.Column(sa.Boolean)
+    priority = sa.Column(
+        sa.Enum(types.PriorityLevel, name="priority_level", schema=config.MESSAGE_SERVICE_SCHEMA)
+    )
+    message_type = sa.Column(
+        sa.Enum(types.MessageType, name="message_type", schema=config.MESSAGE_SERVICE_SCHEMA)
+    )
+    
+    # Recipient-specific fields
+    is_read = sa.Column(sa.Boolean, default=False)
+    read_at = sa.Column(sa.DateTime(timezone=True)) 
+    archived = sa.Column(sa.Boolean, default=False)

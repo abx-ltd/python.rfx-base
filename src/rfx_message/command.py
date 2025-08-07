@@ -1,5 +1,4 @@
 from fluvius.data import serialize_mapping, UUID_GENR
-from fluvius.fastapi.mqtt import FastapiMQTTClient
 
 from .domain import MessageServiceDomain
 from . import datadef
@@ -23,235 +22,108 @@ async def notify_multiple_recipients(mqtt_client, message_data, recipients):
 
 class SendMessage(Command):
     """
-    Send a message to recipients.
+    Send a notification to recipients.
+    
+    This is typically called by domain events or business logic,
+    not directly by users. Recipients and content are determined
+    by the business rules of the triggering domain.
     """
 
     Data = datadef.SendMessagePayload
+
     class Meta:
         key = "send-message"
         new_resource = True
         resources = ("message",)
-        tags = ["message", "create"]
+        tags = ["notification", "create", "system"]
         auth_required = True
         
     async def _process(self, agg, stm, payload):
         context = agg.get_context()
         message_data = serialize_mapping(payload)
-        message_data['sender_id'] = context.user_id
+        message_data['sender_id'] = context.user_id  # System/service that triggered
 
         recipients = message_data.pop("recipients", [])
         message = await agg.generate_message(data=message_data)
-        message_data['_id'] = message['message_id']
 
         if recipients:
             recipients = await agg.add_recipients(data=recipients, message_id=message["message_id"])
-            await notify_multiple_recipients(self.mqtt_client, message_data, recipients)
+            # await notify_multiple_recipients(self.mqtt_client, message_data, recipients)
 
         yield agg.create_response({
             "status": "success",
             "message_id": message["message_id"],
-            "recipients_count": len(recipients.get("recipients", [])) if recipients else 0
+            "recipients_count": len(recipients.get("recipients", [])) if recipients else 0,
+            "user_id": context.user_id,
         }, _type="message-service-response")
 
 class ReadMessage(Command):
     """
-    Mark a message as read for the current user
+    Mark a notification as read for the current user
     """
 
-    Data = datadef.ReadMessagePayload
+    # Data = datadef.ReadMessagePayload
 
     class Meta:
         key = "read-message"
         resources = ("message-recipient",)
-        tags = ["message", "read"]
+        tags = ["notification", "read"]
         auth_required = True
     
     async def _process(self, agg, stm, payload):
-        context = agg.get_context()
-        
-        # Mark message as read for the current user
-        await agg.mark_message_read(
-            message_id=payload.message_id,
-            user_id=context.user_id
-        )
+        # Mark notification as read for the current user
+        result = await agg.mark_message_read()
         
         yield agg.create_response({
-            "status": "success",
-            "message_id": payload.message_id,
-            "user_id": context.user_id,
-            "read_at": context.timestamp.isoformat()
+            "status": result["status"],
+            "message_id": result["message_id"],
+            "user_id": result["user_id"],
+            "read_at": result["read_at"]
         }, _type="message-service-response")
-
-
-class UpdateMessage(Command):
-    """
-    Update an existing message (only by sender)
-    """
-
-    Data = datadef.UpdateMessagePayload
-
-    class Meta:
-        key = "update-message"
-        resources = ("message",)
-        tags = ["message", "update"]
-        auth_required = True
-    
-    async def _process(self, agg, stm, payload):
-        context = agg.get_context()
-        
-        message_data = serialize_mapping(payload)
-        message_data['updated_by'] = context.user_id
-        
-        # Update the message
-        updated_message = await agg.update_message(data=message_data)
-        
-        yield agg.create_response({
-            "status": "success",
-            "message_id": updated_message["message_id"],
-            "updated_at": context.timestamp.isoformat()
-        }, _type="message-service-response")
-
-
-class DeleteMessage(Command):
-    """
-    Delete a message (only by sender)
-    """
-
-    Data = datadef.DeleteMessagePayload
-
-    class Meta:
-        key = "delete-message"
-        resources = ("message",)
-        tags = ["message", "delete"]
-        auth_required = True
-    
-    async def _process(self, agg, stm, payload):
-        context = agg.get_context()
-        
-        # Delete the message
-        await agg.delete_message(
-            message_id=payload.message_id,
-            deleted_by=context.user_id
-        )
-        
-        yield agg.create_response({
-            "status": "success",
-            "message_id": payload.message_id,
-            "deleted_at": context.timestamp.isoformat()
-        }, _type="message-service-response")
-
-
-class AddMessageRecipients(Command):
-    """
-    Add additional recipients to an existing message
-    """
-
-    Data = datadef.AddRecipientsPayload
-
-    class Meta:
-        key = "add-message-recipients"
-        resources = ("message-recipient",)
-        tags = ["message", "recipients", "add"]
-        auth_required = True
-    
-    async def _process(self, agg, stm, payload):
-        context = agg.get_context()
-        
-        # Add recipients to the message
-        new_recipients = await agg.add_recipients(
-            data=payload.recipients,
-            message_id=payload.message_id
-        )
-        
-        yield agg.create_response({
-            "status": "success",
-            "message_id": payload.message_id,
-            "added_recipients": len(new_recipients.get("recipients", [])),
-            "added_at": context.timestamp.isoformat()
-        }, _type="message-service-response")
-
-
-class RemoveMessageRecipient(Command):
-    """
-    Remove a recipient from a message
-    """
-
-    Data = datadef.RemoveRecipientPayload
-
-    class Meta:
-        key = "remove-message-recipient"
-        resources = ("message-recipient",)
-        tags = ["message", "recipients", "remove"]
-        auth_required = True
-    
-    async def _process(self, agg, stm, payload):
-        context = agg.get_context()
-        
-        # Remove recipient from the message
-        await agg.remove_recipient(
-            message_id=payload.message_id,
-            recipient_id=payload.recipient_id,
-            removed_by=context.user_id
-        )
-        
-        yield agg.create_response({
-            "status": "success",
-            "message_id": payload.message_id,
-            "removed_recipient": payload.recipient_id,
-            "removed_at": context.timestamp.isoformat()
-        }, _type="message-service-response")
-
 
 class MarkAllMessagesRead(Command):
     """
-    Mark all unread messages as read for the current user
+    Mark all unread notifications as read for the current user
     """
 
     class Meta:
         key = "mark-all-messages-read"
         resources = ("message-recipient",)
-        tags = ["message", "read", "bulk"]
+        tags = ["notification", "read", "bulk"]
         auth_required = True
     
     async def _process(self, agg, stm, payload):
         context = agg.get_context()
         
-        # Mark all messages as read for the current user
-        read_count = await agg.mark_all_messages_read(user_id=context.user_id)
+        # Mark all notifications as read for the current user
+        result = await agg.mark_all_messages_read(user_id=context.user_id)
         
         yield agg.create_response({
-            "status": "success",
-            "user_id": context.user_id,
-            "messages_read": read_count,
+            "status": result["status"],
+            "user_id": result["user_id"],
+            "messages_read": result["messages_read"],
             "read_at": context.timestamp.isoformat()
         }, _type="message-service-response")
 
 
-class AddMessageAttachment(Command):
+class ArchiveMessage(Command):
     """
-    Add an attachment to a message
+    Archive a notification for the current user
     """
 
-    Data = datadef.AddAttachmentPayload
+    Data = datadef.ReadMessagePayload  # Reuse same payload structure
 
     class Meta:
-        key = "add-message-attachment"
-        resources = ("message-attachment",)
-        tags = ["message", "attachment", "add"]
+        key = "archive-message"
+        resources = ("message-recipient",)
+        tags = ["notification", "archive"]
         auth_required = True
     
     async def _process(self, agg, stm, payload):
-        context = agg.get_context()
-        
-        attachment_data = serialize_mapping(payload)
-        attachment_data['uploaded_by'] = context.user_id
-        
-        # Add attachment to the message
-        attachment = await agg.add_attachment(data=attachment_data)
+        # Archive notification for the current user
+        await agg.archive_message()
         
         yield agg.create_response({
             "status": "success",
             "message_id": payload.message_id,
-            "attachment_id": attachment["attachment_id"],
-            "added_at": context.timestamp.isoformat()
         }, _type="message-service-response")
