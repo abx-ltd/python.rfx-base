@@ -20,3 +20,4 @@ starlette
 fastapi
 itsdangerous
 pypika
+gmqtt
