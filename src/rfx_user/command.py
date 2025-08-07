@@ -79,7 +79,8 @@ class SendAction(Command):
         if payload.required:
             kc_user = await kc_admin.get_user(user_id)
             required_action = kc_user.requiredActions
-            actions = [action for action in payload.actions if action not in required_action]
+            actions = [
+                action for action in payload.actions if action not in required_action]
             required_action.extend(actions)
             await kc_admin.update_user(user_id=user_id, payload={"requiredActions": required_action})
 
@@ -351,6 +352,7 @@ class SendInvitation(Command):
         invitation = await agg.send_invitation(payload)
         yield agg.create_response(serialize_mapping(invitation), _type="user-profile-response")
 
+
 class ResendInvitation(Command):
     """
     Resend invitation with new token and extended expiry.
@@ -365,6 +367,7 @@ class ResendInvitation(Command):
     async def _process(self, agg, stm, payload):
         await agg.resend_invitation()
 
+
 class CancelInvitation(Command):
     """
     Cancel pending invitation to prevent acceptance.
@@ -378,6 +381,7 @@ class CancelInvitation(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.cancel_invitation()
+
 
 class AcceptInvitation(Command):
     """
@@ -413,6 +417,7 @@ class AcceptInvitation(Command):
         )
         await agg.create_profile(profile_data)
 
+
 class RejectInvitation(Command):
     """
     Reject invitation and mark as declined.
@@ -428,6 +433,8 @@ class RejectInvitation(Command):
         await agg.reject_invitation()
 
 # ---------- Profile Context ----------
+
+
 class CreateProfile(Command):
     """
     Create user profile within organizational context.
@@ -446,6 +453,7 @@ class CreateProfile(Command):
         profile = yield agg.create_profile(payload)
         yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
 
+
 class UpdateProfile(Command):
     """
     Update profile information and organizational settings.
@@ -462,6 +470,7 @@ class UpdateProfile(Command):
     async def _process(self, agg, stm, payload):
         yield agg.update_profile(payload)
 
+
 class DeactivateProfile(Command):
     """
     Deactivate profile within organization.
@@ -477,6 +486,8 @@ class DeactivateProfile(Command):
         yield agg.deactivate_profile()
 
 # ---------- Profile Role ----------
+
+
 class AssignRoleToProfile(Command):
     """
     Assign system or organization role to profile.
@@ -494,6 +505,7 @@ class AssignRoleToProfile(Command):
         role = await agg.assign_role_to_profile(payload)
         yield agg.create_response(serialize_mapping(role), _type="user-profile-response")
 
+
 class RevokeRoleFromProfile(Command):
     """
     Revoke specific role from profile.
@@ -510,6 +522,7 @@ class RevokeRoleFromProfile(Command):
     async def _process(self, agg, stm, payload):
         await agg.revoke_role_from_profile(payload)
 
+
 class ClearAllRoleFromProfile(Command):
     """
     Remove all roles assigned to profile.
@@ -523,6 +536,7 @@ class ClearAllRoleFromProfile(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.clear_all_role_from_profile()
+
 
 class AddGroupToProfile(Command):
     """
@@ -539,6 +553,7 @@ class AddGroupToProfile(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.add_group_to_profile(payload)
+
 
 class RemoveGroupFromProfile(Command):
     """
@@ -557,6 +572,8 @@ class RemoveGroupFromProfile(Command):
         await agg.remove_group_from_profile(payload)
 
 # ============ Group Context =============
+
+
 class AssignGroupToProfile(Command):
     """
     Assign security group to profile with permissions validation.

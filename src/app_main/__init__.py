@@ -3,7 +3,7 @@ from fluvius.fastapi import (
     configure_authentication,
     configure_domain_manager,
     configure_query_manager,
-    configure_mqtt,)
+)
 
 from rfx_idm import IDMDomain
 
