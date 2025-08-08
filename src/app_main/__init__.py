@@ -23,5 +23,5 @@ queries = (
 app = create_app() \
     | configure_authentication() \
     | configure_domain_manager(*domains) \
-    | configure_query_manager(*queries)
+    | configure_query_manager(*queries) \
     # | configure_mqtt()
