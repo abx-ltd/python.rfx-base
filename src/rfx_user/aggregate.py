@@ -66,7 +66,7 @@ class UserProfileAggregate(Aggregate):
 
     # =========== User Context ============
     @action("user-action-tracked", resources="user")
-    async def track_user_action(self, stm, /, data):
+    async def track_user_action(self, data):
         """Track user actions (e.g., password reset, email verification) for audit purposes."""
         for _action in data.actions:
             record = self.init_resource('user-action', dict(
@@ -77,41 +77,41 @@ class UserProfileAggregate(Aggregate):
             await self.statemgr.insert(record)
 
     @action("user-updated", resources="user")
-    async def update_user(self, stm, /, data):
+    async def update_user(self, data):
         """Update user information and track status changes."""
         item = self.rootobj
-        await stm.update(item, **serialize_mapping(data))
+        await self.statemgr.update(item, **serialize_mapping(data))
         if getattr(data, "status", None) and item.status != data.status:
             await self.set_user_status(item, data.status)
         return item
 
     @action("user-deactivated", resources="user")
-    async def deactivate_user(self, stm, /, data):
+    async def deactivate_user(self, data):
         """Deactivate user account and record status change."""
         item = self.rootobj
-        await stm.update(item, status=UserStatus.DEACTIVATED)
+        await self.statemgr.update(item, status=UserStatus.DEACTIVATED)
         await self.set_user_status(item, UserStatus.DEACTIVATED)
 
     @action("user-activated", resources="user")
-    async def activate_user(self, stm, /, data):
+    async def activate_user(self, data):
         """Activate user account and record status change."""
         item = self.rootobj
-        await stm.update(item, status=UserStatus.ACTIVE)
+        await self.statemgr.update(item, status=UserStatus.ACTIVE)
         await self.set_user_status(item, UserStatus.ACTIVE)
 
     @action("user-synced", resources="user")
-    async def sync_user(self, stm, /, data):
+    async def sync_user(self, data):
         """
         Synchronize user data from Keycloak and manage required actions.
         Handles action lifecycle (pending -> completed) based on Keycloak state.
         """
         user = self.rootobj
-        await stm.update(user, **data.user_data)
+        await self.statemgr.update(user, **data.user_data)
 
         # Handle user actions
         if data.sync_actions:
             # Get current pending actions from database
-            current_actions = await stm.find_all('user-action', where=dict(
+            current_actions = await self.statemgr.find_all('user-action', where=dict(
                 user_id=user._id,
                 status='PENDING'
             ))
@@ -142,11 +142,11 @@ class UserProfileAggregate(Aggregate):
                 # Any current actions not in required_actions should be marked as completed
                 for action in current_actions:
                     if action._id not in processed_actions:
-                        await stm.update(action, status='COMPLETED')
+                        await self.statemgr.update(action, status='COMPLETED')
             else:
                 # If no required actions, mark all pending actions as completed
                 for action in current_actions:
-                    await stm.update(action, status='COMPLETED')
+                    await self.statemgr.update(action, status='COMPLETED')
 
         return user
 
@@ -155,7 +155,7 @@ class UserProfileAggregate(Aggregate):
     # ==========================================================================
     
     @action("organization-created", resources="organization")
-    async def create_organization(self, stm, /, data):
+    async def create_organization(self, data):
         """Create new organization with initial SETUP status."""
         record = self.init_resource(
             "organization",
@@ -163,29 +163,29 @@ class UserProfileAggregate(Aggregate):
             _id=self.aggroot.identifier,
             status=getattr(data, "status", "SETUP")
         )
-        await stm.insert(record)
+        await self.statemgr.insert(record)
         await self.set_org_status(record, record.status)
         return record
 
     @action("organization-updated", resources="organization")
-    async def update_organization(self, stm, /, data):
+    async def update_organization(self, data):
         """Update organization details and track status changes."""
         item = self.rootobj
-        await stm.update(item, **serialize_mapping(data))
+        await self.statemgr.update(item, **serialize_mapping(data))
         if getattr(data, "status", None) and item.status != data.status:
             await self.set_org_status(item, data.status)
 
         return item
 
     @action("organization-deactivated", resources="organization")
-    async def deactivate_organization(self, stm, /, data=None):
+    async def deactivate_organization(self, data=None):
         """Deactivate organization and record status change."""
         item = self.rootobj
-        await stm.update(item, status=OrganizationStatus.DEACTIVATED)
+        await self.statemgr.update(item, status=OrganizationStatus.DEACTIVATED)
         await self.set_org_status(item, OrganizationStatus.DEACTIVATED)
 
     @action("org-role-created", resources="organization")
-    async def create_org_role(self, stm, /, data):
+    async def create_org_role(self, data):
         """Create custom role within organization."""
         record = self.init_resource(
             "organization-role",
@@ -193,21 +193,21 @@ class UserProfileAggregate(Aggregate):
             _id=UUID_GENR(),
             organization_id=self.aggroot.identifier
         )
-        await stm.insert(record)
+        await self.statemgr.insert(record)
         return {"role_id": record._id}
 
     @action("org-role-updated", resources="organization")
-    async def update_org_role(self, stm, /, data):
+    async def update_org_role(self, data):
         """Update organization role permissions or details."""
-        item = await stm.fetch('organization-role', data.role_id, organization_id=self.aggroot.identifier)
-        await stm.update(item, **serialize_mapping(data.updates))
+        item = await self.statemgr.fetch('organization-role', data.role_id, organization_id=self.aggroot.identifier)
+        await self.statemgr.update(item, **serialize_mapping(data.updates))
         return {"updated": True}
 
     @action("org-role-removed", resources="organization")
-    async def remove_org_role(self, stm, /, data):
+    async def remove_org_role(self, data):
         """Remove organization role and revoke from all profiles."""
-        item = await stm.fetch('organization-role', data.role_id, organization_id=self.aggroot.identifier)
-        await stm.invalidate_one("organization-role", item._id)
+        item = await self.statemgr.fetch('organization-role', data.role_id, organization_id=self.aggroot.identifier)
+        await self.statemgr.invalidate_one("organization-role", item._id)
         return {"removed": True}
 
     # =========== Invitation Context ============
@@ -224,8 +224,8 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.insert(status_record)
 
     @action("invitation-sent", resources="invitation")
-    async def send_invitation(self, stm, /, data):
-        user = stm.query('user', where=dict(
+    async def send_invitation(self, data):
+        user = self.statemgr.query('user', where=dict(
             email=data.email, status=UserStatus.ACTIVE), limit=1)
         user_id = None if not user else user[0]._id
 
@@ -238,12 +238,12 @@ class UserProfileAggregate(Aggregate):
                                     status=InvitationStatus.PENDING,
                                     expires_at=datetime.utcnow() + timedelta(days=data.duration)
                                     )
-        await stm.insert(record)
+        await self.statemgr.insert(record)
         await self.set_invitation_status(record, InvitationStatus.PENDING, "Initial invitation sent")
         return {"_id": record._id}
 
     @action("invitation-resent", resources="invitation")
-    async def resend_invitation(self, stm, /):
+    async def resend_invitation(self):
         """Resend invitation with new token and extended expiry."""
         invitation = self.rootobj
         updates = {
@@ -251,37 +251,37 @@ class UserProfileAggregate(Aggregate):
             "status": InvitationStatus.PENDING,
             "expires_at": datetime.utcnow() + timedelta(days=7)
         }
-        await stm.update(invitation, **updates)
+        await self.statemgr.update(invitation, **updates)
         await self.set_invitation_status(invitation, InvitationStatus.PENDING, "Invitation resent")
         return {"_id": invitation._id, "resend": True}
 
     @action("invitation-canceled", resources="invitation")
-    async def cancel_invitation(self, stm, /):
+    async def cancel_invitation(self):
         """Cancel pending invitation to prevent acceptance."""
         invitation = self.rootobj
-        await stm.update(invitation, status=InvitationStatus.CANCELED)
+        await self.statemgr.update(invitation, status=InvitationStatus.CANCELED)
         await self.set_invitation_status(invitation, InvitationStatus.CANCELED, "Invitation canceled")
         return {"_id": invitation._id, "canceled": True}
 
     @action("invitation-accepted", resources="invitation")
-    async def accept_invitation(self, stm, /):
+    async def accept_invitation(self):
         """Accept invitation and link to current user. Validates invitation is still pending."""
         invitation = self.rootobj
         if invitation.status != InvitationStatus.PENDING:
             raise ValueError("Only PENDING invitations can be accepted.")
-        await stm.update(invitation, status=InvitationStatus.ACCEPTED, user_id=self.context.user_id)
+        await self.statemgr.update(invitation, status=InvitationStatus.ACCEPTED, user_id=self.context.user_id)
         await self.set_invitation_status(invitation, InvitationStatus.ACCEPTED, "Invitation accepted")
         return {"_id": invitation._id, "accepted": True}
 
     @action("invitation-rejected", resources="invitation")
-    async def reject_invitation(self, stm, /):
+    async def reject_invitation(self):
         """Reject invitation and prevent future acceptance. Validates invitation is still pending."""
         invitation = self.rootobj
 
         if invitation.status != InvitationStatus.PENDING:
             raise ValueError("Only PENDING invitations can be rejected.")
 
-        await stm.update(invitation, status=InvitationStatus.REJECTED)
+        await self.statemgr.update(invitation, status=InvitationStatus.REJECTED)
         await self.set_invitation_status(invitation, InvitationStatus.REJECTED, "Invitation rejected")
         return {"_id": invitation._id, "rejected": True}
 
@@ -290,39 +290,39 @@ class UserProfileAggregate(Aggregate):
     # ==========================================================================
     
     @action("profile-created", resources=("organization", "profile"))
-    async def create_profile(self, stm, /, data):
+    async def create_profile(self, data):
         """Create user profile within organization. Generates unique profile with default ACTIVE status."""
         record = self.init_resource(
             "profile",
             serialize_mapping(data),
             status=getattr(data, "status", "ACTIVE")
         )
-        await stm.insert(record)
+        await self.statemgr.insert(record)
         await self.set_profile_status(record, record.status)
         return record
 
     @action("profile-updated", resources="profile")
-    async def update_profile(self, stm, /, data):
+    async def update_profile(self, data):
         """Update profile information. Tracks status changes if updated."""
         item = self.rootobj
-        await stm.update(item, **serialize_mapping(data))
+        await self.statemgr.update(item, **serialize_mapping(data))
         if getattr(data, "status", None) and item.status != data.status:
             await self.set_profile_status(item, data.status)
 
         return item
 
     @action("profile-deactivated", resources="profile")
-    async def deactivate_profile(self, stm, /, data=None):
+    async def deactivate_profile(self, data=None):
         """Deactivate profile to prevent further access."""
         item = self.rootobj
-        await stm.update(item, status=ProfileStatus.DEACTIVATED)
+        await self.statemgr.update(item, status=ProfileStatus.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatus.DEACTIVATED)
 
     @action("role-assigned-to-profile", resources="profile")
-    async def assign_role_to_profile(self, stm, /, data):
+    async def assign_role_to_profile(self, data):
         """Assign system role to profile. Prevents duplicate role assignments."""
-        role = await stm.fetch('ref--system-role', data.role_id)
-        if await stm.find_all("profile-role", where=dict(
+        role = await self.statemgr.fetch('ref--system-role', data.role_id)
+        if await self.statemgr.find_all("profile-role", where=dict(
             profile_id=self.aggroot.identifier,
             role_id=data.role_id,
             role_source=data.role_source
@@ -335,35 +335,35 @@ class UserProfileAggregate(Aggregate):
                                     profile_id=self.aggroot.identifier,
                                     role_key=role.key
                                     )
-        await stm.insert(record)
+        await self.statemgr.insert(record)
         return record
 
     @action("role-revoked-from-profile", resources="profile")
-    async def revoke_role_from_profile(self, stm, /, data):
+    async def revoke_role_from_profile(self, data):
         """Revoke specific role from profile."""
-        item = await stm.fetch('profile-role', data.profile_role_id, profile_id=self.aggroot.identifier)
-        await stm.invalidate_one('profile-role', item._id)
+        item = await self.statemgr.fetch('profile-role', data.profile_role_id, profile_id=self.aggroot.identifier)
+        await self.statemgr.invalidate_one('profile-role', item._id)
 
     @action("role-cleared-from-profile", resources="profile")
-    async def clear_all_role_from_profile(self, stm, /):
+    async def clear_all_role_from_profile(self):
         """Remove all roles assigned to profile."""
-        roles = await stm.find_all('profile-role', where=dict(profile_id=self.aggroot.identifier))
+        roles = await self.statemgr.find_all('profile-role', where=dict(profile_id=self.aggroot.identifier))
         for role in roles:
-            await stm.invalidate_one('profile-role', role._id)
+            await self.statemgr.invalidate_one('profile-role', role._id)
 
     # ==========================================================================
     # GROUP OPERATIONS
     # ==========================================================================
     
     @action("group-assigned-to-profile", resources="profile")
-    async def assign_group_to_profile(self, stm, /, data):
+    async def assign_group_to_profile(self, data):
         """Assign profile to group. Validates group exists and prevents duplicates."""
-        group = await stm.fetch('group', data.group_id)
+        group = await self.statemgr.fetch('group', data.group_id)
         if not group:
             raise ValueError(f"Group with id {data.group_id} not found!")
 
         # Check if group is already assigned
-        if await stm.find_all("profile-group", where=dict(
+        if await self.statemgr.find_all("profile-group", where=dict(
             profile_id=data.profile_id or self.aggroot.identifier,
             group_id=data.group_id
         )):
@@ -375,46 +375,46 @@ class UserProfileAggregate(Aggregate):
                                     group_id=data.group_id,
                                     profile_id=data.profile_id or self.aggroot.identifier
                                     )
-        await stm.insert(record)
+        await self.statemgr.insert(record)
         return record
 
     @action("group-revoked-from-profile", resources="profile")
-    async def revoke_group_from_profile(self, stm, /, data):
-        item = await stm.fetch('profile-group', data.profile_group_id)
+    async def revoke_group_from_profile(self, data):
+        item = await self.statemgr.fetch('profile-group', data.profile_group_id)
         if not item:
             raise ValueError(
                 f"Profile-group association with id {data.profile_group_id} not found!")
-        await stm.invalidate_one('profile-group', item._id)
+        await self.statemgr.invalidate_one('profile-group', item._id)
 
     @action("group-cleared-from-profile", resources="profile")
-    async def clear_all_group_from_profile(self, stm, /):
-        groups = await stm.find_all('profile-group', where=dict(profile_id=self.aggroot.identifier))
+    async def clear_all_group_from_profile(self):
+        groups = await self.statemgr.find_all('profile-group', where=dict(profile_id=self.aggroot.identifier))
         for group in groups:
-            await stm.invalidate_one('profile-group', group._id)
+            await self.statemgr.invalidate_one('profile-group', group._id)
 
     @action("group-created", resources="group")
-    async def create_group(self, stm, /, data):
+    async def create_group(self, data):
         record = self.init_resource(
             "group",
             serialize_mapping(data),
             _id=self.aggroot.identifier,
             _txt=None  # TSVECTOR will be handled by database trigger
         )
-        await stm.insert(record)
+        await self.statemgr.insert(record)
         return record
 
     @action("group-updated", resources="group")
-    async def update_group(self, stm, /, data):
+    async def update_group(self, data):
         item = self.rootobj
-        await stm.update(item, **serialize_mapping(data.updates))
+        await self.statemgr.update(item, **serialize_mapping(data.updates))
         return item
 
     @action("group-deleted", resources="group")
-    async def delete_group(self, stm, /):
+    async def delete_group(self):
         # First remove all profile associations
-        groups = await stm.find_all('profile-group', where=dict(group_id=self.aggroot.identifier))
+        groups = await self.statemgr.find_all('profile-group', where=dict(group_id=self.aggroot.identifier))
         for group in groups:
-            await stm.invalidate_one('profile-group', group._id)
+            await self.statemgr.invalidate_one('profile-group', group._id)
 
         # Then delete the group
-        await stm.invalidate_one('group', self.aggroot.identifier)
+        await self.statemgr.invalidate_one('group', self.aggroot.identifier)

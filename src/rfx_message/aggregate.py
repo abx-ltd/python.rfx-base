@@ -17,13 +17,13 @@ class MessageAggregate(Aggregate):
     # ========================================================================
 
     @action("message-generated", resources="message")
-    async def generate_message(self, stm, /, *, data):
+    async def generate_message(self, *, data):
         """Action to create a new message."""
         message = self.init_resource(
             "message",
             serialize_mapping(data),
             _id=self.aggroot.identifier)
-        await stm.insert(message)
+        await self.statemgr.insert(message)
         return {
             "message_id": message._id,
         }
@@ -56,9 +56,9 @@ class MessageAggregate(Aggregate):
     #     }
 
     @action("message-retrieved", resources=("message", "message-recipient"))
-    async def add_recipients(self, stm, /, *, data, message_id):
+    async def add_recipients(self, *, data, message_id):
         """Action to add recipients to a message."""
-        recipient_data_list = []
+        recipient_records = []
         
         for recipient_id in data:
             recipient_data = {
@@ -68,21 +68,25 @@ class MessageAggregate(Aggregate):
                 "read": False,
                 "archived": False
             }
-            recipient_data_list.append(recipient_data)
+            # Use init_resource to create the model object properly
+            recipient_record = self.init_resource("message-recipient", recipient_data)
+            recipient_records.append(recipient_record)
 
-        await stm.insert_many("message-recipient", *recipient_data_list)
+        # Insert each record individually since insert_many doesn't work with model objects
+        for record in recipient_records:
+            await self.statemgr.insert(record)
         
         return {
-            "recipients": recipient_data_list
+            "recipients": recipient_records
         }
 
     @action("message-read", resources=("message-recipient"))
-    async def mark_message_read(self, stm, /):
+    async def mark_message_read(self):
         """Action to mark a message as read for a specific user."""
         # Find the recipient record for this user and message
-        recipient_record = await stm.fetch("message-recipient", self.aggroot.identifier)
+        recipient_record = await self.statemgr.fetch("message-recipient", self.aggroot.identifier)
 
-        await stm.update(recipient_record, 
+        await self.statemgr.update(recipient_record, 
             read=True,
             mark_as_read=self.context.timestamp
         )
@@ -94,10 +98,10 @@ class MessageAggregate(Aggregate):
         }
 
     @action("bulk-messages-read", resources="message-recipient")
-    async def mark_all_messages_read(self, stm, /, *, user_id):
+    async def mark_all_messages_read(self, *, user_id):
         """Action to mark all unread messages as read for a user."""
         # Find all unread message-recipient records for this user
-        unread_recipients = await stm.find_all(
+        unread_recipients = await self.statemgr.find_all(
             "message-recipient",
             where=dict(
                 recipient_id=user_id, 
@@ -105,7 +109,7 @@ class MessageAggregate(Aggregate):
             )
         )
         
-        await stm.upsert_many(
+        await self.statemgr.upsert_many(
             "message-recipient",
             *[{
                 "_id": recipient._id,
@@ -121,22 +125,22 @@ class MessageAggregate(Aggregate):
         }
 
     @action("message-archived", resources="message-recipient")
-    async def archive_message(self, stm, /):
+    async def archive_message(self):
         """Action to archive a message for a specific user."""
-        recipient_record = await stm.fetch("message-recipient", self.aggroot.identifier)
-        await stm.update(recipient_record, archived=True)
+        recipient_record = await self.statemgr.fetch("message-recipient", self.aggroot.identifier)
+        await self.statemgr.update(recipient_record, archived=True)
 
         return {"status": "success", "message_id": self.aggroot.identifier}
 
 
     @action("attachment-added", resources="message-attachment")
-    async def add_attachment(self, stm, /, *, data):
+    async def add_attachment(self, *, data):
         """Action to add an attachment to a message."""
         attachment_data = serialize_mapping(data)
         attachment_data['_id'] = UUID_GENR()
         
-        attachment = stm.create("message-attachment", attachment_data)
-        await stm.insert(attachment)
+        attachment = self.statemgr.create("message-attachment", attachment_data)
+        await self.statemgr.insert(attachment)
         
         return {
             "attachment_id": attachment._id,

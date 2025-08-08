@@ -91,6 +91,7 @@ class MarkAllMessagesRead(Command):
         resources = ("message-recipient",)
         tags = ["notification", "read", "bulk"]
         auth_required = True
+        new_resource = True
     
     async def _process(self, agg, stm, payload):
         context = agg.get_context()
