@@ -108,38 +108,33 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
         backend_model = "_project-estimate-summary"
 
     project_id: UUID_TYPE = UUIDField("Project ID")
+    architectural_credits: float = FloatField("Architectural Credits")
+    development_credits: float = FloatField("Development Credits")
+    operation_credits: float = FloatField("Operation Credits")
+    discount_value: float = FloatField("Discount Value")
+    free_credits: float = FloatField("Free Credits")
+    total_credits_raw: float = FloatField("Total Credits Raw")
+    total_credits_after_discount: float = FloatField(
+        "Total Credits After Discount")
+    total_cost: float = FloatField("Total Cost")
 
 
-# @resource('project-member')
-# class ProjectMemberQuery(DomainQueryResource):
-#     """Project member queries"""
+@resource('work-item-detail')
+class WorkItemDetailQuery(DomainQueryResource):
+    """Work item detail queries"""
 
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
 
-#     project_id: UUID_TYPE = UUIDField("Project ID")
-#     member_id: UUID_TYPE = UUIDField("Member ID")
-#     role: str = StringField("Role")
-#     permission: str = StringField("Permission")
-
-
-# @resource('project-work-package')
-# class ProjectWorkPackageQuery(DomainQueryResource):
-#     """Project work package queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-
-#     project_id: UUID_TYPE = UUIDField("Project ID")
-#     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
-#     wp_code: str = StringField("Work Package Code")
-#     quantity: int = IntegerField("Quantity")
+    type: str = StringField("Type")
+    name: str = StringField("Name")
+    description: str = StringField("Description")
+    price_unit: float = FloatField("Price Unit")
+    credit_per_unit: float = FloatField("Credit Per Unit")
+    estimate: str = StringField("Estimate")
 
 
 @resource('work-item-listing')
@@ -158,72 +153,18 @@ class WorkItemListingQuery(DomainQueryResource):
 
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     work_item_id: UUID_TYPE = UUIDField("Work Item ID")
+    custom_name: str = StringField("Custom Name")
+    custom_description: str = StringField("Custom Description")
+    custom_price_unit: float = FloatField("Custom Price Unit")
+    custom_credit_per_unit: float = FloatField("Custom Credit Per Unit")
     work_item_name: str = StringField("Work Item Name")
     work_item_description: str = StringField("Work Item Description")
+    price_unit: float = FloatField("Price Unit")
+    credit_per_unit: float = FloatField("Credit Per Unit")
     work_item_type_code: str = StringField("Work Item Type Code")
-    work_item_type_name: str = StringField("Work Item Type Name")
-
-
-# @resource('project-status')
-# class ProjectStatusQuery(DomainQueryResource):
-#     """Project status queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-
-#     project_id: UUID_TYPE = UUIDField("Project ID")
-#     src_state: str = StringField("Source State")
-#     dst_state: str = StringField("Destination State")
-#     note: str = StringField("Note")
-
-# # Work Package Queries
-
-
-# @resource('work-package')
-# class WorkPackageQuery(DomainQueryResource):
-#     """Work package queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-
-#     work_package_name: str = StringField("Work Package Name")
-#     type: str = StringField("Type")
-#     complexity_level: str = StringField("Complexity Level")
-#     credits: float = FloatField("Credits")
-#     is_custom: bool = BooleanField("Is Custom")
-
-
-@resource('work-package-type')
-class RefWorkPackageTypeQuery(DomainQueryResource):
-    """Work package type reference queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-        backend_model = "ref--work-package-type"
-
-
-@resource('work-package-complexity')
-class RefWorkPackageComplexityQuery(DomainQueryResource):
-    """Work package complexity reference queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-        backend_model = "ref--work-package-complexity"
-
-    code: str = StringField("Code")
-    name: str = StringField("Name")
+    total_credits_for_item: float = FloatField("Total Credits For Item")
+    estimated_cost_for_item: float = FloatField("Estimated Cost For Item")
+    estimate: str = StringField("Estimate")
 
 
 @resource('work-package')
@@ -237,63 +178,19 @@ class WorkPackageQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "_work-package-detail"
 
-    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     work_package_name: str = StringField("Work Package Name")
+    description: str = StringField("Description")
+    example_description: str = StringField("Example Description")
+    is_custom: bool = BooleanField("Is Custom")
+    complexity_level: int = IntegerField("Complexity Level")
+    estimate: str = StringField("Estimate")
     type_list: list[str] = ArrayField("Type List")
-
-
-# Integration Queries
-# @resource('integration')
-# class IntegrationQuery(DomainQueryResource):
-#     """Integration queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-
-#     entity_type: str = StringField("Entity Type")
-#     entity_id: UUID_TYPE = UUIDField("Entity ID")
-#     provider: str = StringField("Provider")
-#     external_id: str = StringField("External ID")
-#     external_url: str = StringField("External URL")
-#     status: SyncStatus = EnumField("Status")
-
-
-# Notification Queries
-# @resource('notification')
-# class NotificationQuery(DomainQueryResource):
-#     """Notification queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-
-#     user_id: UUID_TYPE = UUIDField("User ID")
-#     source_entity_type: str = StringField("Source Entity Type")
-#     source_entity_id: UUID_TYPE = UUIDField("Source Entity ID")
-#     message: str = StringField("Message")
-#     type: str = StringField("Type")
-#     is_read: bool = BooleanField("Is Read")
-
-
-# @resource('notification-type')
-# class RefNotificationTypeQuery(DomainQueryResource):
-#     """Notification type reference queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-#         backend_model = "ref--notification-type"
-
-#     name: str = StringField("Name")
-#     description: str = StringField("Description")
-#     is_active: bool = BooleanField("Is Active")
+    credits: float = FloatField("Credits")
+    architectural_credits: float = FloatField("Architectural Credits")
+    development_credits: float = FloatField("Development Credits")
+    operation_credits: float = FloatField("Operation Credits")
+    upfront_cost: float = FloatField("Upfront Cost")
+    monthly_cost: float = FloatField("Monthly Cost")
 
 
 # Reference Queries
@@ -308,7 +205,7 @@ class RefProjectCategoryQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "ref--project-category"
 
-    code: str = StringField("Code")
+    key: str = StringField("Key")
     name: str = StringField("Name")
     description: str = StringField("Description")
     is_active: bool = BooleanField("Is Active")
@@ -325,7 +222,7 @@ class RefProjectRoleQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "ref--project-role"
 
-    code: str = StringField("Code")
+    key: str = StringField("Key")
     name: str = StringField("Name")
     description: str = StringField("Description")
     is_default: bool = BooleanField("Is Default")

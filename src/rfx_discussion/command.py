@@ -65,27 +65,19 @@ class UpdateTicketInfo(Command):
     async def _process(self, agg, stm, payload):
         await agg.update_ticket_info(payload)
 
-# class ChangeTicketStatus(Command):
-#     """Change Ticket Status - Changes ticket status using workflow"""
 
-#     class Meta:
-#         key = "change-ticket-status"
-#         resources = ("ticket",)
-#         tags = ["ticket", "workflow"]
-#         auth_required = True
-#         description = "Change ticket status using workflow"
+class RemoveTicket(Command):
+    """Remove Ticket - Removes a ticket"""
 
-#     Data = datadef.ChangeTicketStatusPayload
+    class Meta:
+        key = "remove-ticket"
+        resources = ("ticket",)
+        tags = ["ticket", "remove"]
+        auth_required = True
+        description = "Remove ticket"
 
-#     async def _process(self, agg, stm, payload):
-#         """Change ticket status"""
-#         await agg.change_ticket_status(
-#             next_status=payload.next_status,
-#             note=payload.note
-#         )
-#         # Get the updated ticket data
-#         ticket = await stm.fetch("ticket", self.aggroot.identifier)
-#         yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
+    async def _process(self, agg, stm, payload):
+        await agg.remove_ticket()
 
 
 class AssignMemberToTicket(Command):
@@ -103,6 +95,7 @@ class AssignMemberToTicket(Command):
     async def _process(self, agg, stm, payload):
         """Assign member to ticket"""
         await agg.assign_member_to_ticket(payload.member_id)
+
 
 
 class RemoveMemberFromTicket(Command):

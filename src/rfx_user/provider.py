@@ -53,7 +53,7 @@ class RFXAuthProfileProvider(
             user_data = self.format_user_data(auth_user)
             await self.upsert('user', user_data)
             user = await self.fetch('user', user_id)
-
+ 
             # ---------- Proifle ----------
             q = where = dict(user_id=user_id, current_profile=True, status='ACTIVE')
             curr_profile = await self.find_one('profile', where=q)

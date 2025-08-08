@@ -166,7 +166,7 @@ class AddWorkPackageToProject(Command):
 
     async def _process(self, agg, stm, payload):
         """Add work package to estimator draft"""
-        await agg.add_work_package_to_estimator(data=payload)
+        return await agg.add_work_package_to_estimator(data=payload)
 
 
 class AddTicketToProject(Command):
@@ -182,7 +182,6 @@ class AddTicketToProject(Command):
     Data = datadef.AddTicketToProjectPayload
 
     async def _process(self, agg, sta, payload):
-
         result = await agg.add_ticket_to_project(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
@@ -286,6 +285,7 @@ class DeleteProjectMilestone(Command):
         tags = ["project", "milestone"]
         auth_required = True
         description = "Delete project milestone"
+        batch_command = True
 
     Data = datadef.DeleteProjectMilestonePayload
 

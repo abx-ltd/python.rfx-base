@@ -109,15 +109,14 @@ class RefTicketType(RFXDiscussionBaseModel):
 
 
 # View for inquiry listing
-class ViewInquiryListing(RFXDiscussionConnector.__data_schema_base__):
-    __tablename__ = "_inquiry-listing"
+class ViewInquiry(RFXDiscussionBaseModel):
+    __tablename__ = "_inquiry"
     __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
 
     type = sa.Column(sa.String(255), primary_key=True)
     type_icon_color = sa.Column(sa.String(7))  # Hex color code
     title = sa.Column(sa.String(255), nullable=False)
     tag_names = sa.Column(pg.ARRAY(sa.String))
-    inquiry_id = sa.Column(pg.UUID)
     participants = sa.Column(pg.JSONB)
     activity = sa.Column(sa.Interval)
     availability = sa.Column(
@@ -138,27 +137,3 @@ class Tag(RFXDiscussionBaseModel):
     description = sa.Column(sa.Text)
     is_active = sa.Column(sa.Boolean, default=True)
     target_resource = sa.Column(sa.String(100), nullable=False)
-
-
-class ViewTicketWithTagNames(RFXDiscussionConnector.__data_schema_base__):
-    __tablename__ = "_ticket-with-tag-names"
-    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
-
-    ticket_id = sa.Column(pg.UUID, primary_key=True)
-    title = sa.Column(sa.String(255), nullable=False)
-    priority = sa.Column(
-        sa.Enum(types.Priority, name="priority",
-                schema=config.RFX_DISCUSSION_SCHEMA),
-        nullable=False
-    )
-    type = sa.Column(sa.String(100), nullable=False)
-    parent_id = sa.Column(pg.UUID)
-    assignee = sa.Column(pg.UUID)
-    status = sa.Column(sa.String(100), nullable=False)
-    workflow_id = sa.Column(pg.UUID)
-    availability = sa.Column(
-        sa.Enum(types.Availability, name="availability",
-                schema=config.RFX_DISCUSSION_SCHEMA),
-        nullable=False
-    )
-    tag_names = sa.Column(pg.ARRAY(sa.String))

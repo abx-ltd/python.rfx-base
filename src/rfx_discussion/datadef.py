@@ -35,6 +35,10 @@ class UpdateTicketPayload(DataModel):
     status: Optional[str] = None
 
 
+class RemoveTicketPayload(DataModel):
+    ticket_id: UUID_TYPE
+
+
 class ChangeTicketStatusPayload(DataModel):
     next_status: str
     note: Optional[str]

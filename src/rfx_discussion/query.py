@@ -43,6 +43,7 @@ class TicketQuery(DomainQueryResource):
         allow_meta_view = True
 
     title: str = StringField("Title")
+    description: str = StringField("Description")
     priority: Priority = EnumField("Priority")
     type: str = StringField("Type")
     parent_id: UUID_TYPE = UUIDField("Parent ID")
@@ -51,25 +52,7 @@ class TicketQuery(DomainQueryResource):
     workflow_id: UUID_TYPE = UUIDField("Workflow ID")
     availability: Availability = EnumField("Availability")
     sync_status: SyncStatus = EnumField("Sync Status")
-    project_id: UUID_TYPE = UUIDField("Project ID")
-
-
-@resource('inquiry-listing')
-class InquiryListingQuery(DomainQueryResource):
-    """Inquiry listing queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_list_view = True
-        allow_item_view = False
-        allow_meta_view = True
-        backend_model = "_inquiry-listing"
-
-    type: str = StringField("Type")
-    type_icon_color: str = StringField("Type Icon Color")
-    title: str = StringField("Title")
-    tag_names: list[str] = ArrayField("Tag Names")
-    availability: Availability = EnumField("Availability")
+    is_inquiry: bool = BooleanField("Is Inquiry")
 
 
 @resource('ticket-status')
@@ -88,6 +71,24 @@ class TicketStatusQuery(DomainQueryResource):
     note: str = StringField("Note")
 
 
+@resource('inquiry')
+class InquiryQuery(DomainQueryResource):
+    """Inquiry listing queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_list_view = True
+        allow_item_view = True
+        allow_meta_view = True
+        backend_model = "_inquiry"
+
+    type: str = StringField("Type")
+    type_icon_color: str = StringField("Type Icon Color")
+    title: str = StringField("Title")
+    tag_names: list[str] = ArrayField("Tag Names")
+    availability: Availability = EnumField("Availability")
+
+
 @resource('ticket-comment')
 class TicketCommentQuery(DomainQueryResource):
     """Ticket comment queries"""
@@ -100,6 +101,7 @@ class TicketCommentQuery(DomainQueryResource):
 
     ticket_id: UUID_TYPE = UUIDField("Ticket ID")
     comment_id: UUID_TYPE = UUIDField("Comment ID")
+    role: str = StringField("Role")
 
 
 @resource('ticket-assignee')
@@ -143,6 +145,9 @@ class RefTicketTypeQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "ref--ticket-type"
 
+    name: str = StringField("Name")
+    description: str = StringField("Description")
+    icon_color: str = StringField("Icon Color")
     is_active: bool = BooleanField("Is Active")
     is_inquiry: bool = BooleanField("Is Inquiry")
 
@@ -158,7 +163,7 @@ class TagQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-    code: str = StringField("Code")
+    key: str = StringField("Key")
     name: str = StringField("Name")
     description: str = StringField("Description")
     is_active: bool = BooleanField("Is Active")

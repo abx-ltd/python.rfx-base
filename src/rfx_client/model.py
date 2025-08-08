@@ -127,9 +127,50 @@ class ProjectWorkPackage(CPOPortalBaseModel):
     work_package_id = sa.Column(pg.UUID, nullable=False)
     wp_code = sa.Column(sa.String(50), nullable=False)
     quantity = sa.Column(sa.Integer, nullable=False, default=1)
+    work_package_name = sa.Column(sa.String(255), nullable=False)
+    work_package_description = sa.Column(sa.Text)
+    work_package_example_description = sa.Column(sa.Text)
+    work_package_is_custom = sa.Column(sa.Boolean, default=False)
+    work_package_complexity_level = sa.Column(sa.Integer, default=1)
+    work_package_estimate = sa.Column(sa.Interval)
 
+
+class ProjectWorkItem(CPOPortalBaseModel):
+    __tablename__ = "project-work-item"
+    type = sa.Column(sa.String(50), nullable=False)
+    name = sa.Column(sa.String(255))
+    description = sa.Column(sa.Text)
+    price_unit = sa.Column(sa.Numeric(10, 2))
+    credit_per_unit = sa.Column(sa.Numeric(10, 2))
+    estimate = sa.Column(sa.Interval)
+
+
+class ProjectWorkPackageWorkItem(CPOPortalBaseModel):
+    __tablename__ = "project-work-package-work-item"
+    project_work_package_id = sa.Column(
+        sa.ForeignKey(ProjectWorkPackage._id), nullable=False)
+    project_work_item_id = sa.Column(sa.ForeignKey(
+        ProjectWorkItem._id), nullable=False)
+    status = sa.Column(sa.Enum(types.WorkPackageItemStatus, name="work_package_item_status",
+                               schema=config.CPO_PORTAL_SCHEMA),
+                       nullable=False)
+    custom_name = sa.Column(sa.String(255))
+    custom_description = sa.Column(sa.Text)
+    custom_price_unit = sa.Column(sa.Numeric(10, 2))
+    custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
+    custom_estimate = sa.Column(sa.Interval)
+
+
+class ProjectWorkItemDeliverable(CPOPortalBaseModel):
+    __tablename__ = "project-work-item-deliverable"
+    project_work_item_id = sa.Column(sa.ForeignKey(
+        ProjectWorkItem._id), nullable=False)
+    name = sa.Column(sa.String(255))
+    description = sa.Column(sa.Text)
 
 # Project BDM Contact Entity
+
+
 class ProjectBDMContact(CPOPortalBaseModel):
     __tablename__ = "project-bdm-contact"
 
@@ -142,7 +183,7 @@ class ProjectBDMContact(CPOPortalBaseModel):
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
 
 
-class ViewProjectEstimateSummary(CPOPortalConnector.__data_schema_base__):
+class ViewProjectEstimateSummary(CPOPortalBaseModel):
     __tablename__ = "_project-estimate-summary"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -208,12 +249,16 @@ class WorkItemDeliverable(CPOPortalBaseModel):
     description = sa.Column(sa.Text)
 
 
-class ViewWorkItemListing(CPOPortalConnector.__data_schema_base__):
+class ViewWorkItemListing(CPOPortalBaseModel):
     __tablename__ = "_work-item-listing"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
     work_package_id = sa.Column(pg.UUID, primary_key=True)
     work_item_id = sa.Column(pg.UUID, primary_key=True)
+    custom_name = sa.Column(sa.String(255))
+    custom_description = sa.Column(sa.Text)
+    custom_price_unit = sa.Column(sa.Numeric(10, 2))
+    custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
     work_item_name = sa.Column(sa.String(255), nullable=False)
     work_item_description = sa.Column(sa.Text)
     price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
@@ -236,6 +281,7 @@ class WorkPackage(CPOPortalBaseModel):
     example_description = sa.Column(sa.Text)
     is_custom = sa.Column(sa.Boolean, default=False)
     complexity_level = sa.Column(sa.Integer, default=1)
+    estimate = sa.Column(sa.Interval)
 
 
 class WorkPackageWorkItem(CPOPortalBaseModel):
@@ -250,19 +296,24 @@ class WorkPackageWorkItem(CPOPortalBaseModel):
     custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
 
 
-class ViewWorkPackageDetail(CPOPortalConnector.__data_schema_base__):
+class ViewWorkPackageDetail(CPOPortalBaseModel):
     __tablename__ = "_work-package-detail"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
-    work_package_id = sa.Column(pg.UUID, primary_key=True)
     work_package_name = sa.Column(sa.String(255), nullable=False)
-    type_list = sa.Column(pg.ARRAY(sa.String))
+    description = sa.Column(sa.Text)
+    example_description = sa.Column(sa.Text)
+    is_custom = sa.Column(sa.Boolean, default=False)
     complexity_level = sa.Column(sa.Integer, nullable=False)
+    estimate = sa.Column(sa.Interval)
+    type_list = sa.Column(pg.ARRAY(sa.String))
     credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
     upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    example_description = sa.Column(sa.Text)
-    estimate = sa.Column(sa.Interval)
+
 
 # ================ Workflow Context ================
 # Workflow Aggregate Root
