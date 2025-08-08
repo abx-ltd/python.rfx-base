@@ -47,35 +47,36 @@ class RFXAuthProfileProvider(
         Set up authorization context from Keycloak token.
         Handles user sync, profile management, and organization resolution.
         """
-        # ---------- User ----------
-        user_id = auth_user.sub
-        user_data = self.format_user_data(auth_user)
-        await self.upsert('user', user_data)
-        user = await self.fetch('user', user_id)
+        async with self.transaction():
+            # ---------- User ----------
+            user_id = auth_user.sub
+            user_data = self.format_user_data(auth_user)
+            await self.upsert('user', user_data)
+            user = await self.fetch('user', user_id)
 
-        # ---------- Proifle ----------
-        q = where=dict(user_id=user_id, current_profile=True, status='ACTIVE')
-        curr_profile = await self.find_one('profile', where=q)
+            # ---------- Proifle ----------
+            q = where = dict(user_id=user_id, current_profile=True, status='ACTIVE')
+            curr_profile = await self.find_one('profile', where=q)
 
-        if not curr_profile:
-            profile = SimpleNamespace(_id=auth_user.sub, name="Default Profile")
-            organization = SimpleNamespace(_id=auth_user.sub, name="Default Organization")
-        else:
-            curr_profile = curr_profile
-            profile = curr_profile
+            if not curr_profile:
+                profile = SimpleNamespace(_id=auth_user.sub, name="Default Profile")
+                organization = SimpleNamespace(_id=auth_user.sub, name="Default Organization")
+            else:
+                curr_profile = curr_profile
+                profile = curr_profile
 
-            if self._active_profile:
-                act_profile = await self.find_one('profile', identifier=self._active_profile._id)
-                if not act_profile:
-                    raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
+                if self._active_profile:
+                    act_profile = await self.find_one('profile', identifier=self._active_profile._id)
+                    if not act_profile:
+                        raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
 
-                if curr_profile._id != act_profile._id:
-                    await self.update_one('profile', identifier=curr_profile._id, current_profile=False)
-                    await self.update_one('profile', identifier=act_profile._id, current_profile=True)
+                    if curr_profile._id != act_profile._id:
+                        await self.update_one('profile', identifier=curr_profile._id, current_profile=False)
+                        await self.update_one('profile', identifier=act_profile._id, current_profile=True)
 
-                profile = act_profile
+                    profile = act_profile
 
-            organization = await self.fetch('organization', profile.organization_id)
+                organization = await self.fetch('organization', profile.organization_id)
 
         # ---------- Realm/Roles ----------
         iamroles = auth_user.realm_access['roles']
