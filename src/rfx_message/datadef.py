@@ -1,63 +1,94 @@
-from typing import Optional, List
-from pydantic import Field
-from datetime import datetime
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field, model_validator
+from enum import Enum
 
-from fluvius.data import DataModel, UUID_TYPE
+from fluvius.data import UUID_TYPE
+from .types import MessageType, PriorityLevel, ContentType
+from .helper import RenderingStrategy
 
-from .types import MessageType, ContentType, PriorityLevel
-
-class SendMessagePayload(DataModel):
-    """Payload for creating a new notification
-    
-    Recipients are typically determined by business logic/domain events,
-    not manually specified by users.
+class SendMessagePayload(BaseModel):
     """
-
-    #Reference fields
-    thread_id: Optional[UUID_TYPE] = Field(default=None, description="ID of the message thread")
-
-    #Content and Metadata fields
-    subject: Optional[str] = Field(default=None, max_length=255, description="Subject of the notification")
-    content: str = Field(min_length=10, max_length=1024, description="Content of the notification")
-    content_type: Optional[ContentType] = Field(default=ContentType.TEXT, description="Type of content in the notification")
-    tags: Optional[List[str]] = Field(default_factory=list, description="Tags associated with the notification")
-    is_important: Optional[bool] = Field(default=False, description="Flag to mark the notification as important")
-    expirable: Optional[bool] = Field(default=False, description="Flag to indicate if the notification is expirable")
-    message_type: Optional[MessageType] = Field(default=MessageType.NOTIFICATION, description="Type of the notification")
-    priority: Optional[PriorityLevel] = Field(default=PriorityLevel.MEDIUM, description="Priority level of the notification")
-    expiration_date: Optional[datetime] = Field(default=None, description="Expiration date of the notification")
-    data: Optional[dict] = Field(default_factory=dict, description="Additional data associated with the notification")
-    context: Optional[dict] = Field(default_factory=dict, description="Contextual information for the notification")
-    request_read_receipt: Optional[datetime] = Field(default=None, description="Request for read receipt with timestamp")
-    mtype: str = Field(default="notification", description="Type identifier for routing")
-
-    #Recipient fields (typically determined by business logic)
-    recipients: Optional[List[UUID_TYPE]] = Field(default_factory=list, description="List of recipient IDs (usually set by domain events)")
-
-
-class ReadMessagePayload(DataModel):
-    """Payload for marking a message as read"""
+    Enhanced payload for sending notification messages.
+    Supports both template-based and direct content messages.
+    """
     
-    message_id: UUID_TYPE = Field(description="ID of the message to mark as read")
+    # Recipients (required)
+    recipients: List[UUID_TYPE] = Field(..., description="List of recipient user IDs")
+    
+    # Message metadata
+    subject: Optional[str] = Field(None, description="Message subject")
+    message_type: MessageType = Field(MessageType.NOTIFICATION, description="Type of message")
+    priority: PriorityLevel = Field(PriorityLevel.MEDIUM, description="Message priority")
+    
+    # Content source (one of these must be provided)
+    content: Optional[str] = Field(None, description="Direct message content (no template)")
+    content_type: Optional[ContentType] = Field(ContentType.TEXT, description="Content type")
+    
+    # Template-based content
+    template_key: Optional[str] = Field(None, description="Template key for rendering")
+    template_data: Optional[Dict[str, Any]] = Field(None, description="Data for template rendering")
+    template_version: Optional[int] = Field(None, description="Specific template version")
+    
+    # Rendering control
+    render_strategy: Optional[RenderingStrategy] = Field(None, description="Override rendering strategy")
+    
+    # Context for template resolution
+    locale: Optional[str] = Field("en", description="Locale for template resolution")
+    channel: Optional[str] = Field(None, description="Channel for template resolution")
+    tenant_id: Optional[UUID_TYPE] = Field(None, description="Tenant ID for scoped templates")
+    app_id: Optional[str] = Field(None, description="App ID for scoped templates")
+    
+    # Additional metadata
+    tags: Optional[List[str]] = Field([], description="Message tags")
+    expires_at: Optional[str] = Field(None, description="Message expiration time")
+    
+    @model_validator(mode='after')
+    def validate_content_source(self):
+        """Ensure either content or template_key is provided."""
+        if not self.content and not self.template_key:
+            raise ValueError("Either 'content' or 'template_key' must be provided")
+        
+        if self.content and self.template_key:
+            raise ValueError("Cannot provide both 'content' and 'template_key'")
+        
+        if self.template_key and not self.template_data:
+            # Allow empty template_data but warn
+            self.template_data = {}
+        
+        return self
 
-class NotificationMessageData(DataModel):
-    """Data model for notification message dispatch (for background processing)"""
+class CreateTemplatePayload(BaseModel):
+    """Payload for creating message templates."""
     
-    message_id: UUID_TYPE = Field(description="ID of the message")
-    sender_id: UUID_TYPE = Field(description="ID of the sender")
-    recipients: List[UUID_TYPE] = Field(description="List of recipient IDs")
+    key: str = Field(..., description="Template key identifier")
+    name: Optional[str] = Field(None, description="Human-readable template name")
+    body: str = Field(..., description="Template body/source code")
     
-    # Message content for notification
-    subject: Optional[str] = Field(default=None, description="Message subject")
-    content: str = Field(description="Message content")
-    content_type: ContentType = Field(default=ContentType.TEXT, description="Content type")
-    tags: List[str] = Field(default_factory=list, description="Message tags")
-    is_important: bool = Field(default=False, description="Importance flag")
-    priority: PriorityLevel = Field(default=PriorityLevel.MEDIUM, description="Priority level")
-    expirable: bool = Field(default=False, description="Expirable flag")
-    expiration_date: Optional[datetime] = Field(default=None, description="Expiration date")
-    thread_id: Optional[UUID_TYPE] = Field(default=None, description="Thread ID")
-    mtype: str = Field(default="message", description="Message type")
+    # Template configuration
+    engine: str = Field("jinja2", description="Template engine")
+    locale: str = Field("en", description="Template locale")
+    channel: Optional[str] = Field(None, description="Template channel")
     
-    # Dispatch configuration
-    command: str = Field(default="send-notification", description="Command to execute")
+    # Multi-tenant scoping
+    tenant_id: Optional[UUID_TYPE] = Field(None, description="Tenant ID")
+    app_id: Optional[str] = Field(None, description="App ID")
+    
+    # Template metadata
+    description: Optional[str] = Field(None, description="Template description")
+    variables_schema: Optional[Dict[str, Any]] = Field({}, description="JSON schema for template variables")
+    sample_data: Optional[Dict[str, Any]] = Field({}, description="Sample data for testing")
+    
+    # Rendering control
+    render_strategy: Optional[RenderingStrategy] = Field(None, description="Default rendering strategy")
+
+class PublishTemplatePayload(BaseModel):
+    """Payload for publishing templates."""
+    
+    template_id: UUID_TYPE = Field(..., description="Template ID to publish")
+
+class ProcessContentPayload(BaseModel):
+    """Payload for processing message content."""
+    
+    message_id: UUID_TYPE = Field(..., description="Message ID to process")
+    mode: str = Field("sync", description="Processing mode: sync, async, immediate")
+    context: Optional[Dict[str, Any]] = Field({}, description="Additional context for processing")

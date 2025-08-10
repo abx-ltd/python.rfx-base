@@ -9,8 +9,11 @@ This module defines SQLAlchemy models for a comprehensive messaging system that 
 - Reference management
 """
 import sqlalchemy as sa
+from datetime import datetime
 from sqlalchemy.dialects import postgresql as pg
 from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
+
+from .helper import RenderingStrategy
 
 from . import config, types
 
@@ -40,9 +43,17 @@ class Message(MServiceBaseModel):
 
     __tablename__ = "message"
 
+    # Reference fields
+    sender_id = sa.Column(pg.UUID)
+    thread_id = sa.Column(pg.UUID)
+
     # Message Content fields
     subject = sa.Column(sa.String(1024))
     content = sa.Column(sa.String(1024))
+    rendered_content = sa.Column(sa.String(1024))
+    content_type = sa.Column(
+        sa.Enum(types.ContentType, name="content_type", schema=config.MESSAGE_SERVICE_SCHEMA),
+    )
 
     # Message Metadata fields
     tags = sa.Column(pg.ARRAY(sa.String))
@@ -58,18 +69,30 @@ class Message(MServiceBaseModel):
     message_type = sa.Column(
         sa.Enum(types.MessageType, name="message_type", schema=config.MESSAGE_SERVICE_SCHEMA),
     )
-    content_type = sa.Column(
-        sa.Enum(types.ContentType, name="content_type", schema=config.MESSAGE_SERVICE_SCHEMA),
-    )
-
-    # Reference fields
-    sender_id = sa.Column(pg.UUID)
-    thread_id = sa.Column(pg.UUID)
 
     # Additional metadata fields
     data = sa.Column(pg.JSONB, default=dict)
     context = sa.Column(pg.JSONB, default=dict)
     mtype = sa.Column(sa.String(255), nullable=False)
+
+    # Template rendering fields
+    template_key = sa.Column(sa.String(255))
+    template_version = sa.Column(sa.Integer)
+    template_locale = sa.Column(sa.String(10))
+    template_engine = sa.Column(sa.String(32))
+    template_data = sa.Column(pg.JSONB, default=dict)
+
+    #Rendering Control and Status
+    render_strategy = sa.Column(
+        sa.Enum(RenderingStrategy, name="rendering_strategy"),
+        nullable=True
+    )
+    render_status = sa.Column(
+        sa.Enum(types.RenderStatus, name="rendering_status"),
+        nullable=True
+    )
+    rendered_at = sa.Column(pg.TIMESTAMP)
+    render_error = sa.Column(sa.Text)
 
 class MessageAction(MServiceBaseModel):
     """
@@ -93,11 +116,11 @@ class MessageAction(MServiceBaseModel):
     payload = sa.Column(pg.JSONB, default=dict)
     host = sa.Column(sa.String(1024))
     endpoint = sa.Column(sa.String())
-    method = sa.Column(sa.Enum(types.HTTPMETHOD, name="http_method", schema=config.MESSAGE_SERVICE_SCHEMA))
+    method = sa.Column(sa.Enum(types.HTTPMethod, name="http_method", schema=config.MESSAGE_SERVICE_SCHEMA))
     is_primary = sa.Column(sa.Boolean, default=False) 
     mobile_endpoint = sa.Column(sa.String(1024))
     destination = sa.Column(pg.ARRAY(sa.String), default=list)
-    target = sa.Column(sa.Enum(types.HTTPTARGET, name="http_target", schema=config.MESSAGE_SERVICE_SCHEMA))
+    target = sa.Column(sa.Enum(types.HTTPTarget, name="http_target", schema=config.MESSAGE_SERVICE_SCHEMA))
 
 class MessageBox(MServiceBaseModel):
     """
@@ -110,7 +133,7 @@ class MessageBox(MServiceBaseModel):
     _txt = sa.Column(pg.TSVECTOR)  # Full-text search vector
     name = sa.Column(sa.String(1024))
     email_alias = sa.Column(sa.Text())
-    type = sa.Column(sa.Enum(types.BOXTYPE, name="box_type", schema=config.MESSAGE_SERVICE_SCHEMA))
+    type = sa.Column(sa.Enum(types.BoxType, name="box_type", schema=config.MESSAGE_SERVICE_SCHEMA))
 
 class MessageBoxUser(MServiceBaseModel):
     """
@@ -232,7 +255,7 @@ class Tag(MServiceBaseModel):
     background_color = sa.Column(sa.String(7))  # Hex color code
     font_color = sa.Column(sa.String(7))  # Hex color code
     description = sa.Column(sa.String(1024))
-    group = sa.Column(sa.Enum(types.TAGGROUP, name="tag_group", schema=config.MESSAGE_SERVICE_SCHEMA))
+    group = sa.Column(sa.Enum(types.TagGroup, name="tag_group", schema=config.MESSAGE_SERVICE_SCHEMA))
     
 class Label(MServiceBaseModel):
     """
@@ -300,3 +323,76 @@ class MessageRecipientsView(ViewBaseModel):
     is_read = sa.Column(sa.Boolean, default=False)
     read_at = sa.Column(sa.DateTime(timezone=True)) 
     archived = sa.Column(sa.Boolean, default=False)
+
+class MessageTemplate(MServiceBaseModel):
+    """
+    Template for creating new messages.
+    """
+    __tablename__ = "message-template"
+
+    # Template fields
+    key = sa.Column(sa.String(255), nullable=False)
+    version = sa.Column(sa.Integer, default=1)
+    locale = sa.Column(sa.String(10), default="en") #optional
+    channel = sa.Column(sa.String(32)) #e.g., "inapp", "email", "sms" (optional)
+
+    #TODO: Multitenant
+    tenant_id = sa.Column(pg.UUID)
+    app_id = sa.Column(sa.String(64))
+
+    #Content and engine
+    name = sa.Column(sa.String(255))
+    description = sa.Column(sa.Text)
+    engine = sa.Column(sa.String(32), default='jinja2')
+    context = sa.Column(pg.TEXT)
+
+    #Variables schema
+    variables_schema = sa.Column(pg.JSONB, default=dict)
+    # sample_data = sa.Column(pg.JSONB, default=dict)  # Sample data for rendering
+
+    #Rendering control
+    render_strategy = sa.Column(
+        sa.Enum(RenderingStrategy, name="rendering_strategy"),
+        nullable=True
+    ) # Override default strategy for this template
+
+    #Meta
+    status = sa.Column(
+        sa.Enum(types.TemplateStatus, name="template_status", schema=config.MESSAGE_SERVICE_SCHEMA),
+        default="draft"
+    )
+    is_active = sa.Column(sa.Boolean, default=True)
+
+    __table_args__ = (
+        # Ensure unique templates per scope
+        sa.UniqueConstraint('tenant_id', 'app_id', 'key', 'version', 'locale', 'channel', name='uq_template_scope'),
+        {'schema': config.MESSAGE_SERVICE_SCHEMA}  # Ensure schema is set
+    )
+
+class TemplateRenderCache(MServiceBaseModel):
+    """
+    Caches the rendered output of message templates.
+    """
+    __tablename__ = "template-render-cache"
+
+    # Cache key components
+    template_key = sa.Column(sa.String(255), nullable=False)
+    template_version = sa.Column(sa.Integer, default=1)
+    locale = sa.Column(sa.String(10), default="en")
+    channel = sa.Column(sa.String(32))  # e.g., "inapp",
+
+    # Cache content
+    compiled_template = sa.Column(sa.LargeBinary)
+    last_accessed = sa.Column(pg.TIMESTAMP, default=datetime.utcnow)
+    access_count = sa.Column(sa.Integer, default=0)
+
+    # TTL and invalidation
+    expires_at = sa.Column(pg.TIMESTAMP)
+    is_valid = sa.Column(sa.Boolean, default=True)
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "template_key", "template_version", "locale", "channel", name="uq_cache_key"
+        ),
+        {'schema': config.MESSAGE_SERVICE_SCHEMA}
+    )

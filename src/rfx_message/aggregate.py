@@ -2,8 +2,13 @@
 RFX Messaging Domain Aggregate - Business Logic and State Management
 """
 from fluvius.domain.aggregate import Aggregate, action
-from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.data import serialize_mapping, UUID_GENR, timestamp
+from typing import Optional, Dict, Any
+import asyncio
 
+from .processor import MessageContentProcessor, ProcessingMode
+from .helper import RenderingStrategy
+from .types import MessageType
 from . import logger
 
 class MessageAggregate(Aggregate):
@@ -12,6 +17,17 @@ class MessageAggregate(Aggregate):
     This includes actions on messages, recipients, attachments, embedded content, and references.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._content_processor = None
+    
+    @property
+    def content_processor(self) -> MessageContentProcessor:
+        """Lazy-loaded content processor."""
+        if self._content_processor is None:
+            self._content_processor = MessageContentProcessor(self.statemgr)
+        return self._content_processor
+
     # ========================================================================
     # MESSAGE OPERATIONS
     # ========================================================================
@@ -19,130 +35,185 @@ class MessageAggregate(Aggregate):
     @action("message-generated", resources="message")
     async def generate_message(self, *, data):
         """Action to create a new message."""
+        message_data = serialize_mapping(data)
+        message_data['render_status'] = 'pending'
+        
         message = self.init_resource(
             "message",
-            serialize_mapping(data),
-            _id=self.aggroot.identifier)
+            message_data,
+            _id=self.aggroot.identifier
+        )
         await self.statemgr.insert(message)
+        
         return {
             "message_id": message._id,
         }
+    
+    @action("message-content-processed", resources="message")
+    async def process_message_content(
+        self,
+        *,
+        message_id: str,
+        context: Optional[Dict[str, Any]] = None,
+        mode: str = "sync"
+    ):
+        """Process message content (template resolution and rendering)."""
+        message = await self.statemgr.fetch("message", message_id)
+        if not message:
+            raise ValueError(f"Message not found: {message_id}")
         
-    # @action("message-updated", resources="message")
-    # async def update_message(self, stm, /, *, data):
-    #     """Action to update an existing message."""
-    #     message_id = data.pop("message_id")
+        processing_mode = ProcessingMode(mode)
         
-    #     # Fetch the existing message
-    #     message = await stm.fetch("message", message_id)
+        # Process content
+        processed_message = await self.content_processor.process_message_content(
+            message.__dict__,
+            mode=processing_mode,
+            context=context or {}
+        )
         
-    #     # Only update non-None fields
-    #     update_data = {k: v for k, v in data.items() if v is not None}
+        return {
+            "message_id": message_id,
+            "render_status": processed_message['render_status'],
+            "content_type": processed_message.get('content_type'),
+        }
+    
+    @action("message-ready-for-delivery", resources="message")
+    async def mark_ready_for_delivery(self, *, message_id: str):
+        """Mark message as ready for delivery."""
+        message = await self.statemgr.fetch("message", message_id)
+        if not message:
+            raise ValueError(f"Message not found: {message_id}")
         
-    #     await stm.update(message, **update_data)
-    #     return {
-    #         "message_id": message_id,
-    #     }
+        # Check if message is rendered or ready for client rendering
+        if message.render_status not in ['rendered', 'ready_client_render']:
+            raise ValueError(f"Message {message_id} is not ready for delivery (status: {message.render_status})")
+        
+        await self.statemgr.update(message, delivery_status='ready')
+        
+        return {"message_id": message_id, "ready": True}
 
-    # @action("message-deleted", resources="message")
-    # async def delete_message(self, stm, /, *, message_id):
-    #     """Action to delete a message."""
-    #     # Fetch the message and soft delete it
-    #     message = await stm.fetch("message", message_id)
-    #     await stm.invalidate(message)
-        
-    #     return {
-    #         "message_id": message_id,
-    #     }
-
-    @action("message-retrieved", resources=("message", "message-recipient"))
+    @action("recipients-added", resources="message-recipient")
     async def add_recipients(self, *, data, message_id):
         """Action to add recipients to a message."""
-        recipient_records = []
+        recipients = data if isinstance(data, list) else data.get("recipients", [])
         
-        for recipient_id in data:
+        for recipient_id in recipients:
             recipient_data = {
                 "message_id": message_id,
                 "recipient_id": recipient_id,
-                "_id": UUID_GENR(),
                 "read": False,
-                "archived": False
+                "delivered": False,
+                "delivery_status": "pending"
             }
-            # Use init_resource to create the model object properly
-            recipient_record = self.init_resource("message-recipient", recipient_data)
-            recipient_records.append(recipient_record)
-
-        # Insert each record individually since insert_many doesn't work with model objects
-        for record in recipient_records:
-            await self.statemgr.insert(record)
+            
+            recipient = self.init_resource("message-recipient", recipient_data)
+            await self.statemgr.insert(recipient)
         
         return {
-            "recipients": recipient_records
+            "message_id": message_id,
+            "recipients_count": len(recipients)
         }
 
-    @action("message-read", resources=("message-recipient"))
-    async def mark_message_read(self):
+    @action("message-read", resources="message-recipient")
+    async def mark_message_read(self, *, message_id, user_id):
         """Action to mark a message as read for a specific user."""
-        # Find the recipient record for this user and message
-        recipient_record = await self.statemgr.fetch("message-recipient", self.aggroot.identifier)
-
-        await self.statemgr.update(recipient_record, 
-            read=True,
-            mark_as_read=self.context.timestamp
+        # Find the recipient record
+        recipient = await self.statemgr.find_one(
+            "message-recipient",
+            where={"message_id": message_id, "recipient_id": user_id}
         )
+        
+        if not recipient:
+            raise ValueError(f"Recipient not found: {user_id} for message {message_id}")
+        
+        await self.statemgr.update(recipient, 
+                                 read=True, 
+                                 read_at=timestamp())
+        
         return {
-            "status": "success",
-            "message_id": self.get_aggroot().identifier,
-            "user_id": self.context.user_id,
-            "read_at": self.context.timestamp.isoformat()
+            "message_id": message_id,
+            "user_id": user_id,
+            "read": True
         }
 
-    @action("bulk-messages-read", resources="message-recipient")
+    @action("all-messages-read", resources="message-recipient")
     async def mark_all_messages_read(self, *, user_id):
-        """Action to mark all unread messages as read for a user."""
-        # Find all unread message-recipient records for this user
-        unread_recipients = await self.statemgr.find_all(
+        """Action to mark all messages as read for a user."""
+        recipients = await self.statemgr.find_many(
             "message-recipient",
-            where=dict(
-                recipient_id=user_id, 
-                read=False
-            )
+            where={"recipient_id": user_id, "read": False}
         )
         
-        await self.statemgr.upsert_many(
-            "message-recipient",
-            *[{
-                "_id": recipient._id,
-                "read": True,
-                "mark_as_read": self.context.timestamp
-            } for recipient in unread_recipients]
-        )
+        updated_count = 0
+        for recipient in recipients:
+            await self.statemgr.update(recipient, 
+                                     read=True, 
+                                     read_at=timestamp())
+            updated_count += 1
         
         return {
-            "status": "success",
             "user_id": user_id,
-            "messages_read": len(unread_recipients),
+            "updated_count": updated_count
         }
 
     @action("message-archived", resources="message-recipient")
-    async def archive_message(self):
+    async def archive_message(self, *, message_id, user_id):
         """Action to archive a message for a specific user."""
-        recipient_record = await self.statemgr.fetch("message-recipient", self.aggroot.identifier)
-        await self.statemgr.update(recipient_record, archived=True)
-
-        return {"status": "success", "message_id": self.aggroot.identifier}
-
-
-    @action("attachment-added", resources="message-attachment")
-    async def add_attachment(self, *, data):
-        """Action to add an attachment to a message."""
-        attachment_data = serialize_mapping(data)
-        attachment_data['_id'] = UUID_GENR()
+        recipient = await self.statemgr.find_one(
+            "message-recipient",
+            where={"message_id": message_id, "recipient_id": user_id}
+        )
         
-        attachment = self.statemgr.create("message-attachment", attachment_data)
-        await self.statemgr.insert(attachment)
+        if not recipient:
+            raise ValueError(f"Recipient not found: {user_id} for message {message_id}")
+        
+        await self.statemgr.update(recipient, 
+                                 archived=True, 
+                                 archived_at=timestamp())
         
         return {
-            "attachment_id": attachment._id,
-            "message_id": data["message_id"],
+            "message_id": message_id,
+            "user_id": user_id,
+            "archived": True
+        }
+
+    # ========================================================================
+    # TEMPLATE OPERATIONS
+    # ========================================================================
+
+    @action("template-created", resources="message-template")
+    async def create_template(self, *, data):
+        """Create a new message template."""
+        template_data = serialize_mapping(data)
+        template = self.init_resource("message-template", template_data)
+        await self.statemgr.insert(template)
+        
+        return {
+            "template_id": template._id,
+            "key": template.key,
+            "version": template.version
+        }
+
+    @action("template-published", resources="message-template")
+    async def publish_template(self, *, template_id, published_by=None):
+        """Publish a template to make it available for use."""
+        template = await self.statemgr.fetch("message-template", template_id)
+        if not template:
+            raise ValueError(f"Template not found: {template_id}")
+        
+        await self.statemgr.update(template,
+                                 status="published",
+                                 updated_by=published_by)
+        
+        # Invalidate cache if using content processor
+        if hasattr(self, '_content_processor') and self._content_processor:
+            await self._content_processor.template_service.invalidate_template_cache(
+                template.key, template.version
+            )
+        
+        return {
+            "template_id": template_id,
+            "key": template.key,
+            "version": template.version,
+            "status": "published"
         }

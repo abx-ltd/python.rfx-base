@@ -21,3 +21,6 @@ fastapi
 itsdangerous
 pypika
 gmqtt
+jinja2
+markdown
+markupsafe

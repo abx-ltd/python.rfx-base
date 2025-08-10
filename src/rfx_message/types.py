@@ -16,9 +16,8 @@ class ContentType(Enum):
     TEXT = "TEXT"           # Plain text content
     HTML = "HTML"           # HTML formatted content
     MARKDOWN = "MARKDOWN"   # Markdown formatted content  
-    JSON = "JSON"           # Structured JSON data
-    XML = "XML"             # XML formatted content
-    TEMPLATE = "TEMPLATE"   # Template-based content for variable substitution
+    # JSON = "JSON"           # Structured JSON data
+    # XML = "XML"             # XML formatted content
 
 class PriorityLevel(Enum):
     """
@@ -57,7 +56,7 @@ class ActionType(Enum):
     HTTP = "HTTP"           # HTTP request action
     LINK = "LINK"           # Link action, typically for external resources
 
-class HTTPMETHOD(Enum):
+class HTTPMethod(Enum):
     """
     HTTP methods used for message actions.
     Determines the type of HTTP request made.
@@ -67,7 +66,7 @@ class HTTPMETHOD(Enum):
     DELETE = "DELETE"       # Delete resource
     PATCH = "PATCH"         # Partially update resource
 
-class HTTPTARGET(Enum):
+class HTTPTarget(Enum):
     """
     HTTP target classifications for message actions.
     Determines the target of the HTTP request.
@@ -75,16 +74,33 @@ class HTTPTARGET(Enum):
     BLANK = "BLANK"       # Open in new tab/window
     IFRAME = "IFRAME"     # Open in an iframe
 
-class TAGGROUP(Enum):
+class TagGroup(Enum):
     """
     Tag groups for organizing and categorizing tags.
     """
     APPLICATION = "APPLICATION"  # Tags related to application functionality
     FUNCTION = "FUNCTION"        # Tags related to specific functions or features
-    
-class BOXTYPE(Enum):
+
+class BoxType(Enum):
     """
     Message box types for categorizing message boxes.
     """ 
     GROUP = "GROUP"         # Group message box, shared among users
     SINGLE = "SINGLE"       # Single user message box, personal to the user
+
+class RenderStatus(Enum):
+    """
+    Rendering status for message content.
+    """
+    PENDING = "PENDING"       # Rendering is pending
+    IN_PROGRESS = "IN_PROGRESS" # Rendering is in progress
+    COMPLETED = "COMPLETED"     # Rendering is completed
+    FAILED = "FAILED"           # Rendering has failed
+
+class TemplateStatus(Enum):
+    """
+    Template rendering status for message content.
+    """
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    ARCHIVED = "ARCHIVED"
