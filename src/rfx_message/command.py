@@ -2,23 +2,30 @@
 Commands for the RFX messaging domain.
 """
 
-from fluvius.domain.command import Command
 from fluvius.data import serialize_mapping, UUID_GENR
 import asyncio
 
 from .domain import MessageServiceDomain
-from .processor import ProcessingMode
-from .helper import RenderingStrategy, extract_template_context
-from .types import MessageType
+from .helper import RenderingStrategy, extract_template_context, determine_processing_mode
+from .types import MessageType, ProcessingMode
 from . import datadef
 from . import logger
 
+processor = MessageServiceDomain.command_processor
+Command = MessageServiceDomain.Command
 class SendMessage(Command):
     """
     Send a notification message to recipients.
     
     Supports both template-based and direct content messages.
     """
+
+    class Meta:
+        key = "send-message"
+        resources = ("message",)
+        tags = ["message"]
+        auth_required = True
+        policy_required = False
     
     async def _process(self, agg, stm, payload):
         try:
@@ -41,7 +48,7 @@ class SendMessage(Command):
             
             # 3. Determine processing mode
             message_type = MessageType(payload.get('message_type', 'NOTIFICATION'))
-            processing_mode = await self._determine_processing_mode(message_type, payload)
+            processing_mode = await determine_processing_mode(message_type, payload)
             
             # 4. Process content
             if processing_mode == ProcessingMode.SYNC:
@@ -87,29 +94,6 @@ class SendMessage(Command):
             }, _type="message-service-response")
             raise
     
-    async def _determine_processing_mode(self, message_type: MessageType, payload: dict) -> ProcessingMode:
-        """Determine how to process the message based on type and content."""
-        
-        # Direct content can be processed immediately
-        if payload.get('content'):
-            return ProcessingMode.SYNC
-        
-        # Critical alerts are always immediate
-        if message_type == MessageType.ALERT:
-            return ProcessingMode.IMMEDIATE
-        
-        # High priority messages
-        if payload.get('priority') == 'high':
-            return ProcessingMode.SYNC
-        
-        # Template-based messages with client rendering can be fast
-        strategy = payload.get('render_strategy')
-        if strategy == RenderingStrategy.CLIENT.value:
-            return ProcessingMode.SYNC
-        
-        # Default to async for complex rendering
-        return ProcessingMode.ASYNC
-    
     async def _process_async(self, agg, message_id: str, payload: dict):
         """Process message content asynchronously."""
         try:
@@ -128,6 +112,13 @@ class SendMessage(Command):
 
 class ReadMessage(Command):
     """Mark a message as read for the current user."""
+
+    class Meta:
+        key = "read-message"
+        resources = ("message-recipient",)
+        tags = ["message", "read"]
+        auth_required = True
+        policy_required = False
     
     async def _process(self, agg, stm, payload):
         user_id = self.context.user._id
@@ -145,6 +136,13 @@ class ReadMessage(Command):
 
 class MarkAllMessagesRead(Command):
     """Mark all messages as read for the current user."""
+
+    class Meta:
+        key = "mark-all-message-read"
+        resources = ("message-recipient",)
+        tags = ["messages", "read"]
+        auth_required = True
+        policy_required = False
     
     async def _process(self, agg, stm, payload):
         user_id = self.context.user._id
@@ -158,6 +156,12 @@ class MarkAllMessagesRead(Command):
 
 class ArchiveMessage(Command):
     """Archive a message for the current user."""
+    class Meta:
+        key = "archive-message"
+        resources = ("message-recipient",)
+        tags = ["messages", "archived"]
+        auth_required = True
+        policy_required = False
     
     async def _process(self, agg, stm, payload):
         user_id = self.context.user._id
@@ -176,6 +180,12 @@ class ArchiveMessage(Command):
 # Template management commands
 class CreateTemplate(Command):
     """Create a new message template."""
+    class Meta:
+        key = "create-template"
+        resources = ("message-template",)
+        tags = ["template", "create"]
+        auth_required = True
+        policy_required = False
     
     async def _process(self, agg, stm, payload):
         result = await agg.create_template(data=serialize_mapping(payload))
@@ -189,6 +199,12 @@ class CreateTemplate(Command):
 
 class PublishTemplate(Command):
     """Publish a template to make it available."""
+    class Meta:
+        key = "publish-template"
+        resources = ("message-template",)
+        tags = ["template", "publish"]
+        auth_required = True
+        policy_required = False
     
     async def _process(self, agg, stm, payload):
         result = await agg.publish_template(

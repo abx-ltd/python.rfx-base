@@ -3,8 +3,7 @@ from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 
 from fluvius.data import UUID_TYPE
-from .types import MessageType, PriorityLevel, ContentType
-from .helper import RenderingStrategy
+from .types import MessageType, PriorityLevel, ContentType, RenderingStrategy
 
 class SendMessagePayload(BaseModel):
     """

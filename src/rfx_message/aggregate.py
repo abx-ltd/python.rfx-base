@@ -6,9 +6,8 @@ from fluvius.data import serialize_mapping, UUID_GENR, timestamp
 from typing import Optional, Dict, Any
 import asyncio
 
-from .processor import MessageContentProcessor, ProcessingMode
-from .helper import RenderingStrategy
-from .types import MessageType
+from .processor import MessageContentProcessor
+from .types import MessageType, RenderingStrategy, ProcessingMode
 from . import logger
 
 class MessageAggregate(Aggregate):

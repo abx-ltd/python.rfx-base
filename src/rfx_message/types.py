@@ -16,8 +16,8 @@ class ContentType(Enum):
     TEXT = "TEXT"           # Plain text content
     HTML = "HTML"           # HTML formatted content
     MARKDOWN = "MARKDOWN"   # Markdown formatted content  
-    # JSON = "JSON"           # Structured JSON data
-    # XML = "XML"             # XML formatted content
+    JSON = "JSON"           # Structured JSON data
+    XML = "XML"             # XML formatted content
 
 class PriorityLevel(Enum):
     """
@@ -104,3 +104,16 @@ class TemplateStatus(Enum):
     DRAFT = "DRAFT"
     PUBLISHED = "PUBLISHED"
     ARCHIVED = "ARCHIVED"
+
+class RenderingStrategy(Enum):
+    SERVER = "SERVER"        # Server-side template rendering
+    CLIENT = "CLIENT"        # Client-side template rendering
+    CACHED = "CACHED"        # Pre-rendered templates stored in cache
+    STATIC = "STATIC"        # Static templates without dynamic content
+
+
+# Processing Mode, Don't have in DB
+class ProcessingMode(Enum):
+    SYNC = "SYNC"      # Process immediately (blocking)
+    ASYNC = "ASYNC"    # Process in background
+    IMMEDIATE = "IMMEDIATE"  # For critical alerts

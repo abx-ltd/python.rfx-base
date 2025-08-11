@@ -6,10 +6,9 @@ from fluvius.query.field import (
 )
 from typing import Optional, List
 
-from .helper import RenderingStrategy
 from .state import MessageStateManager
 from .domain import MessageServiceDomain
-from .types import PriorityLevel, ContentType, MessageType
+from .types import PriorityLevel, ContentType, MessageType, RenderingStrategy
 from . import logger
 
 class MessageQueryManager(DomainQueryManager):

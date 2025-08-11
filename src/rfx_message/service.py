@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 
 from fluvius.data import DataAccessManager
 from .template import template_registry
-from .helper import RenderingStrategy, get_rendering_strategy
-from .types import MessageType, RenderStatus
+from .helper import get_rendering_strategy
+from .types import MessageType, RenderStatus, RenderingStrategy
 from . import logger
 
 class TemplateService:

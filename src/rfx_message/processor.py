@@ -8,14 +8,11 @@ from enum import Enum
 
 from fluvius.data import DataAccessManager, timestamp
 from .service import TemplateService
-from .helper import RenderingStrategy, render_on_server, extract_template_context
-from .types import MessageType
+from .helper import render_on_server, extract_template_context
+from .types import MessageType, RenderingStrategy, ProcessingMode
 from . import logger
 
-class ProcessingMode(Enum):
-    SYNC = "SYNC"      # Process immediately (blocking)
-    ASYNC = "ASYNC"    # Process in background
-    IMMEDIATE = "IMMEDIATE"  # For critical alerts
+
 
 class MessageContentProcessor:
     """Handles message content resolution and rendering."""

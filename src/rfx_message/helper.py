@@ -1,13 +1,9 @@
 from enum import Enum
 from typing import Dict, Optional, Any
 
-from .types import MessageType
+from .types import MessageType, RenderingStrategy, ProcessingMode
 
-class RenderingStrategy(Enum):
-    SERVER = "SERVER"        # Server-side template rendering
-    CLIENT = "CLIENT"        # Client-side template rendering
-    CACHED = "CACHED"        # Pre-rendered templates stored in cache
-    STATIC = "STATIC"        # Static templates without dynamic content
+
 
 MESSAGE_RENDERING_MAP = {
     MessageType.NOTIFICATION: RenderingStrategy.CACHED,   # High volume, can use cached templates
@@ -45,3 +41,26 @@ def extract_template_context(payload: Dict[str, Any], *, default_locale: str = "
         "locale": payload.get("locale", default_locale),
         "channel": payload.get("channel"),
     }
+
+async def determine_processing_mode(self, message_type: MessageType, payload: dict) -> ProcessingMode:
+    """Determine how to process the message based on type and content."""
+    
+    # Direct content can be processed immediately
+    if payload.get('content'):
+        return ProcessingMode.SYNC
+    
+    # Critical alerts are always immediate
+    if message_type == MessageType.ALERT:
+        return ProcessingMode.IMMEDIATE
+    
+    # High priority messages
+    if payload.get('priority') == 'high':
+        return ProcessingMode.SYNC
+    
+    # Template-based messages with client rendering can be fast
+    strategy = payload.get('render_strategy')
+    if strategy == RenderingStrategy.CLIENT.value:
+        return ProcessingMode.SYNC
+    
+    # Default to async for complex rendering
+    return ProcessingMode.ASYNC
