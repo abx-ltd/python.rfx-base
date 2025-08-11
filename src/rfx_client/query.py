@@ -119,7 +119,7 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
     total_cost: float = FloatField("Total Cost")
 
 
-@resource('work-item-detail')
+@resource('work-item')
 class WorkItemDetailQuery(DomainQueryResource):
     """Work item detail queries"""
 
