@@ -75,7 +75,7 @@ class TemplateService:
             logger.warning(f"Template not found: {key} (tenant={tenant_id}, app={app_id}, locale={locale}, channel={channel})")
             return None
         
-    def resolve_render_strategy(
+    async def resolve_render_strategy(
         self,
         message_type: MessageType,
         message_strategy: Optional[RenderingStrategy] = None,

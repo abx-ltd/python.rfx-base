@@ -98,7 +98,7 @@ class MessageContentProcessor:
         
         # Determine rendering strategy
         message_type = MessageType(message.get('message_type', 'NOTIFICATION'))
-        strategy = self.template_service.resolve_render_strategy(
+        strategy = await self.template_service.resolve_render_strategy(
             message_type,
             message_strategy=RenderingStrategy(message['render_strategy']) if message.get('render_strategy') else None,
             template_strategy=RenderingStrategy(template['render_strategy']) if template.get('render_strategy') else None
