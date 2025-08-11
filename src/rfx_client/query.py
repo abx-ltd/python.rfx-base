@@ -128,6 +128,7 @@ class WorkItemDetailQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        backend_model = "_work-item"
 
     type: str = StringField("Type")
     name: str = StringField("Name")
@@ -162,6 +163,7 @@ class WorkItemListingQuery(DomainQueryResource):
     price_unit: float = FloatField("Price Unit")
     credit_per_unit: float = FloatField("Credit Per Unit")
     work_item_type_code: str = StringField("Work Item Type Code")
+    work_item_type_alias: str = StringField("Work Item Type Alias")
     total_credits_for_item: float = FloatField("Total Credits For Item")
     estimated_cost_for_item: float = FloatField("Estimated Cost For Item")
     estimate: str = StringField("Estimate")

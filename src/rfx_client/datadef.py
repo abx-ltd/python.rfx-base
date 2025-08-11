@@ -65,6 +65,7 @@ class UpdatePromotionPayload(DataModel):
 class ApplyPromotionPayload(DataModel):
     promotion_code: str
 
+
 class AddTicketToProjectPayload(DataModel):
     ticket_id: UUID_TYPE
 
@@ -98,9 +99,8 @@ class AddWorkPackageToProjectPayload(DataModel):
     work_package_id: UUID_TYPE
 
 
-# class UpdateWorkPackageQuantityPayload(DataModel):
-#     work_package_id: UUID_TYPE
-#     quantity: int = Field(ge=1)
+class RemoveWorkPackageFromProjectPayload(DataModel):
+    work_package_id: UUID_TYPE
 
 
 class RemoveWorkPackagePayload(DataModel):
@@ -115,10 +115,26 @@ class CreateWorkItemPayload(DataModel):
     credit_per_unit: float = Field(gt=0)
 
 
+class UpdateWorkItemPayload(DataModel):
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    type: Optional[str] = None
+    price_unit: Optional[float] = Field(gt=0)
+    credit_per_unit: Optional[float] = Field(gt=0)
+
+
 class CreateWorkItemTypePayload(DataModel):
     key: str = Field(max_length=50)
     name: str = Field(max_length=255)
     description: Optional[str] = None
+    alias: Optional[str] = Field(max_length=50)
+
+
+class UpdateWorkItemTypePayload(DataModel):
+    key: str = Field(max_length=50)
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    alias: Optional[str] = Field(max_length=50)
 
 
 class AddWorkItemToWorkPackagePayload(DataModel):
@@ -203,8 +219,14 @@ class CreateWorkItemDeliverablePayload(DataModel):
     description: Optional[str] = None
 
 
+class UpdateWorkItemDeliverablePayload(DataModel):
+    work_item_deliverable_id: UUID_TYPE
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+
+
 class InvalidateWorkPackageDeliverablePayload(DataModel):
-    deliverable_id: UUID_TYPE
+    work_item_deliverable_id: UUID_TYPE
 
 # Workflow related payloads
 

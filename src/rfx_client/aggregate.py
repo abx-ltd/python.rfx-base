@@ -262,6 +262,60 @@ class CPOPortalAggregate(Aggregate):
 
         return project_work_package
 
+    @action('work-package-removed', resources='project')
+    async def remove_work_package_from_estimator(self, /, data):
+        """Remove a work package and all related items from the project estimator"""
+        project = self.rootobj
+
+        # 1. Find project-work-package
+        project_work_package = await self.statemgr.find_one('project-work-package', where=dict(
+            work_package_id=data.work_package_id,
+            project_id=project._id
+        ))
+
+        if not project_work_package:
+            raise ValueError("Work package not found")
+
+        wp_work_items_to_remove = await self.statemgr.find_all(
+            'project-work-package-work-item',
+            where=dict(project_work_package_id=project_work_package._id)
+        )
+
+        if not wp_work_items_to_remove:
+            # if no work item, just delete work package and return
+            await self.statemgr.invalidate_one('project-work-package', project_work_package._id)
+            return None
+
+        # 2. get project_work_item_id from all records
+        project_work_item_ids = [
+            item.project_work_item_id for item in wp_work_items_to_remove
+        ]
+
+        # 3. delete all project-work-item-deliverable related to project_work_item
+        project_deliverables = await self.statemgr.find_all(
+            'project-work-item-deliverable',
+            where={'project_work_item_id.in': project_work_item_ids}
+        )
+        for deliverable in project_deliverables:
+            await self.statemgr.invalidate_one('project-work-item-deliverable', deliverable._id)
+
+        # 4. delete all project-work-item
+        project_work_items = await self.statemgr.find_all(
+            'project-work-item',
+            where={'_id.in': project_work_item_ids}
+        )
+        for work_item in project_work_items:
+            await self.statemgr.invalidate_one('project-work-item', work_item._id)
+
+        # 5. delete all project-work-package-work-item
+        for wp_work_item in wp_work_items_to_remove:
+            await self.statemgr.invalidate_one('project-work-package-work-item', wp_work_item._id)
+
+        # 6. delete project-work-package
+        await self.statemgr.invalidate_one('project-work-package', project_work_package._id)
+
+        return None
+
     @action('member-added', resources='project')
     async def add_project_member(self, /, member_id: str, role: str):
         project = self.rootobj
@@ -398,6 +452,33 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.invalidate(work_package)
         return work_package
 
+    # =========== Work Item Context ============
+
+    @action('work-item-created', resources='work-item')
+    async def create_work_item(self, /, data):
+        """Create new work item"""
+        record = self.init_resource(
+            "work-item",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action('work-item-updated', resources='work-item')
+    async def update_work_item(self, /, data):
+        """Update work item"""
+        work_item = self.rootobj
+        await self.statemgr.update(work_item, **serialize_mapping(data))
+        return work_item
+
+    @action('work-item-invalidated', resources='work-item')
+    async def invalidate_work_item(self, /, data):
+        """Invalidate work item"""
+        work_item = self.rootobj
+        await self.statemgr.invalidate(work_item)
+        return work_item
+
     @action('work-item-deliverable-created', resources='work-item')
     async def create_work_item_deliverable(self, /, data):
         """Create new work item deliverable"""
@@ -409,27 +490,33 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+    @action('work-item-deliverable-updated', resources='work-item')
+    async def update_work_item_deliverable(self, /, data):
+        """Update work item deliverable"""
+        work_item_deliverable = await self.statemgr.find_one('work-item-deliverable', where=dict(
+            _id=data.work_item_deliverable_id,
+            work_item_id=self.rootobj._id
+        ))
+        if not work_item_deliverable:
+            raise ValueError("Work item deliverable not found")
+
+        update_data = serialize_mapping(data)
+        update_data.pop('work_item_deliverable_id', None)
+
+        result = await self.statemgr.update(work_item_deliverable, **update_data)
+        return result
+
     @action('work-item-deliverable-invalidated', resources='work-item')
     async def invalidate_work_item_deliverable(self, /, data):
         """Invalidate work item deliverable"""
         deliverable = await self.statemgr.find_one('work-item-deliverable', where=dict(
             work_item_id=self.rootobj._id,
-            _id=data.deliverable_id
+            _id=data.work_item_deliverable_id
         ))
         if deliverable:
             await self.statemgr.invalidate_one('work-item-deliverable', deliverable._id)
-
-    # =========== Work Item Context ============
-    @action('work-item-created', resources='work-item')
-    async def create_work_item(self, /, data):
-        """Create new work item"""
-        record = self.init_resource(
-            "work-item",
-            serialize_mapping(data),
-            _id=UUID_GENR(),
-        )
-        await self.statemgr.insert(record)
-        return record
+        else:
+            raise ValueError("Work item deliverable not found")
 
     @action('work-item-added-to-work-package', resources='work-package')
     async def add_work_item_to_work_package(self, /, work_item_id):
@@ -457,6 +544,21 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+    @action('work-item-type-updated', resources='work-item')
+    async def update_work_item_type(self, /, data):
+        """Update work item type"""
+        work_item_type = self.rootobj
+        await self.statemgr.update(work_item_type, **serialize_mapping(data))
+        return work_item_type
+
+    @action('work-item-type-invalidated', resources='work-item')
+    async def invalidate_work_item_type(self, /, data):
+        """Invalidate work item type"""
+        work_item_type = self.rootobj
+        await self.statemgr.invalidate(work_item_type)
+        return work_item_type
+
+    @action('work-item-type-deleted', resources='work-item')
     # =========== Integration Context ============
     @action('integration-sync', resources='integration')
     async def unified_sync(self, /, data):

@@ -125,7 +125,6 @@ class ProjectWorkPackage(CPOPortalBaseModel):
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
     # FK to work_package(_id)
     work_package_id = sa.Column(pg.UUID, nullable=False)
-    wp_code = sa.Column(sa.String(50), nullable=False)
     quantity = sa.Column(sa.Integer, nullable=False, default=1)
     work_package_name = sa.Column(sa.String(255), nullable=False)
     work_package_description = sa.Column(sa.Text)
@@ -249,6 +248,19 @@ class WorkItemDeliverable(CPOPortalBaseModel):
     description = sa.Column(sa.Text)
 
 
+class ViewWorkItem(CPOPortalBaseModel):
+    __tablename__ = "_work-item"
+    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+
+    type = sa.Column(sa.String(50), nullable=False)
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
+    credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
+    estimate = sa.Column(sa.Interval)
+    type_alias = sa.Column(sa.String(50), nullable=False)
+
+
 class ViewWorkItemListing(CPOPortalBaseModel):
     __tablename__ = "_work-item-listing"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
@@ -264,6 +276,7 @@ class ViewWorkItemListing(CPOPortalBaseModel):
     price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
     credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
     work_item_type_code = sa.Column(sa.String(100), nullable=False)
+    work_item_type_alias = sa.Column(sa.String(50), nullable=False)
     total_credits_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
     estimated_cost_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
     estimate = sa.Column(sa.Interval)

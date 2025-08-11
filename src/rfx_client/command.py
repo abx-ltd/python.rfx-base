@@ -169,6 +169,23 @@ class AddWorkPackageToProject(Command):
         return await agg.add_work_package_to_estimator(data=payload)
 
 
+class RemoveWorkPackageFromProject(Command):
+    """Remove Work Package from Project - Removes a specific Work Package from the project"""
+
+    class Meta:
+        key = "remove-work-package-from-project"
+        resources = ("project",)
+        tags = ["project", "work-package"]
+        auth_required = True
+        description = "Remove work package from project"
+
+    Data = datadef.RemoveWorkPackageFromProjectPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove work package from project"""
+        return await agg.remove_work_package_from_estimator(data=payload)
+
+
 class AddTicketToProject(Command):
     class Meta:
         key = "add-ticket-to-project"
@@ -334,42 +351,6 @@ class CreateWorkPackage(Command):
         yield agg.create_response(serialize_mapping(result), _type="work-package-response")
 
 
-class CreateWorkItemDeliverable(Command):
-    """Create Work Item Deliverable - Creates a new deliverable for a work item"""
-
-    class Meta:
-        key = "create-work-item-deliverable"
-        resources = ("work-item",)
-        tags = ["work-item", "deliverable", "create"]
-        new_resource = True
-        auth_required = True
-        description = "Create new work package deliverable"
-
-    Data = datadef.CreateWorkItemDeliverablePayload
-
-    async def _process(self, agg, stm, payload):
-        """Create new work item deliverable"""
-        result = await agg.create_work_item_deliverable(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="work-item-deliverable-response")
-
-
-class InvalidateWorkItemDeliverable(Command):
-    """Invalidate Work Item Deliverable - Invalidate a work item deliverable"""
-
-    class Meta:
-        key = "invalidate-work-item-deliverable"
-        resources = ("work-item",)
-        tags = ["work-item", "deliverable", "invalidate"]
-        auth_required = True
-        description = "Invalidate work package deliverable"
-
-    Data = datadef.InvalidateWorkPackageDeliverablePayload
-
-    async def _process(self, agg, stm, payload):
-        """Invalidate work package deliverable"""
-        await agg.invalidate_work_item_deliverable(data=payload)
-
-
 class UpdateWorkPackage(Command):
     """Update Work Package - Admin can update a reusable WP"""
 
@@ -436,6 +417,122 @@ class CreateWorkItemType(Command):
         """Create new work item type"""
         result = await agg.create_work_item_type(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="work-item-type-response")
+
+
+class UpdateWorkItemType(Command):
+    """Update Work Item Type - Updates a work item type"""
+
+    class Meta:
+        key = "update-work-item-type"
+        resources = ("work-item",)
+        tags = ["work-item", "type", "update"]
+        auth_required = True
+        description = "Update work item type"
+
+    Data = datadef.UpdateWorkItemTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Update work item type"""
+        await agg.update_work_item_type(data=payload)
+
+
+class DeleteWorkItemType(Command):
+    """Delete Work Item Type - Deletes a work item type"""
+
+    class Meta:
+        key = "delete-work-item-type"
+        resources = ("work-item",)
+        tags = ["work-item", "type", "delete"]
+        auth_required = True
+        description = "Delete work item type"
+
+    async def _process(self, agg, stm, payload):
+        """Delete work item type"""
+        await agg.invalidate_work_item_type(data=payload)
+
+
+class UpdateWorkItem(Command):
+    """Update Work Item - Updates a work item"""
+
+    class Meta:
+        key = "update-work-item"
+        resources = ("work-item",)
+        tags = ["work-item", "update"]
+        auth_required = True
+        description = "Update work item"
+
+    Data = datadef.UpdateWorkItemPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update work item"""
+        await agg.update_work_item(data=payload)
+
+
+class DeleteWorkItem(Command):
+    """Delete Work Item - Deletes a work item"""
+
+    class Meta:
+        key = "delete-work-item"
+        resources = ("work-item",)
+        tags = ["work-item", "delete"]
+        auth_required = True
+        description = "Delete work item"
+
+    async def _process(self, agg, stm, payload):
+        """Delete work item"""
+        await agg.invalidate_work_item(data=payload)
+
+
+class CreateWorkItemDeliverable(Command):
+    """Create Work Item Deliverable - Creates a new deliverable for a work item"""
+
+    class Meta:
+        key = "create-work-item-deliverable"
+        resources = ("work-item",)
+        tags = ["work-item", "deliverable", "create"]
+        new_resource = True
+        auth_required = True
+        description = "Create new work package deliverable"
+
+    Data = datadef.CreateWorkItemDeliverablePayload
+
+    async def _process(self, agg, stm, payload):
+        """Create new work item deliverable"""
+        result = await agg.create_work_item_deliverable(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="work-item-deliverable-response")
+
+
+class UpdateWorkItemDeliverable(Command):
+
+    class Meta:
+        key = "update-work-item-deliverable"
+        resources = ("work-item",)
+        tags = ["work-item", "deliverable", "update"]
+        auth_required = True
+        description = "Update work item deliverable"
+
+    Data = datadef.UpdateWorkItemDeliverablePayload
+
+    async def _process(self, agg, stm, payload):
+        """Update work item deliverable"""
+        await agg.update_work_item_deliverable(data=payload)
+
+
+class InvalidateWorkItemDeliverable(Command):
+    """Invalidate Work Item Deliverable - Invalidate a work item deliverable"""
+
+    class Meta:
+        key = "invalidate-work-item-deliverable"
+        resources = ("work-item",)
+        tags = ["work-item", "deliverable", "invalidate"]
+        auth_required = True
+        description = "Invalidate work package deliverable"
+
+    Data = datadef.InvalidateWorkPackageDeliverablePayload
+
+    async def _process(self, agg, stm, payload):
+        """Invalidate work package deliverable"""
+        await agg.invalidate_work_item_deliverable(data=payload)
 
 
 class AddWorkItemToWorkPackage(Command):
