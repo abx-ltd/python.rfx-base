@@ -313,6 +313,7 @@ class ViewWorkPackageDetail(CPOPortalBaseModel):
     operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
     upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    work_item_count = sa.Column(sa.Integer, nullable=False)
 
 
 # ================ Workflow Context ================

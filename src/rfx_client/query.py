@@ -191,6 +191,7 @@ class WorkPackageQuery(DomainQueryResource):
     operation_credits: float = FloatField("Operation Credits")
     upfront_cost: float = FloatField("Upfront Cost")
     monthly_cost: float = FloatField("Monthly Cost")
+    work_item_count: int = IntegerField("Work Item Count")
 
 
 # Reference Queries
