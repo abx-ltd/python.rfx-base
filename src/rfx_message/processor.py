@@ -64,7 +64,7 @@ class MessageContentProcessor:
         updates = {
             'rendered_content': content,
             'content_type': content_type,
-            'render_status': 'rendered',
+            'render_status': 'COMPLETED',
             'rendered_at': timestamp()
         }
         
@@ -146,7 +146,7 @@ class MessageContentProcessor:
             'template_version': template['version'],
             'template_locale': template['locale'],
             'template_engine': template['engine'],
-            'render_status': 'rendered',
+            'render_status': 'COMPLETED',
             'rendered_at': timestamp()
         }
         
@@ -168,7 +168,7 @@ class MessageContentProcessor:
             'template_version': template['version'],
             'template_locale': template['locale'],
             'template_engine': template['engine'],
-            'render_status': 'ready_client_render',
+            'render_status': 'CLIENT_RENDERING',
             'rendered_at': timestamp()
         }
         
@@ -181,7 +181,7 @@ class MessageContentProcessor:
     async def _mark_processing_failed(self, message: Dict[str, Any], error: str):
         """Mark message processing as failed."""
         updates = {
-            'render_status': 'failed',
+            'render_status': 'FAILED',
             'render_error': error,
             'rendered_at': timestamp()
         }
@@ -204,9 +204,9 @@ class MessageContentProcessor:
         if not message:
             raise ValueError(f"Message not found: {message_id}")
         
-        if message['render_status'] != 'failed':
+        if message['render_status'] != 'FAILED':
             raise ValueError(f"Message {message_id} is not in failed state")
         
         # Reset status and retry
-        await self.stm.update(message, render_status='pending', render_error=None)
+        await self.stm.update(message, render_status='PENDING', render_error=None)
         return await self.process_message_content(message)

@@ -13,8 +13,6 @@ from datetime import datetime
 from sqlalchemy.dialects import postgresql as pg
 from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
 
-from .helper import RenderingStrategy
-
 from . import config, types
 
 class MessageConnector(SqlaDriver):
@@ -69,6 +67,11 @@ class Message(MServiceBaseModel):
     message_type = sa.Column(
         sa.Enum(types.MessageType, name="message_type", schema=config.MESSAGE_SERVICE_SCHEMA),
     )
+    delivery_status = sa.Column(
+        sa.Enum(types.DeliveryStatus, name="delivery_status", schema=config.MESSAGE_SERVICE_SCHEMA),
+        default=types.DeliveryStatus.PENDING,
+        nullable=False
+    )
 
     # Additional metadata fields
     data = sa.Column(pg.JSONB, default=dict)
@@ -84,7 +87,7 @@ class Message(MServiceBaseModel):
 
     #Rendering Control and Status
     render_strategy = sa.Column(
-        sa.Enum(RenderingStrategy, name="rendering_strategy"),
+        sa.Enum(types.RenderingStrategy, name="rendering_strategy"),
         nullable=True
     )
     render_status = sa.Column(
@@ -352,7 +355,7 @@ class MessageTemplate(MServiceBaseModel):
 
     #Rendering control
     render_strategy = sa.Column(
-        sa.Enum(RenderingStrategy, name="rendering_strategy"),
+        sa.Enum(types.RenderingStrategy, name="rendering_strategy"),
         nullable=True
     ) # Override default strategy for this template
 

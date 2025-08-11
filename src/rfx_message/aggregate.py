@@ -35,7 +35,7 @@ class MessageAggregate(Aggregate):
     async def generate_message(self, *, data):
         """Action to create a new message."""
         message_data = serialize_mapping(data)
-        message_data['render_status'] = 'pending'
+        message_data['render_status'] = 'PENDING'
         
         message = self.init_resource(
             "message",
@@ -84,29 +84,30 @@ class MessageAggregate(Aggregate):
             raise ValueError(f"Message not found: {message_id}")
         
         # Check if message is rendered or ready for client rendering
-        if message.render_status not in ['rendered', 'ready_client_render']:
+        if message.render_status not in ['COMPLETED', 'CLIENT']:
             raise ValueError(f"Message {message_id} is not ready for delivery (status: {message.render_status})")
         
-        await self.statemgr.update(message, delivery_status='ready')
+        await self.statemgr.update(message, delivery_status='PENDING')
         
-        return {"message_id": message_id, "ready": True}
+        return {"message_id": message_id, "PENDING": True}
 
     @action("recipients-added", resources="message-recipient")
     async def add_recipients(self, *, data, message_id):
         """Action to add recipients to a message."""
         recipients = data if isinstance(data, list) else data.get("recipients", [])
         
+        records = []
         for recipient_id in recipients:
             recipient_data = {
                 "message_id": message_id,
                 "recipient_id": recipient_id,
                 "read": False,
-                "delivered": False,
-                "delivery_status": "pending"
             }
             
             recipient = self.init_resource("message-recipient", recipient_data)
-            await self.statemgr.insert(recipient)
+            records.append(recipient)
+
+        await self.statemgr.insert_many("message-recipient", records)
         
         return {
             "message_id": message_id,
@@ -125,9 +126,7 @@ class MessageAggregate(Aggregate):
         if not recipient:
             raise ValueError(f"Recipient not found: {user_id} for message {message_id}")
         
-        await self.statemgr.update(recipient, 
-                                 read=True, 
-                                 read_at=timestamp())
+        await self.statemgr.update(recipient, read=True, read_at=timestamp())
         
         return {
             "message_id": message_id,
@@ -145,9 +144,7 @@ class MessageAggregate(Aggregate):
         
         updated_count = 0
         for recipient in recipients:
-            await self.statemgr.update(recipient, 
-                                     read=True, 
-                                     read_at=timestamp())
+            await self.statemgr.update(recipient, read=True, read_at=timestamp())
             updated_count += 1
         
         return {
@@ -166,9 +163,7 @@ class MessageAggregate(Aggregate):
         if not recipient:
             raise ValueError(f"Recipient not found: {user_id} for message {message_id}")
         
-        await self.statemgr.update(recipient, 
-                                 archived=True, 
-                                 archived_at=timestamp())
+        await self.statemgr.update(recipient, archived=True, archived_at=timestamp())
         
         return {
             "message_id": message_id,
@@ -200,9 +195,7 @@ class MessageAggregate(Aggregate):
         if not template:
             raise ValueError(f"Template not found: {template_id}")
         
-        await self.statemgr.update(template,
-                                 status="published",
-                                 updated_by=published_by)
+        await self.statemgr.update(template, status="PUBLISHED", updated_by=published_by)
         
         # Invalidate cache if using content processor
         if hasattr(self, '_content_processor') and self._content_processor:
@@ -214,5 +207,5 @@ class MessageAggregate(Aggregate):
             "template_id": template_id,
             "key": template.key,
             "version": template.version,
-            "status": "published"
+            "status": "PUBLISHED"
         }

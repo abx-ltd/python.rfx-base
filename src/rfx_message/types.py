@@ -39,6 +39,14 @@ class MessageType(Enum):
     SYSTEM = "SYSTEM"              # System-generated message
     USER = "USER"                  # User-generated message
 
+class DeliveryStatus(Enum):
+    """
+    Message delivery status classifications for tracking message delivery progress.
+    """
+    PENDING = "PENDING"
+    DELIVERED = "DELIVERED"
+    FAILED = "FAILED"
+
 class DirectionType(Enum):
     """
     Message direction classifications for routing and processing.
@@ -95,6 +103,7 @@ class RenderStatus(Enum):
     PENDING = "PENDING"       # Rendering is pending
     IN_PROGRESS = "IN_PROGRESS" # Rendering is in progress
     COMPLETED = "COMPLETED"     # Rendering is completed
+    CLIENT_RENDERING = "CLIENT_RENDERING" # Rendering from client
     FAILED = "FAILED"           # Rendering has failed
 
 class TemplateStatus(Enum):
@@ -110,7 +119,6 @@ class RenderingStrategy(Enum):
     CLIENT = "CLIENT"        # Client-side template rendering
     CACHED = "CACHED"        # Pre-rendered templates stored in cache
     STATIC = "STATIC"        # Static templates without dynamic content
-
 
 # Processing Mode, Don't have in DB
 class ProcessingMode(Enum):

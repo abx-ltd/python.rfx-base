@@ -22,11 +22,30 @@ class SendMessage(Command):
 
     class Meta:
         key = "send-message"
+        new_resource = True
         resources = ("message",)
         tags = ["message"]
         auth_required = True
         policy_required = False
     
+    async def process_message(agg, message_id, payload, mode):
+        await agg.process_message_content(
+            message_id=message_id,
+            context=extract_template_context(payload),
+            mode=mode
+        )
+
+        await agg.mark_ready_for_delivery(message_id=message_id)
+
+    async def _process_async(self, agg, message_id: str, payload: dict):
+        """Process message content asynchronously."""
+        try:
+            await self.process_message(agg, message_id, payload, "ASYNC")
+
+        except Exception as e:
+            logger.error(f"Async message processing failed for {message_id}: {e}")
+            # TODO: Could retry or send to dead letter queue
+        
     async def _process(self, agg, stm, payload):
         try:
             # Validate payload
@@ -41,10 +60,7 @@ class SendMessage(Command):
             message_id = message_result["message_id"]
             
             # 2. Add recipients
-            await agg.add_recipients(
-                data=payload['recipients'],
-                message_id=message_id
-            )
+            await agg.add_recipients(data=payload['recipients'], message_id=message_id)
             
             # 3. Determine processing mode
             message_type = MessageType(payload.get('message_type', 'NOTIFICATION'))
@@ -53,27 +69,13 @@ class SendMessage(Command):
             # 4. Process content
             if processing_mode == ProcessingMode.SYNC:
                 # Process immediately (blocking)
-                await agg.process_message_content(
-                    message_id=message_id,
-                    context=extract_template_context(payload),
-                    mode=processing_mode.value
-                )
-                
-                # Mark ready for delivery
-                await agg.mark_ready_for_delivery(message_id=message_id)
-                
+                await self.process_message(agg, message_id, payload, processing_mode.value)
+
             elif processing_mode == ProcessingMode.IMMEDIATE:
                 # Critical alerts - process sync but with high priority
-                await agg.process_message_content(
-                    message_id=message_id,
-                    context=extract_template_context(payload),
-                    mode="sync"
-                )
+                await self.process_message(agg, message_id, payload, "SYNC")
                 
-                await agg.mark_ready_for_delivery(message_id=message_id)
-                await self._send_notification(message_id, payload, priority=True)
-                
-            else:  # ASYNC
+            else:
                 # Process in background
                 asyncio.create_task(
                     self._process_async(agg, message_id, payload)
@@ -93,22 +95,6 @@ class SendMessage(Command):
                 "error": str(e)
             }, _type="message-service-response")
             raise
-    
-    async def _process_async(self, agg, message_id: str, payload: dict):
-        """Process message content asynchronously."""
-        try:
-            await agg.process_message_content(
-                message_id=message_id,
-                context=extract_template_context(payload),
-                mode="async"
-            )
-            
-            await agg.mark_ready_for_delivery(message_id=message_id)
-            await self._send_notification(message_id, payload)
-            
-        except Exception as e:
-            logger.error(f"Async message processing failed for {message_id}: {e}")
-            # TODO: Could retry or send to dead letter queue
 
 class ReadMessage(Command):
     """Mark a message as read for the current user."""
@@ -139,6 +125,8 @@ class MarkAllMessagesRead(Command):
 
     class Meta:
         key = "mark-all-message-read"
+        # Subtitute for the next Fluvius Batch update
+        new_resource = True
         resources = ("message-recipient",)
         tags = ["messages", "read"]
         auth_required = True
