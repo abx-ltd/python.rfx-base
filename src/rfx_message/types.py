@@ -114,7 +114,7 @@ class TemplateStatus(Enum):
     PUBLISHED = "PUBLISHED"
     ARCHIVED = "ARCHIVED"
 
-class RenderingStrategy(Enum):
+class RenderStrategy(Enum):
     SERVER = "SERVER"        # Server-side template rendering
     CLIENT = "CLIENT"        # Client-side template rendering
     CACHED = "CACHED"        # Pre-rendered templates stored in cache

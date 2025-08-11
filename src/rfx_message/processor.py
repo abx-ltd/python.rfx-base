@@ -3,16 +3,14 @@ Message content processor for handling template resolution and rendering.
 """
 
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
-from fluvius.data import DataAccessManager, timestamp
+from fluvius.data import DataAccessManager, timestamp, DataModel
 from .service import TemplateService
 from .helper import render_on_server, extract_template_context
-from .types import MessageType, RenderingStrategy, ProcessingMode
+from .types import MessageType, RenderStrategy, ProcessingMode
 from . import logger
-
-
 
 class MessageContentProcessor:
     """Handles message content resolution and rendering."""
@@ -23,11 +21,11 @@ class MessageContentProcessor:
 
     async def process_message_content(
         self,
-        message: Dict[str, Any],
+        message: DataModel,
         *,
         mode: ProcessingMode = ProcessingMode.SYNC,
         context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    ) -> DataModel:
         """
         Process message content based on type and strategy.
         
@@ -40,69 +38,68 @@ class MessageContentProcessor:
         """
         try:
             # If direct content is provided, use it as-is
-            if message.get('content'):
+            if message.content:
                 return await self._process_direct_content(message)
             
             # Template-based content processing
-            if message.get('template_key'):
+            if message.template_key:
                 return await self._process_template_content(message, context or {})
             
             # No content source provided
             raise ValueError("Message must have either 'content' or 'template_key'")
             
         except Exception as e:
-            logger.error(f"Content processing failed for message {message.get('_id')}: {e}")
+            logger.error(f"Content processing failed for message {message._id}: {e}")
             await self._mark_processing_failed(message, str(e))
             raise
-    
-    async def _process_direct_content(self, message: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _process_direct_content(self, message: DataModel) -> DataModel:
         """Process message with direct content (no template)."""
-        content = message['content']
-        content_type = message.get('content_type', 'text/plain')
+        content = message.content
+        content_type = getattr(message, 'content_type', 'text/plain')
         
-        # Update message status
-        updates = {
-            'rendered_content': content,
-            'content_type': content_type,
-            'render_status': 'COMPLETED',
-            'rendered_at': timestamp()
-        }
+        # Update message status - use timezone-aware datetime
+        updated_message = await self.stm.update(
+            message,
+            rendered_content=content,
+            content_type=content_type,
+            render_status='COMPLETED',
+            rendered_at=datetime.utcnow()
+        )
         
-        updated_message = await self.stm.update(message, **updates)
-        logger.debug(f"Processed direct content for message {message['_id']}")
-        
+        logger.debug(f"Processed direct content for message {message._id}")
         return updated_message
     
     async def _process_template_content(
         self,
-        message: Dict[str, Any],
+        message: DataModel,
         context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    ) -> DataModel:
         """Process message with template-based content."""
         
-        # Extract template resolution context
+        # Extract template resolution context - access attributes properly
         template_context = extract_template_context(message, **context)
         
         # Resolve template
         template = await self.template_service.resolve_template(
-            message['template_key'],
+            message.template_key,
             **template_context,
-            version=message.get('template_version')
+            version=getattr(message, 'template_version', None)
         )
         
         if not template:
-            raise ValueError(f"Template not found: {message['template_key']}")
+            raise ValueError(f"Template not found: {message.template_key}")
         
         # Determine rendering strategy
-        message_type = MessageType(message.get('message_type', 'NOTIFICATION'))
+        message_type = MessageType(getattr(message, 'message_type', 'NOTIFICATION'))
         strategy = await self.template_service.resolve_render_strategy(
             message_type,
-            message_strategy=RenderingStrategy(message['render_strategy']) if message.get('render_strategy') else None,
-            template_strategy=RenderingStrategy(template['render_strategy']) if template.get('render_strategy') else None
+            message_strategy=RenderStrategy(message.render_strategy) if getattr(message, 'render_strategy', None) else None,
+            template_strategy=RenderStrategy(template.render_strategy) if getattr(template, 'render_strategy', None) else None
         )
-        
-        logger.debug(f"Using rendering strategy: {strategy.value} for message {message['_id']}")
-        
+
+        logger.debug(f"Using rendering strategy: {strategy.value} for message {message._id}")
+
         # Process based on strategy
         if render_on_server(strategy):
             return await self._render_on_server(message, template, strategy)
@@ -111,25 +108,25 @@ class MessageContentProcessor:
     
     async def _render_on_server(
         self,
-        message: Dict[str, Any],
-        template: Dict[str, Any],
-        strategy: RenderingStrategy
-    ) -> Dict[str, Any]:
+        message: DataModel,
+        template: DataModel,
+        strategy: RenderStrategy
+    ) -> DataModel:
         """Render template on server and store result."""
         
-        # Get template data
-        template_data = message.get('template_data', {})
+        # Get template data - use attribute access
+        template_data = getattr(message, 'template_data', {}) or {}
         
         # Add system variables
         template_data.update({
-            'message_id': message['_id'],
-            'timestamp': datetime.now().isoformat(),
-            'sender_id': message.get('sender_id'),
+            'message_id': message._id,
+            'timestamp': datetime().isoformat(),  # Use timezone-aware datetime for ISO format
+            'sender_id': getattr(message, 'sender_id', None),
             # Add more system variables as needed
         })
         
         # Render template
-        use_cache = (strategy == RenderingStrategy.CACHED)
+        use_cache = (strategy == RenderStrategy.CACHED)
         rendered_content = await self.template_service.render_template(
             template,
             template_data,
@@ -137,56 +134,53 @@ class MessageContentProcessor:
         )
         
         # Determine content type based on engine
-        content_type = self._get_content_type_for_engine(template.get('engine', 'jinja2'))
+        content_type = self._get_content_type_for_engine(getattr(template, 'engine', 'jinja2'))
         
-        # Update message with rendered content
-        updates = {
-            'rendered_content': rendered_content,
-            'content_type': content_type,
-            'template_version': template['version'],
-            'template_locale': template['locale'],
-            'template_engine': template['engine'],
-            'render_status': 'COMPLETED',
-            'rendered_at': timestamp()
-        }
-        
-        updated_message = await self.stm.update(message, **updates)
-        
-        logger.info(f"Server-rendered message {message['_id']} using template {template['key']} v{template['version']}")
-        
+        # Update message with rendered content - use timezone-aware datetime
+        updated_message = await self.stm.update(
+            message,
+            rendered_content=rendered_content,
+            content_type=content_type,
+            template_version=template.version,
+            template_locale=template.locale,
+            template_engine=template.engine,
+            render_status='COMPLETED',
+            rendered_at=datetime.utcnow()  # Use timezone-aware datetime
+        )
+
+        logger.info(f"Server-rendered message {message._id} using template {template.key} v{template.version}")
+
         return updated_message
     
     async def _prepare_for_client_render(
         self,
-        message: Dict[str, Any],
-        template: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        message: DataModel,
+        template: DataModel
+    ) -> DataModel:
         """Prepare message for client-side rendering."""
         
-        # Store template reference for client
-        updates = {
-            'template_version': template['version'],
-            'template_locale': template['locale'],
-            'template_engine': template['engine'],
-            'render_status': 'CLIENT_RENDERING',
-            'rendered_at': timestamp()
-        }
+        # Store template reference for client - use timezone-aware datetime
+        updated_message = await self.stm.update(
+            message,
+            template_version=template.version,
+            template_locale=template.locale,
+            template_engine=template.engine,
+            render_status='CLIENT_RENDERING',
+            rendered_at=datetime.utcnow()  # Use timezone-aware datetime
+        )
         
-        updated_message = await self.stm.update(message, **updates)
-        
-        logger.info(f"Prepared message {message['_id']} for client rendering using template {template['key']} v{template['version']}")
+        logger.info(f"Prepared message {message._id} for client rendering using template {template.key} v{template.version}")
         
         return updated_message
     
-    async def _mark_processing_failed(self, message: Dict[str, Any], error: str):
+    async def _mark_processing_failed(self, message: DataModel, error: str):
         """Mark message processing as failed."""
-        updates = {
-            'render_status': 'FAILED',
-            'render_error': error,
-            'rendered_at': timestamp()
-        }
-        
-        await self.stm.update(message, **updates)
+        await self.stm.update(
+            message,
+            render_status='FAILED',
+            render_error=error,
+            rendered_at=datetime.utc_now()  # Use timezone-aware datetime
+        )
     
     def _get_content_type_for_engine(self, engine: str) -> str:
         """Get appropriate content type for template engine."""
@@ -198,15 +192,15 @@ class MessageContentProcessor:
         }
         return engine_content_types.get(engine, 'text/plain')
     
-    async def retry_failed_processing(self, message_id: str) -> Dict[str, Any]:
+    async def retry_failed_processing(self, message_id: str) -> DataModel:
         """Retry processing for a failed message."""
         message = await self.stm.fetch("message", message_id)
         if not message:
             raise ValueError(f"Message not found: {message_id}")
         
-        if message['render_status'] != 'FAILED':
+        if getattr(message, 'render_status', None) != 'FAILED':
             raise ValueError(f"Message {message_id} is not in failed state")
         
-        # Reset status and retry
+        # Reset status and retry - use timezone-aware datetime
         await self.stm.update(message, render_status='PENDING', render_error=None)
         return await self.process_message_content(message)

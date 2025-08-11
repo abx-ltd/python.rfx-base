@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from .state import MessageStateManager
 from .domain import MessageServiceDomain
-from .types import PriorityLevel, ContentType, MessageType, RenderingStrategy
+from .types import PriorityLevel, ContentType, MessageType, RenderStrategy
 from . import logger
 
 class MessageQueryManager(DomainQueryManager):
@@ -126,7 +126,7 @@ class TemplateQuery(DomainQueryResource):
     app_id: Optional[str] = StringField("App ID")
     
     # Configuration
-    render_strategy: Optional[RenderingStrategy] = EnumField("Render Strategy", enum=RenderingStrategy)
+    render_strategy: Optional[RenderStrategy] = EnumField("Render Strategy", enum=RenderStrategy)
     variables_schema: dict = JSONField("Variables Schema")
     sample_data: dict = JSONField("Sample Data")
     

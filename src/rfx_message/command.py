@@ -6,10 +6,9 @@ from fluvius.data import serialize_mapping, UUID_GENR
 import asyncio
 
 from .domain import MessageServiceDomain
-from .helper import RenderingStrategy, extract_template_context, determine_processing_mode
+from .helper import extract_template_context, determine_processing_mode
 from .types import MessageType, ProcessingMode
-from . import datadef
-from . import logger
+from . import datadef, logger
 
 processor = MessageServiceDomain.command_processor
 Command = MessageServiceDomain.Command
@@ -19,6 +18,7 @@ class SendMessage(Command):
     
     Supports both template-based and direct content messages.
     """
+    Data = datadef.SendMessagePayload
 
     class Meta:
         key = "send-message"
@@ -27,15 +27,16 @@ class SendMessage(Command):
         tags = ["message"]
         auth_required = True
         policy_required = False
+
     
-    async def process_message(agg, message_id, payload, mode):
+    async def process_message(self, agg, message_id, payload, mode):
         await agg.process_message_content(
             message_id=message_id,
             context=extract_template_context(payload),
             mode=mode
         )
 
-        await agg.mark_ready_for_delivery(message_id=message_id)
+        await agg.mark_ready_for_delivery(message_id)
 
     async def _process_async(self, agg, message_id: str, payload: dict):
         """Process message content asynchronously."""
@@ -48,44 +49,43 @@ class SendMessage(Command):
         
     async def _process(self, agg, stm, payload):
         try:
-            # Validate payload
-            if not (payload.get('template_key') or payload.get('content')):
-                raise ValueError("Either 'template_key' or 'content' must be provided")
-            
-            if not payload.get('recipients'):
+            message_payload = serialize_mapping(payload)
+            recipients = message_payload.pop("recipients", None)
+
+            if not recipients:
                 raise ValueError("Recipients list cannot be empty")
             
             # 1. Create message record
-            message_result = await agg.generate_message(data=serialize_mapping(payload))
+            message_result = await agg.generate_message(data=message_payload)
             message_id = message_result["message_id"]
             
             # 2. Add recipients
-            await agg.add_recipients(data=payload['recipients'], message_id=message_id)
+            await agg.add_recipients(data=recipients, message_id=message_id)
             
             # 3. Determine processing mode
-            message_type = MessageType(payload.get('message_type', 'NOTIFICATION'))
-            processing_mode = await determine_processing_mode(message_type, payload)
-            
+            message_type = MessageType(message_payload.get('message_type', 'NOTIFICATION'))
+            processing_mode = await determine_processing_mode(message_type=message_type, payload=message_payload)
+
             # 4. Process content
             if processing_mode == ProcessingMode.SYNC:
                 # Process immediately (blocking)
-                await self.process_message(agg, message_id, payload, processing_mode.value)
+                await self.process_message(agg, message_id, message_payload, processing_mode)
 
             elif processing_mode == ProcessingMode.IMMEDIATE:
                 # Critical alerts - process sync but with high priority
-                await self.process_message(agg, message_id, payload, "SYNC")
+                await self.process_message(agg, message_id, message_payload, "SYNC")
                 
             else:
                 # Process in background
                 asyncio.create_task(
-                    self._process_async(agg, message_id, payload)
+                    self._process_async(agg, message_id, message_payload)
                 )
             
             yield agg.create_response({
                 "status": "success",
                 "message_id": message_id,
                 "processing_mode": processing_mode.value,
-                "recipients_count": len(payload['recipients'])
+                "recipients_count": len(recipients)
             }, _type="message-service-response")
             
         except Exception as e:
@@ -107,17 +107,11 @@ class ReadMessage(Command):
         policy_required = False
     
     async def _process(self, agg, stm, payload):
-        user_id = self.context.user._id
-        message_id = payload.message_id
         
-        await agg.mark_message_read(
-            message_id=message_id,
-            user_id=user_id
-        )
+        await agg.mark_message_read()
         
         yield agg.create_response({
             "status": "success",
-            "message_id": message_id,
         }, _type="message-service-response")
 
 class MarkAllMessagesRead(Command):
@@ -125,7 +119,7 @@ class MarkAllMessagesRead(Command):
 
     class Meta:
         key = "mark-all-message-read"
-        # Subtitute for the next Fluvius Batch update
+        # Substitute for the next Fluvius Batch update
         new_resource = True
         resources = ("message-recipient",)
         tags = ["messages", "read"]
@@ -133,9 +127,7 @@ class MarkAllMessagesRead(Command):
         policy_required = False
     
     async def _process(self, agg, stm, payload):
-        user_id = self.context.user._id
-        
-        result = await agg.mark_all_messages_read(user_id=user_id)
+        result = await agg.mark_all_messages_read()
         
         yield agg.create_response({
             "status": "success",
@@ -152,24 +144,21 @@ class ArchiveMessage(Command):
         policy_required = False
     
     async def _process(self, agg, stm, payload):
-        user_id = self.context.user._id
-        message_id = payload.message_id
-        
-        await agg.archive_message(
-            message_id=message_id,
-            user_id=user_id
-        )
+        result = await agg.archive_message()
         
         yield agg.create_response({
             "status": "success",
-            "message_id": message_id,
+            "message_id": result
         }, _type="message-service-response")
 
 # Template management commands
 class CreateTemplate(Command):
     """Create a new message template."""
+
+    Data = datadef.CreateTemplatePayload
     class Meta:
         key = "create-template"
+        new_resource = True
         resources = ("message-template",)
         tags = ["template", "create"]
         auth_required = True
@@ -182,11 +171,34 @@ class CreateTemplate(Command):
             "status": "success",
             "template_id": result["template_id"],
             "key": result["key"],
-            "version": result["version"]
-        }, _type="template-service-response")
+        }, _type="message-service-response")
+
+class UpdateTemplate(Command):
+    """Update a template"""
+
+    Data = datadef.CreateTemplatePayload
+
+    class Meta:
+        key = "update-template"
+        resource = ("message-template")
+        tags = ["template", "create"]
+        auth_required = True
+        policy_required = False
+    
+    async def _process(self, agg, stm, payload):
+        result = await agg.update_template(data=serialize_mapping(payload))
+
+        yield agg.create_response({
+            "status": "success",
+            "template_id": result["template_id"],
+            "key": result["key"],
+            "version": result["version"],
+        }, _type="message-service-response")
 
 class PublishTemplate(Command):
     """Publish a template to make it available."""
+
+    Data = datadef.PublishTemplatePayload
     class Meta:
         key = "publish-template"
         resources = ("message-template",)
@@ -206,4 +218,4 @@ class PublishTemplate(Command):
             "key": result["key"],
             "version": result["version"],
             "status": result["status"]
-        }, _type="template-service-response")
+        }, _type="message-service-response")

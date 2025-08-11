@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 
 from fluvius.data import DataAccessManager
 from .template import template_registry
-from .helper import get_rendering_strategy
-from .types import MessageType, RenderStatus, RenderingStrategy
+from .helper import get_render_strategy
+from .types import MessageType, RenderStatus, RenderStrategy
 from . import logger
 
 class TemplateService:
@@ -78,8 +78,8 @@ class TemplateService:
     async def resolve_render_strategy(
         self,
         message_type: MessageType,
-        message_strategy: Optional[RenderingStrategy] = None,
-        template_strategy: Optional[RenderingStrategy] = None
+        message_strategy: Optional[RenderStrategy] = None,
+        template_strategy: Optional[RenderStrategy] = None
     ):
         """
         Resolve rendering strategy with precedence:
@@ -88,8 +88,8 @@ class TemplateService:
         return (
             message_strategy 
             or template_strategy
-            or get_rendering_strategy(message_type)
-            or RenderingStrategy.SERVER
+            or get_render_strategy(message_type)
+            or RenderStrategy.SERVER
         )
 
     async def render_template(self, template: Dict[str, Any], data: Dict[str, Any], *, use_cache: bool=True):
@@ -103,7 +103,7 @@ class TemplateService:
             self._validate_template_data(data, template['variables_schema'])
         
         # Use cache for CACHED strategy
-        if use_cache and template.get('render_strategy') == RenderingStrategy.CACHED.value:
+        if use_cache and template.get('render_strategy') == RenderStrategy.CACHED.value:
             cache_key = self._generate_cache_key(template, data)
             cached_result = await self._get_cached_Render(cache_key)
             if cached_result:
@@ -113,7 +113,7 @@ class TemplateService:
             rendered = template_registry.render(engine_name, template_body, data)
 
             # Cache result if using CACHED strategy
-            if use_cache and template.get('render_strategy') == RenderingStrategy.CACHED.value:
+            if use_cache and template.get('render_strategy') == RenderStrategy.CACHED.value:
                 await self._cache_render_result(cache_key, rendered)
             
             return rendered
@@ -171,7 +171,7 @@ class TemplateService:
         app_id: Optional[str] = None,
         variables_schema: Optional[Dict[str, Any]] = None,
         sample_data: Optional[Dict[str, Any]] = None,
-        render_strategy: Optional[RenderingStrategy] = None,
+        render_strategy: Optional[RenderStrategy] = None,
         created_by: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create a new template."""

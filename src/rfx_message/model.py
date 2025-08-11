@@ -87,14 +87,14 @@ class Message(MServiceBaseModel):
 
     #Rendering Control and Status
     render_strategy = sa.Column(
-        sa.Enum(types.RenderingStrategy, name="rendering_strategy"),
+        sa.Enum(types.RenderStrategy, name="render_strategy", schema=config.MESSAGE_SERVICE_SCHEMA),
         nullable=True
     )
     render_status = sa.Column(
-        sa.Enum(types.RenderStatus, name="rendering_status"),
+        sa.Enum(types.RenderStatus, name="render_status", schema=config.MESSAGE_SERVICE_SCHEMA),
         nullable=True
     )
-    rendered_at = sa.Column(pg.TIMESTAMP)
+    rendered_at = sa.Column(sa.DateTime(timezone=True), default=datetime.utcnow)
     render_error = sa.Column(sa.Text)
 
 class MessageAction(MServiceBaseModel):
@@ -292,41 +292,6 @@ class RefRole(MServiceBaseModel):
 
     key = sa.Column(sa.String(255), primary_key=True, nullable=False, unique=True)
 
-class MessageRecipientsView(ViewBaseModel):
-    """
-    Database view that joins message and message-recipient tables.
-    Provides a flattened view for notification queries with recipient-specific data.
-    """
-    __tablename__ = "_message_recipients"
-
-    # Primary composite key
-    record_id = sa.Column(pg.UUID, primary_key=True)
-    message_id = sa.Column(pg.UUID)
-    recipient_id = sa.Column(pg.UUID)
-
-    # Message content fields
-    subject = sa.Column(sa.String(1024))
-    content = sa.Column(sa.String(1024))
-    content_type = sa.Column(
-        sa.Enum(types.ContentType, name="content_type", schema=config.MESSAGE_SERVICE_SCHEMA)
-    )
-    
-    # Message metadata fields  
-    sender_id = sa.Column(pg.UUID)
-    tags = sa.Column(pg.ARRAY(sa.String))
-    expirable = sa.Column(sa.Boolean)
-    priority = sa.Column(
-        sa.Enum(types.PriorityLevel, name="priority_level", schema=config.MESSAGE_SERVICE_SCHEMA)
-    )
-    message_type = sa.Column(
-        sa.Enum(types.MessageType, name="message_type", schema=config.MESSAGE_SERVICE_SCHEMA)
-    )
-    
-    # Recipient-specific fields
-    is_read = sa.Column(sa.Boolean, default=False)
-    read_at = sa.Column(sa.DateTime(timezone=True)) 
-    archived = sa.Column(sa.Boolean, default=False)
-
 class MessageTemplate(MServiceBaseModel):
     """
     Template for creating new messages.
@@ -355,14 +320,14 @@ class MessageTemplate(MServiceBaseModel):
 
     #Rendering control
     render_strategy = sa.Column(
-        sa.Enum(types.RenderingStrategy, name="rendering_strategy"),
+        sa.Enum(types.RenderStrategy, name="render_strategy", schema=config.MESSAGE_SERVICE_SCHEMA),
         nullable=True
     ) # Override default strategy for this template
 
     #Meta
     status = sa.Column(
         sa.Enum(types.TemplateStatus, name="template_status", schema=config.MESSAGE_SERVICE_SCHEMA),
-        default="draft"
+        default="DRAFT"
     )
     is_active = sa.Column(sa.Boolean, default=True)
 
@@ -399,3 +364,38 @@ class TemplateRenderCache(MServiceBaseModel):
         ),
         {'schema': config.MESSAGE_SERVICE_SCHEMA}
     )
+
+class MessageRecipientsView(ViewBaseModel):
+    """
+    Database view that joins message and message-recipient tables.
+    Provides a flattened view for notification queries with recipient-specific data.
+    """
+    __tablename__ = "_message_recipients"
+
+    # Primary composite key
+    record_id = sa.Column(pg.UUID, primary_key=True)
+    message_id = sa.Column(pg.UUID)
+    recipient_id = sa.Column(pg.UUID)
+
+    # Message content fields
+    subject = sa.Column(sa.String(1024))
+    content = sa.Column(sa.String(1024))
+    content_type = sa.Column(
+        sa.Enum(types.ContentType, name="content_type", schema=config.MESSAGE_SERVICE_SCHEMA)
+    )
+    
+    # Message metadata fields  
+    sender_id = sa.Column(pg.UUID)
+    tags = sa.Column(pg.ARRAY(sa.String))
+    expirable = sa.Column(sa.Boolean)
+    priority = sa.Column(
+        sa.Enum(types.PriorityLevel, name="priority_level", schema=config.MESSAGE_SERVICE_SCHEMA)
+    )
+    message_type = sa.Column(
+        sa.Enum(types.MessageType, name="message_type", schema=config.MESSAGE_SERVICE_SCHEMA)
+    )
+    
+    # Recipient-specific fields
+    is_read = sa.Column(sa.Boolean, default=False)
+    read_at = sa.Column(sa.DateTime(timezone=True)) 
+    archived = sa.Column(sa.Boolean, default=False)
