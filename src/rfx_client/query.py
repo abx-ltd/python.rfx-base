@@ -153,6 +153,7 @@ class WorkItemDetailQuery(DomainQueryResource):
     price_unit: float = FloatField("Price Unit")
     credit_per_unit: float = FloatField("Credit Per Unit")
     estimate: str = StringField("Estimate")
+    type_alias: str = StringField("Type Alias")
 
 
 @resource('work-item-listing')
