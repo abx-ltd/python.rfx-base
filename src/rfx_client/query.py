@@ -119,6 +119,23 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
     total_cost: float = FloatField("Total Cost")
 
 
+@resource('work-item-type')
+class WorkItemTypeQuery(DomainQueryResource):
+    """Work item type queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "ref--work-item-type"
+
+    key: str = StringField("Key")
+    name: str = StringField("Name")
+    description: str = StringField("Description")
+    alias: str = StringField("Alias")
+
+
 @resource('work-item')
 class WorkItemDetailQuery(DomainQueryResource):
     """Work item detail queries"""
