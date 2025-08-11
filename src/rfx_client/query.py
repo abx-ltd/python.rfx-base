@@ -146,7 +146,8 @@ class WorkItemDetailQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
         backend_model = "_work-item"
-
+    
+                                                                                    
     type: str = StringField("Type")
     name: str = StringField("Name")
     description: str = StringField("Description")

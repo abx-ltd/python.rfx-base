@@ -533,6 +533,19 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+    @action('work-item-removed-from-work-package', resources='work-package')
+    async def remove_work_item_from_work_package(self, /, work_item_id):
+        """Remove work item from work package"""
+        work_package = self.rootobj
+        work_package_work_item = await self.statemgr.find_one('work-package-work-item', where=dict(
+            work_package_id=work_package._id,
+            work_item_id=work_item_id
+        ))
+        if not work_package_work_item:
+            raise ValueError("Work item not found")
+
+        await self.statemgr.invalidate_one('work-package-work-item', work_package_work_item._id)
+
     @action('work-item-type-created', resources='work-item')
     async def create_work_item_type(self, /, data):
         """Create new work item type"""

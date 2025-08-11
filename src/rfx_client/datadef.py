@@ -141,6 +141,10 @@ class AddWorkItemToWorkPackagePayload(DataModel):
     work_item_id: UUID_TYPE
 
 
+class RemoveWorkItemFromWorkPackagePayload(DataModel):
+    work_item_id: UUID_TYPE
+
+
 class ApplyReferralCodePayload(DataModel):
     referral_code: str
 

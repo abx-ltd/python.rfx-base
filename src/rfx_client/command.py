@@ -549,6 +549,22 @@ class AddWorkItemToWorkPackage(Command):
         await agg.add_work_item_to_work_package(payload.work_item_id)
 
 
+class RemoveWorkItemFromWorkPackage(Command):
+    """Remove Work Item from Work Package - Removes a work item from a work package"""
+
+    class Meta:
+        key = "remove-work-item-from-work-package"
+        resources = ("work-package",)
+        tags = ["work-package", "work-item", "remove"]
+        auth_required = True
+        description = "Remove work item from work package"
+
+    Data = datadef.RemoveWorkItemFromWorkPackagePayload
+
+    async def _process(self, agg, stm, payload):
+        await agg.remove_work_item_from_work_package(payload.work_item_id)
+
+
 # # ---------- Notification Context ----------
 # class MarkNotificationAsRead(Command):
 #     """Mark Notification As Read - Update is_read status of a specific notification to true"""
