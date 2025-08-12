@@ -22,13 +22,21 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+    @action("ticket-type-deleted", resources="ticket")
+    async def delete_ticket_type(self, /, data):
+        """Delete a ticket type"""
+        ticket_type = await self.statemgr.find_one("ref--ticket-type", where=dict(_id=data.ticket_type_id))
+        await self.statemgr.invalidate_one("ref--ticket-type", data.ticket_type_id)
+        return {"deleted": True}
+
     @action('inquiry-created', resources='ticket')
     async def create_inquiry(self, /, data):
+        """Create a new inquiry"""
+
         record = self.init_resource(
             "ticket",
             serialize_mapping(data),
             status="DRAFT",
-            availability=Availability.OPEN,
             _id=UUID_GENR()
         )
         await self.statemgr.insert(record)
@@ -37,12 +45,12 @@ class RFXDiscussionAggregate(Aggregate):
     @action('ticket-created', resources='ticket')
     async def create_ticket(self, /, data):
         """Create a new ticket tied to project"""
+
         record = self.init_resource(
             "ticket",
             serialize_mapping(data),
             _id=self.aggroot.identifier,
             status="DRAFT",
-            availability=Availability.OPEN,
             sync_status=SyncStatus.PENDING,
             is_inquiry=False
         )

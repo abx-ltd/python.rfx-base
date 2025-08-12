@@ -13,3 +13,7 @@ class ProjectBDMContactScopeSchema(BaseModel):
 
 class ProjectMilestoneScopeSchema(BaseModel):
     project_id: UUID_TYPE = UUIDField("Project ID")
+
+
+class ProjectWorkPackageScopeSchema(BaseModel):
+    project_id: UUID_TYPE = UUIDField("Project ID")

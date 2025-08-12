@@ -13,7 +13,7 @@ class CreateInquiryPayload(DataModel):
     description: Optional[str] = None
     type: str
     priority: Optional[Priority] = Priority.MEDIUM
-    availability: Optional[Availability] = Availability.OPEN
+    availability: Optional[Availability] = Availability.CLOSED
 
 
 class CreateTicketPayload(DataModel):
@@ -23,6 +23,10 @@ class CreateTicketPayload(DataModel):
     priority: str
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
+
+
+class DeleteTicketTypePayload(DataModel):
+    ticket_type_id: UUID_TYPE = None
 
 
 class UpdateTicketPayload(DataModel):

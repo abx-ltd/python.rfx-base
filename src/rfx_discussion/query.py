@@ -82,12 +82,17 @@ class InquiryQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "_inquiry"
 
-    type: str = StringField("Type")
-    type_icon_color: str = StringField("Type Icon Color")
     title: str = StringField("Title")
-    tag_names: list[str] = ArrayField("Tag Names")
+    description: str = StringField("Description")
+    priority: Priority = EnumField("Priority")
+    type: str = StringField("Type")
+    parent_id: UUID_TYPE = UUIDField("Parent ID")
+    assignee: UUID_TYPE = UUIDField("Assignee")
+    status: str = StringField("Status")
+    workflow_id: UUID_TYPE = UUIDField("Workflow ID")
     availability: Availability = EnumField("Availability")
-
+    sync_status: SyncStatus = EnumField("Sync Status")
+    is_inquiry: bool = BooleanField("Is Inquiry")
 
 @resource('ticket-comment')
 class TicketCommentQuery(DomainQueryResource):

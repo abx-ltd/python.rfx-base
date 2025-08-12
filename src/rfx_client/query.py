@@ -156,6 +156,32 @@ class RefProjectRoleQuery(DomainQueryResource):
     is_default: bool = BooleanField("Is Default")
 
 
+@resource('project-work-package')
+class ProjectWorkPackageQuery(DomainQueryResource):
+    """Project work package queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "_project-work-package"
+        scope_required = scope.ProjectWorkPackageScopeSchema
+
+    project_id: UUID_TYPE = UUIDField("Project ID")
+    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
+    quantity: int = IntegerField("Quantity")
+    type_list: list[str] = ArrayField("Type List")
+    work_item_count: int = IntegerField("Work Item Count")
+    credits: float = FloatField("Credits")
+    architectural_credits: float = FloatField("Architectural Credits")
+    development_credits: float = FloatField("Development Credits")
+    operation_credits: float = FloatField("Operation Credits")
+    upfront_cost: float = FloatField("Upfront Cost")
+    monthly_cost: float = FloatField("Monthly Cost")
+    total_deliverables: int = IntegerField("Total Deliverables")
+
+
 # Work Item Queries
 
 

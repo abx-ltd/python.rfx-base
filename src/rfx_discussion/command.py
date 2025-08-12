@@ -222,6 +222,24 @@ class CreateTicketType(Command):
         yield agg.create_response(serialize_mapping(result), _type="ticket-type-response")
 
 
+class DeleteTicketType(Command):
+    """Delete Ticket Type - Deletes a ticket type"""
+
+    class Meta:
+        key = "delete-ticket-type"
+        resources = ("ticket",)
+        tags = ["ticket", "ticket-type", "delete"]
+        auth_required = True
+        description = "Delete a ticket type"
+        new_resource = True
+
+    Data = datadef.DeleteTicketTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Delete ticket type"""
+        await agg.delete_ticket_type(data=payload)
+
+
 class AddTicketTag(Command):
     """Add Tag to Ticket - Adds a tag to ticket"""
 
