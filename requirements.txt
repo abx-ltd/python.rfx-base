@@ -3,3 +3,4 @@ coloredlogs
 pipe
 casbin
 pyyaml
+gmqtt
