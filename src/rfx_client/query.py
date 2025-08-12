@@ -212,10 +212,6 @@ class WorkItemListingQuery(DomainQueryResource):
 
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     work_item_id: UUID_TYPE = UUIDField("Work Item ID")
-    custom_name: str = StringField("Custom Name")
-    custom_description: str = StringField("Custom Description")
-    custom_price_unit: float = FloatField("Custom Price Unit")
-    custom_credit_per_unit: float = FloatField("Custom Credit Per Unit")
     work_item_name: str = StringField("Work Item Name")
     work_item_description: str = StringField("Work Item Description")
     price_unit: float = FloatField("Price Unit")
