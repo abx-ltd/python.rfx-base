@@ -153,11 +153,6 @@ class ProjectWorkPackageWorkItem(CPOPortalBaseModel):
     status = sa.Column(sa.Enum(types.WorkPackageItemStatus, name="work_package_item_status",
                                schema=config.CPO_PORTAL_SCHEMA),
                        nullable=False)
-    custom_name = sa.Column(sa.String(255))
-    custom_description = sa.Column(sa.Text)
-    custom_price_unit = sa.Column(sa.Numeric(10, 2))
-    custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
-    custom_estimate = sa.Column(sa.Interval)
 
 
 class ProjectWorkItemDeliverable(CPOPortalBaseModel):
@@ -166,6 +161,24 @@ class ProjectWorkItemDeliverable(CPOPortalBaseModel):
         ProjectWorkItem._id), nullable=False)
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.Text)
+
+
+class ViewProjectWorkPackage(CPOPortalBaseModel):
+    __tablename__ = "_project-work-package"
+    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    
+    project_id = sa.Column(pg.UUID, primary_key=True)
+    work_package_id = sa.Column(pg.UUID, primary_key=True)
+    quantity = sa.Column(sa.Integer, nullable=False)
+    type_list = sa.Column(pg.ARRAY(sa.String))
+    work_item_count = sa.Column(sa.Integer, nullable=False)
+    credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    total_deliverables = sa.Column(sa.Integer, nullable=False)
 
 # Project BDM Contact Entity
 
@@ -268,10 +281,6 @@ class ViewWorkItemListing(CPOPortalBaseModel):
 
     work_package_id = sa.Column(pg.UUID, primary_key=True)
     work_item_id = sa.Column(pg.UUID, primary_key=True)
-    custom_name = sa.Column(sa.String(255))
-    custom_description = sa.Column(sa.Text)
-    custom_price_unit = sa.Column(sa.Numeric(10, 2))
-    custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
     work_item_name = sa.Column(sa.String(255), nullable=False)
     work_item_description = sa.Column(sa.Text)
     price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
@@ -304,14 +313,10 @@ class WorkPackageWorkItem(CPOPortalBaseModel):
     work_package_id = sa.Column(sa.ForeignKey(WorkPackage._id), nullable=False)
     work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
     status = sa.Column(sa.String(100), nullable=False)
-    custom_name = sa.Column(sa.String(255))
-    custom_description = sa.Column(sa.Text)
-    custom_price_unit = sa.Column(sa.Numeric(10, 2))
-    custom_credit_per_unit = sa.Column(sa.Numeric(10, 2))
 
 
-class ViewWorkPackageDetail(CPOPortalBaseModel):
-    __tablename__ = "_work-package-detail"
+class ViewWorkPackage(CPOPortalBaseModel):
+    __tablename__ = "_work-package"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
     work_package_name = sa.Column(sa.String(255), nullable=False)

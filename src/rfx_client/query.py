@@ -34,6 +34,9 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
+# Project Queries
+
+
 @resource('project')
 class ProjectQuery(DomainQueryResource):
     """Project queries"""
@@ -119,6 +122,43 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
     total_cost: float = FloatField("Total Cost")
 
 
+@resource('project-category')
+class RefProjectCategoryQuery(DomainQueryResource):
+    """Project category reference queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "ref--project-category"
+
+    key: str = StringField("Key")
+    name: str = StringField("Name")
+    description: str = StringField("Description")
+    is_active: bool = BooleanField("Is Active")
+
+
+@resource('project-role')
+class RefProjectRoleQuery(DomainQueryResource):
+    """Project role reference queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "ref--project-role"
+
+    key: str = StringField("Key")
+    name: str = StringField("Name")
+    description: str = StringField("Description")
+    is_default: bool = BooleanField("Is Default")
+
+
+# Work Item Queries
+
+
 @resource('work-item-type')
 class WorkItemTypeQuery(DomainQueryResource):
     """Work item type queries"""
@@ -146,8 +186,7 @@ class WorkItemDetailQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
         backend_model = "_work-item"
-    
-                                                                                    
+
     type: str = StringField("Type")
     name: str = StringField("Name")
     description: str = StringField("Description")
@@ -188,6 +227,8 @@ class WorkItemListingQuery(DomainQueryResource):
     estimate: str = StringField("Estimate")
 
 
+# Work Package Queries
+
 @resource('work-package')
 class WorkPackageQuery(DomainQueryResource):
     """Work package queries"""
@@ -197,7 +238,7 @@ class WorkPackageQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
-        backend_model = "_work-package-detail"
+        backend_model = "_work-package"
 
     work_package_name: str = StringField("Work Package Name")
     description: str = StringField("Description")
@@ -213,38 +254,3 @@ class WorkPackageQuery(DomainQueryResource):
     upfront_cost: float = FloatField("Upfront Cost")
     monthly_cost: float = FloatField("Monthly Cost")
     work_item_count: int = IntegerField("Work Item Count")
-
-
-# Reference Queries
-@resource('project-category')
-class RefProjectCategoryQuery(DomainQueryResource):
-    """Project category reference queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-        backend_model = "ref--project-category"
-
-    key: str = StringField("Key")
-    name: str = StringField("Name")
-    description: str = StringField("Description")
-    is_active: bool = BooleanField("Is Active")
-
-
-@resource('project-role')
-class RefProjectRoleQuery(DomainQueryResource):
-    """Project role reference queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-        backend_model = "ref--project-role"
-
-    key: str = StringField("Key")
-    name: str = StringField("Name")
-    description: str = StringField("Description")
-    is_default: bool = BooleanField("Is Default")
