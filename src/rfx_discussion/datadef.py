@@ -23,6 +23,7 @@ class CreateTicketPayload(DataModel):
     priority: str
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
+    availability: Optional[Availability] = Availability.OPEN
 
 
 class DeleteTicketTypePayload(DataModel):
