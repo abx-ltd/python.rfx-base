@@ -1,4 +1,4 @@
-from fluvius.data import DataModel
+from fluvius.data import DataModel, logger
 from .domain import CPOPortalDomain
 from . import config
 from fluvius.data import serialize_mapping
@@ -18,8 +18,9 @@ class DiscussionMessage(CPOPortalDomain.Message):
 
     async def _dispatch(msg):
         data = msg.data
+        logger.info(f"DiscussionMessage: {data}")
 
-        await get_worker_client().send(
+        await get_worker_client().request(
             f"rfx-discussion:{data.command}",
             command=data.command,
             resource="ticket",
@@ -46,7 +47,9 @@ class ProjectMessage(CPOPortalDomain.Message):
     async def _dispatch(msg):
 
         data = msg.data
-        await get_worker_client().send(
+        logger.info(f"ProjectMessage: {data}")
+
+        await get_worker_client().request(
             f"cpo-portal:{data.command}",
             command=data.command,
             resource="project",

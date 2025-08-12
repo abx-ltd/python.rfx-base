@@ -27,6 +27,19 @@ class CreateProjectPayload(DataModel):
     lead_id: Optional[UUID_TYPE] = None
 
 
+class UpdateProjectPayload(DataModel):
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    category: Optional[str] = None
+    priority: Optional[Priority] = None
+    status: Optional[str] = None
+    start_date: Optional[datetime] = None
+    target_date: Optional[datetime] = None
+    lead_id: Optional[UUID_TYPE] = None
+    external_project_id: Optional[str] = None
+    external_provider: Optional[str] = None
+
+
 class CreateProjectBDMContactPayload(DataModel):
     contact_method: Optional[list[ContactMethod]] = None
     message: Optional[str] = None
@@ -82,28 +95,11 @@ class CreateProjectTicketPayload(DataModel):
     sync_status: Optional[SyncStatus] = SyncStatus.PENDING
 
 
-class UpdateProjectPayload(DataModel):
-    name: Optional[str] = Field(max_length=255)
-    description: Optional[str] = None
-    category: Optional[str] = None
-    priority: Optional[Priority] = None
-    status: Optional[str] = None
-    start_date: Optional[datetime] = None
-    target_date: Optional[datetime] = None
-    lead_id: Optional[UUID_TYPE] = None
-    external_project_id: Optional[str] = None
-    external_provider: Optional[str] = None
-
-
 class AddWorkPackageToProjectPayload(DataModel):
     work_package_id: UUID_TYPE
 
 
 class RemoveWorkPackageFromProjectPayload(DataModel):
-    work_package_id: UUID_TYPE
-
-
-class RemoveWorkPackagePayload(DataModel):
     work_package_id: UUID_TYPE
 
 
@@ -113,6 +109,7 @@ class CreateWorkItemPayload(DataModel):
     type: str
     price_unit: float = Field(gt=0)
     credit_per_unit: float = Field(gt=0)
+    estimate: Optional[str] = None
 
 
 class UpdateWorkItemPayload(DataModel):
@@ -121,6 +118,20 @@ class UpdateWorkItemPayload(DataModel):
     type: Optional[str] = None
     price_unit: Optional[float] = Field(gt=0)
     credit_per_unit: Optional[float] = Field(gt=0)
+    estimate: Optional[str] = None
+
+
+class CreateWorkItemDeliverablePayload(DataModel):
+    """Payload for creating work item deliverable"""
+    work_item_id: UUID_TYPE
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+
+
+class UpdateWorkItemDeliverablePayload(DataModel):
+    work_item_deliverable_id: UUID_TYPE
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
 
 
 class CreateWorkItemTypePayload(DataModel):
@@ -216,19 +227,6 @@ class UpdateWorkPackagePayload(DataModel):
     is_custom: Optional[bool] = None
 
 
-class CreateWorkItemDeliverablePayload(DataModel):
-    """Payload for creating work item deliverable"""
-    work_item_id: UUID_TYPE
-    name: str = Field(max_length=255)
-    description: Optional[str] = None
-
-
-class UpdateWorkItemDeliverablePayload(DataModel):
-    work_item_deliverable_id: UUID_TYPE
-    name: Optional[str] = Field(max_length=255)
-    description: Optional[str] = None
-
-
 class InvalidateWorkPackageDeliverablePayload(DataModel):
     work_item_deliverable_id: UUID_TYPE
 
@@ -266,40 +264,6 @@ class UpdateWorkflowTransitionPayload(DataModel):
     rule_code: Optional[str] = None
     condition: Optional[str] = None
 
-# Tag related payloads
-
-
-class CreateTagPayload(DataModel):
-    key: str = Field(max_length=50)
-    name: str = Field(max_length=255)
-    description: Optional[str] = None
-    target_resource: str
-
-
-class CreateTicketTypePayload(DataModel):
-    key: str = Field(max_length=50)
-    name: str = Field(max_length=255)
-    description: Optional[str] = None
-    icon_color: Optional[str] = Field(max_length=7, default=None)
-    is_active: bool = True
-    is_inquiry: bool = False
-
-
-class UpdateTagPayload(DataModel):
-    code: str = Field(max_length=50)
-    name: Optional[str] = Field(max_length=255)
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
-
-# Notification related payloads
-
-
-class MarkNotificationAsReadPayload(DataModel):
-    notification_id: UUID_TYPE
-
-
-class MarkAllNotificationsAsReadPayload(DataModel):
-    pass
 
 # Integration related payloads
 

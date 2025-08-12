@@ -17,6 +17,7 @@ class RFXDiscussionAggregate(Aggregate):
         record = self.init_resource(
             "ref--ticket-type",
             serialize_mapping(data),
+            _id=UUID_GENR()
         )
         await self.statemgr.insert(record)
         return record
@@ -118,7 +119,6 @@ class RFXDiscussionAggregate(Aggregate):
                 "comment_id": comment_id
             },
             _id=UUID_GENR(),
-            added_at=datetime.utcnow()
         )
         await self.statemgr.insert(record)
         return record
@@ -170,6 +170,7 @@ class RFXDiscussionAggregate(Aggregate):
         record = self.init_resource(
             "tag",
             serialize_mapping(data),
+            _id=UUID_GENR()
         )
         await self.statemgr.insert(record)
         return record
@@ -180,3 +181,12 @@ class RFXDiscussionAggregate(Aggregate):
         tag = self.rootobj
         await self.statemgr.update(tag, **serialize_mapping(data))
         return tag
+
+    @action("tag-deleted", resources="tag")
+    async def delete_tag(self, /):
+        """Delete tag"""
+        tag = self.rootobj
+        if not tag:
+            raise ValueError("Tag not found")
+        await self.statemgr.invalidate(tag)
+        return {"deleted": True}

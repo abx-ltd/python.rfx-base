@@ -47,6 +47,21 @@ class CreateProject(Command):
         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
 
+class DeleteProject(Command):
+    """Delete Project - Deletes a project"""
+
+    class Meta:
+        key = "delete-project"
+        resources = ("project",)
+        tags = ["project", "delete"]
+        auth_required = True
+        description = "Delete a project"
+
+    async def _process(self, agg, stm, payload):
+        """Delete a project"""
+        await agg.delete_project()
+
+
 class CreateProjectBDMContact(Command):
     """Create Project BDM Contact - Creates a new BDM contact for a project"""
 
@@ -258,6 +273,23 @@ class AddProjectMember(Command):
         )
 
 
+class RemoveProjectMember(Command):
+    """Remove Project Member - Removes a member from a project"""
+
+    class Meta:
+        key = "remove-member"
+        resources = ("project",)
+        tags = ["project", "member"]
+        auth_required = True
+        description = "Remove member from project"
+
+    Data = datadef.RemoveProjectMemberPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove member from project"""
+        await agg.remove_project_member(member_id=payload.member_id)
+
+
 class CreateProjectMilestone(Command):
     """Create Project Milestone - Creates a new milestone for a project"""
 
@@ -402,55 +434,6 @@ class CreateWorkItem(Command):
         yield agg.create_response(serialize_mapping(result), _type="work-item-response")
 
 
-class CreateWorkItemType(Command):
-    """Create Work Item Type - Creates a new work item type"""
-
-    class Meta:
-        key = "create-work-item-type"
-        resources = ("work-item",)
-        tags = ["work-item", "type", "reference"]
-        new_resource = True
-
-    Data = datadef.CreateWorkItemTypePayload
-
-    async def _process(self, agg, stm, payload):
-        """Create new work item type"""
-        result = await agg.create_work_item_type(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="work-item-type-response")
-
-
-class UpdateWorkItemType(Command):
-    """Update Work Item Type - Updates a work item type"""
-
-    class Meta:
-        key = "update-work-item-type"
-        resources = ("work-item",)
-        tags = ["work-item", "type", "update"]
-        auth_required = True
-        description = "Update work item type"
-
-    Data = datadef.UpdateWorkItemTypePayload
-
-    async def _process(self, agg, stm, payload):
-        """Update work item type"""
-        await agg.update_work_item_type(data=payload)
-
-
-class DeleteWorkItemType(Command):
-    """Delete Work Item Type - Deletes a work item type"""
-
-    class Meta:
-        key = "delete-work-item-type"
-        resources = ("work-item",)
-        tags = ["work-item", "type", "delete"]
-        auth_required = True
-        description = "Delete work item type"
-
-    async def _process(self, agg, stm, payload):
-        """Delete work item type"""
-        await agg.invalidate_work_item_type(data=payload)
-
-
 class UpdateWorkItem(Command):
     """Update Work Item - Updates a work item"""
 
@@ -481,6 +464,55 @@ class DeleteWorkItem(Command):
     async def _process(self, agg, stm, payload):
         """Delete work item"""
         await agg.invalidate_work_item(data=payload)
+
+
+class CreateWorkItemType(Command):
+    """Create Work Item Type - Creates a new work item type"""
+
+    class Meta:
+        key = "create-work-item-type"
+        resources = ("work-item",)
+        tags = ["work-item", "type", "reference"]
+        new_resource = True
+
+    Data = datadef.CreateWorkItemTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Create new work item type"""
+        result = await agg.create_work_item_type(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="work-item-type-response")
+
+
+# class UpdateWorkItemType(Command):
+#     """Update Work Item Type - Updates a work item type"""
+
+#     class Meta:
+#         key = "update-work-item-type"
+#         resources = ("work-item",)
+#         tags = ["work-item", "type", "update"]
+#         auth_required = True
+#         description = "Update work item type"
+
+#     Data = datadef.UpdateWorkItemTypePayload
+
+#     async def _process(self, agg, stm, payload):
+#         """Update work item type"""
+#         await agg.update_work_item_type(data=payload)
+
+
+# class DeleteWorkItemType(Command):
+#     """Delete Work Item Type - Deletes a work item type"""
+
+#     class Meta:
+#         key = "delete-work-item-type"
+#         resources = ("work-item",)
+#         tags = ["work-item", "type", "delete"]
+#         auth_required = True
+#         description = "Delete work item type"
+
+#     async def _process(self, agg, stm, payload):
+#         """Delete work item type"""
+#         await agg.invalidate_work_item_type(data=payload)
 
 
 class CreateWorkItemDeliverable(Command):

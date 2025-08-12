@@ -37,6 +37,12 @@ class CPOPortalAggregate(Aggregate):
         result = await self.statemgr.update(project, **serialize_mapping(data), status="ACTIVE", target_date=data.start_date + parsed_duration)
         return result
 
+    @action('project-deleted', resources='project')
+    async def delete_project(self, /):
+        """Delete a project"""
+        project = self.rootobj
+        await self.statemgr.invalidate(project)
+
     @action('project-bdm-contact-created', resources='project')
     async def create_project_bdm_contact(self, /, data):
         project = self.rootobj
@@ -346,16 +352,19 @@ class CPOPortalAggregate(Aggregate):
     #     )
     #     await stm.insert(record)
 
-    # @action('member-removed', resources='project')
-    # async def remove_project_member(self, stm, /, member_id: str):
-    #     """Remove project member"""
-    #     members = await stm.find_all('project-member',
-    #                                  where=dict(
-    #                                      project_id=self.aggroot.identifier,
-    #                                      team_id=member_id
-    #                                  ))
-    #     for member in members:
-    #         await stm.invalidate_one('project-member', member._id)
+    @action('member-removed', resources='project')
+    async def remove_project_member(self, /, member_id: str):
+        """Remove project member"""
+        project = self.rootobj
+        project_member = await self.statemgr.find_one('project-member', where=dict(
+            project_id=project._id,
+            member_id=member_id
+        ))
+
+        if not project_member:
+            raise ValueError("Project member not found")
+
+        await self.statemgr.invalidate_one('project-member', project_member._id)
 
     @action('milestone-created', resources='project')
     async def create_project_milestone(self, /, data):
@@ -425,6 +434,19 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+    @action('project-category-updated', resources='project')
+    async def update_project_category(self, /, data):
+        """Update project category"""
+        category = await self.statemgr.find_one('ref--project-category', where=dict(
+            _id=data.category_id
+        ))
+
+        if not category:
+            raise ValueError("Category not found")
+
+        await self.statemgr.update(category, **serialize_mapping(data))
+        return category
+
     # =========== Work Package Context ============
 
     @action('work-package-created', resources='work-package')
@@ -456,6 +478,12 @@ class CPOPortalAggregate(Aggregate):
 
     @action('work-item-created', resources='work-item')
     async def create_work_item(self, /, data):
+        try:
+            parsed_estimate = parse_duration(data.estimate)
+            data = data.set(estimate=parsed_estimate)
+        except Exception:
+            raise ValueError(f"Invalid estimate format: {data.estimate}")
+
         """Create new work item"""
         record = self.init_resource(
             "work-item",
@@ -469,6 +497,14 @@ class CPOPortalAggregate(Aggregate):
     async def update_work_item(self, /, data):
         """Update work item"""
         work_item = self.rootobj
+
+        if data.estimate:
+            try:
+                parsed_estimate = parse_duration(data.estimate)
+                data = data.set(estimate=parsed_estimate)
+            except Exception:
+                raise ValueError(f"Invalid estimate format: {data.estimate}")
+
         await self.statemgr.update(work_item, **serialize_mapping(data))
         return work_item
 
@@ -557,31 +593,36 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action('work-item-type-updated', resources='work-item')
-    async def update_work_item_type(self, /, data):
-        """Update work item type"""
-        work_item_type = self.rootobj
-        await self.statemgr.update(work_item_type, **serialize_mapping(data))
-        return work_item_type
+    # @action('work-item-type-updated', resources='work-item')
+    # async def update_work_item_type(self, /, data):
+    #     """Update work item type"""
+    #     work_item_type = await self.statemgr.find_one('ref--work-item-type', where=dict(
+    #         _id=data.work_item_type_id
+    #     ))
 
-    @action('work-item-type-invalidated', resources='work-item')
-    async def invalidate_work_item_type(self, /, data):
-        """Invalidate work item type"""
-        work_item_type = self.rootobj
-        await self.statemgr.invalidate(work_item_type)
-        return work_item_type
+    #     if not work_item_type:
+    #         raise ValueError("Work item type not found")
 
-    @action('work-item-type-deleted', resources='work-item')
+    #     update_data = serialize_mapping(data)
+    #     update_data.pop('work_item_type_id', None)
+
+    #     await self.statemgr.update(work_item_type, **update_data)
+    #     return work_item_type
+
+    # @action('work-item-type-invalidated', resources='work-item')
+    # async def invalidate_work_item_type(self, /, data):
+    #     """Invalidate work item type"""
+    #     work_item_type = await self.statemgr.find_one('ref--work-item-type', where=dict(
+    #         _id=data.work_item_type_id
+    #     ))
+
+    #     if not work_item_type:
+    #         raise ValueError("Work item type not found")
+
+    #     await self.statemgr.invalidate(work_item_type)
+    #     return work_item_type
+
     # =========== Integration Context ============
     @action('integration-sync', resources='integration')
     async def unified_sync(self, /, data):
         """Unified sync method for integrations"""
-
-    # =========== Notification Context ============
-    @action('notification-marked-read', resources='notification')
-    async def mark_notification_as_read(self, /, notification_id: str):
-        """Mark notification as read"""
-
-    @action('all-notifications-marked-read', resources='notification')
-    async def mark_all_notifications_as_read(self, /):
-        """Mark all notifications as read"""

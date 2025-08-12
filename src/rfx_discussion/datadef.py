@@ -67,15 +67,6 @@ class AddTicketTagPayload(DataModel):
 class RemoveTicketTagPayload(DataModel):
     tag_id: UUID_TYPE
 
-# Tag related payloads
-
-
-class CreateTagPayload(DataModel):
-    key: str = Field(max_length=50)
-    name: str = Field(max_length=255)
-    description: Optional[str] = None
-    target_resource: str
-
 
 class CreateTicketTypePayload(DataModel):
     key: str = Field(max_length=50)
@@ -86,8 +77,17 @@ class CreateTicketTypePayload(DataModel):
     is_inquiry: bool = False
 
 
+# Tag related payloads
+class CreateTagPayload(DataModel):
+    key: str = Field(max_length=50)
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+    target_resource: str
+
+
 class UpdateTagPayload(DataModel):
-    code: str = Field(max_length=50)
+    key: str = Field(max_length=50)
     name: Optional[str] = Field(max_length=255)
     description: Optional[str] = None
+    target_resource: Optional[str] = None
     is_active: Optional[bool] = None

@@ -97,12 +97,11 @@ class AssignMemberToTicket(Command):
         await agg.assign_member_to_ticket(payload.member_id)
 
 
-
 class RemoveMemberFromTicket(Command):
     """Remove Member from Ticket - Removes a member from ticket"""
 
     class Meta:
-        key = "remove-member-from-ticket"
+        key = "remove-member"
         resources = ("ticket",)
         tags = ["ticket", "member"]
         auth_required = True
@@ -139,7 +138,7 @@ class AddParticipantToTicket(Command):
     """Add Participant to Ticket - Adds a participant to ticket"""
 
     class Meta:
-        key = "add-participant-to-ticket"
+        key = "add-participant"
         resources = ("ticket",)
         tags = ["ticket", "participant"]
         auth_required = True
@@ -170,6 +169,38 @@ class CreateTag(Command):
         """Create tag"""
         result = await agg.create_tag(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="tag-response")
+
+
+class UpdateTag(Command):
+    """Update Tag - Updates a tag"""
+
+    class Meta:
+        key = "update-tag"
+        resources = ("tag",)
+        tags = ["tag", "update"]
+        auth_required = True
+        description = "Update tag"
+
+    Data = datadef.UpdateTagPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update tag"""
+        await agg.update_tag(data=payload)
+
+
+class DeleteTag(Command):
+    """Delete Tag - Deletes a tag"""
+
+    class Meta:
+        key = "delete-tag"
+        resources = ("tag",)
+        tags = ["tag", "delete"]
+        auth_required = True
+        description = "Delete tag"
+
+    async def _process(self, agg, stm, payload):
+        """Delete tag"""
+        await agg.delete_tag()
 
 
 class CreateTicketType(Command):
