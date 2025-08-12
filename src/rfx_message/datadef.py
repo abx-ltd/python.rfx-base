@@ -3,7 +3,7 @@ from pydantic import Field, model_validator
 from enum import Enum
 from datetime import datetime
 
-from fluvius.data import DataModel, UUID_TYPE
+from fluvius.data import DataModel, UUID_TYPE, UUID_GENR
 from .types import MessageType, PriorityLevel, ContentType, RenderStrategy
 
 class SendMessagePayload(DataModel):
@@ -13,8 +13,8 @@ class SendMessagePayload(DataModel):
     """
     
     # Recipients (required)
-    recipients: List[UUID_TYPE] = Field(..., description="List of recipient user IDs")
-    
+    recipients: List[UUID_TYPE] = Field(default_factory=list, description="List of recipient user IDs")
+
     # Message metadata
     subject: Optional[str] = Field(None, description="Message subject")
     message_type: MessageType = Field(MessageType.NOTIFICATION, description="Type of message")
@@ -30,7 +30,7 @@ class SendMessagePayload(DataModel):
     template_version: Optional[int] = Field(None, description="Specific template version")
     
     # Rendering control
-    render_strategy: Optional[RenderStrategy] = Field(None, description="Override rendering strategy")
+    render_strategy: Optional[str] = Field(None, description="Override rendering strategy")
     
     # Context for template resolution
     template_locale: Optional[str] = Field("en", description="Locale for template resolution")
@@ -92,3 +92,26 @@ class PublishTemplatePayload(DataModel):
 #     message_id: UUID_TYPE = Field(..., description="Message ID to process")
 #     mode: str = Field("SYNC", description="Processing mode: SYNC, ASYNC, IMMEDIATE")
 #     context: Optional[Dict[str, Any]] = Field({}, description="Additional context for processing")
+
+# DTO for response Message
+class Notification(DataModel):
+    message_id: UUID_TYPE = Field(..., description="ID of the message")
+    recipient_id: Optional[UUID_TYPE] = Field(None, description="ID of the recipient")
+    sender_id: Optional[UUID_TYPE] = Field(None, description="ID of the sender")
+
+    subject: str = Field(..., description="Subject of the message")
+    content: str = Field(..., description="Content of the message")
+    content_type: str = Field(..., description="Content type of the message")
+    priority: PriorityLevel = Field(PriorityLevel.MEDIUM, description="Priority level of the message")
+
+    is_important: Optional[bool] = Field(False, description="Whether the message is marked as important")
+    expiration_date: Optional[datetime] = Field(None, description="Expiration date of the message")
+    tags: Optional[list[str]] = Field(default_factory=list, description="Tags associated with the message")
+
+    # Template fields for client rendering
+    template_key: Optional[str] = Field(None, description="Template key used for rendering")
+    template_version: Optional[int] = Field(None, description="Version of the template used")
+    template_locale: Optional[str] = Field("en", description="Locale for the template")
+    template_data: Optional[Dict[str, Any]] = Field(None, description="Additional data for the template")
+    render_strategy: Optional[RenderStrategy] = Field(None, description="Rendering strategy for the template")
+

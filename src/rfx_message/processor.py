@@ -6,10 +6,11 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 from enum import Enum
 
-from fluvius.data import DataAccessManager, timestamp, DataModel
+from fluvius.data import DataAccessManager, timestamp, DataModel, serialize_mapping
 from .service import TemplateService
-from .helper import render_on_server, extract_template_context
+from .helper import render_on_server, extract_template_context, message_to_notification_data
 from .types import MessageType, RenderStrategy, ProcessingMode
+from .datadef import Notification
 from . import logger
 
 class MessageContentProcessor:
@@ -25,7 +26,7 @@ class MessageContentProcessor:
         *,
         mode: ProcessingMode = ProcessingMode.SYNC,
         context: Optional[Dict[str, Any]] = None
-    ) -> DataModel:
+    ) -> Dict[str, Any]:
         """
         Process message content based on type and strategy.
         
@@ -35,18 +36,23 @@ class MessageContentProcessor:
         3. Determine rendering strategy
         4. Render content or prepare for client rendering
         5. Update message with processed content
+        6. Fetch updated message and convert to Notification
         """
         try:
             # If direct content is provided, use it as-is
             if message.content:
-                return await self._process_direct_content(message)
-            
+                updated_message = await self._process_direct_content(message)
             # Template-based content processing
-            if message.template_key:
-                return await self._process_template_content(message, context or {})
+            elif message.template_key:
+                updated_message = await self._process_template_content(message, context or {})
             
-            # No content source provided
-            raise ValueError("Message must have either 'content' or 'template_key'")
+            # Fetch the updated message to ensure we have the latest data
+            fresh_message = await self.stm.fetch("message", message._id)
+            if not fresh_message:
+                raise ValueError(f"Message not found after processing: {message._id}")
+            
+            # Convert to Notification model
+            return serialize_mapping(message_to_notification_data(fresh_message))
             
         except Exception as e:
             logger.error(f"Content processing failed for message {message._id}: {e}")
@@ -59,7 +65,7 @@ class MessageContentProcessor:
         content_type = getattr(message, 'content_type', 'text/plain')
         
         # Update message status - use timezone-aware datetime
-        updated_message = await self.stm.update(
+        await self.stm.update(
             message,
             rendered_content=content,
             content_type=content_type,
@@ -68,7 +74,7 @@ class MessageContentProcessor:
         )
         
         logger.debug(f"Processed direct content for message {message._id}")
-        return updated_message
+        return message
     
     async def _process_template_content(
         self,
@@ -120,7 +126,7 @@ class MessageContentProcessor:
         # Add system variables
         template_data.update({
             'message_id': message._id,
-            'timestamp': datetime().isoformat(),  # Use timezone-aware datetime for ISO format
+            'timestamp': datetime.utcnow().isoformat(),  # Use timezone-aware datetime for ISO format
             'sender_id': getattr(message, 'sender_id', None),
             # Add more system variables as needed
         })
@@ -137,7 +143,7 @@ class MessageContentProcessor:
         content_type = self._get_content_type_for_engine(getattr(template, 'engine', 'jinja2'))
         
         # Update message with rendered content - use timezone-aware datetime
-        updated_message = await self.stm.update(
+        await self.stm.update(
             message,
             rendered_content=rendered_content,
             content_type=content_type,
@@ -150,7 +156,7 @@ class MessageContentProcessor:
 
         logger.info(f"Server-rendered message {message._id} using template {template.key} v{template.version}")
 
-        return updated_message
+        return message
     
     async def _prepare_for_client_render(
         self,
@@ -160,7 +166,7 @@ class MessageContentProcessor:
         """Prepare message for client-side rendering."""
         
         # Store template reference for client - use timezone-aware datetime
-        updated_message = await self.stm.update(
+        await self.stm.update(
             message,
             template_version=template.version,
             template_locale=template.locale,
@@ -171,7 +177,7 @@ class MessageContentProcessor:
         
         logger.info(f"Prepared message {message._id} for client rendering using template {template.key} v{template.version}")
         
-        return updated_message
+        return message
     
     async def _mark_processing_failed(self, message: DataModel, error: str):
         """Mark message processing as failed."""
@@ -179,7 +185,7 @@ class MessageContentProcessor:
             message,
             render_status='FAILED',
             render_error=error,
-            rendered_at=datetime.utc_now()  # Use timezone-aware datetime
+            rendered_at=datetime.utcnow()  # Use timezone-aware datetime
         )
     
     def _get_content_type_for_engine(self, engine: str) -> str:
@@ -192,7 +198,7 @@ class MessageContentProcessor:
         }
         return engine_content_types.get(engine, 'text/plain')
     
-    async def retry_failed_processing(self, message_id: str) -> DataModel:
+    async def retry_failed_processing(self, message_id: str, recipient_id: str) -> Notification:
         """Retry processing for a failed message."""
         message = await self.stm.fetch("message", message_id)
         if not message:
@@ -203,4 +209,4 @@ class MessageContentProcessor:
         
         # Reset status and retry - use timezone-aware datetime
         await self.stm.update(message, render_status='PENDING', render_error=None)
-        return await self.process_message_content(message)
+        return await self.process_message_content(message, recipient_id)

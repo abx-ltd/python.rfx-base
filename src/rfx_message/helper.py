@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import Dict, Optional, Any
+from .datadef import Notification
 
-from .types import MessageType, RenderStrategy, ProcessingMode
+from .types import MessageType, RenderStrategy, ProcessingMode, ContentType, PriorityLevel
 
 
 
@@ -64,3 +65,34 @@ async def determine_processing_mode(message_type: MessageType, payload: dict) ->
     
     # Default to async for complex rendering
     return ProcessingMode.ASYNC
+
+def message_to_notification_data(message):
+    """
+    Convert a Message model to a Notification data structure for client consumption.
+    
+    Args:
+        message: Message DataModel instance
+        recipient_id: ID of the specific recipient
+    
+    Returns:
+        Notification DataModel instance
+    """
+    
+    return Notification(
+        message_id=getattr(message, "_id", None),
+        sender_id=getattr(message, "sender_id", None),
+        subject=getattr(message, "subject", "") or "",
+        content=getattr(message, "rendered_content", None),
+        content_type=getattr(message, "content_type", ContentType.TEXT),
+        priority=getattr(message, "priority", PriorityLevel.MEDIUM),
+        is_important=getattr(message, "is_important", False) or False,
+        expiration_date=getattr(message, "expiration_date", None),
+        tags=getattr(message, "tags", []) or [],
+        
+        # Template information for client rendering
+        template_key=getattr(message, "template_key", None),
+        template_version=getattr(message, "template_version", None),
+        template_locale=getattr(message, "template_locale", None),
+        template_data=getattr(message, "template_data", {}) or {},
+        render_strategy=getattr(message, "render_strategy", RenderStrategy.SERVER),
+    )

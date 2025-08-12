@@ -66,7 +66,7 @@ class MessageAggregate(Aggregate):
             mode=processing_mode,
             context=context or {}
         )
-        
+
         return processed_message
     
     @action("message-ready-for-delivery", resources="message")
