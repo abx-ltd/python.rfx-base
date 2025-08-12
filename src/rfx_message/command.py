@@ -81,7 +81,7 @@ class SendMessage(Command):
             processing_mode = await determine_processing_mode(message_type=message_type, payload=message_payload)
 
             context = agg.get_context()
-            client = context.app.mqtt_client
+            client = context.service_proxy.mqtt_client
             channels = []
             # 4. Process content
             if processing_mode == ProcessingMode.SYNC:
