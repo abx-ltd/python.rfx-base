@@ -11,6 +11,7 @@ from .domain import MessageServiceDomain
 from .types import PriorityLevel, ContentType, MessageType, RenderStrategy
 from . import logger
 
+
 class MessageQueryManager(DomainQueryManager):
     __data_manager__ = MessageStateManager
 
@@ -18,14 +19,17 @@ class MessageQueryManager(DomainQueryManager):
         prefix = MessageServiceDomain.Meta.prefix
         tags = MessageServiceDomain.Meta.tags
 
+
 resource = MessageQueryManager.register_resource
 endpoint = MessageQueryManager.register_endpoint
+
 
 class ResourceScope(BaseModel):
     resource: str
     resource_id: str
 
-@resource('_message_recipients')
+
+@resource('message_recipients')
 class MessageQuery(DomainQueryResource):
     """ Query resource for notifications received by the current user. """
 
@@ -33,7 +37,7 @@ class MessageQuery(DomainQueryResource):
     def base_query(cls, context, scope):
         user_id = context.user._id
         return {"recipient_id": user_id}
-        
+
     class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
@@ -48,29 +52,25 @@ class MessageQuery(DomainQueryResource):
         scope_optional = ResourceScope
 
         default_order = ("_created.desc",)
-    
+
     # Primary key fields from the view
-    record_id: UUID_TYPE = UUIDField("Record ID")
-    message_id: UUID_TYPE = UUIDField("Message ID")
-    recipient_id: UUID_TYPE = UUIDField("Recipient ID")
-
-    subject: str = StringField("Subject")
-    content: str = StringField("Content")
-    rendered_content: str = StringField("Rendered Content")
-    content_type:  ContentType = EnumField("Content Type", enum=ContentType)
-
-    sender_id: Optional[UUID_TYPE] = UUIDField("Sender ID")
-
-    tags: Optional[List[str]] = ArrayField("Tags", default=[])
-    expirable: bool = BooleanField("Is Expirable")
-
-    priority: PriorityLevel = EnumField("Priority Level", enum=PriorityLevel)
+    record_id: UUID_TYPE                = UUIDField("Record ID")
+    message_id: UUID_TYPE               = UUIDField("Message ID")
+    recipient_id: UUID_TYPE             = UUIDField("Recipient ID")
+    subject: str                        = StringField("Subject")
+    content: str                        = StringField("Content")
+    rendered_content: str               = StringField("Rendered Content")
+    content_type: ContentType           = EnumField("Content Type", enum=ContentType)
+    sender_id: Optional[UUID_TYPE]      = UUIDField("Sender ID")
+    tags: Optional[List[str]]           = ArrayField("Tags", default=[])
+    expirable: bool                     = BooleanField("Is Expirable")
+    priority: PriorityLevel             = EnumField("Priority Level", enum=PriorityLevel)
     message_type: Optional[MessageType] = EnumField("Message Type", enum=MessageType)
-    
     # Notification-specific fields for recipients
-    is_read: bool = BooleanField("Is Read", default=False)
-    read_at: Optional[str] = DatetimeField("Read At")
-    archived: bool = BooleanField("Is Archived", default=False)
+    is_read: bool                       = BooleanField("Is Read", default=False)
+    read_at: Optional[str]              = DatetimeField("Read At")
+    archived: bool                      = BooleanField("Is Archived", default=False)
+
 
 class TemplateScope(BaseModel):
     tenant_id: Optional[str] = None
@@ -78,62 +78,58 @@ class TemplateScope(BaseModel):
     locale: Optional[str] = None
     channel: Optional[str] = None
 
+
 @resource('message-template')
 class TemplateQuery(DomainQueryResource):
     """Query resource for message templates."""
-    
+
     @classmethod
     def base_query(cls, context, scope):
         # Templates are typically scoped by tenant/app
         filters = {}
-        
+
         if hasattr(context, 'tenant_id') and context.tenant_id:
             filters['tenant_id'] = context.tenant_id
-        
+
         if hasattr(context, 'app_id') and context.app_id:
             filters['app_id'] = context.app_id
-        
+
         return filters
-    
+
     class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
         allow_text_search = True
-        
+
         backend_model = "message-template"
         policy_required = True
         scope_optional = TemplateScope
-        
+
         default_order = ("key", "-version")
-    
+
     # Template identity
     # id: UUID_TYPE = UUIDField("Template ID")
-    key: str = StringField("Template Key")
-    version: int = IntegerField("Version")
-    name: str = StringField("Template Name")
-    
+    key: str                                  = StringField("Template Key")
+    version: int                              = IntegerField("Version")
+    name: str                                 = StringField("Template Name")
     # Template content
-    engine: str = StringField("Template Engine")
-    body: str = StringField("Template Body")
-    description: Optional[str] = StringField("Description")
-    
+    engine: str                               = StringField("Template Engine")
+    body: str                                 = StringField("Template Body")
+    description: Optional[str]                = StringField("Description")
     # Scoping
-    locale: str = StringField("Locale")
-    channel: Optional[str] = StringField("Channel")
-    tenant_id: Optional[UUID_TYPE] = UUIDField("Tenant ID")
-    app_id: Optional[str] = StringField("App ID")
-    
+    locale: str                               = StringField("Locale")
+    channel: Optional[str]                    = StringField("Channel")
+    tenant_id: Optional[UUID_TYPE]            = UUIDField("Tenant ID")
+    app_id: Optional[str]                     = StringField("App ID")
     # Configuration
     render_strategy: Optional[RenderStrategy] = EnumField("Render Strategy", enum=RenderStrategy)
-    variables_schema: dict = JSONField("Variables Schema")
-    sample_data: dict = JSONField("Sample Data")
-    
+    variables_schema: dict                    = JSONField("Variables Schema")
+    sample_data: dict                         = JSONField("Sample Data")
     # Status
-    status: str = StringField("Status")
-    is_active: bool = BooleanField("Is Active")
-    
+    status: str                               = StringField("Status")
+    is_active: bool                           = BooleanField("Is Active")
     # Audit
-    created_by: Optional[UUID_TYPE] = UUIDField("Created By")
-    updated_by: Optional[UUID_TYPE] = UUIDField("Updated By")
+    created_by: Optional[UUID_TYPE]           = UUIDField("Created By")
+    updated_by: Optional[UUID_TYPE]           = UUIDField("Updated By")
