@@ -50,7 +50,7 @@ class ProjectMessage(CPOPortalDomain.Message):
         data = msg.data
         logger.info(f"ProjectMessage: {data}")
 
-        await get_worker_client().request(
+        await get_worker_client().send(
             f"cpo-portal:{data.command}",
             command=data.command,
             resource="project",
