@@ -103,6 +103,9 @@ class RemoveWorkPackageFromProjectPayload(DataModel):
     work_package_id: UUID_TYPE
 
 
+# Work Item related payloads
+
+
 class CreateWorkItemPayload(DataModel):
     name: str = Field(max_length=255)
     description: Optional[str] = None
@@ -133,6 +136,12 @@ class UpdateWorkItemDeliverablePayload(DataModel):
     name: Optional[str] = Field(max_length=255)
     description: Optional[str] = None
 
+
+class DeleteWorkItemDeliverablePayload(DataModel):
+    work_item_deliverable_id: UUID_TYPE
+
+
+# Work Item Type related payloads
 
 class CreateWorkItemTypePayload(DataModel):
     key: str = Field(max_length=50)
@@ -209,6 +218,19 @@ class CreateProjectCategoryPayload(DataModel):
     description: Optional[str] = None
     is_active: bool = True
 
+
+class UpdateProjectCategoryPayload(DataModel):
+    project_category_id: UUID_TYPE
+    key: str = Field(max_length=50)
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class DeleteProjectCategoryPayload(DataModel):
+    project_category_id: UUID_TYPE
+
+
 # Work Package related payloads
 
 
@@ -226,9 +248,6 @@ class UpdateWorkPackagePayload(DataModel):
     example_description: Optional[str] = None
     is_custom: Optional[bool] = None
 
-
-class InvalidateWorkPackageDeliverablePayload(DataModel):
-    work_item_deliverable_id: UUID_TYPE
 
 # Workflow related payloads
 

@@ -438,14 +438,22 @@ class CPOPortalAggregate(Aggregate):
     async def update_project_category(self, /, data):
         """Update project category"""
         category = await self.statemgr.find_one('ref--project-category', where=dict(
-            _id=data.category_id
+            _id=data.project_category_id
         ))
 
         if not category:
             raise ValueError("Category not found")
 
-        await self.statemgr.update(category, **serialize_mapping(data))
+        update_data = serialize_mapping(data)
+        update_data.pop('project_category_id', None)
+
+        await self.statemgr.update(category, **update_data)
         return category
+
+    @action('project-category-deleted', resources='project')
+    async def delete_project_category(self, /, data):
+        """Delete project category"""
+        await self.statemgr.invalidate_one('ref--project-category', data.project_category_id)
 
     # =========== Work Package Context ============
 
@@ -514,6 +522,8 @@ class CPOPortalAggregate(Aggregate):
         work_item = self.rootobj
         await self.statemgr.invalidate(work_item)
         return work_item
+
+    # =========== Work Item Deliverable (Work Item Context) ============
 
     @action('work-item-deliverable-created', resources='work-item')
     async def create_work_item_deliverable(self, /, data):

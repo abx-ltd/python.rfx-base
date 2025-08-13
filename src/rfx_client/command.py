@@ -361,6 +361,43 @@ class CreateProjectCategory(Command):
         result = await agg.create_project_category(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="project-category-response")
 
+
+class UpdateProjectCategory(Command):
+    """Update Project Category - Updates a project category"""
+
+    class Meta:
+        key = "update-project-category"
+        resources = ("project",)
+        tags = ["project", "category"]
+        auth_required = True
+        description = "Update project category"
+        new_resource = True
+
+    Data = datadef.UpdateProjectCategoryPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update project category"""
+        await agg.update_project_category(data=payload)
+
+
+class DeleteProjectCategory(Command):
+    """Delete Project Category - Deletes a project category"""
+
+    class Meta:
+        key = "delete-project-category"
+        resources = ("project",)
+        tags = ["project", "category"]
+        auth_required = True
+        description = "Delete project category"
+        new_resource = True
+
+    Data = datadef.DeleteProjectCategoryPayload
+
+    async def _process(self, agg, stm, payload):
+        """Delete project category"""
+        await agg.delete_project_category(data=payload)
+
+
 # ---------- Work Package Context ----------
 
 
@@ -402,15 +439,15 @@ class UpdateWorkPackage(Command):
         yield agg.create_response(serialize_mapping(result), _type="work-package-response")
 
 
-class InvalidateWorkPackage(Command):
+class DeleteWorkPackage(Command):
     """Invalidate Work Package - Invalidate a work package"""
 
     class Meta:
-        key = "invalidate-work-package"
+        key = "delete-work-package"
         resources = ('work-package', )
-        tags = ['work-package', 'invalidate']
+        tags = ['work-package', 'delete']
         auth_required = True
-        description = "Invalidate work package"
+        description = "Delete work package"
 
     async def _process(self, aggregate, stm, payload):
         await aggregate.invalidate_work_package()
@@ -550,17 +587,17 @@ class UpdateWorkItemDeliverable(Command):
         await agg.update_work_item_deliverable(data=payload)
 
 
-class InvalidateWorkItemDeliverable(Command):
+class DeleteWorkItemDeliverable(Command):
     """Invalidate Work Item Deliverable - Invalidate a work item deliverable"""
 
     class Meta:
-        key = "invalidate-work-item-deliverable"
+        key = "delete-work-item-deliverable"
         resources = ("work-item",)
-        tags = ["work-item", "deliverable", "invalidate"]
+        tags = ["work-item", "deliverable", "delete"]
         auth_required = True
-        description = "Invalidate work package deliverable"
+        description = "Delete work package deliverable"
 
-    Data = datadef.InvalidateWorkPackageDeliverablePayload
+    Data = datadef.DeleteWorkItemDeliverablePayload
 
     async def _process(self, agg, stm, payload):
         """Invalidate work package deliverable"""
