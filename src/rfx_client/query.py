@@ -182,6 +182,54 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     total_deliverables: int = IntegerField("Total Deliverables")
 
 
+@resource('project-work-item')
+class WorkItemDetailQuery(DomainQueryResource):
+    """Work item detail queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "_project-work-item"
+
+    
+    type: str = StringField("Type")
+    name: str = StringField("Name")
+    description: str = StringField("Description")
+    price_unit: float = FloatField("Price Unit")
+    credit_per_unit: float = FloatField("Credit Per Unit")
+    estimate: str = StringField("Estimate")
+    type_alias: str = StringField("Type Alias")
+
+
+@resource('project-work-item-listing')
+class WorkItemListingQuery(DomainQueryResource):
+    """Work item listing queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_project-work-item-listing"
+
+        scope_required = scope.ProjectWorkItemListingScopeSchema
+
+    project_work_package_id: UUID_TYPE = UUIDField("Project Work Package ID")
+    project_work_item_id: UUID_TYPE = UUIDField("Project Work Item ID")
+    status: str = StringField("Status")
+    project_work_item_name: str = StringField("Project Work Item Name")
+    project_work_item_description: str = StringField("Project Work Item Description")
+    price_unit: float = FloatField("Price Unit")
+    credit_per_unit: float = FloatField("Credit Per Unit")
+    project_work_item_type_code: str = StringField("Project Work Item Type Code")
+    project_work_item_type_alias: str = StringField("Project Work Item Type Alias")
+    total_credits_for_item: float = FloatField("Total Credits For Item")
+    estimated_cost_for_item: float = FloatField("Estimated Cost For Item")
+    estimate: str = StringField("Estimate")
+
 # Work Item Queries
 
 
@@ -247,6 +295,22 @@ class WorkItemListingQuery(DomainQueryResource):
     total_credits_for_item: float = FloatField("Total Credits For Item")
     estimated_cost_for_item: float = FloatField("Estimated Cost For Item")
     estimate: str = StringField("Estimate")
+
+
+@resource('work-item-deliverable')
+class WorkItemDeliverableQuery(DomainQueryResource):
+    """Work item deliverable queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        scope_required = scope.WorkItemDeliverableScopeSchema
+
+    name: str = StringField("Name")
+    description: str = StringField("Description")
+    work_item_id: UUID_TYPE = UUIDField("Work Item ID")
 
 
 # Work Package Queries

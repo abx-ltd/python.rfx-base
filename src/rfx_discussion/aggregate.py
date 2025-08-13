@@ -45,6 +45,7 @@ class RFXDiscussionAggregate(Aggregate):
     @action('ticket-created', resources='ticket')
     async def create_ticket(self, /, data):
         """Create a new ticket tied to project"""
+        logger.info(f"Create a new ticket tied to project: {data}")
 
         record = self.init_resource(
             "ticket",

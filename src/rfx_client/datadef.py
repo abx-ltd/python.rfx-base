@@ -90,7 +90,7 @@ class CreateProjectTicketPayload(DataModel):
     priority: Optional[Priority] = Priority.MEDIUM
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
-    availability: Optional[Availability] = Availability.OPEN
+    availability: str = "OPEN"
     status: Optional[str] = "DRAFT"
     sync_status: Optional[SyncStatus] = SyncStatus.PENDING
 

@@ -166,7 +166,7 @@ class ProjectWorkItemDeliverable(CPOPortalBaseModel):
 class ViewProjectWorkPackage(CPOPortalBaseModel):
     __tablename__ = "_project-work-package"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
-    
+
     project_id = sa.Column(pg.UUID, primary_key=True)
     work_package_id = sa.Column(pg.UUID, primary_key=True)
     quantity = sa.Column(sa.Integer, nullable=False)
@@ -179,6 +179,38 @@ class ViewProjectWorkPackage(CPOPortalBaseModel):
     upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     total_deliverables = sa.Column(sa.Integer, nullable=False)
+
+
+class ViewProjectWorkItem(CPOPortalBaseModel):
+    __tablename__ = "_project-work-item"
+    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+
+    type = sa.Column(sa.String(50), nullable=False)
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
+    credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
+    estimate = sa.Column(sa.Interval)
+    type_alias = sa.Column(sa.String(50), nullable=False)
+
+
+class ViewProjectWorkItemListing(CPOPortalBaseModel):
+    __tablename__ = "_project-work-item-listing"
+    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+
+    project_work_package_id = sa.Column(pg.UUID, primary_key=True)
+    project_work_item_id = sa.Column(pg.UUID, primary_key=True)
+    status = sa.Column(sa.String(100), nullable=False)
+    project_work_item_name = sa.Column(sa.String(255), nullable=False)
+    project_work_item_description = sa.Column(sa.Text)
+    price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
+    credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
+    project_work_item_type_code = sa.Column(sa.String(100), nullable=False)
+    project_work_item_type_alias = sa.Column(sa.String(50), nullable=False)
+    total_credits_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
+    estimated_cost_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
+    estimate = sa.Column(sa.Interval)
+
 
 # Project BDM Contact Entity
 

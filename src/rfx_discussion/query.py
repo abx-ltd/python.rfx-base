@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
+from datetime import datetime
 
 
 default_exclude_fields = ["realm", "deleted", "etag",
@@ -82,17 +83,13 @@ class InquiryQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "_inquiry"
 
-    title: str = StringField("Title")
-    description: str = StringField("Description")
-    priority: Priority = EnumField("Priority")
     type: str = StringField("Type")
-    parent_id: UUID_TYPE = UUIDField("Parent ID")
-    assignee: UUID_TYPE = UUIDField("Assignee")
-    status: str = StringField("Status")
-    workflow_id: UUID_TYPE = UUIDField("Workflow ID")
+    type_icon_color: str = StringField("Type Icon Color")
+    title: str = StringField("Title")
+    tag_names: list[str] = ArrayField("Tag Names")
     availability: Availability = EnumField("Availability")
-    sync_status: SyncStatus = EnumField("Sync Status")
-    is_inquiry: bool = BooleanField("Is Inquiry")
+    activity: datetime = DatetimeField("Activity")
+
 
 @resource('ticket-comment')
 class TicketCommentQuery(DomainQueryResource):

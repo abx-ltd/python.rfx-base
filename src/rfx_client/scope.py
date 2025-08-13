@@ -17,3 +17,11 @@ class ProjectMilestoneScopeSchema(BaseModel):
 
 class ProjectWorkPackageScopeSchema(BaseModel):
     project_id: UUID_TYPE = UUIDField("Project ID")
+
+
+class WorkItemDeliverableScopeSchema(BaseModel):
+    work_item_id: UUID_TYPE = UUIDField("Work Item ID")
+
+
+class ProjectWorkItemListingScopeSchema(BaseModel):
+    project_work_package_id: UUID_TYPE = UUIDField("Project Work Package ID")

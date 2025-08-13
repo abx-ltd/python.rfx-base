@@ -36,7 +36,8 @@ class DiscussionMessage(CPOPortalDomain.Message):
 
 class ProjectMessageData(DataModel):
     command: str = "add-ticket-to-project"
-    payload: dict = {}
+    payload: dict = {
+    }
     project_id: str = None
     context: dict = {}     # Added missing field
 
