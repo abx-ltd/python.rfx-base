@@ -222,6 +222,24 @@ class CreateTicketType(Command):
         yield agg.create_response(serialize_mapping(result), _type="ticket-type-response")
 
 
+class UpdateTicketType(Command):
+    """Update Ticket Type - Updates a ticket type"""
+
+    class Meta:
+        key = "update-ticket-type"
+        resources = ("ticket",)
+        tags = ["ticket", "ticket-type", "update"]
+        auth_required = True
+        description = "Update a ticket type"
+        new_resource = True
+
+    Data = datadef.UpdateTicketTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Update ticket type"""
+        await agg.update_ticket_type(data=payload)
+
+
 class DeleteTicketType(Command):
     """Delete Ticket Type - Deletes a ticket type"""
 

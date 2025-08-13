@@ -26,10 +26,6 @@ class CreateTicketPayload(DataModel):
     availability: Optional[Availability] = Availability.OPEN
 
 
-class DeleteTicketTypePayload(DataModel):
-    ticket_type_id: UUID_TYPE = None
-
-
 class UpdateTicketPayload(DataModel):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -80,6 +76,20 @@ class CreateTicketTypePayload(DataModel):
     icon_color: Optional[str] = Field(max_length=7, default=None)
     is_active: bool = True
     is_inquiry: bool = False
+
+
+class UpdateTicketTypePayload(DataModel):
+    ticket_type_id: UUID_TYPE
+    key: str = Field(max_length=50)
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    icon_color: Optional[str] = Field(max_length=7, default=None)
+    is_active: Optional[bool] = None
+    is_inquiry: Optional[bool] = None
+
+
+class DeleteTicketTypePayload(DataModel):
+    ticket_type_id: UUID_TYPE = None
 
 
 # Tag related payloads

@@ -22,10 +22,23 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+    @action("ticket-type-updated", resources="ticket")
+    async def update_ticket_type(self, /, data):
+        """Update a ticket type"""
+        ticket_type = await self.statemgr.find_one("ref--ticket-type", where=dict(_id=data.ticket_type_id))
+        if not ticket_type:
+            raise ValueError("Ticket type not found")
+        updated_data = serialize_mapping(data)
+        updated_data.pop("ticket_type_id")
+        await self.statemgr.update(ticket_type, **updated_data)
+        return ticket_type
+
     @action("ticket-type-deleted", resources="ticket")
     async def delete_ticket_type(self, /, data):
         """Delete a ticket type"""
         ticket_type = await self.statemgr.find_one("ref--ticket-type", where=dict(_id=data.ticket_type_id))
+        if not ticket_type:
+            raise ValueError("Ticket type not found")
         await self.statemgr.invalidate_one("ref--ticket-type", data.ticket_type_id)
         return {"deleted": True}
 
