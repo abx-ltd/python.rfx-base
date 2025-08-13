@@ -51,10 +51,3 @@ class ContactMethod(Enum):
     MESSAGE = "MESSAGE"
     PHONE_CALL = "PHONE_CALL"
     MEETING = "MEETING"
-
-
-class WorkPackageItemStatus(Enum):
-    PENDING = "PENDING"
-    IN_PROGRESS = "IN_PROGRESS"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"

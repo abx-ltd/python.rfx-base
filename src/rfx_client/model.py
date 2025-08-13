@@ -150,9 +150,6 @@ class ProjectWorkPackageWorkItem(CPOPortalBaseModel):
         sa.ForeignKey(ProjectWorkPackage._id), nullable=False)
     project_work_item_id = sa.Column(sa.ForeignKey(
         ProjectWorkItem._id), nullable=False)
-    status = sa.Column(sa.Enum(types.WorkPackageItemStatus, name="work_package_item_status",
-                               schema=config.CPO_PORTAL_SCHEMA),
-                       nullable=False)
 
 
 class ProjectWorkItemDeliverable(CPOPortalBaseModel):
@@ -200,7 +197,6 @@ class ViewProjectWorkItemListing(CPOPortalBaseModel):
 
     project_work_package_id = sa.Column(pg.UUID, primary_key=True)
     project_work_item_id = sa.Column(pg.UUID, primary_key=True)
-    status = sa.Column(sa.String(100), nullable=False)
     project_work_item_name = sa.Column(sa.String(255), nullable=False)
     project_work_item_description = sa.Column(sa.Text)
     price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
@@ -344,7 +340,6 @@ class WorkPackageWorkItem(CPOPortalBaseModel):
 
     work_package_id = sa.Column(sa.ForeignKey(WorkPackage._id), nullable=False)
     work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
-    status = sa.Column(sa.String(100), nullable=False)
 
 
 class ViewWorkPackage(CPOPortalBaseModel):
