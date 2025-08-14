@@ -5,9 +5,8 @@ from fluvius.data import DataModel, UUID_TYPE
 
 from .types import Priority, Availability
 
-# Ticket related payloads
 
-
+# ---------- Inquiry (Ticket Context) ----------
 class CreateInquiryPayload(DataModel):
     title: str = Field(max_length=255)
     description: Optional[str] = None
@@ -16,6 +15,7 @@ class CreateInquiryPayload(DataModel):
     availability: Optional[Availability] = Availability.CLOSED
 
 
+# ---------- Ticket (Ticket Context) ----------
 class CreateTicketPayload(DataModel):
     title: str = Field(max_length=255)
     description: Optional[str] = None
@@ -40,11 +40,7 @@ class RemoveTicketPayload(DataModel):
     ticket_id: UUID_TYPE
 
 
-class ChangeTicketStatusPayload(DataModel):
-    next_status: str
-    note: Optional[str]
-
-
+# ---------- Ticket Assignee (Ticket Context) ----------
 class AssignTicketMemberPayload(DataModel):
     member_id: UUID_TYPE
 
@@ -53,14 +49,16 @@ class RemoveTicketMemberPayload(DataModel):
     member_id: UUID_TYPE
 
 
-class AddTicketCommentPayload(DataModel):
-    comment_id: UUID_TYPE
-
-
+# ---------- Ticket Participant (Ticket Context) ----------
 class AddTicketParticipantPayload(DataModel):
     participant_id: UUID_TYPE
 
 
+class RemoveTicketParticipantPayload(DataModel):
+    participant_id: UUID_TYPE
+
+
+# ---------- Ticket Tag (Ticket Context) ----------
 class AddTicketTagPayload(DataModel):
     tag_id: UUID_TYPE
 
@@ -69,6 +67,7 @@ class RemoveTicketTagPayload(DataModel):
     tag_id: UUID_TYPE
 
 
+# ---------- Ticket Type (Ticket Context) ----------
 class CreateTicketTypePayload(DataModel):
     key: str = Field(max_length=50)
     name: str = Field(max_length=255)

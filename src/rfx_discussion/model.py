@@ -77,7 +77,6 @@ class TicketAssignee(RFXDiscussionBaseModel):
 
     ticket_id = sa.Column(sa.ForeignKey(Ticket._id), nullable=False)
     member_id = sa.Column(pg.UUID, nullable=False)  # FK to profile(_id)
-    role = sa.Column(sa.String(100), nullable=False)  # FK to ref--project-role
 
 
 # Ticket Participants Entity

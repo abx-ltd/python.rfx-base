@@ -94,7 +94,7 @@ class AssignMemberToTicket(Command):
 
     async def _process(self, agg, stm, payload):
         """Assign member to ticket"""
-        await agg.assign_member_to_ticket(payload.member_id)
+        await agg.assign_member_to_ticket(data=payload)
 
 
 class RemoveMemberFromTicket(Command):
@@ -149,6 +149,23 @@ class AddParticipantToTicket(Command):
     async def _process(self, agg, stm, payload):
         """Add participant to ticket"""
         await agg.add_ticket_participant(payload.participant_id)
+
+
+class RemoveParticipantFromTicket(Command):
+    """Remove Participant from Ticket - Removes a participant from ticket"""
+
+    class Meta:
+        key = "remove-participant"
+        resources = ("ticket",)
+        tags = ["ticket", "participant"]
+        auth_required = True
+        description = "Remove participant from ticket"
+
+    Data = datadef.RemoveTicketParticipantPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove participant from ticket"""
+        await agg.remove_ticket_participant(payload.participant_id)
 
 
 # ---------- Tag Context ----------

@@ -34,12 +34,42 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
+@resource('estimator')
+class ProjectDraftQuery(DomainQueryResource):
+    """Project draft queries"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        user_id = context.user._id
+        return {"_creator": user_id, "status": "DRAFT"}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "project"
+
+    name: str = StringField("Project Name")
+    description: str = StringField("Description")
+    category: str = StringField("Category")
+    priority: Priority = EnumField("Priority")
+    start_date: str = DatetimeField("Start Date")
+    target_date: str = DatetimeField("Target Date")
+    free_credit_applied: int = IntegerField("Free Credit Applied")
+    referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
+
+
 # Project Queries
-
-
 @resource('project')
 class ProjectQuery(DomainQueryResource):
     """Project queries"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        user_id = context.user._id
+        return {"_creator": user_id, "status": "ACTIVE"}
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
@@ -193,7 +223,6 @@ class WorkItemDetailQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "_project-work-item"
 
-    
     type: str = StringField("Type")
     name: str = StringField("Name")
     description: str = StringField("Description")
@@ -221,11 +250,14 @@ class WorkItemListingQuery(DomainQueryResource):
     project_work_item_id: UUID_TYPE = UUIDField("Project Work Item ID")
     status: str = StringField("Status")
     project_work_item_name: str = StringField("Project Work Item Name")
-    project_work_item_description: str = StringField("Project Work Item Description")
+    project_work_item_description: str = StringField(
+        "Project Work Item Description")
     price_unit: float = FloatField("Price Unit")
     credit_per_unit: float = FloatField("Credit Per Unit")
-    project_work_item_type_code: str = StringField("Project Work Item Type Code")
-    project_work_item_type_alias: str = StringField("Project Work Item Type Alias")
+    project_work_item_type_code: str = StringField(
+        "Project Work Item Type Code")
+    project_work_item_type_alias: str = StringField(
+        "Project Work Item Type Alias")
     total_credits_for_item: float = FloatField("Total Credits For Item")
     estimated_cost_for_item: float = FloatField("Estimated Cost For Item")
     estimate: str = StringField("Estimate")

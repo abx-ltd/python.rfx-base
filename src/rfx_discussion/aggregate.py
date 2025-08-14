@@ -10,7 +10,7 @@ from .types import Availability, SyncStatus
 class RFXDiscussionAggregate(Aggregate):
     """CPO Portal Aggregate Root - Handles  ticket, comment, external """
 
-    # =========== Ticket Context ============
+    # =========== Ticket Type (Ticket Context) ============
     @action("ticket-type-created", resources="ticket")
     async def create_ticket_type(self, /, data):
         """Create a new ticket type"""
@@ -42,6 +42,8 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.invalidate_one("ref--ticket-type", data.ticket_type_id)
         return {"deleted": True}
 
+    # =========== Inquiry (Ticket Context) ============
+
     @action('inquiry-created', resources='ticket')
     async def create_inquiry(self, /, data):
         """Create a new inquiry"""
@@ -55,6 +57,7 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+    # =========== Ticket (Ticket Context) ============
     @action('ticket-created', resources='ticket')
     async def create_ticket(self, /, data):
         """Create a new ticket tied to project"""
@@ -84,35 +87,24 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.invalidate(ticket)
         return {"removed": True}
 
-    @action('ticket-status-changed', resources='ticket')
-    async def change_ticket_status(self, /, next_status: str, note: Optional[str] = None):
-        """Change ticket status using workflow"""
-        ticket = self.rootobj
-
-        status_record = self.init_resource(
-            "ticket-status",
-            {
-                "ticket_id": ticket._id,
-                "src_state": ticket.status,
-                "dst_state": next_status,
-                "note": note
-            },
-            _id=UUID_GENR()
-        )
-        await self.statemgr.insert(status_record)
-
-        result = await self.statemgr.update(ticket, status=next_status)
-        return result
+    # =========== Ticket Assignee (Ticket Context) ============
 
     @action('member-assigned-to-ticket', resources='ticket')
-    async def assign_member_to_ticket(self, /, member_id: str):
+    async def assign_member_to_ticket(self, /, data):
         """Assign member to ticket"""
+        ticket_assignee = await self.statemgr.find_one('ticket-assignee',
+                                                       where=dict(ticket_id=self.aggroot.identifier))
+        if ticket_assignee and ticket_assignee.member_id == data.member_id:
+            raise ValueError("Member already assigned to ticket")
+
+        if ticket_assignee:
+            await self.statemgr.invalidate_one('ticket-assignee', ticket_assignee._id)
+
         record = self.init_resource(
             "ticket-assignee",
             {
                 "ticket_id": self.aggroot.identifier,
-                "member_id": member_id,
-                "role": "ASSIGNEE"
+                "member_id": data.member_id
             },
             _id=UUID_GENR(),
         )
@@ -122,32 +114,25 @@ class RFXDiscussionAggregate(Aggregate):
     @action('member-removed-from-ticket', resources='ticket')
     async def remove_member_from_ticket(self, /, member_id: str):
         """Remove member from ticket"""
-        assignees = await self.statemgr.find_all('ticket-assignee',
-                                                 where=dict(
-                                                     ticket_id=self.aggroot.identifier,
-                                                     member_id=member_id
-                                                 ))
-        for assignee in assignees:
-            await self.statemgr.invalidate_one('ticket-assignee', assignee._id)
+        assignee = await self.statemgr.find_one('ticket-assignee',                                                 where=dict(
+            ticket_id=self.aggroot.identifier,
+            member_id=member_id
+        ))
+        if not assignee:
+            raise ValueError("Assignee not found")
+        await self.statemgr.invalidate_one('ticket-assignee', assignee._id)
         return {"removed": True}
 
-    @action('comment-added-to-ticket', resources='ticket')
-    async def add_ticket_comment(self, /, comment_id: str):
-        """Add comment to ticket"""
-        record = self.init_resource(
-            "ticket-comment",
-            {
-                "ticket_id": self.aggroot.identifier,
-                "comment_id": comment_id
-            },
-            _id=UUID_GENR(),
-        )
-        await self.statemgr.insert(record)
-        return record
+    # =========== Ticket Participant (Ticket Context) ============
 
     @action('participant-added-to-ticket', resources='ticket')
     async def add_ticket_participant(self, /, participant_id: str):
         """Add participant to ticket"""
+        ticket_participant = await self.statemgr.find_one('ticket-participant', where=dict(ticket_id=self.aggroot.identifier,
+                                                                                           participant_id=participant_id))
+        if ticket_participant:
+            raise ValueError("Participant already added to ticket")
+
         record = self.init_resource(
             "ticket-participant",
             {
@@ -159,6 +144,19 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+    @action('participant-removed-from-ticket', resources='ticket')
+    async def remove_ticket_participant(self, /, participant_id: str):
+        """Remove participant from ticket"""
+        participant = await self.statemgr.find_one('ticket-participant',                                                   where=dict(
+            ticket_id=self.aggroot.identifier,
+            participant_id=participant_id
+        ))
+        if not participant:
+            raise ValueError("Participant not found")
+        await self.statemgr.invalidate_one('ticket-participant', participant._id)
+        return {"removed": True}
+
+    # =========== Ticket Tag (Ticket Context) ============
     @action('tag-added-to-ticket', resources='ticket')
     async def add_ticket_tag(self, /, tag_id: str):
         """Add tag to ticket"""

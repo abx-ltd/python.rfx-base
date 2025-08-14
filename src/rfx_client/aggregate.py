@@ -13,9 +13,17 @@ class CPOPortalAggregate(Aggregate):
     # =========== Estimator (Project Context) ============
     @action('estimator-created', resources='project')
     async def create_project_estimator(self, /, data):
-
         # create a new project with the data
         """Create a new estimator (project draft)"""
+        user_id = self.get_context().user_id
+        estimator = await self.statemgr.find_one('project', where=dict(
+            _creator=user_id,
+            status="DRAFT"
+        ))
+
+        if estimator:
+            raise ValueError("Estimator already exists")
+
         record = self.init_resource(
             "project",
             serialize_mapping(data),
