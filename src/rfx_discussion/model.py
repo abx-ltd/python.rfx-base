@@ -136,3 +136,13 @@ class Tag(RFXDiscussionBaseModel):
     description = sa.Column(sa.Text)
     is_active = sa.Column(sa.Boolean, default=True)
     target_resource = sa.Column(sa.String(100), nullable=False)
+
+# ================ Comment Context ================
+
+class Comment(RFXDiscussionBaseModel):
+    __tablename__ = "comment"
+
+    master_id = sa.Column(pg.UUID)
+    parent_id = sa.Column(pg.UUID)
+    content = sa.Column(sa.Text)
+    depth = sa.Column(sa.Integer, default=0)

@@ -105,3 +105,19 @@ class UpdateTagPayload(DataModel):
     description: Optional[str] = None
     target_resource: Optional[str] = None
     is_active: Optional[bool] = None
+
+# ---------- Comment Context ----------
+
+
+class CreateCommentPayload(DataModel):
+    content: str
+
+
+class UpdateCommentPayload(DataModel):
+    content: str
+
+# ---------- Ticket Comment (Ticket Context) ----------
+
+
+class CreateTicketCommentPayload(DataModel):
+    content: str

@@ -16,8 +16,14 @@ class RFXDiscussionDomain(Domain):
 class TicketResponse(RFXDiscussionDomain.Response):
     pass
 
+
 class TicketTypeResponse(RFXDiscussionDomain.Response):
     pass
 
+
 class TagResponse(RFXDiscussionDomain.Response):
+    pass
+
+
+class CommentResponse(RFXDiscussionDomain.Response):
     pass

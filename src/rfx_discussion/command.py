@@ -6,9 +6,8 @@ from . import datadef, config
 processor = RFXDiscussionDomain.command_processor
 Command = RFXDiscussionDomain.Command
 
-# ---------- Ticket Context ----------
 
-
+# ---------- Inquiry (Ticket Context) ----------
 class CreateInquiry(Command):
     """Create Inquiry - Creates a new inquiry (ticket not tied to project)"""
 
@@ -30,6 +29,7 @@ class CreateInquiry(Command):
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
 
+# ---------- Ticket (Ticket Context) ----------
 class CreateTicket(Command):
     """Create Ticket - Creates a new ticket tied to a project"""
 
@@ -80,6 +80,7 @@ class RemoveTicket(Command):
         await agg.remove_ticket()
 
 
+# ---------- Ticket Assignee (Ticket Context) ----------
 class AssignMemberToTicket(Command):
     """Assign Member to Ticket - Assigns a member to ticket"""
 
@@ -114,26 +115,7 @@ class RemoveMemberFromTicket(Command):
         await agg.remove_member_from_ticket(payload.member_id)
 
 
-# class AddTicketComment(Command):
-#     """Add Comment to Ticket - Adds a comment to ticket"""
-
-#     class Meta:
-#         key = "add-ticket-comment"
-#         resources = ("ticket",)
-#         tags = ["ticket", "comment"]
-#         auth_required = True
-#         description = "Add comment to ticket"
-
-#     Data = datadef.AddTicketCommentPayload
-
-#     async def _process(self, agg, stm, payload):
-#         """Add comment to ticket"""
-#         await agg.add_ticket_comment(payload.comment_id)
-#         # Get the updated ticket data
-#         ticket = await stm.fetch("ticket", self.aggroot.identifier)
-#         yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
-
-
+# ---------- Ticket Participant (Ticket Context) ----------
 class AddParticipantToTicket(Command):
     """Add Participant to Ticket - Adds a participant to ticket"""
 
@@ -220,6 +202,7 @@ class DeleteTag(Command):
         await agg.delete_tag()
 
 
+# ---------- Ticket Type (Ticket Context) ----------
 class CreateTicketType(Command):
     """Create Ticket Type - Creates a new ticket type"""
 
@@ -275,6 +258,7 @@ class DeleteTicketType(Command):
         await agg.delete_ticket_type(data=payload)
 
 
+# ---------- Ticket Tag (Ticket Context) ----------
 class AddTicketTag(Command):
     """Add Tag to Ticket - Adds a tag to ticket"""
 
@@ -310,3 +294,77 @@ class RemoveTicketTag(Command):
         # Get the updated ticket data
         ticket = await stm.fetch("ticket", self.aggroot.identifier)
         yield agg.create_response(serialize_mapping(ticket), _type="ticket-response")
+
+# ---------- Comment Context ----------
+
+
+class CreateComment(Command):
+    """Create Comment - Creates a new comment"""
+
+    class Meta:
+        key = "create-comment"
+        resources = ("comment",)
+        tags = ["comment"]
+        auth_required = True
+        description = "Create a new comment"
+        new_resource = True
+        internal = True
+
+    Data = datadef.CreateCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create comment"""
+        result = await agg.create_comment(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
+
+class UpdateComment(Command):
+    """Update Comment - Updates a comment"""
+
+    class Meta:
+        key = "update-comment"
+        resources = ("comment",)
+        tags = ["comment", "update"]
+        auth_required = True
+        description = "Update a comment"
+
+    Data = datadef.UpdateCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update comment"""
+        await agg.update_comment(data=payload)
+
+
+class DeleteComment(Command):
+    """Delete Comment - Deletes a comment"""
+
+    class Meta:
+        key = "delete-comment"
+        resources = ("comment",)
+        tags = ["comment", "delete"]
+        auth_required = True
+        description = "Delete a comment"
+
+    async def _process(self, agg, stm, payload):
+        """Delete comment"""
+        await agg.delete_comment()
+
+# ------------ Ticket Comment (Ticket Context) ------------
+
+
+class CreateTicketComment(Command):
+    """Create Ticket Comment - Creates a new comment for a ticket"""
+
+    class Meta:
+        key = "create-ticket-comment"
+        resources = ("ticket",)
+        tags = ["ticket", "comment"]
+        auth_required = True
+        description = "Create a new comment for a ticket"
+
+    Data = datadef.CreateTicketCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create ticket comment"""
+        result = await agg.create_ticket_comment(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="comment-response")

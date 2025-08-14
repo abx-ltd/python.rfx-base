@@ -210,3 +210,54 @@ class RFXDiscussionAggregate(Aggregate):
             raise ValueError("Tag not found")
         await self.statemgr.invalidate(tag)
         return {"deleted": True}
+
+    # =========== Comment Context ============
+    @action("comment-created", resources="comment")
+    async def create_comment(self, /, data):
+        """Create a new comment"""
+        record = self.init_resource(
+            "comment",
+            serialize_mapping(data),
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("comment-updated", resources="comment")
+    async def update_comment(self, /, data):
+        """Update comment"""
+        comment = self.rootobj
+        await self.statemgr.update(comment, **serialize_mapping(data))
+
+    @action("comment-deleted", resources="comment")
+    async def delete_comment(self, /):
+        """Delete comment"""
+        comment = self.rootobj
+        await self.statemgr.invalidate(comment)
+
+    # =========== Ticket Comment (Ticket Context) ============
+
+    @action("ticket-comment-created", resources="ticket")
+    async def create_ticket_comment(self, /, data):
+        """Create a new comment for a ticket"""
+        ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
+        if not ticket:
+            raise ValueError("Ticket not found")
+
+        record = self.init_resource(
+            "comment",
+            serialize_mapping(data),
+            _id=UUID_GENR()
+        )
+
+        ticket_comment = self.init_resource(
+            "ticket-comment",
+            {
+                "ticket_id": self.aggroot.identifier,
+                "comment_id": record._id
+            },
+        )
+
+        await self.statemgr.insert(record)
+        await self.statemgr.insert(ticket_comment)
+        return record
