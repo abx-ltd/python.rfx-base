@@ -142,6 +142,7 @@ class ProjectWorkItem(CPOPortalBaseModel):
     price_unit = sa.Column(sa.Numeric(10, 2))
     credit_per_unit = sa.Column(sa.Numeric(10, 2))
     estimate = sa.Column(sa.Interval)
+    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
 
 
 class ProjectWorkPackageWorkItem(CPOPortalBaseModel):
@@ -150,6 +151,7 @@ class ProjectWorkPackageWorkItem(CPOPortalBaseModel):
         sa.ForeignKey(ProjectWorkPackage._id), nullable=False)
     project_work_item_id = sa.Column(sa.ForeignKey(
         ProjectWorkItem._id), nullable=False)
+    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
 
 
 class ProjectWorkItemDeliverable(CPOPortalBaseModel):
@@ -158,6 +160,7 @@ class ProjectWorkItemDeliverable(CPOPortalBaseModel):
         ProjectWorkItem._id), nullable=False)
     name = sa.Column(sa.String(255))
     description = sa.Column(sa.Text)
+    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
 
 
 class ViewProjectWorkPackage(CPOPortalBaseModel):

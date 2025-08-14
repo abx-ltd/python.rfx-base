@@ -8,7 +8,7 @@ processor = CPOPortalDomain.command_processor
 Command = CPOPortalDomain.Command
 
 
-# ---------- Project Context ----------
+# ---------- Estimator (Project Context)----------
 
 class CreateEstimator(Command):
     """Create Estimator - Creates a new estimator (project draft)"""
@@ -28,6 +28,25 @@ class CreateEstimator(Command):
         result = await agg.create_project_estimator(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
+
+class ApplyPromotion(Command):
+    """Apply Promotion - Applies a promotion code to a project"""
+
+    class Meta:
+        key = "apply-promotion"
+        resources = ("project",)
+        tags = ["project", "promotion"]
+        auth_required = True
+        description = "Apply a promotion code to a project"
+
+    Data = datadef.ApplyPromotionPayload
+
+    async def _process(self, agg, stm, payload):
+        """Apply a promotion code to a project"""
+        await agg.apply_promotion(data=payload)
+
+
+# ---------- Project (Project Context) ----------
 
 class CreateProject(Command):
     """Create Project - Creates a new project - this is a conversion from estimator"""
@@ -61,6 +80,8 @@ class DeleteProject(Command):
         """Delete a project"""
         await agg.delete_project()
 
+
+# ---------- Project BDM Contact (Still  in Project Context) ----------
 
 class CreateProjectBDMContact(Command):
     """Create Project BDM Contact - Creates a new BDM contact for a project"""
@@ -114,6 +135,8 @@ class DeleteProjectBDMContact(Command):
         await agg.delete_project_bdm_contact(data=payload)
 
 
+# ---------- Promotion Context ----------
+
 class CreatePromotion(Command):
     """Create Promotion Code - Creates a new promotion code"""
 
@@ -150,21 +173,21 @@ class UpdatePromotion(Command):
         await agg.update_promotion(data=payload)
 
 
-class ApplyPromotion(Command):
-    """Apply Promotion - Applies a promotion code to a project"""
+class RemovePromotion(Command):
+    """Remove Promotion - Removes a promotion code"""
 
     class Meta:
-        key = "apply-promotion"
-        resources = ("project",)
-        tags = ["project", "promotion"]
+        key = "remove-promotion"
+        resources = ("promotion",)
+        tags = ["promotion", "code"]
         auth_required = True
-        description = "Apply a promotion code to a project"
-
-    Data = datadef.ApplyPromotionPayload
+        description = "Remove a promotion code"
 
     async def _process(self, agg, stm, payload):
-        """Apply a promotion code to a project"""
-        await agg.apply_promotion(data=payload)
+        """Remove a promotion code"""
+        await agg.remove_promotion(data=payload)
+
+# ---------- Project (Project Context) ----------
 
 
 class AddWorkPackageToProject(Command):
@@ -520,36 +543,40 @@ class CreateWorkItemType(Command):
         yield agg.create_response(serialize_mapping(result), _type="work-item-type-response")
 
 
-# class UpdateWorkItemType(Command):
-#     """Update Work Item Type - Updates a work item type"""
+class UpdateWorkItemType(Command):
+    """Update Work Item Type - Updates a work item type"""
 
-#     class Meta:
-#         key = "update-work-item-type"
-#         resources = ("work-item",)
-#         tags = ["work-item", "type", "update"]
-#         auth_required = True
-#         description = "Update work item type"
+    class Meta:
+        key = "update-work-item-type"
+        resources = ("work-item",)
+        tags = ["work-item", "type", "update"]
+        auth_required = True
+        description = "Update work item type"
+        new_resource = True
 
-#     Data = datadef.UpdateWorkItemTypePayload
+    Data = datadef.UpdateWorkItemTypePayload
 
-#     async def _process(self, agg, stm, payload):
-#         """Update work item type"""
-#         await agg.update_work_item_type(data=payload)
+    async def _process(self, agg, stm, payload):
+        """Update work item type"""
+        await agg.update_work_item_type(data=payload)
 
 
-# class DeleteWorkItemType(Command):
-#     """Delete Work Item Type - Deletes a work item type"""
+class DeleteWorkItemType(Command):
+    """Delete Work Item Type - Deletes a work item type"""
 
-#     class Meta:
-#         key = "delete-work-item-type"
-#         resources = ("work-item",)
-#         tags = ["work-item", "type", "delete"]
-#         auth_required = True
-#         description = "Delete work item type"
+    class Meta:
+        key = "delete-work-item-type"
+        resources = ("work-item",)
+        tags = ["work-item", "type", "delete"]
+        auth_required = True
+        description = "Delete work item type"
+        new_resource = True
 
-#     async def _process(self, agg, stm, payload):
-#         """Delete work item type"""
-#         await agg.invalidate_work_item_type(data=payload)
+    Data = datadef.DeleteWorkItemTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Delete work item type"""
+        await agg.invalidate_work_item_type(data=payload)
 
 
 class CreateWorkItemDeliverable(Command):
@@ -633,52 +660,124 @@ class RemoveWorkItemFromWorkPackage(Command):
     async def _process(self, agg, stm, payload):
         await agg.remove_work_item_from_work_package(payload.work_item_id)
 
-
-# # ---------- Notification Context ----------
-# class MarkNotificationAsRead(Command):
-#     """Mark Notification As Read - Update is_read status of a specific notification to true"""
-
-#     class Meta:
-#         key = "mark-notfication-as-read"
-#         resources = ("notification",)
-#         tags = ["notification"]
-#         auth_required = True
-#         description = "Mark notification as read"
-
-#     Data = datadef.MarkNotificationAsReadPayload
-
-#     async def _process(self, agg, stm, payload):
-#         """Mark notification as read"""
+# ---------- Project Work Item (Project Context) ----------
 
 
-# class MarkAllNotificationsAsRead(Command):
-#     """Mark All Notification As Read - Updates the is_read status of all notifications for the authenticated user to true"""
+class UpdateProjectWorkItem(Command):
+    """Update Project Work Item - Updates a project work item"""
 
-#     class Meta:
-#         key = "mark-all-notfication-as-read"
-#         resources = ("notification",)
-#         tags = ["notification"]
-#         auth_required = True
-#         description = "Mark all notifications as read"
+    class Meta:
+        key = "update-project-work-item"
+        resources = ("project",)
+        tags = ["project", "work-item", "update"]
+        auth_required = True
+        description = "Update project work item"
 
-#     Data = datadef.MarkAllNotificationsAsReadPayload
+    Data = datadef.UpdateProjectWorkItemPayload
 
-#     async def _process(self, agg, stm, payload):
-#         """Mark all notifications as read"""
+    async def _process(self, agg, stm, payload):
+        """Update project work item"""
+        await agg.update_project_work_item(data=payload)
 
 
-# # ---------- Integration Context ----------
-# class UnifiedSync(Command):
-#     """Sync Client Portal items to External System - Unified sync command to sync data of client portal system to other external resource"""
+class RemoveProjectWorkItem(Command):
+    """Remove Project Work Item - Removes a project work item"""
 
-#     class Meta:
-#         key = "unified-sync"
-#         resources = ("integration",)
-#         tags = ["integration", "sync"]
-#         auth_required = True
-#         description = "Unified sync command"
+    class Meta:
+        key = "remove-project-work-item"
+        resources = ("project",)
+        tags = ["project", "work-item", "remove"]
+        auth_required = True
+        description = "Remove project work item"
 
-#     Data = datadef.UnifiedSyncPayload
+    Data = datadef.RemoveProjectWorkItemPayload
 
-#     async def _process(self, agg, stm, payload):
-#         """Unified sync command"""
+    async def _process(self, agg, stm, payload):
+        """Delete project work item"""
+        await agg.invalidate_project_work_item(data=payload)
+
+
+# ---------- Project Work Package (Project Context) ----------
+
+class UpdateProjectWorkPackage(Command):
+    """Update Project Work Package - Updates a project work package"""
+
+    class Meta:
+        key = "update-project-work-package"
+        resources = ("project",)
+        tags = ["project", "work-package", "update"]
+        auth_required = True
+        description = "Update project work package"
+
+    Data = datadef.UpdateProjectWorkPackagePayload
+
+    async def _process(self, agg, stm, payload):
+        """Update project work package"""
+        await agg.update_project_work_package(data=payload)
+
+
+# ---------- Project Work Package Work Item (Project Context) ----------
+
+class AddNewWorkItemToProjectWorkPackage(Command):
+    """Add New Work Item to Project Work Package - Adds a new work item to a project work package"""
+
+    class Meta:
+        key = "add-new-work-item-to-project-work-package"
+        resources = ("project",)
+        tags = ["project", "work-package", "work-item", "add"]
+
+    Data = datadef.AddNewWorkItemToProjectWorkPackagePayload
+
+    async def _process(self, agg, stm, payload):
+        """Add new work item to project work package"""
+        await agg.add_new_work_item_to_project_work_package(data=payload)
+
+
+class RemoveWorkItemFromProjectWorkPackage(Command):
+
+    class Meta:
+        key = "remove-project-work-item-from-project-work-package"
+        resources = ("project",)
+        tags = ["project", "work-package", "work-item", "remove"]
+
+    Data = datadef.RemoveProjectWorkItemFromProjectWorkPackagePayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove work item from project work package"""
+        await agg.remove_project_work_item_from_project_work_package(data=payload)
+
+
+# ---------- Project Work Item Deliverable (Project Context) ----------
+
+class UpdateProjectWorkItemDeliverable(Command):
+    """Update Project Work Item Deliverable - Updates a project work item deliverable"""
+
+    class Meta:
+        key = "update-project-work-item-deliverable"
+        resources = ("project",)
+        tags = ["project", "work-item", "deliverable", "update"]
+        auth_required = True
+        description = "Update project work item deliverable"
+
+    Data = datadef.UpdateProjectWorkItemDeliverablePayload
+
+    async def _process(self, agg, stm, payload):
+        """Update project work item deliverable"""
+        await agg.update_project_work_item_deliverable(data=payload)
+
+
+class DeleteProjectWorkItemDeliverable(Command):
+    """Delete Project Work Item Deliverable - Deletes a project work item deliverable"""
+
+    class Meta:
+        key = "delete-project-work-item-deliverable"
+        resources = ("project",)
+        tags = ["project", "work-item", "deliverable", "delete"]
+        auth_required = True
+        description = "Delete project work item deliverable"
+
+    Data = datadef.DeleteProjectWorkItemDeliverablePayload
+
+    async def _process(self, agg, stm, payload):
+        """Delete project work item deliverable"""
+        await agg.invalidate_project_work_item_deliverable(data=payload)

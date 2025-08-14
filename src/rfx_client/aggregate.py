@@ -10,7 +10,7 @@ from .types import Priority, SyncStatus
 class CPOPortalAggregate(Aggregate):
     """CPO Portal Aggregate Root - Handles all project, work package, ticket, workflow, tag, integration, and notification operations"""
 
-    # =========== Project Context ============
+    # =========== Estimator (Project Context) ============
     @action('estimator-created', resources='project')
     async def create_project_estimator(self, /, data):
 
@@ -24,70 +24,6 @@ class CPOPortalAggregate(Aggregate):
         )
         await self.statemgr.insert(record)
         return record
-
-    @action('project-created', resources='project')
-    async def create_project(self, /, data=None):
-        try:
-            parsed_duration = parse_duration(data.duration)
-            data = data.set(duration=parsed_duration)
-        except Exception:
-            raise ValueError(f"Invalid duration format: {data.duration}")
-
-        project = self.rootobj
-        result = await self.statemgr.update(project, **serialize_mapping(data), status="ACTIVE", target_date=data.start_date + parsed_duration)
-        return result
-
-    @action('project-deleted', resources='project')
-    async def delete_project(self, /):
-        """Delete a project"""
-        project = self.rootobj
-        await self.statemgr.invalidate(project)
-
-    @action('project-bdm-contact-created', resources='project')
-    async def create_project_bdm_contact(self, /, data):
-        project = self.rootobj
-        """Create a new BDM contact for a project"""
-        record = self.init_resource(
-            "project-bdm-contact",
-            serialize_mapping(data),
-            project_id=project._id,
-            _id=UUID_GENR()
-        )
-        await self.statemgr.insert(record)
-        return record
-
-    @action('project-bdm-contact-updated', resources='project')
-    async def update_project_bdm_contact(self, /, data):
-        project = self.rootobj
-        """Update a project BDM contact"""
-        record = await self.statemgr.find_one('project-bdm-contact', where=dict(
-            project_id=project._id,
-            _id=data.bdm_contact_id
-        ))
-
-        if not record:
-            raise ValueError("BDM contact not found")
-
-        update_data = serialize_mapping(data)
-        update_data.pop('bdm_contact_id', None)
-
-        await self.statemgr.update(record, **update_data)
-        return record
-
-    @action('project-bdm-contact-deleted', resources='project')
-    async def delete_project_bdm_contact(self, /, data):
-        project = self.rootobj
-        """Delete a project BDM contact"""
-        record = await self.statemgr.find_one('project-bdm-contact', where=dict(
-            _id=data.bdm_contact_id,
-            project_id=project._id
-        ))
-
-        if not record:
-            raise ValueError(
-                "BDM contact not found or does not belong to this project")
-
-        await self.statemgr.invalidate(record)
 
     @action('promotion-applied', resources='project')
     async def apply_promotion(self, /, data):
@@ -114,22 +50,25 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.update(promotion, current_uses=promotion.current_uses + 1)
         await self.statemgr.update(project, referral_code_used=promotion.code)
 
-    @action('promotion-created', resources='promotion')
-    async def create_promotion(self, /, data):
-        record = self.init_resource(
-            "promotion",
-            serialize_mapping(data),
-            _id=UUID_GENR()
-        )
-        """Create a new promotion code"""
-        await self.statemgr.insert(record)
-        return record
+    # =========== Project (Project Context) ============
 
-    @action('promotion-updated', resources='promotion')
-    async def update_promotion(self, /, data):
-        promotion = self.rootobj
-        await self.statemgr.update(promotion, **serialize_mapping(data))
-        return promotion
+    @action('project-created', resources='project')
+    async def create_project(self, /, data=None):
+        try:
+            parsed_duration = parse_duration(data.duration)
+            data = data.set(duration=parsed_duration)
+        except Exception:
+            raise ValueError(f"Invalid duration format: {data.duration}")
+
+        project = self.rootobj
+        result = await self.statemgr.update(project, **serialize_mapping(data), status="ACTIVE", target_date=data.start_date + parsed_duration)
+        return result
+
+    @action('project-deleted', resources='project')
+    async def delete_project(self, /):
+        """Delete a project"""
+        project = self.rootobj
+        await self.statemgr.invalidate(project)
 
     @action('ticket-added-to-project', resources='project')
     async def add_ticket_to_project(self, /, data):
@@ -222,6 +161,7 @@ class CPOPortalAggregate(Aggregate):
 
             project_work_item_id = UUID_GENR()
             project_work_item_data['_id'] = project_work_item_id
+            project_work_item_data['project_id'] = project._id
 
             project_work_items_batch.append(project_work_item_data)
 
@@ -239,6 +179,7 @@ class CPOPortalAggregate(Aggregate):
                 deliverable_data.pop('work_item_id', None)
                 deliverable_data['project_work_item_id'] = project_work_item_id
                 deliverable_data['_id'] = UUID_GENR()
+                deliverable_data['project_id'] = project._id
 
                 project_deliverables_batch.append(deliverable_data)
 
@@ -254,6 +195,7 @@ class CPOPortalAggregate(Aggregate):
             project_wp_work_item_data['project_work_package_id'] = project_work_package._id
             project_wp_work_item_data['project_work_item_id'] = project_work_item_id
             project_wp_work_item_data['_id'] = UUID_GENR()
+            project_wp_work_item_data['project_id'] = project._id
 
             project_wp_work_items_batch.append(project_wp_work_item_data)
 
@@ -322,6 +264,81 @@ class CPOPortalAggregate(Aggregate):
 
         return None
 
+    # =========== Project BDM Contact (Project Context) ============
+    @action('project-bdm-contact-created', resources='project')
+    async def create_project_bdm_contact(self, /, data):
+        project = self.rootobj
+        """Create a new BDM contact for a project"""
+        record = self.init_resource(
+            "project-bdm-contact",
+            serialize_mapping(data),
+            project_id=project._id,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action('project-bdm-contact-updated', resources='project')
+    async def update_project_bdm_contact(self, /, data):
+        project = self.rootobj
+        """Update a project BDM contact"""
+        record = await self.statemgr.find_one('project-bdm-contact', where=dict(
+            project_id=project._id,
+            _id=data.bdm_contact_id
+        ))
+
+        if not record:
+            raise ValueError("BDM contact not found")
+
+        update_data = serialize_mapping(data)
+        update_data.pop('bdm_contact_id', None)
+
+        await self.statemgr.update(record, **update_data)
+        return record
+
+    @action('project-bdm-contact-deleted', resources='project')
+    async def delete_project_bdm_contact(self, /, data):
+        project = self.rootobj
+        """Delete a project BDM contact"""
+        record = await self.statemgr.find_one('project-bdm-contact', where=dict(
+            _id=data.bdm_contact_id,
+            project_id=project._id
+        ))
+
+        if not record:
+            raise ValueError(
+                "BDM contact not found or does not belong to this project")
+
+        await self.statemgr.invalidate(record)
+
+    # =========== Promotion (Promotion Context) ============
+
+    @action('promotion-created', resources='promotion')
+    async def create_promotion(self, /, data):
+        record = self.init_resource(
+            "promotion",
+            serialize_mapping(data),
+            _id=UUID_GENR()
+        )
+        """Create a new promotion code"""
+        await self.statemgr.insert(record)
+        return record
+
+    @action('promotion-updated', resources='promotion')
+    async def update_promotion(self, /, data):
+        promotion = self.rootobj
+        await self.statemgr.update(promotion, **serialize_mapping(data))
+        return promotion
+
+    @action('promotion-removed', resources='promotion')
+    async def remove_promotion(self, /, data):
+        """Remove a promotion code"""
+        promotion = self.rootobj
+        await self.statemgr.invalidate(promotion)
+        return promotion
+
+    # =========== Project Member (Project Context) ============
+
     @action('member-added', resources='project')
     async def add_project_member(self, /, member_id: str, role: str):
         project = self.rootobj
@@ -338,20 +355,6 @@ class CPOPortalAggregate(Aggregate):
         )
         await self.statemgr.insert(record)
 
-    # @action('team-assigned', resources='project')
-    # async def assign_team_to_project(self, stm, /, team_id: str, role: str):
-    #     """Assign team to project"""
-    #     record = self.init_resource(
-    #         "project-member",
-    #         {
-    #             "team_id": team_id,
-    #             "role": role,
-    #             "project_id": self.aggroot.identifier
-    #         },
-    #         _id=UUID_GENR(),
-    #     )
-    #     await stm.insert(record)
-
     @action('member-removed', resources='project')
     async def remove_project_member(self, /, member_id: str):
         """Remove project member"""
@@ -365,6 +368,8 @@ class CPOPortalAggregate(Aggregate):
             raise ValueError("Project member not found")
 
         await self.statemgr.invalidate_one('project-member', project_member._id)
+
+    # =========== Project Milestone (Project Context) ============
 
     @action('milestone-created', resources='project')
     async def create_project_milestone(self, /, data):
@@ -400,29 +405,7 @@ class CPOPortalAggregate(Aggregate):
         """Delete project milestone"""
         await self.statemgr.invalidate_one('project-milestone', data.milestone_id)
 
-    @action('resource-uploaded', resources='project')
-    async def upload_project_resource(self, /, file: bytes, type: Optional[str] = None, description: Optional[str] = None) -> str:
-        """Upload project resource"""
-        resource_id = UUID_GENR()
-        record = self.init_resource(
-            "project-resource",
-            {
-                "type": type,
-                "description": description,
-                "size": len(file),
-                "project_id": self.aggroot.identifier
-            },
-            _id=resource_id,
-            uploaded_at=datetime.utcnow()
-        )
-        await self.statemgr.insert(record)
-        return str(resource_id)
-
-    @action('resource-deleted', resources='project')
-    async def delete_project_resource(self, /, resource_id: str):
-        """Delete project resource"""
-        await self.statemgr.invalidate_one("project-resource", resource_id)
-
+    # =========== Project Category (Project Context) ============
     @action('project-category-created', resources='project')
     async def create_project_category(self, /, data):
         """Create project category"""
@@ -524,7 +507,6 @@ class CPOPortalAggregate(Aggregate):
         return work_item
 
     # =========== Work Item Deliverable (Work Item Context) ============
-
     @action('work-item-deliverable-created', resources='work-item')
     async def create_work_item_deliverable(self, /, data):
         """Create new work item deliverable"""
@@ -564,6 +546,7 @@ class CPOPortalAggregate(Aggregate):
         else:
             raise ValueError("Work item deliverable not found")
 
+    # =========== Work Item to Work Package (Work Package Context) ============
     @action('work-item-added-to-work-package', resources='work-package')
     async def add_work_item_to_work_package(self, /, work_item_id):
         """Add work item to work package"""
@@ -592,6 +575,8 @@ class CPOPortalAggregate(Aggregate):
 
         await self.statemgr.invalidate_one('work-package-work-item', work_package_work_item._id)
 
+    # =========== Work Item Type (Work Item Context) ============
+
     @action('work-item-type-created', resources='work-item')
     async def create_work_item_type(self, /, data):
         """Create new work item type"""
@@ -603,36 +588,187 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    # @action('work-item-type-updated', resources='work-item')
-    # async def update_work_item_type(self, /, data):
-    #     """Update work item type"""
-    #     work_item_type = await self.statemgr.find_one('ref--work-item-type', where=dict(
-    #         _id=data.work_item_type_id
-    #     ))
+    @action('work-item-type-updated', resources='work-item')
+    async def update_work_item_type(self, /, data):
+        """Update work item type"""
+        work_item_type = await self.statemgr.find_one('ref--work-item-type', where=dict(
+            _id=data.work_item_type_id
+        ))
 
-    #     if not work_item_type:
-    #         raise ValueError("Work item type not found")
+        if not work_item_type:
+            raise ValueError("Work item type not found")
 
-    #     update_data = serialize_mapping(data)
-    #     update_data.pop('work_item_type_id', None)
+        update_data = serialize_mapping(data)
+        update_data.pop('work_item_type_id', None)
 
-    #     await self.statemgr.update(work_item_type, **update_data)
-    #     return work_item_type
+        await self.statemgr.update(work_item_type, **update_data)
+        return work_item_type
 
-    # @action('work-item-type-invalidated', resources='work-item')
-    # async def invalidate_work_item_type(self, /, data):
-    #     """Invalidate work item type"""
-    #     work_item_type = await self.statemgr.find_one('ref--work-item-type', where=dict(
-    #         _id=data.work_item_type_id
-    #     ))
+    @action('work-item-type-invalidated', resources='work-item')
+    async def invalidate_work_item_type(self, /, data):
+        """Invalidate work item type"""
+        work_item_type = await self.statemgr.find_one('ref--work-item-type', where=dict(
+            _id=data.work_item_type_id
+        ))
 
-    #     if not work_item_type:
-    #         raise ValueError("Work item type not found")
+        if not work_item_type:
+            raise ValueError("Work item type not found")
 
-    #     await self.statemgr.invalidate(work_item_type)
-    #     return work_item_type
+        await self.statemgr.invalidate_one('ref--work-item-type', work_item_type._id)
+        return work_item_type
 
-    # =========== Integration Context ============
-    @action('integration-sync', resources='integration')
-    async def unified_sync(self, /, data):
-        """Unified sync method for integrations"""
+    # =========== Project Work Item (Project Context) ============
+
+    @action('project-work-item-updated', resources='project')
+    async def update_project_work_item(self, /, data):
+        """Update project work item"""
+        project_work_item = await self.statemgr.find_one('project-work-item', where=dict(
+            _id=data.project_work_item_id,
+            project_id=self.aggroot.identifier
+        ))
+        if not project_work_item:
+            raise ValueError("Project work item not found")
+
+        update_data = serialize_mapping(data)
+        update_data.pop('project_work_item_id', None)
+
+        await self.statemgr.update(project_work_item, **update_data)
+        return project_work_item
+
+    @action('project-work-item-invalidated', resources='project')
+    async def invalidate_project_work_item(self, /, data):
+        """Invalidate project work item"""
+        project_work_item = await self.statemgr.find_one('project-work-item', where=dict(
+            _id=data.project_work_item_id,
+            project_id=self.aggroot.identifier
+        ))
+        if not project_work_item:
+            raise ValueError("Project work item not found")
+
+        await self.statemgr.invalidate_one('project-work-item', project_work_item._id)
+        return project_work_item
+
+# =========== Project Work Package (Project Context) ============
+
+    @action('project-work-package-updated', resources='project')
+    async def update_project_work_package(self, /, data):
+        """Update project work package"""
+        project_work_package = await self.statemgr.find_one('project-work-package', where=dict(
+            _id=data.project_work_package_id,
+            project_id=self.aggroot.identifier
+        ))
+
+        if not project_work_package:
+            raise ValueError("Project work package not found")
+
+        update_data = serialize_mapping(data)
+        update_data.pop('project_work_package_id', None)
+
+        await self.statemgr.update(project_work_package, **update_data)
+        return project_work_package
+
+# =========== Project Work Package Work Item (Project Context) ============
+
+    @action("add-new-work-item-to-project-work-package", resources='project')
+    # =========== Project Work Package Work Item (Project Context) ============
+    @action("add-new-work-item-to-project-work-package", resources='project')
+    async def add_new_work_item_to_project_work_package(self, /, data):
+        """Add new work item to project work package and clone into project work item"""
+
+        project_work_package = await self.statemgr.find_one(
+            "project-work-package",
+            where=dict(
+                _id=data.project_work_package_id,
+                project_id=self.aggroot.identifier
+            )
+        )
+        if not project_work_package:
+            raise ValueError("Project work package not found")
+
+        work_item = await self.statemgr.find_one(
+            "work-item",
+            where=dict(_id=data.work_item_id)
+        )
+        if not work_item:
+            raise ValueError("Work item not found")
+
+        project_work_item_data = {
+            "_id": UUID_GENR(),
+            "project_id": self.aggroot.identifier,
+            "name": work_item.name,
+            "type": work_item.type,
+            "description": work_item.description,
+            "price_unit": work_item.price_unit,
+            "credit_per_unit": work_item.credit_per_unit,
+            "estimate": work_item.estimate,
+        }
+        project_work_item = self.init_resource(
+            "project-work-item",
+            serialize_mapping(project_work_item_data)
+        )
+        await self.statemgr.insert(project_work_item)
+
+        link_data = {
+            "project_work_package_id": project_work_package._id,
+            "project_work_item_id": project_work_item._id,
+            "project_id": self.aggroot.identifier
+        }
+        record = self.init_resource(
+            "project-work-package-work-item",
+            serialize_mapping(link_data)
+        )
+        await self.statemgr.insert(record)
+
+    @action("remove-project-work-item-from-project-work-package", resources='project')
+    async def remove_project_work_item_from_project_work_package(self, /, data):
+        """Remove project work item from project work package"""
+        project_work_item = await self.statemgr.find_one('project-work-item', where=dict(
+            _id=data.project_work_item_id,
+            project_id=self.aggroot.identifier
+        ))
+        if not project_work_item:
+            raise ValueError("Project work item not found")
+
+        project_work_package_work_item = await self.statemgr.find_one('project-work-package-work-item', where=dict(
+            project_work_package_id=data.project_work_package_id,
+            project_work_item_id=project_work_item._id,
+            project_id=self.aggroot.identifier
+        ))
+        if not project_work_package_work_item:
+            raise ValueError("Project work package work item not found")
+
+        await self.statemgr.invalidate_one('project-work-package-work-item', project_work_package_work_item._id)
+        await self.statemgr.invalidate_one('project-work-item', project_work_item._id)
+
+# =========== Project Work Item Deliverable (Project Context) ============
+
+    @action('project-work-item-deliverable-updated', resources='project')
+    async def update_project_work_item_deliverable(self, /, data):
+        """Update project work item deliverable"""
+        project_work_item_deliverable = await self.statemgr.find_one('project-work-item-deliverable', where=dict(
+            _id=data.project_work_item_deliverable_id,
+            project_id=self.aggroot.identifier
+        ))
+
+        if not project_work_item_deliverable:
+            raise ValueError("Project work item deliverable not found")
+
+        update_data = serialize_mapping(data)
+        update_data.pop('project_work_item_deliverable_id', None)
+
+        await self.statemgr.update(project_work_item_deliverable, **update_data)
+        return project_work_item_deliverable
+
+    @action('project-work-item-deliverable-invalidated', resources='project')
+    async def invalidate_project_work_item_deliverable(self, /, data):
+        """Invalidate project work item deliverable"""
+        project_work_item_deliverable = await self.statemgr.find_one('project-work-item-deliverable', where=dict(
+            _id=data.project_work_item_deliverable_id,
+            project_id=self.aggroot.identifier
+        ))
+        if not project_work_item_deliverable:
+            raise ValueError("Project work item deliverable not found")
+
+        await self.statemgr.invalidate_one(
+            'project-work-item-deliverable', project_work_item_deliverable._id)
+        return project_work_item_deliverable

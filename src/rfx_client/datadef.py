@@ -151,10 +151,17 @@ class CreateWorkItemTypePayload(DataModel):
 
 
 class UpdateWorkItemTypePayload(DataModel):
+    work_item_type_id: UUID_TYPE
     key: str = Field(max_length=50)
     name: Optional[str] = Field(max_length=255)
     description: Optional[str] = None
     alias: Optional[str] = Field(max_length=50)
+
+
+class DeleteWorkItemTypePayload(DataModel):
+    work_item_type_id: UUID_TYPE
+
+# Work Item to Work Package related payloads
 
 
 class AddWorkItemToWorkPackagePayload(DataModel):
@@ -165,9 +172,7 @@ class RemoveWorkItemFromWorkPackagePayload(DataModel):
     work_item_id: UUID_TYPE
 
 
-class ApplyReferralCodePayload(DataModel):
-    referral_code: str
-
+# Project Member related payloads
 
 class AddProjectMemberPayload(DataModel):
     member_id: UUID_TYPE
@@ -182,6 +187,8 @@ class UpdateProjectMemberRolePayload(DataModel):
 class RemoveProjectMemberPayload(DataModel):
     member_id: UUID_TYPE
 
+
+# Project Milestone related payloads
 
 class CreateProjectMilestonePayload(DataModel):
     name: str = Field(max_length=255)
@@ -248,51 +255,53 @@ class UpdateWorkPackagePayload(DataModel):
     example_description: Optional[str] = None
     is_custom: Optional[bool] = None
 
-
-# Workflow related payloads
-
-
-class CreateWorkflowPayload(DataModel):
-    name: str = Field(max_length=255)
-    entity_type: str
+# Project Work Item related payloads
 
 
-class UpdateWorkflowPayload(DataModel):
+class UpdateProjectWorkItemPayload(DataModel):
+    project_work_item_id: UUID_TYPE
+    type: Optional[str] = None
     name: Optional[str] = Field(max_length=255)
-    entity_type: Optional[str] = None
+    description: Optional[str] = None
+    price_unit: Optional[float] = Field(default=None, gt=0)
+    credit_per_unit: Optional[float] = Field(default=None, gt=0)
+    estimate: Optional[str] = None
 
 
-class CreateWorkflowStatusPayload(DataModel):
-    key: str
+class RemoveProjectWorkItemPayload(DataModel):
+    project_work_item_id: UUID_TYPE
+
+# Project Work Package related payloads
 
 
-class UpdateWorkflowStatusPayload(DataModel):
-    key: Optional[str] = None
+class UpdateProjectWorkPackagePayload(DataModel):
+    project_work_package_id: UUID_TYPE
+    work_package_name: Optional[str] = Field(max_length=255)
+    work_package_description: Optional[str] = None
+    work_package_example_description: Optional[str] = None
+    work_package_is_custom: Optional[bool] = None
+    work_package_complexity_level: Optional[int] = None
+
+#  Project Work Item Deliverable related payloads
 
 
-class CreateWorkflowTransitionPayload(DataModel):
-    src_status_id: UUID_TYPE
-    dst_status_id: UUID_TYPE
-    rule_code: Optional[str] = None
-    condition: Optional[str] = None
+class UpdateProjectWorkItemDeliverablePayload(DataModel):
+    project_work_item_deliverable_id: UUID_TYPE
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
 
 
-class UpdateWorkflowTransitionPayload(DataModel):
-    src_status_id: Optional[UUID_TYPE] = None
-    dst_status_id: Optional[UUID_TYPE] = None
-    rule_code: Optional[str] = None
-    condition: Optional[str] = None
+class DeleteProjectWorkItemDeliverablePayload(DataModel):
+    project_work_item_deliverable_id: UUID_TYPE
+
+# Project Work Package Work Item related payloads
 
 
-# Integration related payloads
+class AddNewWorkItemToProjectWorkPackagePayload(DataModel):
+    project_work_package_id: UUID_TYPE
+    work_item_id: UUID_TYPE
 
 
-class UnifiedSyncPayload(DataModel):
-    action: str  # "sync" or "proxy"
-    entity_type: Optional[str] = None  # "project" or "ticket"
-    entity_id: Optional[UUID_TYPE] = None
-    provider: str
-    direction: Optional[str] = None  # "push" or "pull"
-    options: Optional[dict] = None
-    method: Optional[str] = None
-    params: Optional[dict] = None
+class RemoveProjectWorkItemFromProjectWorkPackagePayload(DataModel):
+    project_work_package_id: UUID_TYPE
+    project_work_item_id: UUID_TYPE
