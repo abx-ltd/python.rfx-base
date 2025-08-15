@@ -211,6 +211,7 @@ class EstimatorWorkPackageQuery(DomainQueryResource):
     work_package_complexity_level: int = IntegerField(
         "Work Package Complexity Level")
     work_package_estimate: str = StringField("Work Package Estimate")
+    work_package_is_custom: bool = BooleanField("Work Package Is Custom")
     quantity: int = IntegerField("Quantity")
     type_list: list[str] = ArrayField("Type List")
     work_item_count: int = IntegerField("Work Item Count")
@@ -244,6 +245,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     work_package_complexity_level: int = IntegerField(
         "Work Package Complexity Level")
     work_package_estimate: str = StringField("Work Package Estimate")
+    work_package_is_custom: bool = BooleanField("Work Package Is Custom")
     quantity: int = IntegerField("Quantity")
     type_list: list[str] = ArrayField("Type List")
     work_item_count: int = IntegerField("Work Item Count")

@@ -29,19 +29,19 @@ class CreateEstimator(Command):
         """Create a new project estimator draft"""
         result = await agg.create_project_estimator(data=payload)
 
-        # # Log activity for project creation
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"Project estimator created: {result.name}",
-        #     msglabel="create-estimator",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={
-        #         "project_id": result._id,
-        #         "project_name": result.name,
-        #         "status": result.status,
-        #         "created_by": agg.get_context().user_id,
-        #     }
-        # )
+        # Log activity for project creation
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"Project estimator created: {result.name}",
+            msglabel="create-estimator",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "project_id": result._id,
+                "project_name": result.name,
+                "status": result.status,
+                "created_by": agg.get_context().user_id,
+            }
+        )
 
         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
