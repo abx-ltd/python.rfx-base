@@ -1,7 +1,9 @@
 from fluvius.data import serialize_mapping
+from fluvius.domain.activity import ActivityType
 
 from .domain import CPOPortalDomain
 from . import datadef, config
+from .types import ActivityAction
 from fluvius.data import UUID_TYPE, UUID_GENR
 
 processor = CPOPortalDomain.command_processor
@@ -26,6 +28,21 @@ class CreateEstimator(Command):
     async def _process(self, agg, stm, payload):
         """Create a new project estimator draft"""
         result = await agg.create_project_estimator(data=payload)
+
+        # Log activity for project creation
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"Project estimator created: {result.name}",
+            msglabel="create-estimator",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "project_id": result._id,
+                "project_name": result.name,
+                "status": result.status,
+                "created_by": agg.get_context().user_id,
+            }
+        )
+
         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
 
@@ -44,6 +61,25 @@ class ApplyPromotion(Command):
     async def _process(self, agg, stm, payload):
         """Apply a promotion code to a project"""
         await agg.apply_promotion(data=payload)
+
+        # # Log activity for promotion application
+        # yield agg.create_activity(
+        #     logroot={
+        #         "identifier": agg.get_aggroot().identifier,
+        #         "resource": "project",
+        #         "namespace": "rfx_client",
+        #     },
+        #     message=f"Promotion code applied: {payload.promotion_code}",
+        #     msglabel="apply-promotion",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     user=agg.context.user.serialize(),
+        #     action=ActivityAction.PROMOTE.value,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "promotion_code": payload.promotion_code,
+        #         "applied_by": agg.context.user_id,
+        #     }
+        # )
 
 
 # ---------- Project (Project Context) ----------

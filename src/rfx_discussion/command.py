@@ -1,7 +1,9 @@
 from fluvius.data import serialize_mapping, logger
+from fluvius.domain.activity import ActivityType
 
 from .domain import RFXDiscussionDomain
 from . import datadef, config
+from .types import ActivityAction
 
 processor = RFXDiscussionDomain.command_processor
 Command = RFXDiscussionDomain.Command
@@ -26,6 +28,28 @@ class CreateInquiry(Command):
         user_id = context.user_id
         payload = payload.set(creator=user_id)
         result = await agg.create_inquiry(data=payload)
+
+        # Log activity for inquiry creation
+        yield agg.create_activity(
+            logroot={
+                "identifier": result.get("_id"),
+                "resource": "ticket",
+                "namespace": "rfx_discussion",
+            },
+            message=f"Inquiry created: {result.get('title', 'Untitled')}",
+            msglabel="create-inquiry",
+            msgtype=ActivityType.USER_ACTION,
+            user=agg.context.user.serialize(),
+            action=ActivityAction.CREATE.value,
+            data={
+                "ticket_id": result.get("_id"),
+                "ticket_title": result.get("title"),
+                "ticket_type": "inquiry",
+                "priority": result.get("priority"),
+                "created_by": user_id,
+            }
+        )
+
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
 
@@ -47,6 +71,28 @@ class CreateTicket(Command):
     async def _process(self, agg, stm, payload):
         """Create a new ticket in project"""
         result = await agg.create_ticket(data=payload)
+
+        # Log activity for ticket creation
+        yield agg.create_activity(
+            logroot={
+                "identifier": result.get("_id"),
+                "resource": "ticket",
+                "namespace": "rfx_discussion",
+            },
+            message=f"Ticket created: {result.get('title', 'Untitled')}",
+            msglabel="create-ticket",
+            msgtype=ActivityType.USER_ACTION,
+            user=agg.context.user.serialize(),
+            action=ActivityAction.CREATE.value,
+            data={
+                "ticket_id": result.get("_id"),
+                "ticket_title": result.get("title"),
+                "project_id": result.get("project_id"),
+                "priority": result.get("priority"),
+                "created_by": agg.context.user_id,
+            }
+        )
+
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
 
@@ -315,6 +361,27 @@ class CreateComment(Command):
     async def _process(self, agg, stm, payload):
         """Create comment"""
         result = await agg.create_comment(data=payload)
+
+        # Log activity for comment creation
+        yield agg.create_activity(
+            logroot={
+                "identifier": result.get("ticket_id"),  # Link to parent ticket
+                "resource": "ticket",
+                "namespace": "rfx_discussion",
+            },
+            message=f"Comment added to ticket: {result.get('content', '')[:100]}...",
+            msglabel="create-comment",
+            msgtype=ActivityType.USER_ACTION,
+            user=agg.context.user.serialize(),
+            action=ActivityAction.COMMENT.value,
+            data={
+                "comment_id": result.get("_id"),
+                "ticket_id": result.get("ticket_id"),
+                "content_preview": result.get("content", "")[:200],
+                "created_by": agg.context.user_id,
+            }
+        )
+
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 

@@ -204,6 +204,13 @@ class EstimatorWorkPackageQuery(DomainQueryResource):
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
+    work_package_name: str = StringField("Work Package Name")
+    work_package_description: str = StringField("Work Package Description")
+    work_package_example_description: str = StringField(
+        "Work Package Example Description")
+    work_package_complexity_level: int = IntegerField(
+        "Work Package Complexity Level")
+    work_package_estimate: str = StringField("Work Package Estimate")
     quantity: int = IntegerField("Quantity")
     type_list: list[str] = ArrayField("Type List")
     work_item_count: int = IntegerField("Work Item Count")
@@ -230,6 +237,13 @@ class ProjectWorkPackageQuery(DomainQueryResource):
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
+    work_package_name: str = StringField("Work Package Name")
+    work_package_description: str = StringField("Work Package Description")
+    work_package_example_description: str = StringField(
+        "Work Package Example Description")
+    work_package_complexity_level: int = IntegerField(
+        "Work Package Complexity Level")
+    work_package_estimate: str = StringField("Work Package Estimate")
     quantity: int = IntegerField("Quantity")
     type_list: list[str] = ArrayField("Type List")
     work_item_count: int = IntegerField("Work Item Count")

@@ -69,8 +69,7 @@ class CPOPortalAggregate(Aggregate):
             raise ValueError(f"Invalid duration format: {data.duration}")
 
         project = self.rootobj
-        result = await self.statemgr.update(project, **serialize_mapping(data), status="ACTIVE", target_date=data.start_date + parsed_duration)
-        return result
+        await self.statemgr.update(project, **serialize_mapping(data), status="ACTIVE", target_date=data.start_date + parsed_duration)
 
     @action('project-deleted', resources='project')
     async def delete_project(self, /):
