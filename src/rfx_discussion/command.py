@@ -349,6 +349,25 @@ class DeleteComment(Command):
         """Delete comment"""
         await agg.delete_comment()
 
+
+class ReplyToComment(Command):
+    """Reply to Comment - Replies to a comment"""
+
+    class Meta:
+        key = "reply-to-comment"
+        resources = ("comment",)
+        tags = ["comment", "reply"]
+        auth_required = True
+        description = "Reply to a comment"
+
+    Data = datadef.ReplyToCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Reply to comment"""
+        result = await agg.reply_to_comment(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
+
 # ------------ Ticket Comment (Ticket Context) ------------
 
 

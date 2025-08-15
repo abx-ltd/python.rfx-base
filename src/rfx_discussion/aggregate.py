@@ -5,6 +5,7 @@ from typing import Optional
 from datetime import datetime
 from rfx_discussion import logger
 from .types import Availability, SyncStatus
+from . import config
 
 
 class RFXDiscussionAggregate(Aggregate):
@@ -226,14 +227,52 @@ class RFXDiscussionAggregate(Aggregate):
     @action("comment-updated", resources="comment")
     async def update_comment(self, /, data):
         """Update comment"""
-        comment = self.rootobj
-        await self.statemgr.update(comment, **serialize_mapping(data))
+        await self.statemgr.update(self.rootobj, **serialize_mapping(data))
 
     @action("comment-deleted", resources="comment")
     async def delete_comment(self, /):
         """Delete comment"""
         comment = self.rootobj
         await self.statemgr.invalidate(comment)
+
+    @action("reply-to-comment", resources="comment")
+    async def reply_to_comment(self, /, data):
+        """Reply to comment"""
+        comment = self.rootobj
+
+        ticket_comment = await self.statemgr.find_one("ticket-comment", where=dict(comment_id=comment._id))
+
+        parent_id = comment._id
+        depth = comment.depth + 1
+        if comment.depth >= config.COMMENT_NESTED_LEVEL:
+            depth = comment.depth
+            parent_id = comment.parent_id
+
+        master_id = comment.master_id
+        if not master_id:
+            master_id = comment._id
+
+        new_comment = self.init_resource(
+            "comment",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+            parent_id=parent_id,
+            depth=depth,
+            master_id=master_id
+        )
+
+        new_ticket_comment = self.init_resource(
+            "ticket-comment",
+            {
+                "ticket_id": ticket_comment.ticket_id,
+                "comment_id": new_comment._id
+            },
+            _id=UUID_GENR()
+        )
+
+        await self.statemgr.insert(new_comment)
+        await self.statemgr.insert(new_ticket_comment)
+        return new_comment
 
     # =========== Ticket Comment (Ticket Context) ============
 

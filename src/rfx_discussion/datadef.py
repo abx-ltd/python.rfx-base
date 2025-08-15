@@ -121,3 +121,7 @@ class UpdateCommentPayload(DataModel):
 
 class CreateTicketCommentPayload(DataModel):
     content: str
+
+
+class ReplyToCommentPayload(DataModel):
+    content: str

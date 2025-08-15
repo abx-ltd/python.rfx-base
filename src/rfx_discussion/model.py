@@ -125,6 +125,31 @@ class ViewInquiry(RFXDiscussionBaseModel):
     )
 
 
+class ViewTicket(RFXDiscussionBaseModel):
+    __tablename__ = "_ticket"
+    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
+
+    title = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    priority = sa.Column(sa.String(100), nullable=False)
+    type = sa.Column(sa.String(100), nullable=False)
+    parent_id = sa.Column(pg.UUID)
+    assignee = sa.Column(pg.UUID)
+    status = sa.Column(sa.String(100), nullable=False)
+    workflow_id = sa.Column(pg.UUID)
+    availability = sa.Column(
+        sa.Enum(types.Availability, name="availability",
+                schema=config.RFX_DISCUSSION_SCHEMA),
+        nullable=False
+    )
+    sync_status = sa.Column(
+        sa.Enum(types.SyncStatus, name="sync_status",
+                schema=config.RFX_DISCUSSION_SCHEMA),
+        default=types.SyncStatus.PENDING
+    )
+    project_id = sa.Column(pg.UUID)
+
+
 # ================ Tag Context ================s
 
 # Tag Aggregate Root
@@ -139,6 +164,7 @@ class Tag(RFXDiscussionBaseModel):
 
 # ================ Comment Context ================
 
+
 class Comment(RFXDiscussionBaseModel):
     __tablename__ = "comment"
 
@@ -146,3 +172,15 @@ class Comment(RFXDiscussionBaseModel):
     parent_id = sa.Column(pg.UUID)
     content = sa.Column(sa.Text)
     depth = sa.Column(sa.Integer, default=0)
+
+
+class CommentView(RFXDiscussionBaseModel):
+    __tablename__ = "_comment"
+    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
+
+    master_id = sa.Column(pg.UUID)
+    parent_id = sa.Column(pg.UUID)
+    content = sa.Column(sa.Text)
+    depth = sa.Column(sa.Integer, default=0)
+    ticket_id = sa.Column(pg.UUID)
+    creator = sa.Column(pg.JSONB)

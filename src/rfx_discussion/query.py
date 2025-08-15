@@ -31,8 +31,6 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
-
-
 @resource('inquiry')
 class InquiryQuery(DomainQueryResource):
     """Inquiry listing queries"""
@@ -50,7 +48,6 @@ class InquiryQuery(DomainQueryResource):
     tag_names: list[str] = ArrayField("Tag Names")
     availability: Availability = EnumField("Availability")
     activity: datetime = DatetimeField("Activity")
-
 
 
 # Ticket Queries
@@ -79,8 +76,6 @@ class TicketQuery(DomainQueryResource):
     status: str = StringField("Status")
     availability: Availability = EnumField("Availability")
     sync_status: SyncStatus = EnumField("Sync Status")
-
-
 
 
 @resource('ticket-type')
@@ -119,3 +114,26 @@ class TagQuery(DomainQueryResource):
     is_active: bool = BooleanField("Is Active")
     target_resource: str = StringField("Target Resource")
     target_resource_id: str = StringField("Target Resource ID")
+
+
+# Comment Queries
+
+
+@resource('comment')
+class CommentQuery(DomainQueryResource):
+    """Comment queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_comment"
+        scope_required = scope.CommentScopeSchema
+
+    master_id: UUID_TYPE = UUIDField("Master ID")
+    parent_id: UUID_TYPE = UUIDField("Parent ID")
+    depth: int = IntegerField("Depth")
+    content: str = StringField("Content")
+    creator: dict = DictField("Creator")
