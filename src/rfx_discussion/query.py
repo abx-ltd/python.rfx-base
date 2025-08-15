@@ -7,7 +7,7 @@ from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
 from datetime import datetime
-
+from . import scope
 
 default_exclude_fields = ["realm", "deleted", "etag",
                           "created", "updated", "creator", "updater"]
@@ -30,46 +30,7 @@ class ResourceScope(BaseModel):
     resource: str
     resource_id: str
 
-# Ticket Queries
 
-
-@resource('ticket')
-class TicketQuery(DomainQueryResource):
-    """Ticket queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-
-    title: str = StringField("Title")
-    description: str = StringField("Description")
-    priority: Priority = EnumField("Priority")
-    type: str = StringField("Type")
-    parent_id: UUID_TYPE = UUIDField("Parent ID")
-    assignee: UUID_TYPE = UUIDField("Assignee")
-    status: str = StringField("Status")
-    workflow_id: UUID_TYPE = UUIDField("Workflow ID")
-    availability: Availability = EnumField("Availability")
-    sync_status: SyncStatus = EnumField("Sync Status")
-    is_inquiry: bool = BooleanField("Is Inquiry")
-
-
-@resource('ticket-status')
-class TicketStatusQuery(DomainQueryResource):
-    """Ticket status queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-
-    ticket_id: UUID_TYPE = UUIDField("Ticket ID")
-    src_state: str = StringField("Source State")
-    dst_state: str = StringField("Destination State")
-    note: str = StringField("Note")
 
 
 @resource('inquiry')
@@ -91,9 +52,13 @@ class InquiryQuery(DomainQueryResource):
     activity: datetime = DatetimeField("Activity")
 
 
-@resource('ticket-comment')
-class TicketCommentQuery(DomainQueryResource):
-    """Ticket comment queries"""
+
+# Ticket Queries
+
+
+@resource('ticket')
+class TicketQuery(DomainQueryResource):
+    """Ticket queries"""
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
@@ -101,38 +66,21 @@ class TicketCommentQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-    ticket_id: UUID_TYPE = UUIDField("Ticket ID")
-    comment_id: UUID_TYPE = UUIDField("Comment ID")
-    role: str = StringField("Role")
+        backend_model = "_ticket"
+        scope_required = scope.TicketScopeSchema
+
+    project_id: UUID_TYPE = UUIDField("Project ID")
+    title: str = StringField("Title")
+    description: str = StringField("Description")
+    priority: Priority = EnumField("Priority")
+    type: str = StringField("Type")
+    parent_id: UUID_TYPE = UUIDField("Parent ID")
+    assignee: UUID_TYPE = UUIDField("Assignee")
+    status: str = StringField("Status")
+    availability: Availability = EnumField("Availability")
+    sync_status: SyncStatus = EnumField("Sync Status")
 
 
-@resource('ticket-assignee')
-class TicketAssigneeQuery(DomainQueryResource):
-    """Ticket assignee queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-
-    ticket_id: UUID_TYPE = UUIDField("Ticket ID")
-    member_id: UUID_TYPE = UUIDField("Member ID")
-    role: str = StringField("Role")
-
-
-@resource('ticket-participants')
-class TicketParticipantsQuery(DomainQueryResource):
-    """Ticket participants queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-
-    ticket_id: UUID_TYPE = UUIDField("Ticket ID")
-    participant_id: UUID_TYPE = UUIDField("Participant ID")
 
 
 @resource('ticket-type')

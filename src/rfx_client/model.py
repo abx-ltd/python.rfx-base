@@ -181,6 +181,25 @@ class ViewProjectWorkPackage(CPOPortalBaseModel):
     total_deliverables = sa.Column(sa.Integer, nullable=False)
 
 
+class ViewEstimatorWorkPackage(CPOPortalBaseModel):
+    __tablename__ = "_estimator-work-package"
+    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+
+    project_id = sa.Column(pg.UUID, primary_key=True)
+    project_creator = sa.Column(pg.UUID, nullable=False)
+    work_package_id = sa.Column(pg.UUID, primary_key=True)
+    quantity = sa.Column(sa.Integer, nullable=False)
+    type_list = sa.Column(pg.ARRAY(sa.String))
+    work_item_count = sa.Column(sa.Integer, nullable=False)
+    credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    total_deliverables = sa.Column(sa.Integer, nullable=False)
+
+
 class ViewProjectWorkItem(CPOPortalBaseModel):
     __tablename__ = "_project-work-item"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
