@@ -528,6 +528,12 @@ class CreateWorkItem(Command):
         """Create new work item"""
         result = await agg.create_work_item(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="work-item-response")
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            msglabel="work-item-created",
+            message="Work Item Created",
+            data={}
+        )
 
 
 class UpdateWorkItem(Command):
