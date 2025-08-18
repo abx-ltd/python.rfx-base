@@ -1,4 +1,4 @@
-""" Client Portal """
+""" RFX Discussion """
 
 from ._meta import config, logger
 from .domain import RFXDiscussionDomain

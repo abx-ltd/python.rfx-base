@@ -62,7 +62,35 @@ class Project(CPOPortalBaseModel):
     )
 
 
+class ViewProject(CPOPortalBaseModel):
+    __tablename__ = "_project"
+
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    category = sa.Column(sa.String(100))  # FK to ref--project-category
+    priority = sa.Column(
+        sa.Enum(types.Priority, name="priority",
+                schema=config.CPO_PORTAL_SCHEMA),
+        nullable=False
+    )
+    status = sa.Column(sa.String(100), nullable=False)
+    start_date = sa.Column(sa.DateTime(timezone=True))
+    target_date = sa.Column(sa.DateTime(timezone=True))
+    duration = sa.Column(sa.Interval)
+    free_credit_applied = sa.Column(sa.Integer, default=0)
+    lead_id = sa.Column(pg.UUID)  # FK to profile(_id)
+    referral_code_used = sa.Column(sa.String(50))
+    status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
+    sync_status = sa.Column(
+        sa.Enum(types.SyncStatus, name="sync_status",
+                schema=config.CPO_PORTAL_SCHEMA),
+        default=types.SyncStatus.PENDING
+    )
+    members = sa.Column(pg.ARRAY(pg.UUID))
+
 # Project Resource Entity
+
+
 class ProjectResource(CPOPortalBaseModel):
     __tablename__ = "project-resource"
 
@@ -175,31 +203,7 @@ class ViewProjectWorkPackage(CPOPortalBaseModel):
     work_package_complexity_level = sa.Column(sa.Integer, nullable=False)
     work_package_estimate = sa.Column(sa.Interval)
     work_package_is_custom = sa.Column(sa.Boolean, default=False)
-    quantity = sa.Column(sa.Integer, nullable=False)
-    type_list = sa.Column(pg.ARRAY(sa.String))
-    work_item_count = sa.Column(sa.Integer, nullable=False)
-    credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    total_deliverables = sa.Column(sa.Integer, nullable=False)
-
-
-class ViewEstimatorWorkPackage(CPOPortalBaseModel):
-    __tablename__ = "_estimator-work-package"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
-
-    project_id = sa.Column(pg.UUID, primary_key=True)
-    project_creator = sa.Column(pg.UUID, nullable=False)
-    work_package_id = sa.Column(pg.UUID, primary_key=True)
-    work_package_name = sa.Column(sa.String(255), nullable=False)
-    work_package_description = sa.Column(sa.Text)
-    work_package_example_description = sa.Column(sa.Text)
-    work_package_complexity_level = sa.Column(sa.Integer, nullable=False)
-    work_package_estimate = sa.Column(sa.Interval)
-    work_package_is_custom = sa.Column(sa.Boolean, default=False)
+    status = sa.Column(sa.String(100), nullable=False)
     quantity = sa.Column(sa.Integer, nullable=False)
     type_list = sa.Column(pg.ARRAY(sa.String))
     work_item_count = sa.Column(sa.Integer, nullable=False)

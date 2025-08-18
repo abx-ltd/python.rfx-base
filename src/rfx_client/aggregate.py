@@ -24,14 +24,26 @@ class CPOPortalAggregate(Aggregate):
         if estimator:
             raise ValueError("Estimator already exists")
 
-        record = self.init_resource(
+        estimator = self.init_resource(
             "project",
             serialize_mapping(data),
             status="DRAFT",
             _id=UUID_GENR()
         )
-        await self.statemgr.insert(record)
-        return record
+        # we will check user permission to add project-member role correct (now we just default it client)
+        project_member = self.init_resource(
+            "project-member",
+            {
+                "member_id": self.context.profile_id,
+                "role": "CLIENT",
+                "project_id": estimator._id
+            },
+            _id=UUID_GENR(),
+        )
+
+        await self.statemgr.insert(estimator)
+        await self.statemgr.insert(project_member)
+        return estimator
 
     @action('promotion-applied', resources='project')
     async def apply_promotion(self, /, data):
@@ -69,13 +81,33 @@ class CPOPortalAggregate(Aggregate):
             raise ValueError(f"Invalid duration format: {data.duration}")
 
         project = self.rootobj
-        await self.statemgr.update(project, **serialize_mapping(data), status="ACTIVE", target_date=data.start_date + parsed_duration)
+        if project.status == "ACTIVE":
+            raise ValueError(f"Already is a project")
+
+        await self.statemgr.update(project, **serialize_mapping(data), status="ACTIVE", target_date=data.start_date + data.duration)
+        new_project = await self.statemgr.find_one('project', where=dict(
+            _id=project._id
+        ))
+        return new_project
+
+    @action('project-updated', resources='project')
+    async def update_project(self, /, data):
+        """Update a project"""
+        project = self.rootobj
+        await self.statemgr.update(project, **serialize_mapping(data))
+        return project
 
     @action('project-deleted', resources='project')
     async def delete_project(self, /):
         """Delete a project"""
         project = self.rootobj
+        project_work_packages = await self.statemgr.find_all('project-work-package', where=dict(
+            project_id=project._id
+        ))
+
         await self.statemgr.invalidate(project)
+        for project_work_package in project_work_packages:
+            await self.statemgr.invalidate_one('project-work-package', project_work_package._id)
 
     @action('ticket-added-to-project', resources='project')
     async def add_ticket_to_project(self, /, data):

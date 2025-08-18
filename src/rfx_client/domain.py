@@ -46,6 +46,14 @@ class ProjectMilestoneResponse(CPOPortalDomain.Response):
     pass
 
 
+class ProjectWorkPackageResponse(CPOPortalDomain.Response):
+    pass
+
+
+class ProjectWorkItemResponse(CPOPortalDomain.Response):
+    pass
+
+
 # Work Package related responses
 
 

@@ -40,8 +40,8 @@ class ProjectDraftQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope):
-        user_id = context.user._id
-        return {"_creator": user_id, "status": "DRAFT"}
+        profile_id = context.profile._id
+        return {"members.ov": [profile_id], "status": "DRAFT"}
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
@@ -49,7 +49,7 @@ class ProjectDraftQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "project"
+        backend_model = "_project"
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -59,6 +59,7 @@ class ProjectDraftQuery(DomainQueryResource):
     target_date: str = DatetimeField("Target Date")
     free_credit_applied: int = IntegerField("Free Credit Applied")
     referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
+    members: list[UUID_TYPE] = ArrayField("Members")
 
 
 # Project Queries
@@ -68,14 +69,16 @@ class ProjectQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope):
-        user_id = context.user._id
-        return {"_creator": user_id, "status": "ACTIVE"}
+        profile_id = context.profile._id
+        return {"members.ov": [profile_id], "status": "ACTIVE"}
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+
+        backend_model = "_project"
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -89,6 +92,7 @@ class ProjectQuery(DomainQueryResource):
     referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
     status_workflow_id: UUID_TYPE = UUIDField("Status Workflow ID")
     sync_status: SyncStatus = EnumField("Sync Status")
+    members: list[UUID_TYPE] = ArrayField("Members")
 
 
 @resource('project-bdm-contact')
@@ -193,14 +197,14 @@ class EstimatorWorkPackageQuery(DomainQueryResource):
     @classmethod
     def base_query(cls, context, scope):
         user_id = context.user._id
-        return {"project_creator": user_id}
+        return {"_creator": user_id, "status": "DRAFT"}
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
-        backend_model = "_estimator-work-package"
+        backend_model = "_project-work-package"
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
@@ -227,6 +231,10 @@ class EstimatorWorkPackageQuery(DomainQueryResource):
 @resource('project-work-package')
 class ProjectWorkPackageQuery(DomainQueryResource):
     """Project work package queries"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"status": "ACTIVE"}
 
     class Meta(DomainQueryResource.Meta):
         include_all = True

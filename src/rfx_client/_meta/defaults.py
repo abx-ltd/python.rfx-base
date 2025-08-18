@@ -2,3 +2,4 @@ CPO_PORTAL_SCHEMA = "cpo-client"
 DB_DSN = None
 POLICY_SCHEMA = "cpo-policy"
 POLICY_TABLE = "_policy--cpo-portal"
+NAMESPACE = "rfx-client"

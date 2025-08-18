@@ -6,6 +6,7 @@ from fluvius.data import DataModel, UUID_TYPE
 
 from .types import Priority, Availability, SyncStatus, ContactMethod
 
+
 # Project related payloads
 
 
@@ -36,8 +37,9 @@ class UpdateProjectPayload(DataModel):
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     lead_id: Optional[UUID_TYPE] = None
-    external_project_id: Optional[str] = None
-    external_provider: Optional[str] = None
+    duration: Optional[str] = None
+
+# Project BDM Contact related payloads
 
 
 class CreateProjectBDMContactPayload(DataModel):
