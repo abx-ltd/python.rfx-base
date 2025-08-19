@@ -87,7 +87,6 @@ class ApplyPromotion(Command):
 
 
 # ---------- Project (Project Context) ----------
-
 class CreateProject(Command):
     """Create Project - Creates a new project - this is a conversion from estimator"""
 
