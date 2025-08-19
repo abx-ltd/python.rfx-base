@@ -69,20 +69,20 @@ class CreateTicket(Command):
         """Create a new ticket in project"""
         result = await agg.create_ticket(data=payload)
 
-        # profile_id = agg.get_context().profile_id
-        # profile = await stm.get_profile(profile_id)
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
 
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"{profile.name__given} {profile.name__family} created a ticket {payload.title}",
-        #     msglabel="create ticket",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={
-        #         "ticket_id": agg.get_aggroot().identifier,
-        #         "ticket_title": payload.title,
-        #         "created_by": f"{profile.name__given} {profile.name__family}",
-        #     }
-        # )
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} created a ticket {payload.title}",
+            msglabel="create ticket",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "ticket_id": agg.get_aggroot().identifier,
+                "ticket_title": payload.title,
+                "created_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
 
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 

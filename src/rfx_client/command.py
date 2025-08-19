@@ -1,5 +1,5 @@
 from email import message
-from fluvius.data import serialize_mapping
+from fluvius.data import serialize_mapping, logger
 from fluvius.domain.activity import ActivityType
 from fluvius.domain.aggregate import AggregateRoot
 
@@ -421,6 +421,7 @@ class AddTicketToProject(Command):
     Data = datadef.AddTicketToProjectPayload
 
     async def _process(self, agg, stm, payload):
+
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 

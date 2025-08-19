@@ -214,6 +214,7 @@ class ViewProjectWorkPackage(CPOPortalBaseModel):
     upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     total_deliverables = sa.Column(sa.Integer, nullable=False)
+    members = sa.Column(pg.ARRAY(pg.UUID))
 
 
 class ViewProjectWorkItem(CPOPortalBaseModel):

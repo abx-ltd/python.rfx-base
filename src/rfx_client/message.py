@@ -9,8 +9,8 @@ from cpo_portal.integration import get_worker_client
 class DiscussionMessageData(DataModel):
     command: str = "create-ticket"
     payload: dict = {}
-    ticket_id: str = None  # Added missing field
-    context: dict = {}     # Added missing field
+    ticket_id: str = None
+    context: dict = {}
 
 
 class DiscussionMessage(CPOPortalDomain.Message):
@@ -36,10 +36,9 @@ class DiscussionMessage(CPOPortalDomain.Message):
 
 class ProjectMessageData(DataModel):
     command: str = "add-ticket-to-project"
-    payload: dict = {
-    }
+    payload: dict = {}
     project_id: str = None
-    context: dict = {}     # Added missing field
+    context: dict = {}
 
 
 class ProjectMessage(CPOPortalDomain.Message):
@@ -59,6 +58,6 @@ class ProjectMessage(CPOPortalDomain.Message):
             _headers={},
             _context=dict(
                 source="internal",
-                **data.context
+                audit=data.context,
             )
         )

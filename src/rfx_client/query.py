@@ -196,8 +196,8 @@ class EstimatorWorkPackageQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope):
-        user_id = context.user._id
-        return {"_creator": user_id, "status": "DRAFT"}
+        profile_id = context.profile._id
+        return {"members.ov": [profile_id], "status": "DRAFT"}
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
@@ -226,6 +226,7 @@ class EstimatorWorkPackageQuery(DomainQueryResource):
     upfront_cost: float = FloatField("Upfront Cost")
     monthly_cost: float = FloatField("Monthly Cost")
     total_deliverables: int = IntegerField("Total Deliverables")
+    members: list[UUID_TYPE] = ArrayField("Members")
 
 
 @resource('project-work-package')
@@ -264,6 +265,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     upfront_cost: float = FloatField("Upfront Cost")
     monthly_cost: float = FloatField("Monthly Cost")
     total_deliverables: int = IntegerField("Total Deliverables")
+    members: list[UUID_TYPE] = ArrayField("Members")
 
 
 @resource('project-work-item')
