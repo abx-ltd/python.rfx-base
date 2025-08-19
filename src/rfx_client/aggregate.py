@@ -54,8 +54,6 @@ class CPOPortalAggregate(Aggregate):
             code=data.promotion_code
         ))
 
-        logger.info(f"Promotion: {promotion}")
-
         if not promotion:
             raise ValueError("Promotion code not found")
 
@@ -333,7 +331,11 @@ class CPOPortalAggregate(Aggregate):
         update_data.pop('bdm_contact_id', None)
 
         await self.statemgr.update(record, **update_data)
-        return record
+
+        updated_record = await self.statemgr.find_one('project-bdm-contact', where=dict(
+            _id=data.bdm_contact_id
+        ))
+        return updated_record
 
     @action('project-bdm-contact-deleted', resources='project')
     async def delete_project_bdm_contact(self, /, data):
@@ -393,6 +395,7 @@ class CPOPortalAggregate(Aggregate):
             _id=UUID_GENR(),
         )
         await self.statemgr.insert(record)
+        return record
 
     @action('member-removed', resources='project')
     async def remove_project_member(self, /, member_id: str):

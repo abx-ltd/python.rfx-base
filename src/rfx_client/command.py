@@ -1,5 +1,7 @@
+from email import message
 from fluvius.data import serialize_mapping
 from fluvius.domain.activity import ActivityType
+from fluvius.domain.aggregate import AggregateRoot
 
 from .domain import CPOPortalDomain
 from . import datadef, config
@@ -32,7 +34,12 @@ class CreateEstimator(Command):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
         yield agg.create_activity(
-            logroot=agg.get_aggroot(),
+            logroot=AggregateRoot(
+                resource="project",
+                identifier=result._id,
+                domain_sid=agg.get_aggroot().domain_sid,
+                domain_iid=agg.get_aggroot().domain_iid,
+            ),
             message=f"{profile.name__given} {profile.name__family} created an estimator {result.name}",
             msglabel="create-estimator",
             msgtype=ActivityType.USER_ACTION,
@@ -201,12 +208,13 @@ class CreateProjectBDMContact(Command):
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} created a BDM contact {result.name}",
+            message=f"{profile.name__given} {profile.name__family} created a BDM contact",
             msglabel="create-project-bdm-contact",
             msgtype=ActivityType.USER_ACTION,
             data={
-                "project_id": result._id,
-                "project_name": result.name,
+                "project_bdm_contact_id": result._id,
+                "message": result.message,
+                "meeting_time": result.meeting_time,
                 "status": result.status,
                 "created_by": f"{profile.name__given} {profile.name__family}",
             }
@@ -227,19 +235,20 @@ class UpdateProjectBDMContact(Command):
 
     async def _process(self, agg, stm, payload):
         """Update a project BDM contact"""
-        await agg.update_project_bdm_contact(data=payload)
+        result = await agg.update_project_bdm_contact(data=payload)
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} updated a BDM contact {result.name}",
+            message=f"{profile.name__given} {profile.name__family} updated a BDM contact",
             msglabel="update-project-bdm-contact",
             msgtype=ActivityType.USER_ACTION,
             data={
-                "project_id": result._id,
-                "project_name": result.name,
+                "project_bdm_contact_id": result._id,
+                "message": result.message,
+                "meeting_time": result.meeting_time,
                 "status": result.status,
                 "updated_by": f"{profile.name__given} {profile.name__family}",
             }
@@ -260,26 +269,24 @@ class DeleteProjectBDMContact(Command):
 
     async def _process(self, agg, stm, payload):
         """Delete a project BDM contact"""
-        await agg.delete_project_bdm_contact(data=payload)
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} deleted a BDM contact {agg.get_aggroot().name}",
+            message=f"{profile.name__given} {profile.name__family} deleted a BDM contact",
             msglabel="delete-project-bdm-contact",
             msgtype=ActivityType.USER_ACTION,
             data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
+                "project_bdm_contact_id": payload.bdm_contact_id,
                 "deleted_by": f"{profile.name__given} {profile.name__family}",
             }
         )
+        await agg.delete_project_bdm_contact(data=payload)
 
 
 # ---------- Promotion Context ----------
-
 class CreatePromotion(Command):
     """Create Promotion Code - Creates a new promotion code"""
 
@@ -350,15 +357,22 @@ class AddWorkPackageToProject(Command):
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
+        result = await agg.add_work_package_to_estimator(data=payload)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
             message=f"{profile.name__given} {profile.name__family} added a work package",
             msglabel="add-work-package-to-project",
             msgtype=ActivityType.USER_ACTION,
+            data={
+                "project_work_package_id": result._id,
+                "work_package_id": result.work_package_id,
+                "work_package_name": result.work_package_name,
+                "work_package_description": result.work_package_description,
+                "added_by": f"{profile.name__given} {profile.name__family}",
+            }
         )
 
-        result = await agg.add_work_package_to_estimator(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="project-work-package-response")
 
 
@@ -377,11 +391,18 @@ class RemoveWorkPackageFromProject(Command):
     async def _process(self, agg, stm, payload):
         """Remove work package from project"""
 
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} removed a workpackage from a project",
+            message=f"{profile.name__given} {profile.name__family} removed a work package from a project",
             msglabel="remove-work-package-from-project",
             msgtype=ActivityType.USER_ACTION,
+            data={
+                "project_work_package_id": payload.work_package_id,
+                "removed_by": f"{profile.name__given} {profile.name__family}",
+            }
         )
 
         await agg.remove_work_package_from_estimator(data=payload)
@@ -399,10 +420,11 @@ class AddTicketToProject(Command):
 
     Data = datadef.AddTicketToProjectPayload
 
-    async def _process(self, agg, sta, payload):
+    async def _process(self, agg, stm, payload):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
+        result = await agg.add_ticket_to_project(data=payload)
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
             message=f"{profile.name__given} {profile.name__family} added a ticket to a project",
@@ -410,13 +432,11 @@ class AddTicketToProject(Command):
             msgtype=ActivityType.USER_ACTION,
             data={
                 "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
                 "ticket_id": payload.ticket_id,
                 "created_by": f"{profile.name__given} {profile.name__family}",
             }
         )
 
-        result = await agg.add_ticket_to_project(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
 
@@ -430,7 +450,7 @@ class CreateProjectTicker(Command):
 
     Data = datadef.CreateProjectTicketPayload
 
-    async def _process(self, agg, sta, payload):
+    async def _process(self, agg, stm, payload):
         aggroot = agg.get_aggroot()
         project_id = aggroot.identifier
         ticket_id = UUID_GENR()
@@ -440,7 +460,11 @@ class CreateProjectTicker(Command):
                 "command": "create-ticket",
                 "ticket_id": str(ticket_id),
                 "payload": serialize_mapping(payload),
-                "context": {}  # Added missing context field
+                "context": {
+                    "user_id": agg.get_context().user_id,
+                    "profile_id": agg.get_context().profile_id,
+                    "organization_id": agg.get_context().organization_id,
+                }
             }
         )
         yield agg.create_message(
@@ -450,6 +474,11 @@ class CreateProjectTicker(Command):
                 "project_id": str(project_id),
                 "payload": {
                     "ticket_id": ticket_id
+                },
+                "context": {
+                    "user_id": agg.get_context().user_id,
+                    "profile_id": agg.get_context().profile_id,
+                    "organization_id": agg.get_context().organization_id,
                 }
             }
         )
@@ -473,6 +502,11 @@ class AddProjectMember(Command):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
+        result = await agg.add_project_member(
+            member_id=payload.member_id,
+            role=payload.role
+        )
+
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
             message=f"{profile.name__given} {profile.name__family} added a member to a project",
@@ -480,16 +514,11 @@ class AddProjectMember(Command):
             msgtype=ActivityType.USER_ACTION,
             data={
                 "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "member_id": payload.member_id,
-                "role": payload.role,
+                "project_member_id": result._id,
+                "member_id": result.member_id,
+                "role": result.role,
                 "created_by": f"{profile.name__given} {profile.name__family}",
             }
-        )
-
-        await agg.add_project_member(
-            member_id=payload.member_id,
-            role=payload.role
         )
 
 
@@ -507,21 +536,21 @@ class RemoveProjectMember(Command):
 
     async def _process(self, agg, stm, payload):
         """Remove member from project"""
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} removed a member from a project",
-            msglabel="remove-member-from-project",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "member_id": payload.member_id,
-                "removed_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} removed a member from a project",
+        #     msglabel="remove-member-from-project",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "member_id": payload.member_id,
+        #         "removed_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
         await agg.remove_project_member(member_id=payload.member_id)
 
@@ -541,21 +570,21 @@ class CreateProjectMilestone(Command):
     async def _process(self, agg, stm, payload):
         """Create a new milestone for a project"""
 
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} created a milestone for a project",
-            msglabel="create-project-milestone",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "milestone_id": payload.milestone_id,
-                "created_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} created a milestone for a project",
+        #     msglabel="create-project-milestone",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "milestone_id": payload.milestone_id,
+        #         "created_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
         result = await agg.create_project_milestone(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="project-milestone-response")
@@ -576,21 +605,21 @@ class UpdateProjectMilestone(Command):
     async def _process(self, agg, stm, payload):
         """Update project milestone"""
 
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} updated a milestone for a project",
-            msglabel="update-project-milestone",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "milestone_id": payload.milestone_id,
-                "updated_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} updated a milestone for a project",
+        #     msglabel="update-project-milestone",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "milestone_id": payload.milestone_id,
+        #         "updated_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
         await agg.update_project_milestone(data=payload)
 
@@ -610,21 +639,21 @@ class DeleteProjectMilestone(Command):
 
     async def _process(self, agg, stm, payload):
         """Delete project milestone"""
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} deleted a milestone for a project",
-            msglabel="delete-project-milestone",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "milestone_id": payload.milestone_id,
-                "deleted_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} deleted a milestone for a project",
+        #     msglabel="delete-project-milestone",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "milestone_id": payload.milestone_id,
+        #         "deleted_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
         await agg.delete_project_milestone(data=payload)
 
@@ -948,20 +977,20 @@ class UpdateProjectWorkItem(Command):
         """Update project work item"""
         await agg.update_project_work_item(data=payload)
 
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} updated a project work item {payload.name}",
-            msglabel="update-project-work-item",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "updated_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} updated a project work item {payload.name}",
+        #     msglabel="update-project-work-item",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "updated_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
 
 class RemoveProjectWorkItem(Command):
@@ -980,20 +1009,20 @@ class RemoveProjectWorkItem(Command):
         """Delete project work item"""
         await agg.invalidate_project_work_item(data=payload)
 
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} removed a project work item {payload.name}",
-            msglabel="remove-project-work-item",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "removed_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} removed a project work item {payload.name}",
+        #     msglabel="remove-project-work-item",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "removed_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
 
 # ---------- Project Work Package (Project Context) ----------
@@ -1014,20 +1043,20 @@ class UpdateProjectWorkPackage(Command):
         """Update project work package"""
         await agg.update_project_work_package(data=payload)
 
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} updated a project work package {payload.work_package_name}",
-            msglabel="update-project-work-package",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "updated_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} updated a project work package {payload.work_package_name}",
+        #     msglabel="update-project-work-package",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "updated_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
 
 # ---------- Project Work Package Work Item (Project Context) ----------
@@ -1046,21 +1075,21 @@ class AddNewWorkItemToProjectWorkPackage(Command):
         """Add new work item to project work package"""
         await agg.add_new_work_item_to_project_work_package(data=payload)
 
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
+        # yield agg.create_activity(
 
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} added a new work item to a project work package {payload.work_item_name}",
-            msglabel="add-new-work-item-to-project-work-package",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "added_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} added a new work item to a project work package {payload.work_item_name}",
+        #     msglabel="add-new-work-item-to-project-work-package",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "added_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
 
 class RemoveWorkItemFromProjectWorkPackage(Command):
@@ -1076,20 +1105,20 @@ class RemoveWorkItemFromProjectWorkPackage(Command):
         """Remove work item from project work package"""
         await agg.remove_project_work_item_from_project_work_package(data=payload)
 
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} removed a work item from a project work package {payload.work_item_name}",
-            msglabel="remove-project-work-item-from-project-work-package",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "removed_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} removed a work item from a project work package {payload.work_item_name}",
+        #     msglabel="remove-project-work-item-from-project-work-package",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "removed_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )
 
 
 # ---------- Project Work Item Deliverable (Project Context) ----------
@@ -1110,18 +1139,18 @@ class UpdateProjectWorkItemDeliverable(Command):
         """Update project work item deliverable"""
         await agg.update_project_work_item_deliverable(data=payload)
 
-        yield agg.create_activity(
+        # yield agg.create_activity(
 
-            logroot=agg.get_aggroot(),
-            message=f"Project work item deliverable updated: {payload.name}",
-            msglabel="update-project-work-item-deliverable",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "updated_by": agg.get_context().user_id,
-            }
-        )
+        #     logroot=agg.get_aggroot(),
+        #     message=f"Project work item deliverable updated: {payload.name}",
+        #     msglabel="update-project-work-item-deliverable",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "updated_by": agg.get_context().user_id,
+        #     }
+        # )
 
 
 class DeleteProjectWorkItemDeliverable(Command):
@@ -1140,17 +1169,17 @@ class DeleteProjectWorkItemDeliverable(Command):
         """Delete project work item deliverable"""
         await agg.invalidate_project_work_item_deliverable(data=payload)
 
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
+        # profile_id = agg.get_context().profile_id
+        # profile = await stm.get_profile(profile_id)
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} deleted a project work item deliverable {payload.name}",
-            msglabel="delete-project-work-item-deliverable",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_id": agg.get_aggroot().identifier,
-                "project_name": agg.get_aggroot().name,
-                "deleted_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"{profile.name__given} {profile.name__family} deleted a project work item deliverable {payload.name}",
+        #     msglabel="delete-project-work-item-deliverable",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "project_id": agg.get_aggroot().identifier,
+        #         "project_name": agg.get_aggroot().name,
+        #         "deleted_by": f"{profile.name__given} {profile.name__family}",
+        #     }
+        # )

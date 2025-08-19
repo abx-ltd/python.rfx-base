@@ -3,10 +3,11 @@ from fluvius.domain import Domain, SQLDomainLogStore
 from .aggregate import CPOPortalAggregate
 from .state import CPOPortalStateManager
 # from .policy import CPOPortalPolicyManager
+from . import config
 
 
 class CPOPortalDomain(Domain):
-    __namespace__ = 'cpo-portal'
+    __namespace__ = config.NAMESPACE
     __aggregate__ = CPOPortalAggregate
     __statemgr__ = CPOPortalStateManager
     __logstore__ = SQLDomainLogStore

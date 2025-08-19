@@ -32,7 +32,7 @@ class RFXDiscussionAggregate(Aggregate):
         updated_data = serialize_mapping(data)
         updated_data.pop("ticket_type_id")
         await self.statemgr.update(ticket_type, **updated_data)
-        return ticket_type
+        return ticket_type 
 
     @action("ticket-type-deleted", resources="ticket")
     async def delete_ticket_type(self, /, data):

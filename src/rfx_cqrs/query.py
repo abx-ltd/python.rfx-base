@@ -50,3 +50,30 @@ class ProjectActivityLogQuery(DomainQueryResource):
     src_evt: UUID_TYPE = UUIDField("Source Event")
     data: dict = DictField("Data")
     code: int = IntegerField("Code")
+
+
+@resource('ticket-activity')
+class ProjectActivityLogQuery(DomainQueryResource):
+    """Activity log queries"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"resource": "ticket"}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "activity-log"
+        scope_required = scope.ActivityIdentifierScopeSchema
+
+    message: str = StringField("Message")
+    msgtype: str = StringField("Message Type")
+    msglabel: str = StringField("Message Label")
+    context: UUID_TYPE = UUIDField("Context")
+    src_cmd: UUID_TYPE = UUIDField("Source Command")
+    src_evt: UUID_TYPE = UUIDField("Source Event")
+    data: dict = DictField("Data")
+    code: int = IntegerField("Code")

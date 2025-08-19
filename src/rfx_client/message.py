@@ -21,7 +21,7 @@ class DiscussionMessage(CPOPortalDomain.Message):
         logger.info(f"DiscussionMessage: {data}")
 
         await get_worker_client().request(
-            f"rfx-discussion:{data.command}",
+            f"{config.DISCUSSION_NAMESPACE}:{data.command}",
             command=data.command,
             resource="ticket",
             identifier=str(data.ticket_id),
@@ -29,7 +29,7 @@ class DiscussionMessage(CPOPortalDomain.Message):
             _headers={},
             _context=dict(
                 source="internal",
-                **data.context
+                audit=data.context,
             )
         )
 
@@ -51,7 +51,7 @@ class ProjectMessage(CPOPortalDomain.Message):
         logger.info(f"ProjectMessage: {data}")
 
         await get_worker_client().send(
-            f"cpo-portal:{data.command}",
+            f"{config.NAMESPACE}:{data.command}",
             command=data.command,
             resource="project",
             identifier=str(data.project_id),
