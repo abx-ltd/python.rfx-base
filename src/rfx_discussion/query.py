@@ -49,7 +49,6 @@ class InquiryQuery(DomainQueryResource):
     availability: Availability = EnumField("Availability")
     activity: datetime = DatetimeField("Activity")
 
-
 # Ticket Queries
 
 

@@ -455,6 +455,7 @@ class CreateProjectTicker(Command):
                     "user_id": agg.get_context().user_id,
                     "profile_id": agg.get_context().profile_id,
                     "organization_id": agg.get_context().organization_id,
+                    "realm": agg.get_context().realm,
                 }
             }
         )
@@ -470,6 +471,7 @@ class CreateProjectTicker(Command):
                     "user_id": agg.get_context().user_id,
                     "profile_id": agg.get_context().profile_id,
                     "organization_id": agg.get_context().organization_id,
+                    "realm": agg.get_context().realm,
                 }
             }
         )
