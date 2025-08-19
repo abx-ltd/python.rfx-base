@@ -331,11 +331,6 @@ class CPOPortalAggregate(Aggregate):
 
         await self.statemgr.update(record, **update_data)
 
-        updated_record = await self.statemgr.find_one('project-bdm-contact', where=dict(
-            _id=data.bdm_contact_id
-        ))
-        return updated_record
-
     @action('project-bdm-contact-deleted', resources='project')
     async def delete_project_bdm_contact(self, /, data):
         project = self.rootobj
