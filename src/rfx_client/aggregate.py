@@ -98,13 +98,7 @@ class CPOPortalAggregate(Aggregate):
     async def delete_project(self, /):
         """Delete a project"""
         project = self.rootobj
-        project_work_packages = await self.statemgr.find_all('project-work-package', where=dict(
-            project_id=project._id
-        ))
-
         await self.statemgr.invalidate(project)
-        for project_work_package in project_work_packages:
-            await self.statemgr.invalidate_one('project-work-package', project_work_package._id)
 
     @action('ticket-added-to-project', resources='project')
     async def add_ticket_to_project(self, /, data):
@@ -251,54 +245,11 @@ class CPOPortalAggregate(Aggregate):
         """Remove a work package and all related items from the project estimator"""
         project = self.rootobj
 
-        # 1. Find project-work-package
         project_work_package = await self.statemgr.find_one('project-work-package', where=dict(
             work_package_id=data.work_package_id,
             project_id=project._id
         ))
-
-        if not project_work_package:
-            raise ValueError("Work package not found")
-
-        wp_work_items_to_remove = await self.statemgr.find_all(
-            'project-work-package-work-item',
-            where=dict(project_work_package_id=project_work_package._id)
-        )
-
-        if not wp_work_items_to_remove:
-            # if no work item, just delete work package and return
-            await self.statemgr.invalidate_one('project-work-package', project_work_package._id)
-            return None
-
-        # 2. get project_work_item_id from all records
-        project_work_item_ids = [
-            item.project_work_item_id for item in wp_work_items_to_remove
-        ]
-
-        # 3. delete all project-work-item-deliverable related to project_work_item
-        project_deliverables = await self.statemgr.find_all(
-            'project-work-item-deliverable',
-            where={'project_work_item_id.in': project_work_item_ids}
-        )
-        for deliverable in project_deliverables:
-            await self.statemgr.invalidate_one('project-work-item-deliverable', deliverable._id)
-
-        # 4. delete all project-work-item
-        project_work_items = await self.statemgr.find_all(
-            'project-work-item',
-            where={'_id.in': project_work_item_ids}
-        )
-        for work_item in project_work_items:
-            await self.statemgr.invalidate_one('project-work-item', work_item._id)
-
-        # 5. delete all project-work-package-work-item
-        for wp_work_item in wp_work_items_to_remove:
-            await self.statemgr.invalidate_one('project-work-package-work-item', wp_work_item._id)
-
-        # 6. delete project-work-package
         await self.statemgr.invalidate_one('project-work-package', project_work_package._id)
-
-        return None
 
     # =========== Project BDM Contact (Project Context) ============
     @action('project-bdm-contact-created', resources='project')
@@ -682,7 +633,6 @@ class CPOPortalAggregate(Aggregate):
             raise ValueError("Project work item not found")
 
         await self.statemgr.invalidate_one('project-work-item', project_work_item._id)
-        return project_work_item
 
 # =========== Project Work Package (Project Context) ============
 
@@ -703,10 +653,8 @@ class CPOPortalAggregate(Aggregate):
         await self.statemgr.update(project_work_package, **update_data)
         return project_work_package
 
-# =========== Project Work Package Work Item (Project Context) ============
-
-    @action("add-new-work-item-to-project-work-package", resources='project')
     # =========== Project Work Package Work Item (Project Context) ============
+
     @action("add-new-work-item-to-project-work-package", resources='project')
     async def add_new_work_item_to_project_work_package(self, /, data):
         """Add new work item to project work package and clone into project work item"""
@@ -765,15 +713,6 @@ class CPOPortalAggregate(Aggregate):
         if not project_work_item:
             raise ValueError("Project work item not found")
 
-        project_work_package_work_item = await self.statemgr.find_one('project-work-package-work-item', where=dict(
-            project_work_package_id=data.project_work_package_id,
-            project_work_item_id=project_work_item._id,
-            project_id=self.aggroot.identifier
-        ))
-        if not project_work_package_work_item:
-            raise ValueError("Project work package work item not found")
-
-        await self.statemgr.invalidate_one('project-work-package-work-item', project_work_package_work_item._id)
         await self.statemgr.invalidate_one('project-work-item', project_work_item._id)
 
 # =========== Project Work Item Deliverable (Project Context) ============

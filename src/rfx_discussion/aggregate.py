@@ -85,8 +85,10 @@ class RFXDiscussionAggregate(Aggregate):
     async def remove_ticket(self, /):
         """Remove ticket"""
         ticket = self.rootobj
+        if not ticket.is_inquiry:
+            raise ValueError(
+                "You cannot remove a ticket that attached to a project")
         await self.statemgr.invalidate(ticket)
-        return {"removed": True}
 
     # =========== Ticket Assignee (Ticket Context) ============
 
@@ -175,11 +177,10 @@ class RFXDiscussionAggregate(Aggregate):
     @action('tag-removed-from-ticket', resources='ticket')
     async def remove_ticket_tag(self, /, tag_id: str):
         """Remove tag from ticket"""
-        tags = await self.statemgr.find_all('ticket-tag',
-                                            where=dict(
-                                                ticket_id=self.aggroot.identifier,
-                                                tag_id=tag_id
-                                            ))
+        tags = await self.statemgr.find_all('ticket-tag', where=dict(
+            ticket_id=self.aggroot.identifier,
+            tag_id=tag_id
+        ))
         for tag in tags:
             await self.statemgr.invalidate_one('ticket-tag', tag._id)
         return {"removed": True}
