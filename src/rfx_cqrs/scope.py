@@ -1,7 +1,8 @@
 from pydantic import BaseModel
-from fluvius.query.field import UUIDField
+from fluvius.query.field import UUIDField, StringField
 from fluvius.data import UUID_TYPE
 
 
-class ActivityIdentifierScopeSchema(BaseModel):
+class ActivityScopeSchema(BaseModel):
     identifier: UUID_TYPE = UUIDField("Identifier")
+    resource: str = StringField("Resource")

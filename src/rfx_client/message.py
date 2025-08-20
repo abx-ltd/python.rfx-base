@@ -1,5 +1,5 @@
 from fluvius.data import DataModel, logger
-from .domain import CPOPortalDomain
+from .domain import RFXClientDomain
 from . import config
 from fluvius.data import serialize_mapping
 
@@ -13,7 +13,7 @@ class DiscussionMessageData(DataModel):
     context: dict = {}
 
 
-class DiscussionMessage(CPOPortalDomain.Message):
+class DiscussionMessage(RFXClientDomain.Message):
     Data = DiscussionMessageData
 
     async def _dispatch(msg):
@@ -41,7 +41,7 @@ class ProjectMessageData(DataModel):
     context: dict = {}
 
 
-class ProjectMessage(CPOPortalDomain.Message):
+class ProjectMessage(RFXClientDomain.Message):
     Data = ProjectMessageData
 
     async def _dispatch(msg):

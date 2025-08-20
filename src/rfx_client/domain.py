@@ -1,15 +1,15 @@
 from fluvius.domain import Domain, SQLDomainLogStore
 
-from .aggregate import CPOPortalAggregate
-from .state import CPOPortalStateManager
+from .aggregate import RFXClientAggregate
+from .state import RFXClientStateManager
 # from .policy import CPOPortalPolicyManager
 from . import config
 
 
-class CPOPortalDomain(Domain):
+class RFXClientDomain(Domain):
     __namespace__ = config.NAMESPACE
-    __aggregate__ = CPOPortalAggregate
-    __statemgr__ = CPOPortalStateManager
+    __aggregate__ = RFXClientAggregate
+    __statemgr__ = RFXClientStateManager
     __logstore__ = SQLDomainLogStore
     # __policymgr__   = CPOPortalPolicyManager
 
@@ -18,75 +18,75 @@ class CPOPortalDomain(Domain):
 
 # Promotion related responses
 
-class PromotionResponse(CPOPortalDomain.Response):
+class PromotionResponse(RFXClientDomain.Response):
     pass
 
 
 # Project related responses
-class ProjectResponse(CPOPortalDomain.Response):
+class ProjectResponse(RFXClientDomain.Response):
     pass
 
 
-class ProjectCategoryResponse(CPOPortalDomain.Response):
+class ProjectCategoryResponse(RFXClientDomain.Response):
     pass
 
 
-class ProjectTicketResponse(CPOPortalDomain.Response):
+class ProjectTicketResponse(RFXClientDomain.Response):
     pass
 
 
-class ResourceUploadResponse(CPOPortalDomain.Response):
+class ResourceUploadResponse(RFXClientDomain.Response):
     pass
 
 
-class ProjectBDMContactResponse(CPOPortalDomain.Response):
+class ProjectBDMContactResponse(RFXClientDomain.Response):
     pass
 
 
-class ProjectMilestoneResponse(CPOPortalDomain.Response):
+class ProjectMilestoneResponse(RFXClientDomain.Response):
     pass
 
 
-class ProjectWorkPackageResponse(CPOPortalDomain.Response):
+class ProjectWorkPackageResponse(RFXClientDomain.Response):
     pass
 
 
-class ProjectWorkItemResponse(CPOPortalDomain.Response):
+class ProjectWorkItemResponse(RFXClientDomain.Response):
     pass
 
 
 # Work Package related responses
 
 
-class WorkPackageResponse(CPOPortalDomain.Response):
+class WorkPackageResponse(RFXClientDomain.Response):
     pass
 
 
-class WorkPackageTypeResponse(CPOPortalDomain.Response):
+class WorkPackageTypeResponse(RFXClientDomain.Response):
     pass
 
 
-class WorkPackageDeliverableResponse(CPOPortalDomain.Response):
+class WorkPackageDeliverableResponse(RFXClientDomain.Response):
     pass
 
 
 # Work Item related responses
 
-class WorkItemResponse(CPOPortalDomain.Response):
+class WorkItemResponse(RFXClientDomain.Response):
     pass
 
 
-class WorkItemDeliverableResponse(CPOPortalDomain.Response):
+class WorkItemDeliverableResponse(RFXClientDomain.Response):
     pass
 
 
-class WorkItemTypeResponse(CPOPortalDomain.Response):
+class WorkItemTypeResponse(RFXClientDomain.Response):
     pass
 
 
 # Notification related responses
 
-class NotificationResponse(CPOPortalDomain.Response):
+class NotificationResponse(RFXClientDomain.Response):
     pass
 
 
@@ -96,5 +96,5 @@ class NotificationResponse(CPOPortalDomain.Response):
 
 # Integration related responses
 
-class SyncResultResponse(CPOPortalDomain.Response):
+class SyncResultResponse(RFXClientDomain.Response):
     pass

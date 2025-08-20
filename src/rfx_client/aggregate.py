@@ -7,7 +7,7 @@ from isodate import parse_duration
 from .types import Priority, SyncStatus
 
 
-class CPOPortalAggregate(Aggregate):
+class RFXClientAggregate(Aggregate):
     """CPO Portal Aggregate Root - Handles all project, work package, ticket, workflow, tag, integration, and notification operations"""
 
     # =========== Estimator (Project Context) ============

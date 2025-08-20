@@ -8,13 +8,13 @@ from sqlalchemy.dialects import postgresql as pg
 from . import types, config
 
 
-class CPOPortalConnector(SqlaDriver):
+class RFXClientConnector(SqlaDriver):
     assert config.DB_DSN, "[rfx_client.DB_DSN] not set."
 
     __db_dsn__ = config.DB_DSN
 
 
-class CPOPortalBaseModel(CPOPortalConnector.__data_schema_base__, DomainSchema):
+class RFXClientBaseModel(RFXClientConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -23,7 +23,7 @@ class CPOPortalBaseModel(CPOPortalConnector.__data_schema_base__, DomainSchema):
 # ================ Promotion Context ================
 
 
-class Promotion(CPOPortalBaseModel):
+class Promotion(RFXClientBaseModel):
     __tablename__ = "promotion"
 
     code = sa.Column(sa.String(50), nullable=False, unique=True)
@@ -36,7 +36,7 @@ class Promotion(CPOPortalBaseModel):
 
 # ================ Project Context ================
 # Project Aggregate Root
-class Project(CPOPortalBaseModel):
+class Project(RFXClientBaseModel):
     __tablename__ = "project"
 
     name = sa.Column(sa.String(255), nullable=False)
@@ -62,7 +62,7 @@ class Project(CPOPortalBaseModel):
     )
 
 
-class ViewProject(CPOPortalBaseModel):
+class ViewProject(RFXClientBaseModel):
     __tablename__ = "_project"
 
     name = sa.Column(sa.String(255), nullable=False)
@@ -91,7 +91,7 @@ class ViewProject(CPOPortalBaseModel):
 # Project Resource Entity
 
 
-class ProjectResource(CPOPortalBaseModel):
+class ProjectResource(RFXClientBaseModel):
     __tablename__ = "project-resource"
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
@@ -105,7 +105,7 @@ class ProjectResource(CPOPortalBaseModel):
 
 
 # Project Milestone Entity
-class ProjectMilestone(CPOPortalBaseModel):
+class ProjectMilestone(RFXClientBaseModel):
     __tablename__ = "project-milestone"
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
@@ -117,7 +117,7 @@ class ProjectMilestone(CPOPortalBaseModel):
 
 
 # Project Ticket Entity
-class ProjectTicket(CPOPortalBaseModel):
+class ProjectTicket(RFXClientBaseModel):
     __tablename__ = "project-ticket"
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
@@ -125,7 +125,7 @@ class ProjectTicket(CPOPortalBaseModel):
 
 
 # Project Status Entity
-class ProjectStatus(CPOPortalBaseModel):
+class ProjectStatus(RFXClientBaseModel):
     __tablename__ = "project-status"
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
@@ -137,7 +137,7 @@ class ProjectStatus(CPOPortalBaseModel):
 
 
 # Project Member Entity
-class ProjectMember(CPOPortalBaseModel):
+class ProjectMember(RFXClientBaseModel):
     __tablename__ = "project-member"
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
@@ -147,7 +147,7 @@ class ProjectMember(CPOPortalBaseModel):
 
 
 # Project Work Package Entity
-class ProjectWorkPackage(CPOPortalBaseModel):
+class ProjectWorkPackage(RFXClientBaseModel):
     __tablename__ = "project-work-package"
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
@@ -162,7 +162,7 @@ class ProjectWorkPackage(CPOPortalBaseModel):
     work_package_estimate = sa.Column(sa.Interval)
 
 
-class ProjectWorkItem(CPOPortalBaseModel):
+class ProjectWorkItem(RFXClientBaseModel):
     __tablename__ = "project-work-item"
     type = sa.Column(sa.String(50), nullable=False)
     name = sa.Column(sa.String(255))
@@ -173,7 +173,7 @@ class ProjectWorkItem(CPOPortalBaseModel):
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
 
 
-class ProjectWorkPackageWorkItem(CPOPortalBaseModel):
+class ProjectWorkPackageWorkItem(RFXClientBaseModel):
     __tablename__ = "project-work-package-work-item"
     project_work_package_id = sa.Column(
         sa.ForeignKey(ProjectWorkPackage._id), nullable=False)
@@ -182,7 +182,7 @@ class ProjectWorkPackageWorkItem(CPOPortalBaseModel):
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
 
 
-class ProjectWorkItemDeliverable(CPOPortalBaseModel):
+class ProjectWorkItemDeliverable(RFXClientBaseModel):
     __tablename__ = "project-work-item-deliverable"
     project_work_item_id = sa.Column(sa.ForeignKey(
         ProjectWorkItem._id), nullable=False)
@@ -191,7 +191,7 @@ class ProjectWorkItemDeliverable(CPOPortalBaseModel):
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
 
 
-class ViewProjectWorkPackage(CPOPortalBaseModel):
+class ViewProjectWorkPackage(RFXClientBaseModel):
     __tablename__ = "_project-work-package"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -217,7 +217,7 @@ class ViewProjectWorkPackage(CPOPortalBaseModel):
     members = sa.Column(pg.ARRAY(pg.UUID))
 
 
-class ViewProjectWorkItem(CPOPortalBaseModel):
+class ViewProjectWorkItem(RFXClientBaseModel):
     __tablename__ = "_project-work-item"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -230,7 +230,7 @@ class ViewProjectWorkItem(CPOPortalBaseModel):
     type_alias = sa.Column(sa.String(50), nullable=False)
 
 
-class ViewProjectWorkItemListing(CPOPortalBaseModel):
+class ViewProjectWorkItemListing(RFXClientBaseModel):
     __tablename__ = "_project-work-item-listing"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -250,7 +250,7 @@ class ViewProjectWorkItemListing(CPOPortalBaseModel):
 # Project BDM Contact Entity
 
 
-class ProjectBDMContact(CPOPortalBaseModel):
+class ProjectBDMContact(RFXClientBaseModel):
     __tablename__ = "project-bdm-contact"
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
@@ -262,7 +262,7 @@ class ProjectBDMContact(CPOPortalBaseModel):
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
 
 
-class ViewProjectEstimateSummary(CPOPortalBaseModel):
+class ViewProjectEstimateSummary(RFXClientBaseModel):
     __tablename__ = "_project-estimate-summary"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -280,7 +280,7 @@ class ViewProjectEstimateSummary(CPOPortalBaseModel):
 # Reference Tables
 
 
-class RefProjectCategory(CPOPortalBaseModel):
+class RefProjectCategory(RFXClientBaseModel):
     __tablename__ = "ref--project-category"
 
     key = sa.Column(sa.String(50), nullable=False,
@@ -290,7 +290,7 @@ class RefProjectCategory(CPOPortalBaseModel):
     is_active = sa.Column(sa.Boolean, default=True)
 
 
-class RefProjectRole(CPOPortalBaseModel):
+class RefProjectRole(RFXClientBaseModel):
     __tablename__ = "ref--project-role"
 
     key = sa.Column(sa.String(50), nullable=False,
@@ -301,7 +301,7 @@ class RefProjectRole(CPOPortalBaseModel):
 
 
 # ================ Work Item Context ================
-class WorkItem(CPOPortalBaseModel):
+class WorkItem(RFXClientBaseModel):
     __tablename__ = "work-item"
 
     type = sa.Column(sa.String(50), nullable=False)
@@ -312,7 +312,7 @@ class WorkItem(CPOPortalBaseModel):
     estimate = sa.Column(sa.Interval)
 
 
-class RefWorkItemType(CPOPortalBaseModel):
+class RefWorkItemType(RFXClientBaseModel):
     __tablename__ = "ref--work-item-type"
     key = sa.Column(sa.String(50), nullable=False,
                     unique=True, primary_key=True)
@@ -321,7 +321,7 @@ class RefWorkItemType(CPOPortalBaseModel):
     alias = sa.Column(sa.String(50))
 
 
-class WorkItemDeliverable(CPOPortalBaseModel):
+class WorkItemDeliverable(RFXClientBaseModel):
     __tablename__ = "work-item-deliverable"
 
     work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
@@ -329,7 +329,7 @@ class WorkItemDeliverable(CPOPortalBaseModel):
     description = sa.Column(sa.Text)
 
 
-class ViewWorkItem(CPOPortalBaseModel):
+class ViewWorkItem(RFXClientBaseModel):
     __tablename__ = "_work-item"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -342,7 +342,7 @@ class ViewWorkItem(CPOPortalBaseModel):
     type_alias = sa.Column(sa.String(50), nullable=False)
 
 
-class ViewWorkItemListing(CPOPortalBaseModel):
+class ViewWorkItemListing(RFXClientBaseModel):
     __tablename__ = "_work-item-listing"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -363,7 +363,7 @@ class ViewWorkItemListing(CPOPortalBaseModel):
 # Work Package Aggregate Root
 
 
-class WorkPackage(CPOPortalBaseModel):
+class WorkPackage(RFXClientBaseModel):
     __tablename__ = "work-package"
 
     work_package_name = sa.Column(sa.String(255), nullable=False)
@@ -374,14 +374,14 @@ class WorkPackage(CPOPortalBaseModel):
     estimate = sa.Column(sa.Interval)
 
 
-class WorkPackageWorkItem(CPOPortalBaseModel):
+class WorkPackageWorkItem(RFXClientBaseModel):
     __tablename__ = "work-package-work-item"
 
     work_package_id = sa.Column(sa.ForeignKey(WorkPackage._id), nullable=False)
     work_item_id = sa.Column(sa.ForeignKey(WorkItem._id), nullable=False)
 
 
-class ViewWorkPackage(CPOPortalBaseModel):
+class ViewWorkPackage(RFXClientBaseModel):
     __tablename__ = "_work-package"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
@@ -405,7 +405,7 @@ class ViewWorkPackage(CPOPortalBaseModel):
 # Workflow Aggregate Root
 
 
-class Workflow(CPOPortalBaseModel):
+class Workflow(RFXClientBaseModel):
     __tablename__ = "workflow"
 
     entity_type = sa.Column(
@@ -417,7 +417,7 @@ class Workflow(CPOPortalBaseModel):
 
 
 # Workflow Status Entity
-class WorkflowStatus(CPOPortalBaseModel):
+class WorkflowStatus(RFXClientBaseModel):
     __tablename__ = "workflow-status"
 
     workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
@@ -427,7 +427,7 @@ class WorkflowStatus(CPOPortalBaseModel):
 
 
 # Workflow Transition Entity
-class WorkflowTransition(CPOPortalBaseModel):
+class WorkflowTransition(RFXClientBaseModel):
     __tablename__ = "workflow-transition"
 
     workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
@@ -442,7 +442,7 @@ class WorkflowTransition(CPOPortalBaseModel):
 # Integration Aggregate Root
 
 
-class Integration(CPOPortalBaseModel):
+class Integration(RFXClientBaseModel):
     __tablename__ = "integration"
 
     # 'ticket' or 'project'
@@ -461,7 +461,7 @@ class Integration(CPOPortalBaseModel):
 
 # ================ Notification Context ================
 # Notification Aggregate Root
-class Notification(CPOPortalBaseModel):
+class Notification(RFXClientBaseModel):
     __tablename__ = "notification"
 
     user_id = sa.Column(pg.UUID, nullable=False)  # FK to profile(_id)
@@ -473,7 +473,7 @@ class Notification(CPOPortalBaseModel):
     is_read = sa.Column(sa.Boolean, default=False)
 
 
-class RefNotificationType(CPOPortalBaseModel):
+class RefNotificationType(RFXClientBaseModel):
     __tablename__ = "ref--notification-type"
 
     name = sa.Column(sa.String(255), nullable=False)

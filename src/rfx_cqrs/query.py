@@ -6,6 +6,7 @@ from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
 from datetime import datetime
 from . import scope
+from .state import RFXCqrsStateManager
 
 
 class RFXCqrsQueryManager(DomainQueryManager):
@@ -25,13 +26,9 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
-@resource('project-activity')
+@resource('activity')
 class ProjectActivityLogQuery(DomainQueryResource):
     """Activity log queries"""
-
-    @classmethod
-    def base_query(cls, context, scope):
-        return {"resource": "project"}
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
@@ -40,35 +37,11 @@ class ProjectActivityLogQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "activity-log"
-        scope_required = scope.ActivityIdentifierScopeSchema
+        scope_required = scope.ActivityScopeSchema
 
-    message: str = StringField("Message")
-    msgtype: str = StringField("Message Type")
-    msglabel: str = StringField("Message Label")
-    context: UUID_TYPE = UUIDField("Context")
-    src_cmd: UUID_TYPE = UUIDField("Source Command")
-    src_evt: UUID_TYPE = UUIDField("Source Event")
-    data: dict = DictField("Data")
-    code: int = IntegerField("Code")
-
-
-@resource('ticket-activity')
-class ProjectActivityLogQuery(DomainQueryResource):
-    """Activity log queries"""
-
-    @classmethod
-    def base_query(cls, context, scope):
-        return {"resource": "ticket"}
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-
-        backend_model = "activity-log"
-        scope_required = scope.ActivityIdentifierScopeSchema
-
+    domain: str = StringField("Domain")
+    identifier: UUID_TYPE = UUIDField("Identifier")
+    resource: str = StringField("Resource")
     message: str = StringField("Message")
     msgtype: str = StringField("Message Type")
     msglabel: str = StringField("Message Label")

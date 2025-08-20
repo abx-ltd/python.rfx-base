@@ -1,9 +1,9 @@
 from fluvius.data import DataAccessManager, item_query
-from .model import CPOPortalConnector
+from .model import RFXClientConnector
 
 
-class CPOPortalStateManager(DataAccessManager):
-    __connector__ = CPOPortalConnector
+class RFXClientStateManager(DataAccessManager):
+    __connector__ = RFXClientConnector
     __automodel__ = True
 
     @item_query

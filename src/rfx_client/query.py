@@ -1,7 +1,7 @@
 from .types import Priority, SyncStatus
-from .policy import CPOPortalPolicyManager
-from .domain import CPOPortalDomain
-from .state import CPOPortalStateManager
+from .policy import RFXClientPolicyManager
+from .domain import RFXClientDomain
+from .state import RFXClientStateManager
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource
@@ -16,17 +16,17 @@ default_exclude_fields = ["realm", "deleted", "etag",
                           "created", "updated", "creator", "updater"]
 
 
-class CPOPortalQueryManager(DomainQueryManager):
-    __data_manager__ = CPOPortalStateManager
-    __policymgr__ = CPOPortalPolicyManager
+class RFXClientQueryManager(DomainQueryManager):
+    __data_manager__ = RFXClientStateManager
+    __policymgr__ = RFXClientPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = CPOPortalDomain.Meta.prefix
-        tags = CPOPortalDomain.Meta.tags
+        prefix = RFXClientDomain.Meta.prefix
+        tags = RFXClientDomain.Meta.tags
 
 
-resource = CPOPortalQueryManager.register_resource
-endpoint = CPOPortalQueryManager.register_endpoint
+resource = RFXClientQueryManager.register_resource
+endpoint = RFXClientQueryManager.register_endpoint
 
 
 class ResourceScope(BaseModel):

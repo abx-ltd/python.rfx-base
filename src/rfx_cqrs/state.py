@@ -1,7 +1,7 @@
 from fluvius.domain.state import DataAccessManager
-from .model import RFXCqrsConnector
+from fluvius.domain.logstore.sql import DomainLogConnector
 
 
 class RFXCqrsStateManager(DataAccessManager):
-    __connector__ = RFXCqrsConnector
+    __connector__ = DomainLogConnector
     __automodel__ = True

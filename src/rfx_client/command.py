@@ -3,13 +3,13 @@ from fluvius.data import serialize_mapping, logger
 from fluvius.domain.activity import ActivityType
 from fluvius.domain.aggregate import AggregateRoot
 
-from .domain import CPOPortalDomain
+from .domain import RFXClientDomain
 from . import datadef, config
 from .types import ActivityAction
 from fluvius.data import UUID_TYPE, UUID_GENR, logger
 
-processor = CPOPortalDomain.command_processor
-Command = CPOPortalDomain.Command
+processor = RFXClientDomain.command_processor
+Command = RFXClientDomain.Command
 
 
 # ---------- Estimator (Project Context)----------
