@@ -141,7 +141,6 @@ class RemoveTicket(Command):
             msglabel="remove ticket",
             msgtype=ActivityType.USER_ACTION,
             data={
-                "ticket_id": agg.get_aggroot().identifier,
                 "removed_by": f"{profile.name__given} {profile.name__family}",
             }
         )
@@ -245,6 +244,7 @@ class AddParticipantToTicket(Command):
             msglabel="add participant",
             msgtype=ActivityType.USER_ACTION,
             data={
+                "participant_id": participant._id,
                 "added_by": f"{profile.name__given} {profile.name__family}",
             }
         )
@@ -267,20 +267,21 @@ class RemoveParticipantFromTicket(Command):
     async def _process(self, agg, stm, payload):
         """Remove participant from ticket"""
 
-        # profile_id = agg.get_context().profile_id
-        # profile = await stm.get_profile(profile_id)
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
 
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"{profile.name__given} {profile.name__family} removed a participant from a ticket {agg.get_aggroot().title}",
-        #     msglabel="remove participant",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={
-        #         "ticket_id": agg.get_aggroot().identifier,
-        #         "ticket_title": agg.get_aggroot().title,
-        #         "removed_by": f"{profile.name__given} {profile.name__family}",
-        #     }
-        # )
+        participant = await stm.get_profile(payload.participant_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} removed a participant {participant.name__given} {participant.name__family}",
+            msglabel="remove participant",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "participant_id": participant._id,
+                "removed_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
 
         await agg.remove_ticket_participant(payload.participant_id)
 
@@ -409,20 +410,19 @@ class AddTicketTag(Command):
     async def _process(self, agg, stm, payload):
         """Add tag to ticket"""
 
-        # profile_id = agg.get_context().profile_id
-        # profile = await stm.get_profile(profile_id)
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
 
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"{profile.name__given} {profile.name__family} added a tag to a ticket {agg.get_aggroot().title}",
-        #     msglabel="add tag",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={
-        #         "ticket_id": agg.get_aggroot().identifier,
-        #         "ticket_title": agg.get_aggroot().title,
-        #         "added_by": f"{profile.name__given} {profile.name__family}",
-        #     }
-        # )
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} added a tag",
+            msglabel="add tag",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "tag_id": payload.tag_id,
+                "added_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
         await agg.add_ticket_tag(payload.tag_id)
 
 
@@ -441,20 +441,19 @@ class RemoveTicketTag(Command):
     async def _process(self, agg, stm, payload):
         """Remove tag from ticket"""
 
-        # profile_id = agg.get_context().profile_id
-        # profile = await stm.get_profile(profile_id)
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
 
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"{profile.name__given} {profile.name__family} removed a tag from a ticket {agg.get_aggroot().title}",
-        #     msglabel="remove tag",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={
-        #         "ticket_id": agg.get_aggroot().identifier,
-        #         "ticket_title": agg.get_aggroot().title,
-        #         "removed_by": f"{profile.name__given} {profile.name__family}",
-        #     }
-        # )
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} removed a tag",
+            msglabel="remove tag",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "tag_id": payload.tag_id,
+                "removed_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
 
         await agg.remove_ticket_tag(payload.tag_id)
 
@@ -533,8 +532,6 @@ class ReplyToComment(Command):
 
 
 # ------------ Ticket Comment (Ticket Context) ------------
-
-
 class CreateTicketComment(Command):
     """Create Ticket Comment - Creates a new comment for a ticket"""
 
@@ -549,21 +546,20 @@ class CreateTicketComment(Command):
 
     async def _process(self, agg, stm, payload):
         """Create ticket comment"""
-
-        # profile_id = agg.get_context().profile_id
-        # profile = await stm.get_profile(profile_id)
-
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"{profile.name__given} {profile.name__family} created a comment for a ticket {agg.get_aggroot().title}",
-        #     msglabel="create comment",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={
-        #         "ticket_id": agg.get_aggroot().identifier,
-        #         "ticket_title": agg.get_aggroot().title,
-        #         "created_by": f"{profile.name__given} {profile.name__family}",
-        #     }
-        # )
-
         result = await agg.create_ticket_comment(data=payload)
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} created a comment",
+            msglabel="create comment",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "comment_id": result._id,
+                "created_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
