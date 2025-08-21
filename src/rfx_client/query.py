@@ -60,6 +60,7 @@ class ProjectDraftQuery(DomainQueryResource):
     free_credit_applied: int = IntegerField("Free Credit Applied")
     referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
     members: list[UUID_TYPE] = ArrayField("Members")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
 # Project Queries
@@ -93,6 +94,7 @@ class ProjectQuery(DomainQueryResource):
     status_workflow_id: UUID_TYPE = UUIDField("Status Workflow ID")
     sync_status: SyncStatus = EnumField("Sync Status")
     members: list[UUID_TYPE] = ArrayField("Members")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
 @resource('project-bdm-contact')
@@ -153,6 +155,7 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
     total_credits_after_discount: float = FloatField(
         "Total Credits After Discount")
     total_cost: float = FloatField("Total Cost")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
 @resource('project-category')
@@ -355,6 +358,7 @@ class WorkItemDetailQuery(DomainQueryResource):
     credit_per_unit: float = FloatField("Credit Per Unit")
     estimate: str = StringField("Estimate")
     type_alias: str = StringField("Type Alias")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
 @resource('work-item-listing')
@@ -382,6 +386,7 @@ class WorkItemListingQuery(DomainQueryResource):
     total_credits_for_item: float = FloatField("Total Credits For Item")
     estimated_cost_for_item: float = FloatField("Estimated Cost For Item")
     estimate: str = StringField("Estimate")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
 @resource('work-item-deliverable')
@@ -427,3 +432,4 @@ class WorkPackageQuery(DomainQueryResource):
     upfront_cost: float = FloatField("Upfront Cost")
     monthly_cost: float = FloatField("Monthly Cost")
     work_item_count: int = IntegerField("Work Item Count")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
