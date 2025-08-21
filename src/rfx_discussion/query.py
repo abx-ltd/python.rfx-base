@@ -48,6 +48,7 @@ class InquiryQuery(DomainQueryResource):
     tag_names: list[str] = ArrayField("Tag Names")
     availability: Availability = EnumField("Availability")
     activity: datetime = DatetimeField("Activity")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 # Ticket Queries
 
@@ -75,6 +76,7 @@ class TicketQuery(DomainQueryResource):
     status: str = StringField("Status")
     availability: Availability = EnumField("Availability")
     sync_status: SyncStatus = EnumField("Sync Status")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
 @resource('ticket-type')
@@ -113,7 +115,7 @@ class TagQuery(DomainQueryResource):
     is_active: bool = BooleanField("Is Active")
     target_resource: str = StringField("Target Resource")
     target_resource_id: str = StringField("Target Resource ID")
-
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 # Comment Queries
 
@@ -136,3 +138,4 @@ class CommentQuery(DomainQueryResource):
     depth: int = IntegerField("Depth")
     content: str = StringField("Content")
     creator: dict = DictField("Creator")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")

@@ -32,6 +32,7 @@ class Promotion(RFXClientBaseModel):
     max_uses = sa.Column(sa.Integer, nullable=False)
     current_uses = sa.Column(sa.Integer, default=0)
     discount_value = sa.Column(sa.Numeric(10, 2), nullable=False)
+    organization_id = sa.Column(pg.UUID)
 
 
 # ================ Project Context ================
@@ -60,6 +61,7 @@ class Project(RFXClientBaseModel):
                 schema=config.CPO_PORTAL_SCHEMA),
         default=types.SyncStatus.PENDING
     )
+    organization_id = sa.Column(pg.UUID)
 
 
 class ViewProject(RFXClientBaseModel):
@@ -87,6 +89,7 @@ class ViewProject(RFXClientBaseModel):
         default=types.SyncStatus.PENDING
     )
     members = sa.Column(pg.ARRAY(pg.UUID))
+    organization_id = sa.Column(pg.UUID)
 
 # Project Resource Entity
 
@@ -266,7 +269,6 @@ class ViewProjectEstimateSummary(RFXClientBaseModel):
     __tablename__ = "_project-estimate-summary"
     __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
 
-    project_id = sa.Column(pg.UUID, primary_key=True)
     architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
     development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
     operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
@@ -310,6 +312,7 @@ class WorkItem(RFXClientBaseModel):
     price_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
     credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
     estimate = sa.Column(sa.Interval)
+    organization_id = sa.Column(pg.UUID)
 
 
 class RefWorkItemType(RFXClientBaseModel):
@@ -340,6 +343,7 @@ class ViewWorkItem(RFXClientBaseModel):
     credit_per_unit = sa.Column(sa.Numeric(10, 2), nullable=False)
     estimate = sa.Column(sa.Interval)
     type_alias = sa.Column(sa.String(50), nullable=False)
+    organization_id = sa.Column(pg.UUID)
 
 
 class ViewWorkItemListing(RFXClientBaseModel):
@@ -357,6 +361,7 @@ class ViewWorkItemListing(RFXClientBaseModel):
     total_credits_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
     estimated_cost_for_item = sa.Column(sa.Numeric(10, 2), nullable=False)
     estimate = sa.Column(sa.Interval)
+    organization_id = sa.Column(pg.UUID)
 
 
 # ================ Work Package Context ================
@@ -372,6 +377,7 @@ class WorkPackage(RFXClientBaseModel):
     is_custom = sa.Column(sa.Boolean, default=False)
     complexity_level = sa.Column(sa.Integer, default=1)
     estimate = sa.Column(sa.Interval)
+    organization_id = sa.Column(pg.UUID)
 
 
 class WorkPackageWorkItem(RFXClientBaseModel):
@@ -399,6 +405,7 @@ class ViewWorkPackage(RFXClientBaseModel):
     upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     work_item_count = sa.Column(sa.Integer, nullable=False)
+    organization_id = sa.Column(pg.UUID)
 
 
 # ================ Workflow Context ================
@@ -414,9 +421,11 @@ class Workflow(RFXClientBaseModel):
         nullable=False
     )
     name = sa.Column(sa.String(255), nullable=False)
-
+    organization_id = sa.Column(pg.UUID)
 
 # Workflow Status Entity
+
+
 class WorkflowStatus(RFXClientBaseModel):
     __tablename__ = "workflow-status"
 

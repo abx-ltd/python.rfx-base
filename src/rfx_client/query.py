@@ -144,7 +144,6 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
 
         backend_model = "_project-estimate-summary"
 
-    project_id: UUID_TYPE = UUIDField("Project ID")
     architectural_credits: float = FloatField("Architectural Credits")
     development_credits: float = FloatField("Development Credits")
     operation_credits: float = FloatField("Operation Credits")

@@ -27,6 +27,7 @@ class RFXClientAggregate(Aggregate):
             "project",
             serialize_mapping(data),
             status="DRAFT",
+            organization_id=self.context.organization_id,
             _id=UUID_GENR()
         )
         # we will check user permission to add project-member role correct (now we just default it client)
@@ -304,7 +305,8 @@ class RFXClientAggregate(Aggregate):
         record = self.init_resource(
             "promotion",
             serialize_mapping(data),
-            _id=UUID_GENR()
+            _id=UUID_GENR(),
+            organization_id=self.context.organization_id
         )
         """Create a new promotion code"""
         await self.statemgr.insert(record)
@@ -433,7 +435,8 @@ class RFXClientAggregate(Aggregate):
         record = self.init_resource(
             "work-package",
             serialize_mapping(data),
-            _id=UUID_GENR()
+            _id=UUID_GENR(),
+            organization_id=self.context.organization_id
         )
         await self.statemgr.insert(record)
         return record
@@ -467,6 +470,7 @@ class RFXClientAggregate(Aggregate):
             "work-item",
             serialize_mapping(data),
             _id=UUID_GENR(),
+            organization_id=self.context.organization_id
         )
         await self.statemgr.insert(record)
         return record

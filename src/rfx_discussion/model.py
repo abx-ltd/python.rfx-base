@@ -49,6 +49,7 @@ class Ticket(RFXDiscussionBaseModel):
         default=types.SyncStatus.PENDING
     )
     is_inquiry = sa.Column(sa.Boolean, default=True)
+    organization_id = sa.Column(pg.UUID)
 
 
 # Ticket Status Entity
@@ -123,7 +124,7 @@ class ViewInquiry(RFXDiscussionBaseModel):
                 schema=config.RFX_DISCUSSION_SCHEMA),
         nullable=False
     )
-
+    organization_id = sa.Column(pg.UUID)
 
 class ViewTicket(RFXDiscussionBaseModel):
     __tablename__ = "_ticket"
@@ -148,6 +149,7 @@ class ViewTicket(RFXDiscussionBaseModel):
         default=types.SyncStatus.PENDING
     )
     project_id = sa.Column(pg.UUID)
+    organization_id = sa.Column(pg.UUID)
 
 
 # ================ Tag Context ================s
@@ -161,6 +163,7 @@ class Tag(RFXDiscussionBaseModel):
     description = sa.Column(sa.Text)
     is_active = sa.Column(sa.Boolean, default=True)
     target_resource = sa.Column(sa.String(100), nullable=False)
+    organization_id = sa.Column(pg.UUID)
 
 # ================ Comment Context ================
 
@@ -172,6 +175,7 @@ class Comment(RFXDiscussionBaseModel):
     parent_id = sa.Column(pg.UUID)
     content = sa.Column(sa.Text)
     depth = sa.Column(sa.Integer, default=0)
+    organization_id = sa.Column(pg.UUID)
 
 
 class CommentView(RFXDiscussionBaseModel):
@@ -184,3 +188,4 @@ class CommentView(RFXDiscussionBaseModel):
     depth = sa.Column(sa.Integer, default=0)
     ticket_id = sa.Column(pg.UUID)
     creator = sa.Column(pg.JSONB)
+    organization_id = sa.Column(pg.UUID)

@@ -53,6 +53,7 @@ class RFXDiscussionAggregate(Aggregate):
             "ticket",
             serialize_mapping(data),
             status="DRAFT",
+            organization_id=self.context.organization_id,
             _id=UUID_GENR()
         )
         await self.statemgr.insert(record)
@@ -70,7 +71,8 @@ class RFXDiscussionAggregate(Aggregate):
             _id=self.aggroot.identifier,
             status="DRAFT",
             sync_status=SyncStatus.PENDING,
-            is_inquiry=False
+            is_inquiry=False,
+            organization_id=self.context.organization_id
         )
         await self.statemgr.insert(record)
         return record
@@ -192,6 +194,7 @@ class RFXDiscussionAggregate(Aggregate):
         record = self.init_resource(
             "tag",
             serialize_mapping(data),
+            organization_id=self.context.organization_id,
             _id=UUID_GENR()
         )
         await self.statemgr.insert(record)
@@ -220,7 +223,8 @@ class RFXDiscussionAggregate(Aggregate):
         record = self.init_resource(
             "comment",
             serialize_mapping(data),
-            _id=UUID_GENR()
+            _id=UUID_GENR(),
+            organization_id=self.context.organization_id
         )
         await self.statemgr.insert(record)
         return record
@@ -287,6 +291,7 @@ class RFXDiscussionAggregate(Aggregate):
         record = self.init_resource(
             "comment",
             serialize_mapping(data),
+            organization_id=self.context.organization_id,
             _id=UUID_GENR()
         )
 
