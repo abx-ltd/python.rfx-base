@@ -47,7 +47,6 @@ class InquiryQuery(DomainQueryResource):
     title: str = StringField("Title")
     tag_names: list[str] = ArrayField("Tag Names")
     availability: Availability = EnumField("Availability")
-    activity: datetime = DatetimeField("Activity")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 # Ticket Queries
