@@ -118,6 +118,7 @@ class ViewInquiry(RFXDiscussionBaseModel):
     title = sa.Column(sa.String(255), nullable=False)
     tag_names = sa.Column(pg.ARRAY(sa.String))
     participants = sa.Column(pg.JSONB)
+    activity = sa.Column(sa.DateTime)
     availability = sa.Column(
         sa.Enum(types.Availability, name="availability",
                 schema=config.RFX_DISCUSSION_SCHEMA),
