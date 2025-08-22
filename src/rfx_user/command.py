@@ -199,7 +199,7 @@ class SyncUser(Command):
 
 
 # ==========================================================================
-# ORGANIZATION COMMANDS  
+# ORGANIZATION COMMANDS
 # Multi-tenant organization management with automatic profile creation
 # ==========================================================================
 

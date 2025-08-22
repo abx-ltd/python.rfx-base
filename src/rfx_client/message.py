@@ -45,7 +45,6 @@ class ProjectMessage(RFXClientDomain.Message):
     Data = ProjectMessageData
 
     async def _dispatch(msg):
-
         data = msg.data
         logger.info(f"ProjectMessage: {data}")
 
@@ -58,6 +57,32 @@ class ProjectMessage(RFXClientDomain.Message):
             _headers={},
             _context=dict(
                 source="internal",
+                audit=data.context,
+            )
+        )
+
+
+class NotiMessageData(DataModel):
+    command: str = "send-message"
+    payload: dict = {}
+    context: dict = {}
+
+
+class NotiMessage(RFXClientDomain.Message):
+    Data = NotiMessageData
+
+    async def _dispatch(msg):
+
+        data = msg.data
+        logger.info(f"NotiMessage: {data}")
+
+        await get_worker_client().send(
+            f"{config.MESSAGE_NAMESPACE}:{data.command}",
+            command=data.command,
+            resource="message",
+            payload=serialize_mapping(data.payload),
+            _headers={},
+            _context=dict(
                 audit=data.context,
             )
         )

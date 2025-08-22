@@ -433,3 +433,21 @@ class WorkPackageQuery(DomainQueryResource):
     monthly_cost: float = FloatField("Monthly Cost")
     work_item_count: int = IntegerField("Work Item Count")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+# class CreditUsageSummaryQuery(DomainQueryResource):
+#     """Credit usage summary queries"""
+
+#     class Meta(DomainQueryResource.Meta):
+#         include_all = True
+#         allow_item_view = True
+#         allow_list_view = True
+#         allow_meta_view = True
+#         backend_model = "_credit-usage-summary"
+
+#     usage_year: int = IntegerField("Usage Year")
+#     usage_month: int = IntegerField("Usage Month")
+#     usage_week: int = IntegerField("Usage Week")
+#     ar_credits: float = FloatField("AR Credits")
+#     de_credits: float = FloatField("DE Credits")
+#     op_credits: float = FloatField("OP Credits")
+#     total_credits: float = FloatField("Total Credits")

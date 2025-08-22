@@ -16,7 +16,7 @@ class RFXClientConnector(SqlaDriver):
 
 class RFXClientBaseModel(RFXClientConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
 
     _realm = sa.Column(sa.String)
 
@@ -45,7 +45,7 @@ class Project(RFXClientBaseModel):
     category = sa.Column(sa.String(100))  # FK to ref--project-category
     priority = sa.Column(
         sa.Enum(types.Priority, name="priority",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.CPO_CLIENT_SCHEMA),
         nullable=False
     )
     status = sa.Column(sa.String(100), nullable=False)
@@ -58,7 +58,7 @@ class Project(RFXClientBaseModel):
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     sync_status = sa.Column(
         sa.Enum(types.SyncStatus, name="sync_status",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.CPO_CLIENT_SCHEMA),
         default=types.SyncStatus.PENDING
     )
     organization_id = sa.Column(pg.UUID)
@@ -72,7 +72,7 @@ class ViewProject(RFXClientBaseModel):
     category = sa.Column(sa.String(100))  # FK to ref--project-category
     priority = sa.Column(
         sa.Enum(types.Priority, name="priority",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.CPO_CLIENT_SCHEMA),
         nullable=False
     )
     status = sa.Column(sa.String(100), nullable=False)
@@ -85,7 +85,7 @@ class ViewProject(RFXClientBaseModel):
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     sync_status = sa.Column(
         sa.Enum(types.SyncStatus, name="sync_status",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.CPO_CLIENT_SCHEMA),
         default=types.SyncStatus.PENDING
     )
     members = sa.Column(pg.ARRAY(pg.UUID))
@@ -196,7 +196,7 @@ class ProjectWorkItemDeliverable(RFXClientBaseModel):
 
 class ViewProjectWorkPackage(RFXClientBaseModel):
     __tablename__ = "_project-work-package"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
 
     project_id = sa.Column(pg.UUID, primary_key=True)
     work_package_id = sa.Column(pg.UUID, primary_key=True)
@@ -222,7 +222,7 @@ class ViewProjectWorkPackage(RFXClientBaseModel):
 
 class ViewProjectWorkItem(RFXClientBaseModel):
     __tablename__ = "_project-work-item"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
 
     type = sa.Column(sa.String(50), nullable=False)
     name = sa.Column(sa.String(255), nullable=False)
@@ -235,7 +235,7 @@ class ViewProjectWorkItem(RFXClientBaseModel):
 
 class ViewProjectWorkItemListing(RFXClientBaseModel):
     __tablename__ = "_project-work-item-listing"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
 
     project_work_package_id = sa.Column(pg.UUID, primary_key=True)
     project_work_item_id = sa.Column(pg.UUID, primary_key=True)
@@ -258,7 +258,7 @@ class ProjectBDMContact(RFXClientBaseModel):
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
     contact_method = sa.Column(pg.ARRAY(sa.Enum(types.ContactMethod, name="contact_method",
-                                                schema=config.CPO_PORTAL_SCHEMA)), nullable=False)
+                                                schema=config.CPO_CLIENT_SCHEMA)), nullable=False)
     message = sa.Column(sa.Text)
     meeting_time = sa.Column(sa.DateTime(timezone=True))
     status = sa.Column(sa.String(100), nullable=False)
@@ -267,7 +267,7 @@ class ProjectBDMContact(RFXClientBaseModel):
 
 class ViewProjectEstimateSummary(RFXClientBaseModel):
     __tablename__ = "_project-estimate-summary"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
 
     architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
     development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
@@ -334,7 +334,7 @@ class WorkItemDeliverable(RFXClientBaseModel):
 
 class ViewWorkItem(RFXClientBaseModel):
     __tablename__ = "_work-item"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
 
     type = sa.Column(sa.String(50), nullable=False)
     name = sa.Column(sa.String(255), nullable=False)
@@ -348,7 +348,7 @@ class ViewWorkItem(RFXClientBaseModel):
 
 class ViewWorkItemListing(RFXClientBaseModel):
     __tablename__ = "_work-item-listing"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
 
     work_package_id = sa.Column(pg.UUID, primary_key=True)
     work_item_id = sa.Column(pg.UUID, primary_key=True)
@@ -389,7 +389,7 @@ class WorkPackageWorkItem(RFXClientBaseModel):
 
 class ViewWorkPackage(RFXClientBaseModel):
     __tablename__ = "_work-package"
-    __table_args__ = {'schema': config.CPO_PORTAL_SCHEMA}
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
 
     work_package_name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
@@ -417,7 +417,7 @@ class Workflow(RFXClientBaseModel):
 
     entity_type = sa.Column(
         sa.Enum(types.EntityType, name="entity_type",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.CPO_CLIENT_SCHEMA),
         nullable=False
     )
     name = sa.Column(sa.String(255), nullable=False)
@@ -463,7 +463,7 @@ class Integration(RFXClientBaseModel):
     external_url = sa.Column(sa.String(500))
     status = sa.Column(
         sa.Enum(types.SyncStatus, name="sync_status",
-                schema=config.CPO_PORTAL_SCHEMA),
+                schema=config.CPO_CLIENT_SCHEMA),
         nullable=False
     )
 
@@ -488,3 +488,19 @@ class RefNotificationType(RFXClientBaseModel):
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
     is_active = sa.Column(sa.Boolean, default=True)
+
+
+# ================ Credit Usage ================
+
+class ViewCreditUsage(RFXClientBaseModel):
+    __tablename__ = "_credit-usage-summary"
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+
+    usage_year = sa.Column(sa.Integer, nullable=False)
+    usage_month = sa.Column(sa.Integer, nullable=False)
+    usage_week = sa.Column(sa.Integer, nullable=False)
+    week_start_date = sa.Column(sa.DateTime(timezone=True), nullable=False)
+    ar_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    de_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    op_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    total_credits = sa.Column(sa.Numeric(10, 2), nullable=False)

@@ -1,4 +1,5 @@
-MESSAGE_SERVICE_SCHEMA = "rfx--message"
+MESSAGE_SERVICE_SCHEMA = "rfx-message"
 DB_DSN = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
 POLICY_SCHEMA = "rfx--policy"
 # POLICY_TABLE = "_policy"
+NAMESPACE = "rfx-message"

@@ -307,3 +307,7 @@ class AddNewWorkItemToProjectWorkPackagePayload(DataModel):
 class RemoveProjectWorkItemFromProjectWorkPackagePayload(DataModel):
     project_work_package_id: UUID_TYPE
     project_work_item_id: UUID_TYPE
+
+
+class CreditUsageSummaryPayload(DataModel):
+    organization_id: UUID_TYPE

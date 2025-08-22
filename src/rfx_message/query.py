@@ -24,9 +24,9 @@ resource = MessageQueryManager.register_resource
 endpoint = MessageQueryManager.register_endpoint
 
 
-class ResourceScope(BaseModel):
-    resource: str
-    resource_id: str
+# class ResourceScope(BaseModel):
+#     resource: str
+#     resource_id: str
 
 
 @resource('message_recipients')
@@ -49,27 +49,27 @@ class MessageQuery(DomainQueryResource):
         backend_model = "_message_recipients"
 
         # policy_required = True  # Enable access control
-        scope_optional = ResourceScope
+        # scope_optional = ResourceScope
 
         default_order = ("_created.desc",)
 
     # Primary key fields from the view
-    record_id: UUID_TYPE                = UUIDField("Record ID")
-    message_id: UUID_TYPE               = UUIDField("Message ID")
-    recipient_id: UUID_TYPE             = UUIDField("Recipient ID")
-    subject: str                        = StringField("Subject")
-    content: str                        = StringField("Content")
-    rendered_content: str               = StringField("Rendered Content")
-    content_type: ContentType           = EnumField("Content Type", enum=ContentType)
-    sender_id: Optional[UUID_TYPE]      = UUIDField("Sender ID")
-    tags: Optional[List[str]]           = ArrayField("Tags", default=[])
-    expirable: bool                     = BooleanField("Is Expirable")
-    priority: PriorityLevel             = EnumField("Priority Level", enum=PriorityLevel)
-    message_type: Optional[MessageType] = EnumField("Message Type", enum=MessageType)
+    record_id: UUID_TYPE = UUIDField("Record ID")
+    recipient_id: UUID_TYPE = UUIDField("Recipient ID")
+    subject: str = StringField("Subject")
+    content: str = StringField("Content")
+    rendered_content: str = StringField("Rendered Content")
+    content_type: ContentType = EnumField("Content Type", enum=ContentType)
+    sender_id: Optional[UUID_TYPE] = UUIDField("Sender ID")
+    tags: Optional[List[str]] = ArrayField("Tags", default=[])
+    expirable: bool = BooleanField("Is Expirable")
+    priority: PriorityLevel = EnumField("Priority Level", enum=PriorityLevel)
+    message_type: Optional[MessageType] = EnumField(
+        "Message Type", enum=MessageType)
     # Notification-specific fields for recipients
-    is_read: bool                       = BooleanField("Is Read", default=False)
-    read_at: Optional[str]              = DatetimeField("Read At")
-    archived: bool                      = BooleanField("Is Archived", default=False)
+    is_read: bool = BooleanField("Is Read", default=False)
+    read_at: Optional[str] = DatetimeField("Read At")
+    archived: bool = BooleanField("Is Archived", default=False)
 
 
 class TemplateScope(BaseModel):
@@ -111,25 +111,26 @@ class TemplateQuery(DomainQueryResource):
 
     # Template identity
     # id: UUID_TYPE = UUIDField("Template ID")
-    key: str                                  = StringField("Template Key")
-    version: int                              = IntegerField("Version")
-    name: str                                 = StringField("Template Name")
+    key: str = StringField("Template Key")
+    version: int = IntegerField("Version")
+    name: str = StringField("Template Name")
     # Template content
-    engine: str                               = StringField("Template Engine")
-    body: str                                 = StringField("Template Body")
-    description: Optional[str]                = StringField("Description")
+    engine: str = StringField("Template Engine")
+    body: str = StringField("Template Body")
+    description: Optional[str] = StringField("Description")
     # Scoping
-    locale: str                               = StringField("Locale")
-    channel: Optional[str]                    = StringField("Channel")
-    tenant_id: Optional[UUID_TYPE]            = UUIDField("Tenant ID")
-    app_id: Optional[str]                     = StringField("App ID")
+    locale: str = StringField("Locale")
+    channel: Optional[str] = StringField("Channel")
+    tenant_id: Optional[UUID_TYPE] = UUIDField("Tenant ID")
+    app_id: Optional[str] = StringField("App ID")
     # Configuration
-    render_strategy: Optional[RenderStrategy] = EnumField("Render Strategy", enum=RenderStrategy)
-    variables_schema: dict                    = JSONField("Variables Schema")
-    sample_data: dict                         = JSONField("Sample Data")
+    render_strategy: Optional[RenderStrategy] = EnumField(
+        "Render Strategy", enum=RenderStrategy)
+    variables_schema: dict = JSONField("Variables Schema")
+    sample_data: dict = JSONField("Sample Data")
     # Status
-    status: str                               = StringField("Status")
-    is_active: bool                           = BooleanField("Is Active")
+    status: str = StringField("Status")
+    is_active: bool = BooleanField("Is Active")
     # Audit
-    created_by: Optional[UUID_TYPE]           = UUIDField("Created By")
-    updated_by: Optional[UUID_TYPE]           = UUIDField("Updated By")
+    created_by: Optional[UUID_TYPE] = UUIDField("Created By")
+    updated_by: Optional[UUID_TYPE] = UUIDField("Updated By")

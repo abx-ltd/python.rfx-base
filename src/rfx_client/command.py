@@ -7,6 +7,7 @@ from .domain import RFXClientDomain
 from . import datadef, config
 from .types import ActivityAction
 from fluvius.data import UUID_TYPE, UUID_GENR, logger
+from .helper import get_project_member_user_ids
 
 processor = RFXClientDomain.command_processor
 Command = RFXClientDomain.Command
@@ -104,7 +105,7 @@ class UpdateProject(Command):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
-        project = await stm.find_one("project", where=dict(_id=agg.get_aggroot().identifier))
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -114,6 +115,35 @@ class UpdateProject(Command):
             data={
                 "project_name": project.name,
                 "updated_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        message_subject = "Project Updated"
+        if project.status == "DRAFT":
+            message_subject = "Estimator Updated"
+
+        message_content = f"{profile.name__given} {profile.name__family} updated a project {project.name}"
+        if project.status == "DRAFT":
+            message_content = f"{profile.name__given} {profile.name__family} updated an estimator {project.name}"
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": message_subject,
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": message_content,
+                    "content_type": "TEXT",
+                },
+                "context": {
+                    "user_id": str(agg.get_context().user_id),
+                    "profile_id": str(agg.get_context().profile_id),
+                    "organization_id": str(agg.get_context().organization_id),
+                    "realm": agg.get_context().realm,
+                }
             }
         )
 
@@ -134,9 +164,8 @@ class DeleteProject(Command):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
-        project = await stm.find_one("project", where=dict(_id=agg.get_aggroot().identifier))
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
-        await agg.delete_project()
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
             message=f"{profile.name__given} {profile.name__family} deleted a project {project.name}",
@@ -145,6 +174,28 @@ class DeleteProject(Command):
             data={
                 "project_name": project.name,
                 "deleted_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.delete_project()
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Project Deleted",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} deleted a project {project.name}",
+                    "content_type": "TEXT",
+                },
+                "context": {
+                    "user_id": str(agg.get_context().user_id),
+                    "profile_id": str(agg.get_context().profile_id),
+                    "organization_id": str(agg.get_context().organization_id),
+                    "realm": agg.get_context().realm,
+                }
             }
         )
 
@@ -168,9 +219,11 @@ class ApplyPromotion(Command):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} applied a promotion code {payload.promotion_code}",
+            message=f"{profile.name__given} {profile.name__family} applied a promotion code {payload.promotion_code} to estimator {project.name}",
             msglabel="apply-promotion",
             msgtype=ActivityType.USER_ACTION,
             data={
@@ -179,8 +232,29 @@ class ApplyPromotion(Command):
             }
         )
 
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Promotion Applied",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} applied a promotion code {payload.promotion_code}",
+                    "content_type": "TEXT",
+                },
+                "context": {
+                    "user_id": str(agg.get_context().user_id),
+                    "profile_id": str(agg.get_context().profile_id),
+                    "organization_id": str(agg.get_context().organization_id),
+                    "realm": agg.get_context().realm,
+                }
+            }
+        )
 
 # ---------- Project BDM Contact (Still  in Project Context) ----------
+
 
 class CreateProjectBDMContact(Command):
     """Create Project BDM Contact - Creates a new BDM contact for a project"""
@@ -197,6 +271,7 @@ class CreateProjectBDMContact(Command):
     async def _process(self, agg, stm, payload):
         """Create a new BDM contact for a project"""
         result = await agg.create_project_bdm_contact(data=payload)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
@@ -216,6 +291,21 @@ class CreateProjectBDMContact(Command):
         )
         yield agg.create_response(serialize_mapping(result), _type="project-bdm-contact-response")
 
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "BDM Contact Created",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} created a BDM contact for project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
+
 
 class UpdateProjectBDMContact(Command):
     """Update Project BDM Contact - Updates a project BDM contact"""
@@ -231,10 +321,11 @@ class UpdateProjectBDMContact(Command):
 
     async def _process(self, agg, stm, payload):
         """Update a project BDM contact"""
-        result = await agg.update_project_bdm_contact(data=payload)
+        await agg.update_project_bdm_contact(data=payload)
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -242,8 +333,23 @@ class UpdateProjectBDMContact(Command):
             msglabel="update-project-bdm-contact",
             msgtype=ActivityType.USER_ACTION,
             data={
-                "project_bdm_contact_id": result._id,
+                "project_bdm_contact_id": payload.bdm_contact_id,
                 "updated_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "BDM Contact Updated",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} updated a BDM contact of project {project.name}",
+                    "content_type": "TEXT",
+                },
             }
         )
 
@@ -265,10 +371,11 @@ class DeleteProjectBDMContact(Command):
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} deleted a BDM contact",
+            message=f"{profile.name__given} {profile.name__family} deleted a BDM contact of project {project.name}",
             msglabel="delete-project-bdm-contact",
             msgtype=ActivityType.USER_ACTION,
             data={
@@ -277,6 +384,21 @@ class DeleteProjectBDMContact(Command):
             }
         )
         await agg.delete_project_bdm_contact(data=payload)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "BDM Contact Deleted",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} deleted a BDM contact",
+                    "content_type": "TEXT",
+                },
+            }
+        )
 
 
 # ---------- Promotion Context ----------
@@ -366,6 +488,22 @@ class AddWorkPackageToProject(Command):
 
         yield agg.create_response(serialize_mapping(result), _type="project-work-package-response")
 
+        user_ids = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Work Package Added",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} added a work package",
+                    "content_type": "TEXT",
+                },
+            }
+        )
+
 
 class RemoveWorkPackageFromProject(Command):
     """Remove Work Package from Project - Removes a specific Work Package from the project"""
@@ -397,6 +535,23 @@ class RemoveWorkPackageFromProject(Command):
         )
 
         await agg.remove_work_package_from_estimator(data=payload)
+
+        user_ids = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Work Package Removed",
+
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} removed a work package",
+                    "content_type": "TEXT",
+                },
+            }
+        )
 
 
 class AddTicketToProject(Command):
@@ -1196,3 +1351,26 @@ class DeleteProjectWorkItemDeliverable(Command):
                 "deleted_by": f"{profile.name__given} {profile.name__family}",
             }
         )
+
+
+class CreditUsageSummary(Command):
+    """Credit Usage Summary - Get credit usage summary"""
+
+    class Meta:
+        key = "credit-usage-summary"
+        resources = ("project",)
+        tags = ["project", "credit", "usage", "summary"]
+        auth_required = True
+        description = "Get credit usage summary"
+        new_resource = True
+
+    Data = datadef.CreditUsageSummaryPayload
+
+    async def _process(self, agg, stm, payload):
+        """Get credit usage summary"""
+
+        summary = await stm.get_credit_usage_query(
+            organization_id=payload.organization_id,
+        )
+
+        yield agg.create_response({"data": [serialize_mapping(item) for item in summary]}, _type="credit-usage-summary-response")

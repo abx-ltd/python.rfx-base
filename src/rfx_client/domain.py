@@ -98,3 +98,7 @@ class NotificationResponse(RFXClientDomain.Response):
 
 class SyncResultResponse(RFXClientDomain.Response):
     pass
+
+
+class CreditUsageSummaryResponse(RFXClientDomain.Response):
+    pass

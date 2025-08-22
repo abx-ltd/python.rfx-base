@@ -189,6 +189,7 @@ class RFXClientAggregate(Aggregate):
             project_work_item_data.pop('_created', None)
             project_work_item_data.pop('_updated', None)
             project_work_item_data.pop('_etag', None)
+            project_work_item_data.pop('organization_id', None)
 
             project_work_item_id = UUID_GENR()
             project_work_item_data['_id'] = project_work_item_id
