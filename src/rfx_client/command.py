@@ -488,7 +488,12 @@ class AddWorkPackageToProject(Command):
 
         yield agg.create_response(serialize_mapping(result), _type="project-work-package-response")
 
-        user_ids = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        if project.status == "DRAFT":
+            project_name = f"estimator {project.name}"
+        else:
+            project_name = f"project {project.name}"
+
         yield agg.create_message(
             "noti-message",
             data={
@@ -498,7 +503,7 @@ class AddWorkPackageToProject(Command):
                     "subject": "Work Package Added",
                     "message_type": "NOTIFICATION",
                     "priority": "MEDIUM",
-                    "content": f"{profile.name__given} {profile.name__family} added a work package",
+                    "content": f"{profile.name__given} {profile.name__family} added a work package to {project_name}",
                     "content_type": "TEXT",
                 },
             }
@@ -536,7 +541,12 @@ class RemoveWorkPackageFromProject(Command):
 
         await agg.remove_work_package_from_estimator(data=payload)
 
-        user_ids = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+
+        if project.status == "DRAFT":
+            project_name = f"estimator {project.name}"
+        else:
+            project_name = f"project {project.name}"
 
         yield agg.create_message(
             "noti-message",
@@ -545,9 +555,9 @@ class RemoveWorkPackageFromProject(Command):
                 "payload": {
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Work Package Removed",
-
+                    "message_type": "NOTIFICATION",
                     "priority": "MEDIUM",
-                    "content": f"{profile.name__given} {profile.name__family} removed a work package",
+                    "content": f"{profile.name__given} {profile.name__family} removed a work package from {project_name}",
                     "content_type": "TEXT",
                 },
             }
@@ -586,7 +596,7 @@ class AddTicketToProject(Command):
         yield agg.create_response(serialize_mapping(result), _type="project-response")
 
 
-class CreateProjectTicker(Command):
+class CreateProjectTicket(Command):
     class Meta:
         key = "create-project-ticket"
         resources = ("project",)
@@ -631,6 +641,25 @@ class CreateProjectTicker(Command):
             }
         )
 
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Ticket Added",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} added a ticket to project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
+
 
 class AddProjectMember(Command):
     """Add Project Member - Assigns a user (member) to a specific project with a defined role"""
@@ -667,6 +696,24 @@ class AddProjectMember(Command):
             }
         )
 
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        member = await stm.get_profile(payload.member_id)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Member Added",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} added {member.name__given} {member.name__family} to project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
+
 
 class RemoveProjectMember(Command):
     """Remove Project Member - Removes a member from a project"""
@@ -685,6 +732,9 @@ class RemoveProjectMember(Command):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        member = await stm.get_profile(payload.member_id)
+
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
             message=f"{profile.name__given} {profile.name__family} removed a member",
@@ -697,6 +747,21 @@ class RemoveProjectMember(Command):
         )
 
         await agg.remove_project_member(member_id=payload.member_id)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Member Removed",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} removed {member.name__given} {member.name__family} from project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
 
 
 class CreateProjectMilestone(Command):
@@ -718,6 +783,8 @@ class CreateProjectMilestone(Command):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
             message=f"{profile.name__given} {profile.name__family} created a milestone '{result.name}'",
@@ -731,6 +798,21 @@ class CreateProjectMilestone(Command):
         )
 
         yield agg.create_response(serialize_mapping(result), _type="project-milestone-response")
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Milestone Created",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} created a milestone '{result.name}' for project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
 
 
 class UpdateProjectMilestone(Command):
@@ -752,8 +834,8 @@ class UpdateProjectMilestone(Command):
         profile = await stm.get_profile(profile_id)
 
         project_milestone = await stm.find_one(
-            "project_milestone",
-            {"_id": payload.milestone_id}
+            "project-milestone",
+            where={"_id": payload.milestone_id}
         )
 
         yield agg.create_activity(
@@ -768,6 +850,22 @@ class UpdateProjectMilestone(Command):
         )
 
         await agg.update_project_milestone(data=payload)
+
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Milestone Updated",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} updated a milestone {project_milestone.name} in project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
 
 
 class DeleteProjectMilestone(Command):
@@ -1126,7 +1224,7 @@ class UpdateProjectWorkItem(Command):
 
         project_work_item = await stm.find_one(
             "project_work_item",
-            {"_id": payload.project_work_item_id}
+            where={"_id": payload.project_work_item_id}
         )
 
         yield agg.create_activity(
@@ -1162,7 +1260,7 @@ class RemoveProjectWorkItem(Command):
 
         project_work_item = await stm.find_one(
             "project_work_item",
-            {"_id": payload.project_work_item_id}
+            where={"_id": payload.project_work_item_id}
         )
 
         yield agg.create_activity(
@@ -1200,7 +1298,7 @@ class UpdateProjectWorkPackage(Command):
 
         project_work_package = await stm.find_one(
             "project_work_package",
-            {"_id": payload.project_work_package_id}
+            where={"_id": payload.project_work_package_id}
         )
 
         yield agg.create_activity(
@@ -1236,12 +1334,12 @@ class AddNewWorkItemToProjectWorkPackage(Command):
 
         project_work_package = await stm.find_one(
             "project_work_package",
-            {"_id": payload.project_work_package_id}
+            where={"_id": payload.project_work_package_id}
         )
 
         project_work_item = await stm.find_one(
             "project_work_item",
-            {"_id": payload.work_item_id}
+            where={"_id": payload.work_item_id}
         )
 
         yield agg.create_activity(
@@ -1275,7 +1373,7 @@ class RemoveWorkItemFromProjectWorkPackage(Command):
 
         project_work_item = await stm.find_one(
             "project_work_item",
-            {"_id": payload.project_work_item_id}
+            where={"_id": payload.project_work_item_id}
         )
 
         yield agg.create_activity(
@@ -1309,7 +1407,7 @@ class UpdateProjectWorkItemDeliverable(Command):
 
         project_work_item_deliverable = await stm.find_one(
             "project_work_item_deliverable",
-            {"_id": payload.project_work_item_deliverable_id}
+            where={"_id": payload.project_work_item_deliverable_id}
         )
 
         yield agg.create_activity(
