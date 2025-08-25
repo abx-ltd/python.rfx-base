@@ -627,18 +627,6 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(project_work_item, **update_data)
         return project_work_item
 
-    @action('project-work-item-invalidated', resources='project')
-    async def invalidate_project_work_item(self, /, data):
-        """Invalidate project work item"""
-        project_work_item = await self.statemgr.find_one('project-work-item', where=dict(
-            _id=data.project_work_item_id,
-            project_id=self.aggroot.identifier
-        ))
-        if not project_work_item:
-            raise ValueError("Project work item not found")
-
-        await self.statemgr.invalidate_one('project-work-item', project_work_item._id)
-
 # =========== Project Work Package (Project Context) ============
 
     @action('project-work-package-updated', resources='project')
@@ -707,6 +695,7 @@ class RFXClientAggregate(Aggregate):
             serialize_mapping(link_data)
         )
         await self.statemgr.insert(record)
+        return project_work_item
 
     @action("remove-project-work-item-from-project-work-package", resources='project')
     async def remove_project_work_item_from_project_work_package(self, /, data):
@@ -737,18 +726,4 @@ class RFXClientAggregate(Aggregate):
         update_data.pop('project_work_item_deliverable_id', None)
 
         await self.statemgr.update(project_work_item_deliverable, **update_data)
-        return project_work_item_deliverable
-
-    @action('project-work-item-deliverable-invalidated', resources='project')
-    async def invalidate_project_work_item_deliverable(self, /, data):
-        """Invalidate project work item deliverable"""
-        project_work_item_deliverable = await self.statemgr.find_one('project-work-item-deliverable', where=dict(
-            _id=data.project_work_item_deliverable_id,
-            project_id=self.aggroot.identifier
-        ))
-        if not project_work_item_deliverable:
-            raise ValueError("Project work item deliverable not found")
-
-        await self.statemgr.invalidate_one(
-            'project-work-item-deliverable', project_work_item_deliverable._id)
         return project_work_item_deliverable

@@ -1223,9 +1223,11 @@ class UpdateProjectWorkItem(Command):
         profile = await stm.get_profile(profile_id)
 
         project_work_item = await stm.find_one(
-            "project_work_item",
+            "project-work-item",
             where={"_id": payload.project_work_item_id}
         )
+
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -1238,39 +1240,18 @@ class UpdateProjectWorkItem(Command):
             }
         )
 
-
-class RemoveProjectWorkItem(Command):
-    """Remove Project Work Item - Removes a project work item"""
-
-    class Meta:
-        key = "remove-project-work-item"
-        resources = ("project",)
-        tags = ["project", "work-item", "remove"]
-        auth_required = True
-        description = "Remove project work item"
-
-    Data = datadef.RemoveProjectWorkItemPayload
-
-    async def _process(self, agg, stm, payload):
-        """Delete project work item"""
-        await agg.invalidate_project_work_item(data=payload)
-
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
-
-        project_work_item = await stm.find_one(
-            "project_work_item",
-            where={"_id": payload.project_work_item_id}
-        )
-
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} removed a project work item {project_work_item.name}",
-            msglabel="remove-project-work-item",
-            msgtype=ActivityType.USER_ACTION,
+        yield agg.create_message(
+            "noti-message",
             data={
-                "project_work_item_id": project_work_item._id,
-                "removed_by": f"{profile.name__given} {profile.name__family}",
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Work Item Updated",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} updated a work item {project_work_item.name} in project {project.name}",
+                    "content_type": "TEXT",
+                },
             }
         )
 
@@ -1291,13 +1272,14 @@ class UpdateProjectWorkPackage(Command):
 
     async def _process(self, agg, stm, payload):
         """Update project work package"""
-        await agg.update_project_work_package(data=payload)
 
         profile_id = agg.get_context().profile_id
+
         profile = await stm.get_profile(profile_id)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
         project_work_package = await stm.find_one(
-            "project_work_package",
+            "project-work-package",
             where={"_id": payload.project_work_package_id}
         )
 
@@ -1309,6 +1291,23 @@ class UpdateProjectWorkPackage(Command):
             data={
                 "project_work_package_id": project_work_package._id,
                 "updated_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.update_project_work_package(data=payload)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Work Package Updated",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} updated a work package {project_work_package.work_package_name} in project {project.name}",
+                    "content_type": "TEXT",
+                },
             }
         )
 
@@ -1327,30 +1326,49 @@ class AddNewWorkItemToProjectWorkPackage(Command):
 
     async def _process(self, agg, stm, payload):
         """Add new work item to project work package"""
-        await agg.add_new_work_item_to_project_work_package(data=payload)
+        project_work_item = await agg.add_new_work_item_to_project_work_package(data=payload)
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
         project_work_package = await stm.find_one(
-            "project_work_package",
+            "project-work-package",
             where={"_id": payload.project_work_package_id}
         )
 
-        project_work_item = await stm.find_one(
-            "project_work_item",
+        work_item = await stm.find_one(
+            "work-item",
             where={"_id": payload.work_item_id}
         )
 
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} added a new work item {project_work_item.name} to a project work package {project_work_package.work_package_name}",
+            message=f"{profile.name__given} {profile.name__family} added a new work item {work_item.name} to a project work package {project_work_package.work_package_name} in project {project.name}",
             msglabel="add-new-work-item-to-project-work-package",
             msgtype=ActivityType.USER_ACTION,
             data={
                 "project_work_package_id": project_work_package._id,
-                "work_item_id": project_work_item._id,
+                "work_item_id": work_item._id,
                 "added_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        yield agg.create_response(serialize_mapping(project_work_item), _type="project-work-item-response")
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Work Item Added to Project Work Package",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} added a new work item {work_item.name} to a project work package {project_work_package.work_package_name} in project {project.name}",
+                    "content_type": "TEXT",
+                },
             }
         )
 
@@ -1365,15 +1383,22 @@ class RemoveWorkItemFromProjectWorkPackage(Command):
     Data = datadef.RemoveProjectWorkItemFromProjectWorkPackagePayload
 
     async def _process(self, agg, stm, payload):
-        """Remove work item from project work package"""
-        await agg.remove_project_work_item_from_project_work_package(data=payload)
+        """Remove project work item from project work package"""
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
         project_work_item = await stm.find_one(
-            "project_work_item",
-            where={"_id": payload.project_work_item_id}
+            "project-work-item",
+            where={"_id": payload.project_work_item_id,
+                   "project_id": agg.get_aggroot().identifier}
+        )
+
+        project_work_package = await stm.find_one(
+            "project-work-package",
+            where={"_id": payload.project_work_package_id,
+                   "project_id": agg.get_aggroot().identifier}
         )
 
         yield agg.create_activity(
@@ -1382,12 +1407,31 @@ class RemoveWorkItemFromProjectWorkPackage(Command):
             msglabel="remove-project-work-item-from-project-work-package",
             msgtype=ActivityType.USER_ACTION,
             data={
+                "project_work_package_id": project_work_package._id,
+                "project_work_item_id": project_work_item._id,
                 "removed_by": f"{profile.name__given} {profile.name__family}",
             }
         )
 
+        await agg.remove_project_work_item_from_project_work_package(data=payload)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Project Work Item Removed from Project Work Package",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} removed a work item {project_work_item.name} from a project work package {project_work_package.work_package_name} in project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
 
 # ---------- Project Work Item Deliverable (Project Context) ----------
+
 
 class UpdateProjectWorkItemDeliverable(Command):
     """Update Project Work Item Deliverable - Updates a project work item deliverable"""
@@ -1406,9 +1450,13 @@ class UpdateProjectWorkItemDeliverable(Command):
         await agg.update_project_work_item_deliverable(data=payload)
 
         project_work_item_deliverable = await stm.find_one(
-            "project_work_item_deliverable",
-            where={"_id": payload.project_work_item_deliverable_id}
+            "project-work-item-deliverable",
+            where={"_id": payload.project_work_item_deliverable_id,
+                   "project_id": agg.get_aggroot().identifier}
         )
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -1420,33 +1468,18 @@ class UpdateProjectWorkItemDeliverable(Command):
             }
         )
 
-
-class DeleteProjectWorkItemDeliverable(Command):
-    """Delete Project Work Item Deliverable - Deletes a project work item deliverable"""
-
-    class Meta:
-        key = "delete-project-work-item-deliverable"
-        resources = ("project",)
-        tags = ["project", "work-item", "deliverable", "delete"]
-        auth_required = True
-        description = "Delete project work item deliverable"
-
-    Data = datadef.DeleteProjectWorkItemDeliverablePayload
-
-    async def _process(self, agg, stm, payload):
-        """Delete project work item deliverable"""
-        await agg.invalidate_project_work_item_deliverable(data=payload)
-
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
-
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} deleted a project work item deliverable {project_work_item_deliverable.name}",
-            msglabel="delete-project-work-item-deliverable",
-            msgtype=ActivityType.USER_ACTION,
+        yield agg.create_message(
+            "noti-message",
             data={
-                "deleted_by": f"{profile.name__given} {profile.name__family}",
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Project Work Item Deliverable Updated",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} updated a project work item deliverable {project_work_item_deliverable.name} in project {project.name}",
+                    "content_type": "TEXT",
+                },
             }
         )
 
