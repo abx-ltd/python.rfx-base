@@ -89,7 +89,6 @@ class ProjectQuery(DomainQueryResource):
     start_date: str = DatetimeField("Start Date")
     target_date: str = DatetimeField("Target Date")
     free_credit_applied: int = IntegerField("Free Credit Applied")
-    lead_id: UUID_TYPE = UUIDField("Lead ID")
     referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
     status_workflow_id: UUID_TYPE = UUIDField("Status Workflow ID")
     sync_status: SyncStatus = EnumField("Sync Status")

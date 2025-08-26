@@ -53,7 +53,6 @@ class Project(RFXClientBaseModel):
     target_date = sa.Column(sa.DateTime(timezone=True))
     duration = sa.Column(sa.Interval)
     free_credit_applied = sa.Column(sa.Integer, default=0)
-    lead_id = sa.Column(pg.UUID)  # FK to profile(_id)
     referral_code_used = sa.Column(sa.String(50))
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     sync_status = sa.Column(
@@ -80,7 +79,6 @@ class ViewProject(RFXClientBaseModel):
     target_date = sa.Column(sa.DateTime(timezone=True))
     duration = sa.Column(sa.Interval)
     free_credit_applied = sa.Column(sa.Integer, default=0)
-    lead_id = sa.Column(pg.UUID)  # FK to profile(_id)
     referral_code_used = sa.Column(sa.String(50))
     status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     sync_status = sa.Column(

@@ -25,7 +25,6 @@ class CreateProjectPayload(DataModel):
     priority: Optional[Priority] = None
     start_date: Optional[datetime] = None
     duration: Optional[str] = None
-    lead_id: Optional[UUID_TYPE] = None
 
 
 class UpdateProjectPayload(DataModel):
@@ -36,7 +35,6 @@ class UpdateProjectPayload(DataModel):
     status: Optional[str] = None
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
-    lead_id: Optional[UUID_TYPE] = None
     duration: Optional[str] = None
 
 # Project BDM Contact related payloads
