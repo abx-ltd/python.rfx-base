@@ -23,8 +23,8 @@ class CreateProjectPayload(DataModel):
     description: Optional[str] = None
     category: Optional[str] = None
     priority: Optional[Priority] = None
-    start_date: Optional[datetime] = None
-    duration: Optional[str] = None
+    start_date: datetime = Field(default_factory=datetime.now)
+    duration: str = Field(default="P9D")
 
 
 class UpdateProjectPayload(DataModel):
@@ -93,6 +93,10 @@ class CreateProjectTicketPayload(DataModel):
     availability: str = "OPEN"
     status: Optional[str] = "DRAFT"
     sync_status: Optional[SyncStatus] = SyncStatus.PENDING
+
+
+class AddCustomWorkPackageToProjectPayload(DataModel):
+    project_work_package_id: UUID_TYPE
 
 
 class AddWorkPackageToProjectPayload(DataModel):
@@ -272,6 +276,13 @@ class RemoveProjectWorkItemPayload(DataModel):
     project_work_item_id: UUID_TYPE
 
 # Project Work Package related payloads
+
+
+class CreateCustomWorkPackagePayload(DataModel):
+    work_package_name: str = Field(max_length=255)
+    description: Optional[str] = None
+    example_description: Optional[str] = None
+    complexity_level: Optional[int] = None
 
 
 class UpdateProjectWorkPackagePayload(DataModel):

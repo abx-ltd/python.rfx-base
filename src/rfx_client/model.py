@@ -61,10 +61,12 @@ class Project(RFXClientBaseModel):
         default=types.SyncStatus.PENDING
     )
     organization_id = sa.Column(pg.UUID)
+    duration_text = sa.Column(sa.String(255))
 
 
 class ViewProject(RFXClientBaseModel):
     __tablename__ = "_project"
+    __ts_index__ = ["name", "description"]
 
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
@@ -88,26 +90,13 @@ class ViewProject(RFXClientBaseModel):
     )
     members = sa.Column(pg.ARRAY(pg.UUID))
     organization_id = sa.Column(pg.UUID)
-
-# Project Resource Entity
-
-
-class ProjectResource(RFXClientBaseModel):
-    __tablename__ = "project-resource"
-
-    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
-    resource_id = sa.Column(pg.UUID, nullable=False)  # FK to resource(_id)
-    # 'file', 'link', etc.
-    resource_type = sa.Column(sa.String(100), nullable=False)
-    filename = sa.Column(sa.String(255))
-    file_size = sa.Column(sa.Integer)
-    mime_type = sa.Column(sa.String(100))
-    url = sa.Column(sa.String(500))
+    duration_text = sa.Column(sa.String(255))
 
 
 # Project Milestone Entity
 class ProjectMilestone(RFXClientBaseModel):
     __tablename__ = "project-milestone"
+    __ts_index__ = ["name", "description"]
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
     name = sa.Column(sa.String(255), nullable=False)
@@ -195,6 +184,7 @@ class ProjectWorkItemDeliverable(RFXClientBaseModel):
 class ViewProjectWorkPackage(RFXClientBaseModel):
     __tablename__ = "_project-work-package"
     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+    __ts_index__ = ["work_package_name", "description", "example_description"]
 
     project_id = sa.Column(pg.UUID, primary_key=True)
     work_package_id = sa.Column(pg.UUID, primary_key=True)
@@ -221,6 +211,7 @@ class ViewProjectWorkPackage(RFXClientBaseModel):
 class ViewProjectWorkItem(RFXClientBaseModel):
     __tablename__ = "_project-work-item"
     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+    __ts_index__ = ["name", "description"]
 
     type = sa.Column(sa.String(50), nullable=False)
     name = sa.Column(sa.String(255), nullable=False)
@@ -234,6 +225,7 @@ class ViewProjectWorkItem(RFXClientBaseModel):
 class ViewProjectWorkItemListing(RFXClientBaseModel):
     __tablename__ = "_project-work-item-listing"
     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+    __ts_index__ = ["project_work_item_name", "project_work_item_description"]
 
     project_work_package_id = sa.Column(pg.UUID, primary_key=True)
     project_work_item_id = sa.Column(pg.UUID, primary_key=True)
@@ -278,10 +270,9 @@ class ViewProjectEstimateSummary(RFXClientBaseModel):
 
 
 # Reference Tables
-
-
 class RefProjectCategory(RFXClientBaseModel):
     __tablename__ = "ref--project-category"
+    __ts_index__ = ["name", "description"]
 
     key = sa.Column(sa.String(50), nullable=False,
                     unique=True, primary_key=True)
@@ -292,6 +283,7 @@ class RefProjectCategory(RFXClientBaseModel):
 
 class RefProjectRole(RFXClientBaseModel):
     __tablename__ = "ref--project-role"
+    __ts_index__ = ["name", "description"]
 
     key = sa.Column(sa.String(50), nullable=False,
                     unique=True, primary_key=True)
@@ -315,6 +307,8 @@ class WorkItem(RFXClientBaseModel):
 
 class RefWorkItemType(RFXClientBaseModel):
     __tablename__ = "ref--work-item-type"
+    __ts_index__ = ["name", "description"]
+
     key = sa.Column(sa.String(50), nullable=False,
                     unique=True, primary_key=True)
     name = sa.Column(sa.String(255), nullable=False)
@@ -333,6 +327,7 @@ class WorkItemDeliverable(RFXClientBaseModel):
 class ViewWorkItem(RFXClientBaseModel):
     __tablename__ = "_work-item"
     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+    __ts_index__ = ["name", "description"]
 
     type = sa.Column(sa.String(50), nullable=False)
     name = sa.Column(sa.String(255), nullable=False)
@@ -347,6 +342,7 @@ class ViewWorkItem(RFXClientBaseModel):
 class ViewWorkItemListing(RFXClientBaseModel):
     __tablename__ = "_work-item-listing"
     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+    __ts_index__ = ["work_item_name", "work_item_description"]
 
     work_package_id = sa.Column(pg.UUID, primary_key=True)
     work_item_id = sa.Column(pg.UUID, primary_key=True)
@@ -388,6 +384,31 @@ class WorkPackageWorkItem(RFXClientBaseModel):
 class ViewWorkPackage(RFXClientBaseModel):
     __tablename__ = "_work-package"
     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+    __ts_index__ = ["work_package_name", "description",
+                    "example_description", "type_list"]
+
+    work_package_name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    example_description = sa.Column(sa.Text)
+    is_custom = sa.Column(sa.Boolean, default=False)
+    complexity_level = sa.Column(sa.Integer, nullable=False)
+    estimate = sa.Column(sa.Interval)
+    type_list = sa.Column(pg.ARRAY(sa.String))
+    credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+    upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+    work_item_count = sa.Column(sa.Integer, nullable=False)
+    organization_id = sa.Column(pg.UUID)
+
+
+class ViewCustomWorkPackage(RFXClientBaseModel):
+    __tablename__ = "_custom-work-package"
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+    __ts_index__ = ["work_package_name", "description",
+                    "example_description", "type_list"]
 
     work_package_name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
@@ -464,28 +485,6 @@ class Integration(RFXClientBaseModel):
                 schema=config.CPO_CLIENT_SCHEMA),
         nullable=False
     )
-
-
-# ================ Notification Context ================
-# Notification Aggregate Root
-class Notification(RFXClientBaseModel):
-    __tablename__ = "notification"
-
-    user_id = sa.Column(pg.UUID, nullable=False)  # FK to profile(_id)
-    source_entity_type = sa.Column(sa.String(100), nullable=False)
-    source_entity_id = sa.Column(pg.UUID, nullable=False)
-    message = sa.Column(sa.Text, nullable=False)
-    # FK to ref--notification-type
-    type = sa.Column(sa.String(100), nullable=False)
-    is_read = sa.Column(sa.Boolean, default=False)
-
-
-class RefNotificationType(RFXClientBaseModel):
-    __tablename__ = "ref--notification-type"
-
-    name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    is_active = sa.Column(sa.Boolean, default=True)
 
 
 # ================ Credit Usage ================

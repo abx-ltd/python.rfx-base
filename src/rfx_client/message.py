@@ -18,7 +18,6 @@ class DiscussionMessage(RFXClientDomain.Message):
 
     async def _dispatch(msg):
         data = msg.data
-        logger.info(f"DiscussionMessage: {data}")
 
         await get_worker_client().request(
             f"{config.DISCUSSION_NAMESPACE}:{data.command}",
@@ -46,7 +45,6 @@ class ProjectMessage(RFXClientDomain.Message):
 
     async def _dispatch(msg):
         data = msg.data
-        logger.info(f"ProjectMessage: {data}")
 
         await get_worker_client().send(
             f"{config.NAMESPACE}:{data.command}",
@@ -72,9 +70,7 @@ class NotiMessage(RFXClientDomain.Message):
     Data = NotiMessageData
 
     async def _dispatch(msg):
-
         data = msg.data
-        logger.info(f"NotiMessage: {data}")
 
         await get_worker_client().send(
             f"{config.MESSAGE_NAMESPACE}:{data.command}",

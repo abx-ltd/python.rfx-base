@@ -25,6 +25,7 @@ class CreateEstimator(Command):
         auth_required = True
         description = "Create a new estimator (project draft)"
         new_resource = True
+        policy_required = True
 
     Data = datadef.CreateProjectEstimatorPayload
 
@@ -62,6 +63,7 @@ class CreateProject(Command):
         tags = ["project"]
         auth_required = True
         description = "Create a new project directly"
+        policy_required = True
 
     Data = datadef.CreateProjectPayload
 
@@ -95,6 +97,7 @@ class UpdateProject(Command):
         tags = ["project", "update"]
         auth_required = True
         description = "Update a project"
+        policy_required = True
 
     Data = datadef.UpdateProjectPayload
 
@@ -157,6 +160,7 @@ class DeleteProject(Command):
         tags = ["project", "delete"]
         auth_required = True
         description = "Delete a project"
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         """Delete a project"""
@@ -209,6 +213,7 @@ class ApplyPromotion(Command):
         tags = ["project", "promotion"]
         auth_required = True
         description = "Apply a promotion code to a project"
+        policy_required = True
 
     Data = datadef.ApplyPromotionPayload
 
@@ -265,6 +270,7 @@ class CreateProjectBDMContact(Command):
         tags = ["project", "bdm", "contact"]
         auth_required = True
         description = "Create a new BDM contact for a project"
+        policy_required = True
 
     Data = datadef.CreateProjectBDMContactPayload
 
@@ -316,6 +322,7 @@ class UpdateProjectBDMContact(Command):
         tags = ["project", "bdm", "contact"]
         auth_required = True
         description = "Update a project BDM contact"
+        policy_required = True
 
     Data = datadef.UpdateProjectBDMContactPayload
 
@@ -363,6 +370,7 @@ class DeleteProjectBDMContact(Command):
         tags = ["project", "bdm", "contact"]
         auth_required = True
         description = "Delete a project BDM contact"
+        policy_required = True
 
     Data = datadef.DeleteProjectBDMContactPayload
 
@@ -412,6 +420,7 @@ class CreatePromotion(Command):
         auth_required = True
         description = "Create a new promotion code"
         new_resource = True
+        policy_required = False
 
     Data = datadef.CreatePromotionPayload
 
@@ -430,6 +439,7 @@ class UpdatePromotion(Command):
         tags = ["promotion", "code"]
         auth_required = True
         description = "Update a promotion code"
+        policy_required = False
 
     Data = datadef.UpdatePromotionPayload
 
@@ -447,6 +457,7 @@ class RemovePromotion(Command):
         tags = ["promotion", "code"]
         auth_required = True
         description = "Remove a promotion code"
+        policy_required = False
 
     async def _process(self, agg, stm, payload):
         """Remove a promotion code"""
@@ -464,6 +475,7 @@ class AddWorkPackageToProject(Command):
         tags = ["project", "work-package"]
         auth_required = True
         description = "Add work package to current estimator draft"
+        policy_required = True
 
     Data = datadef.AddWorkPackageToProjectPayload
 
@@ -510,6 +522,62 @@ class AddWorkPackageToProject(Command):
         )
 
 
+class AddCustomWorkPackageToProject(Command):
+    """Add Work Package to Project - Adds a specific Work Package to the project"""
+
+    class Meta:
+        key = "add-custom-work-package-to-project"
+        resources = ("project",)
+        tags = ["project", "work-package"]
+        auth_required = True
+        description = "Add custom work package to current estimator draft"
+        policy_required = True
+
+    Data = datadef.AddCustomWorkPackageToProjectPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add work package to estimator draft"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+        result = await agg.add_custom_work_package(data=payload)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} added",
+            msglabel="add-work-package-to-project",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "project_work_package_id": result._id,
+                "work_package_id": result.work_package_id,
+                "added_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        yield agg.create_response(serialize_mapping(result), _type="project-work-package-response")
+
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        if project.status == "DRAFT":
+            project_name = f"estimator {project.name}"
+        else:
+            project_name = f"project {project.name}"
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Work Package Added",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} added a work package to {project_name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
+
+
 class RemoveWorkPackageFromProject(Command):
     """Remove Work Package from Project - Removes a specific Work Package from the project"""
 
@@ -519,6 +587,7 @@ class RemoveWorkPackageFromProject(Command):
         tags = ["project", "work-package"]
         auth_required = True
         description = "Remove work package from project"
+        policy_required = True
 
     Data = datadef.RemoveWorkPackageFromProjectPayload
 
@@ -573,6 +642,7 @@ class AddTicketToProject(Command):
         description = "Add ticket to project"
         new_resource = True
         internal = True
+        policy_required = False
 
     Data = datadef.AddTicketToProjectPayload
 
@@ -603,6 +673,7 @@ class CreateProjectTicket(Command):
         tags = ["project", "ticket"]
         auth_required = True
         description = "Create project ticket"
+        policy_required = True
 
     Data = datadef.CreateProjectTicketPayload
 
@@ -670,6 +741,7 @@ class AddProjectMember(Command):
         tags = ["project", "member"]
         auth_required = True
         description = "Add member to project"
+        policy_required = True
 
     Data = datadef.AddProjectMemberPayload
 
@@ -724,6 +796,7 @@ class RemoveProjectMember(Command):
         tags = ["project", "member"]
         auth_required = True
         description = "Remove member from project"
+        policy_required = True
 
     Data = datadef.RemoveProjectMemberPayload
 
@@ -773,6 +846,7 @@ class CreateProjectMilestone(Command):
         tags = ["project", "milestone"]
         auth_required = True
         description = "Create a new milestone for a project"
+        policy_required = True
 
     Data = datadef.CreateProjectMilestonePayload
 
@@ -824,6 +898,7 @@ class UpdateProjectMilestone(Command):
         tags = ["project", "milestone"]
         auth_required = True
         description = "Update project milestone"
+        policy_required = True
 
     Data = datadef.UpdateProjectMilestonePayload
 
@@ -877,7 +952,7 @@ class DeleteProjectMilestone(Command):
         tags = ["project", "milestone"]
         auth_required = True
         description = "Delete project milestone"
-        batch_command = True
+        policy_required = True
 
     Data = datadef.DeleteProjectMilestonePayload
 
@@ -885,6 +960,11 @@ class DeleteProjectMilestone(Command):
         """Delete project milestone"""
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
+
+        project_milestone = await stm.find_one(
+            "project-milestone",
+            where={"_id": payload.milestone_id}
+        )
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -899,6 +979,22 @@ class DeleteProjectMilestone(Command):
 
         await agg.delete_project_milestone(data=payload)
 
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Milestone Deleted",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} deleted a milestone {project_milestone.name} in project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
+
 
 class CreateProjectCategory(Command):
     """Create Project Category - Creates a new project category"""
@@ -909,7 +1005,7 @@ class CreateProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Create a new project category"
-        new_resource = True
+        new_resource = False
 
     Data = datadef.CreateProjectCategoryPayload
 
@@ -928,7 +1024,7 @@ class UpdateProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Update project category"
-        new_resource = True
+        new_resource = False
 
     Data = datadef.UpdateProjectCategoryPayload
 
@@ -946,7 +1042,7 @@ class DeleteProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Delete project category"
-        new_resource = True
+        new_resource = False
 
     Data = datadef.DeleteProjectCategoryPayload
 
@@ -968,6 +1064,7 @@ class CreateWorkPackage(Command):
         new_resource = True
         auth_required = True
         description = "Create new work package"
+        policy_required = False
 
     Data = datadef.CreateWorkPackagePayload
 
@@ -986,6 +1083,7 @@ class UpdateWorkPackage(Command):
         tags = ["work-package", "update"]
         auth_required = True
         description = "Update work package"
+        policy_required = False
 
     Data = datadef.UpdateWorkPackagePayload
 
@@ -1005,6 +1103,7 @@ class DeleteWorkPackage(Command):
         tags = ['work-package', 'delete']
         auth_required = True
         description = "Delete work package"
+        policy_required = False
 
     async def _process(self, aggregate, stm, payload):
         await aggregate.invalidate_work_package()
@@ -1019,6 +1118,7 @@ class CreateWorkItem(Command):
         resources = ("work-item",)
         tags = ["work-item", "create"]
         new_resource = True
+        policy_required = False
 
     Data = datadef.CreateWorkItemPayload
 
@@ -1026,12 +1126,6 @@ class CreateWorkItem(Command):
         """Create new work item"""
         result = await agg.create_work_item(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="work-item-response")
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     msglabel="work-item-created",
-        #     message="Work Item Created",
-        #     data={}
-        # )
 
 
 class UpdateWorkItem(Command):
@@ -1043,6 +1137,7 @@ class UpdateWorkItem(Command):
         tags = ["work-item", "update"]
         auth_required = True
         description = "Update work item"
+        policy_required = False
 
     Data = datadef.UpdateWorkItemPayload
 
@@ -1060,6 +1155,7 @@ class DeleteWorkItem(Command):
         tags = ["work-item", "delete"]
         auth_required = True
         description = "Delete work item"
+        policy_required = False
 
     async def _process(self, agg, stm, payload):
         """Delete work item"""
@@ -1074,6 +1170,7 @@ class CreateWorkItemType(Command):
         resources = ("work-item",)
         tags = ["work-item", "type", "reference"]
         new_resource = True
+        policy_required = False
 
     Data = datadef.CreateWorkItemTypePayload
 
@@ -1093,6 +1190,7 @@ class UpdateWorkItemType(Command):
         auth_required = True
         description = "Update work item type"
         new_resource = True
+        policy_required = False
 
     Data = datadef.UpdateWorkItemTypePayload
 
@@ -1111,6 +1209,7 @@ class DeleteWorkItemType(Command):
         auth_required = True
         description = "Delete work item type"
         new_resource = True
+        policy_required = False
 
     Data = datadef.DeleteWorkItemTypePayload
 
@@ -1129,6 +1228,7 @@ class CreateWorkItemDeliverable(Command):
         new_resource = True
         auth_required = True
         description = "Create new work package deliverable"
+        policy_required = False
 
     Data = datadef.CreateWorkItemDeliverablePayload
 
@@ -1146,6 +1246,7 @@ class UpdateWorkItemDeliverable(Command):
         tags = ["work-item", "deliverable", "update"]
         auth_required = True
         description = "Update work item deliverable"
+        policy_required = False
 
     Data = datadef.UpdateWorkItemDeliverablePayload
 
@@ -1163,6 +1264,7 @@ class DeleteWorkItemDeliverable(Command):
         tags = ["work-item", "deliverable", "delete"]
         auth_required = True
         description = "Delete work package deliverable"
+        policy_required = False
 
     Data = datadef.DeleteWorkItemDeliverablePayload
 
@@ -1178,6 +1280,7 @@ class AddWorkItemToWorkPackage(Command):
         key = "add-work-item-to-work-package"
         resources = ("work-package",)
         tags = ["work-package", "work-item", "add"]
+        policy_required = False
 
     Data = datadef.AddWorkItemToWorkPackagePayload
 
@@ -1194,6 +1297,7 @@ class RemoveWorkItemFromWorkPackage(Command):
         tags = ["work-package", "work-item", "remove"]
         auth_required = True
         description = "Remove work item from work package"
+        policy_required = False
 
     Data = datadef.RemoveWorkItemFromWorkPackagePayload
 
@@ -1212,6 +1316,7 @@ class UpdateProjectWorkItem(Command):
         tags = ["project", "work-item", "update"]
         auth_required = True
         description = "Update project work item"
+        policy_required = True
 
     Data = datadef.UpdateProjectWorkItemPayload
 
@@ -1258,6 +1363,27 @@ class UpdateProjectWorkItem(Command):
 
 # ---------- Project Work Package (Project Context) ----------
 
+class CreateProjectWorkPackage(Command):
+    """Create Project Work Package - Creates a new project work package"""
+
+    class Meta:
+        key = "create-custom-work-package"
+        resources = ("work-package",)
+        tags = ["work-package", "create", "custom"]
+        auth_required = True
+        description = "Create custom work package"
+        new_resource = True
+        policy_required = True
+
+    Data = datadef.CreateCustomWorkPackagePayload
+
+    async def _process(self, agg, stm, payload):
+        """Create custom work package"""
+        project_work_package = await agg.create_custom_work_package(data=payload)
+
+        yield agg.create_response(serialize_mapping(project_work_package), _type="project-work-package-response")
+
+
 class UpdateProjectWorkPackage(Command):
     """Update Project Work Package - Updates a project work package"""
 
@@ -1267,6 +1393,7 @@ class UpdateProjectWorkPackage(Command):
         tags = ["project", "work-package", "update"]
         auth_required = True
         description = "Update project work package"
+        policy_required = True
 
     Data = datadef.UpdateProjectWorkPackagePayload
 
@@ -1314,6 +1441,26 @@ class UpdateProjectWorkPackage(Command):
 
 # ---------- Project Work Package Work Item (Project Context) ----------
 
+
+class AddNewWorkItemToCustomWorkPackage(Command):
+    """Add New Work Item to Custom Work Package - Adds a new work item to a custom work package"""
+
+    class Meta:
+        key = "add-new-work-item-to-custom-work-package"
+        resources = ("work-package",)
+        tags = ["work-package", "work-item", "add", "custom"]
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.AddNewWorkItemToProjectWorkPackagePayload
+
+    async def _process(self, agg, stm, payload):
+        """Add new work item to custom work package"""
+        project_work_item = await agg.add_new_work_item_to_custom_work_package(data=payload)
+
+        yield agg.create_response(serialize_mapping(project_work_item), _type="project-work-item-response")
+
+
 class AddNewWorkItemToProjectWorkPackage(Command):
     """Add New Work Item to Project Work Package - Adds a new work item to a project work package"""
 
@@ -1321,6 +1468,7 @@ class AddNewWorkItemToProjectWorkPackage(Command):
         key = "add-new-work-item-to-project-work-package"
         resources = ("project",)
         tags = ["project", "work-package", "work-item", "add"]
+        policy_required = True
 
     Data = datadef.AddNewWorkItemToProjectWorkPackagePayload
 
@@ -1379,6 +1527,7 @@ class RemoveWorkItemFromProjectWorkPackage(Command):
         key = "remove-project-work-item-from-project-work-package"
         resources = ("project",)
         tags = ["project", "work-package", "work-item", "remove"]
+        policy_required = True
 
     Data = datadef.RemoveProjectWorkItemFromProjectWorkPackagePayload
 
@@ -1442,6 +1591,7 @@ class UpdateProjectWorkItemDeliverable(Command):
         tags = ["project", "work-item", "deliverable", "update"]
         auth_required = True
         description = "Update project work item deliverable"
+        policy_required = False
 
     Data = datadef.UpdateProjectWorkItemDeliverablePayload
 
@@ -1494,6 +1644,7 @@ class CreditUsageSummary(Command):
         auth_required = True
         description = "Get credit usage summary"
         new_resource = True
+        policy_required = False
 
     Data = datadef.CreditUsageSummaryPayload
 

@@ -2,7 +2,7 @@ from fluvius.domain import Domain, SQLDomainLogStore
 
 from .aggregate import RFXClientAggregate
 from .state import RFXClientStateManager
-# from .policy import CPOPortalPolicyManager
+from .policy import RFXClientPolicyManager
 from . import config
 
 
@@ -11,7 +11,7 @@ class RFXClientDomain(Domain):
     __aggregate__ = RFXClientAggregate
     __statemgr__ = RFXClientStateManager
     __logstore__ = SQLDomainLogStore
-    # __policymgr__   = CPOPortalPolicyManager
+    __policymgr__   = RFXClientPolicyManager
 
 
 # Specific response types for different commands

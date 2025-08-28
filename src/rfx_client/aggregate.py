@@ -1,10 +1,8 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR, logger, timestamp
-from typing import Optional, Dict, Any
 from datetime import datetime, timezone
-from isodate import parse_duration
-from .types import Priority, SyncStatus
+from .helper import parse_duration_for_db
 
 
 class RFXClientAggregate(Aggregate):
@@ -69,23 +67,33 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(project, referral_code_used=promotion.code)
 
     # =========== Project (Project Context) ============
-
     @action('project-created', resources='project')
     async def create_project(self, /, data=None):
         try:
-            parsed_duration = parse_duration(data.duration)
-            data = data.set(duration=parsed_duration)
+            parsed_delta, duration_text, duration_interval = parse_duration_for_db(
+                data.duration)
         except Exception:
             raise ValueError(f"Invalid duration format: {data.duration}")
 
         project = self.rootobj
-        if project.status == "ACTIVE":
-            raise ValueError(f"Already is a project")
+        # if project.status == "ACTIVE":
+        #     raise ValueError("Already is a project")
 
-        await self.statemgr.update(project, **serialize_mapping(data), status="ACTIVE", target_date=data.start_date + data.duration)
-        new_project = await self.statemgr.find_one('project', where=dict(
-            _id=project._id
-        ))
+        target_date = data.start_date + parsed_delta
+
+        data = data.set(
+            duration=duration_interval
+        )
+
+        await self.statemgr.update(
+            project,
+            **serialize_mapping(data),
+            status="ACTIVE",
+            target_date=target_date,
+            duration_text=duration_text
+        )
+
+        new_project = await self.statemgr.find_one('project', where=dict(_id=project._id))
         return new_project
 
     @action('project-updated', resources='project')
@@ -134,7 +142,7 @@ class RFXClientAggregate(Aggregate):
                 "work_package_name": work_package.work_package_name,
                 "work_package_description": work_package.description,
                 "work_package_example_description": work_package.example_description,
-                "work_package_is_custom": work_package.is_custom,
+                "work_package_is_custom": False,
                 "work_package_complexity_level": work_package.complexity_level,
                 "work_package_estimate": work_package.estimate
             },
@@ -241,6 +249,103 @@ class RFXClientAggregate(Aggregate):
             await self.statemgr.insert_many("project-work-package-work-item", *project_wp_work_items_batch)
 
         return project_work_package
+
+    @action('custom-work-package-added', resources='project')
+    async def add_custom_work_package(self, /, data):
+        """Clone a project-work-package template (project_id NULL) into this project with all related records"""
+        project = self.rootobj
+
+        # --- STEP 1: Lấy project-work-package template ---
+        template_pwp = await self.statemgr.find_one('project-work-package', where=dict(
+            _id=data.project_work_package_id,
+            project_id=None
+        ))
+        if not template_pwp:
+            raise ValueError(
+                "Template project-work-package not found or not a template (project_id must be NULL)")
+
+        # --- STEP 2: Clone project-work-package ---
+        new_pwp_id = UUID_GENR()
+        pwp_data = serialize_mapping(template_pwp)
+        pwp_data['_id'] = new_pwp_id
+        pwp_data['project_id'] = project._id
+        pwp_data.pop('_created', None)
+        pwp_data.pop('_updated', None)
+        pwp_data.pop('_etag', None)
+        await self.statemgr.insert(self.init_resource("project-work-package", pwp_data))
+
+        # --- STEP 3: Lấy các liên kết project-work-package-work-item ---
+        template_links = await self.statemgr.find_all('project-work-package-work-item', where=dict(
+            project_work_package_id=data.project_work_package_id
+        ))
+        template_pwi_ids = [
+            link.project_work_item_id for link in template_links]
+
+        logger.info(f"template_links: {template_links}")
+
+        # --- STEP 4: Lấy các project-work-item ---
+        template_pwis = []
+        if template_pwi_ids:
+            template_pwis = await self.statemgr.find_all('project-work-item', where={
+                '_id.in': template_pwi_ids
+            })
+
+        # --- STEP 5: Lấy các deliverable ---
+        template_deliverables = []
+        if template_pwi_ids:
+            template_deliverables = await self.statemgr.find_all('project-work-item-deliverable', where={
+                'project_work_item_id.in': template_pwi_ids
+            })
+
+        # --- STEP 6: Chuẩn bị mapping id cũ → id mới ---
+        pwi_id_map = {pwi._id: UUID_GENR() for pwi in template_pwis}
+        deliverable_id_map = {d._id: UUID_GENR()
+                              for d in template_deliverables}
+        link_id_map = {l._id: UUID_GENR() for l in template_links}
+
+        # --- STEP 7: Clone project-work-item ---
+        new_pwis = []
+        for pwi in template_pwis:
+            data_pwi = serialize_mapping(pwi)
+            data_pwi['_id'] = pwi_id_map[pwi._id]
+            data_pwi['project_id'] = project._id
+            data_pwi.pop('_created', None)
+            data_pwi.pop('_updated', None)
+            data_pwi.pop('_etag', None)
+            new_pwis.append(data_pwi)
+        if new_pwis:
+            await self.statemgr.insert_many("project-work-item", *new_pwis)
+
+        # --- STEP 8: Clone project-work-item-deliverable ---
+        new_deliverables = []
+        for d in template_deliverables:
+            data_d = serialize_mapping(d)
+            data_d['_id'] = deliverable_id_map[d._id]
+            data_d['project_id'] = project._id
+            data_d['project_work_item_id'] = pwi_id_map[d.project_work_item_id]
+            data_d.pop('_created', None)
+            data_d.pop('_updated', None)
+            data_d.pop('_etag', None)
+            new_deliverables.append(data_d)
+        if new_deliverables:
+            await self.statemgr.insert_many("project-work-item-deliverable", *new_deliverables)
+
+        # --- STEP 9: Clone project-work-package-work-item ---
+        new_links = []
+        for link in template_links:
+            data_l = serialize_mapping(link)
+            data_l['_id'] = link_id_map[link._id]
+            data_l['project_id'] = project._id
+            data_l['project_work_package_id'] = new_pwp_id
+            data_l['project_work_item_id'] = pwi_id_map[link.project_work_item_id]
+            data_l.pop('_created', None)
+            data_l.pop('_updated', None)
+            data_l.pop('_etag', None)
+            new_links.append(data_l)
+        if new_links:
+            await self.statemgr.insert_many("project-work-package-work-item", *new_links)
+
+        return self.init_resource("project-work-package", pwp_data)
 
     @action('work-package-removed', resources='project')
     async def remove_work_package_from_estimator(self, /, data):
@@ -629,6 +734,21 @@ class RFXClientAggregate(Aggregate):
 
 # =========== Project Work Package (Project Context) ============
 
+    @action('create-custom-work-package', resources='project')
+    async def create_custom_work_package(self, /, data):
+        """Create custom work package"""
+        project_work_package = self.init_resource(
+            "project-work-package",
+            _id=UUID_GENR(),
+            work_package_name=data.work_package_name,
+            work_package_description=data.description,
+            work_package_example_description=data.example_description,
+            work_package_is_custom=True,
+            work_package_complexity_level=data.complexity_level,
+        )
+        await self.statemgr.insert(project_work_package)
+        return project_work_package
+
     @action('project-work-package-updated', resources='project')
     async def update_project_work_package(self, /, data):
         """Update project work package"""
@@ -689,6 +809,74 @@ class RFXClientAggregate(Aggregate):
             "project_work_package_id": project_work_package._id,
             "project_work_item_id": project_work_item._id,
             "project_id": self.aggroot.identifier
+        }
+        record = self.init_resource(
+            "project-work-package-work-item",
+            serialize_mapping(link_data)
+        )
+        await self.statemgr.insert(record)
+        return project_work_item
+
+    @action("add-new-work-item-to-custom-work-package", resources='project')
+    async def add_new_work_item_to_custom_work_package(self, /, data):
+        """Add new work item to custom work package and clone into project work item"""
+
+        project_work_package = await self.statemgr.find_one(
+            "project-work-package",
+            where=dict(
+                _id=data.project_work_package_id,
+                project_id=None
+            )
+        )
+        if not project_work_package:
+            raise ValueError("Custom work package not found")
+
+        work_item = await self.statemgr.find_one(
+            "work-item",
+            where=dict(_id=data.work_item_id)
+        )
+        if not work_item:
+            raise ValueError("Work item not found")
+
+        project_work_item_data = {
+            "_id": UUID_GENR(),
+            "name": work_item.name,
+            "type": work_item.type,
+            "description": work_item.description,
+            "price_unit": work_item.price_unit,
+            "credit_per_unit": work_item.credit_per_unit,
+            "estimate": work_item.estimate,
+        }
+        project_work_item = self.init_resource(
+            "project-work-item",
+            serialize_mapping(project_work_item_data)
+        )
+        await self.statemgr.insert(project_work_item)
+
+        work_item_deliverables = await self.statemgr.find_all(
+            "work-item-deliverable",
+            where=dict(work_item_id=data.work_item_id)
+        )
+
+        if work_item_deliverables:
+            cloned_deliverables = []
+            for d in work_item_deliverables:
+                d_data = serialize_mapping(d)
+                d_data.pop("_id", None)
+                d_data.pop("_created", None)
+                d_data.pop("_updated", None)
+                d_data.pop("_etag", None)
+                d_data.pop("work_item_id", None)
+                d_data["project_work_item_id"] = project_work_item._id
+                d_data["_id"] = UUID_GENR()
+                if hasattr(project_work_package, "project_id"):
+                    d_data["project_id"] = project_work_package.project_id
+                cloned_deliverables.append(d_data)
+            await self.statemgr.insert_many("project-work-item-deliverable", *cloned_deliverables)
+
+        link_data = {
+            "project_work_package_id": project_work_package._id,
+            "project_work_item_id": project_work_item._id,
         }
         record = self.init_resource(
             "project-work-package-work-item",
