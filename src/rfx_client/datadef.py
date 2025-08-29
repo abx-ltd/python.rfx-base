@@ -249,7 +249,6 @@ class CreateWorkPackagePayload(DataModel):
     work_package_name: str = Field(max_length=255)
     description: Optional[str] = None
     example_description: Optional[str] = None
-    is_custom: bool = False
     complexity_level: Optional[int] = None
 
 
@@ -257,7 +256,7 @@ class UpdateWorkPackagePayload(DataModel):
     work_package_name: Optional[str] = Field(max_length=255)
     description: Optional[str] = None
     example_description: Optional[str] = None
-    is_custom: Optional[bool] = None
+    complexity_level: Optional[int] = None
 
 # Project Work Item related payloads
 

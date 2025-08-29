@@ -1450,7 +1450,7 @@ class AddNewWorkItemToCustomWorkPackage(Command):
         resources = ("work-package",)
         tags = ["work-package", "work-item", "add", "custom"]
         new_resource = True
-        policy_required = False
+        policy_required = True
 
     Data = datadef.AddNewWorkItemToProjectWorkPackagePayload
 

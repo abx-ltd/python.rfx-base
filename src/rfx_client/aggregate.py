@@ -734,7 +734,7 @@ class RFXClientAggregate(Aggregate):
 
 # =========== Project Work Package (Project Context) ============
 
-    @action('create-custom-work-package', resources='project')
+    @action('create-custom-work-package', resources='work-package')
     async def create_custom_work_package(self, /, data):
         """Create custom work package"""
         project_work_package = self.init_resource(
