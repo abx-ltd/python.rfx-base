@@ -104,7 +104,8 @@ class TemplateQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "message-template"
-        policy_required = True
+        resource = "message-template"
+        policy_required = "id"
         scope_optional = TemplateScope
 
         default_order = ("key", "-version")

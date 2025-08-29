@@ -347,6 +347,113 @@ class RFXClientAggregate(Aggregate):
 
         return self.init_resource("project-work-package", pwp_data)
 
+    @action('clone-work-package', resources='work-package')
+    async def clone_work_package(self, /, data):
+        """
+        Clone a work-package into a project-work-package template (project_id NULL)
+        including all related work items and deliverables.
+        """
+        # --- STEP 1: Lấy work-package ---
+        work_package = self.rootobj
+
+        # --- STEP 2: Tạo project-work-package (template) ---
+        new_pwp_id = UUID_GENR()
+        pwp_data = {
+            "_id": new_pwp_id,
+            "project_id": None,
+            "work_package_id": work_package._id,
+            "work_package_name": work_package.work_package_name,
+            "work_package_description": work_package.description,
+            "work_package_example_description": work_package.example_description,
+            "work_package_is_custom": True,
+            "work_package_complexity_level": work_package.complexity_level,
+            "work_package_estimate": work_package.estimate
+        }
+        await self.statemgr.insert(self.init_resource("project-work-package", pwp_data))
+
+        # --- STEP 3: Lấy work-package-work-item ---
+        wp_work_items = await self.statemgr.find_all('work-package-work-item', where=dict(
+            work_package_id=work_package._id
+        ))
+        if not wp_work_items:
+            return self.init_resource("project-work-package", pwp_data)
+
+        work_item_ids = [w.work_item_id for w in wp_work_items]
+        original_work_items = await self.statemgr.find_all('work-item', where={
+            "_id.in": work_item_ids
+        })
+        work_item_lookup = {w._id: w for w in original_work_items}
+
+        # --- STEP 4: Lấy deliverables ---
+        all_deliverables = await self.statemgr.find_all('work-item-deliverable', where={
+            "work_item_id.in": work_item_ids
+        })
+        deliverables_by_work_item = {}
+        for d in all_deliverables:
+            deliverables_by_work_item.setdefault(d.work_item_id, []).append(d)
+
+        # --- STEP 5: Chuẩn bị batch insert ---
+        project_work_items_batch = []
+        project_deliverables_batch = []
+        project_wp_work_items_batch = []
+
+        pwi_id_map = {}
+
+        for wp_wi in wp_work_items:
+            original_wi = work_item_lookup.get(wp_wi.work_item_id)
+            if not original_wi:
+                continue
+
+            # Clone project-work-item
+            data_pwi = serialize_mapping(original_wi)
+            data_pwi.pop('_created', None)
+            data_pwi.pop('_updated', None)
+            data_pwi.pop('_etag', None)
+            data_pwi.pop('organization_id', None)
+
+            new_pwi_id = UUID_GENR()
+            data_pwi['_id'] = new_pwi_id
+            data_pwi['project_id'] = None
+            project_work_items_batch.append(data_pwi)
+            pwi_id_map[original_wi._id] = new_pwi_id
+
+            # Clone deliverables
+            for d in deliverables_by_work_item.get(wp_wi.work_item_id, []):
+                data_d = serialize_mapping(d)
+                data_d.pop('_id', None)
+                data_d.pop('_created', None)
+                data_d.pop('_updated', None)
+                data_d.pop('_etag', None)
+                data_d.pop('work_item_id', None)
+                data_d['_id'] = UUID_GENR()
+                data_d['project_id'] = None
+                data_d['project_work_item_id'] = new_pwi_id
+                project_deliverables_batch.append(data_d)
+
+            # Clone project-work-package-work-item link
+            data_link = serialize_mapping(wp_wi)
+            data_link.pop('_id', None)
+            data_link.pop('_created', None)
+            data_link.pop('_updated', None)
+            data_link.pop('_etag', None)
+            data_link.pop('work_package_id', None)
+            data_link.pop('work_item_id', None)
+            data_link['_id'] = UUID_GENR()
+            data_link['project_id'] = None
+            data_link['project_work_package_id'] = new_pwp_id
+            data_link['project_work_item_id'] = new_pwi_id
+            project_wp_work_items_batch.append(data_link)
+
+        # --- STEP 6: Insert batch ---
+        if project_work_items_batch:
+            await self.statemgr.insert_many("project-work-item", *project_work_items_batch)
+        if project_deliverables_batch:
+            await self.statemgr.insert_many("project-work-item-deliverable", *project_deliverables_batch)
+        if project_wp_work_items_batch:
+            await self.statemgr.insert_many("project-work-package-work-item", *project_wp_work_items_batch)
+
+        return self.init_resource("project-work-package", pwp_data)
+
     @action('work-package-removed', resources='project')
     async def remove_work_package_from_estimator(self, /, data):
         """Remove a work package and all related items from the project estimator"""

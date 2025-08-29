@@ -35,6 +35,10 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
+# class ProjectScopeSchema(BaseModel):
+#     project_id: str = ""
+
+
 @resource('estimator')
 class ProjectDraftQuery(DomainQueryResource):
     """Project draft queries"""
@@ -52,6 +56,8 @@ class ProjectDraftQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
+        resource = "project"
+        policy_required = "id"
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -76,6 +82,7 @@ class ProjectQuery(DomainQueryResource):
         return {"members.ov": [profile_id], "status": "ACTIVE"}
 
     class Meta(DomainQueryResource.Meta):
+        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -83,6 +90,7 @@ class ProjectQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
+        policy_required = "id"
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -104,11 +112,13 @@ class ProjectBDMContactQuery(DomainQueryResource):
     """Project BDM contact queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
 
+        policy_required = "project_id"
         scope_required = scope.ProjectBDMContactScopeSchema
 
     contact_method: list[ContactMethod] = ArrayField("Contact Method")
@@ -128,6 +138,9 @@ class ProjectMilestoneQuery(DomainQueryResource):
         allow_meta_view = True
         allow_text_search = True
 
+        resource = "project"
+        policy_required = "project_id"
+
         scope_required = scope.ProjectMilestoneScopeSchema
 
     name: str = StringField("Milestone Name")
@@ -135,6 +148,7 @@ class ProjectMilestoneQuery(DomainQueryResource):
     due_date: Optional[datetime] = DatetimeField("Due Date")
     completed_at: Optional[datetime] = DatetimeField("Completed At")
     is_completed: bool = BooleanField("Is Completed")
+    project_id: UUID_TYPE = UUIDField("Project ID")
 
 
 @resource('project-estimate-summary')

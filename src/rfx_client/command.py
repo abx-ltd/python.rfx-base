@@ -1363,6 +1363,20 @@ class UpdateProjectWorkItem(Command):
 
 # ---------- Project Work Package (Project Context) ----------
 
+class CloneWorkPackage(Command):
+    """Clone Work Package - Clones a work package"""
+
+    class Meta:
+        key = "clone-work-package"
+        resources = ("work-package",)
+        tags = ["work-package", "clone"]
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Clone work package"""
+        await agg.clone_work_package(data=payload)
+
+
 class CreateProjectWorkPackage(Command):
     """Create Project Work Package - Creates a new project work package"""
 

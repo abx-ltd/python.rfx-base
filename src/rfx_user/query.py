@@ -10,9 +10,10 @@ from .domain import UserProfileDomain
 from .policy import UserProfilePolicyManager
 from .types import OrganizationStatus
 
+
 class UserProfileQueryManager(DomainQueryManager):
     __data_manager__ = IDMStateManager
-    __policymgr__ = UserProfilePolicyManager
+    # __policymgr__ = UserProfilePolicyManager
 
     class Meta(DomainQueryManager.Meta):
         prefix = UserProfileDomain.Meta.prefix
@@ -51,11 +52,6 @@ class ProfileQuery(DomainQueryResource):
     name__given: str = StringField("Given Name")
 
 
-class ResourceScope(BaseModel):
-    resource: str
-    resource_id: str
-
-
 class OrganizationRoleQuery(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
         include_all = True
@@ -63,16 +59,17 @@ class OrganizationRoleQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        scope_required = ResourceScope
-        policy_required = True
+        resource = "organization"
+        policy_required = "organization_id"
 
-    user_id: UUID_TYPE  = UUIDField("User ID")
+    user_id: UUID_TYPE = UUIDField("User ID")
     address__city: str = StringField("City")
     address__country: str = StringField("Country")
     address__line1: str = StringField("Address Line 1")
     address__line2: str = StringField("Address Line 2")
     address__postal: str = StringField("Postal Code")
     address__state: str = StringField("State/Province")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
 @resource('profile-role')
@@ -83,8 +80,8 @@ class ProfileRole(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        scope_required = ResourceScope
-        policy_required = True
+        resource = "profile"
+        policy_required = "profile_id"
 
     id: UUID_TYPE = PrimaryID("Profile ID")
     profile_id: str = StringField("Profile Id")
@@ -103,8 +100,8 @@ class OrganizationQuery(DomainQueryResource):
         allow_list_view = False
         allow_meta_view = True
 
-        policy_required = True
-        scope_required = ResourceScope
+        resource = "organization"
+        policy_required = "id"
 
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
