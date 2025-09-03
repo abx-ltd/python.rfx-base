@@ -132,15 +132,14 @@ class ProjectMilestoneQuery(DomainQueryResource):
     """Project milestone queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
         allow_text_search = True
 
-        resource = "project"
         policy_required = "project_id"
-
         scope_required = scope.ProjectMilestoneScopeSchema
 
     name: str = StringField("Milestone Name")
@@ -156,12 +155,14 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
     """Project estimate summary queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
 
         backend_model = "_project-estimate-summary"
+        policy_required = "id"
 
     architectural_credits: float = FloatField("Architectural Credits")
     development_credits: float = FloatField("Development Credits")
@@ -213,56 +214,11 @@ class RefProjectRoleQuery(DomainQueryResource):
     is_default: bool = BooleanField("Is Default")
 
 
-@resource('estimator-work-package')
-class EstimatorWorkPackageQuery(DomainQueryResource):
-    """Estimator work package queries"""
-
-    @classmethod
-    def base_query(cls, context, scope):
-        profile_id = context.profile._id
-        return {"members.ov": [profile_id], "status": "DRAFT"}
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-        allow_text_search = True
-
-        backend_model = "_project-work-package"
-
-    project_id: UUID_TYPE = UUIDField("Project ID")
-    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
-    work_package_name: str = StringField("Work Package Name")
-    work_package_description: str = StringField("Work Package Description")
-    work_package_example_description: str = StringField(
-        "Work Package Example Description")
-    work_package_complexity_level: int = IntegerField(
-        "Work Package Complexity Level")
-    work_package_estimate: str = StringField("Work Package Estimate")
-    work_package_is_custom: bool = BooleanField("Work Package Is Custom")
-    quantity: int = IntegerField("Quantity")
-    type_list: list[str] = ArrayField("Type List")
-    work_item_count: int = IntegerField("Work Item Count")
-    credits: float = FloatField("Credits")
-    architectural_credits: float = FloatField("Architectural Credits")
-    development_credits: float = FloatField("Development Credits")
-    operation_credits: float = FloatField("Operation Credits")
-    upfront_cost: float = FloatField("Upfront Cost")
-    monthly_cost: float = FloatField("Monthly Cost")
-    total_deliverables: int = IntegerField("Total Deliverables")
-    members: list[UUID_TYPE] = ArrayField("Members")
-
-
 @resource('project-work-package')
 class ProjectWorkPackageQuery(DomainQueryResource):
     """Project work package queries"""
-
-    @classmethod
-    def base_query(cls, context, scope):
-        return {"status": "ACTIVE"}
-
     class Meta(DomainQueryResource.Meta):
+        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -271,6 +227,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
 
         backend_model = "_project-work-package"
         scope_required = scope.ProjectWorkPackageScopeSchema
+        policy_required = "project_id"
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
@@ -292,7 +249,6 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     upfront_cost: float = FloatField("Upfront Cost")
     monthly_cost: float = FloatField("Monthly Cost")
     total_deliverables: int = IntegerField("Total Deliverables")
-    members: list[UUID_TYPE] = ArrayField("Members")
 
 
 @resource('project-work-item')
@@ -437,6 +393,44 @@ class WorkItemDeliverableQuery(DomainQueryResource):
 
 # Work Package Queries
 
+@resource('work-package')
+class WorkPackageQuery(DomainQueryResource):
+    """work package queries"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {
+            ".or": [
+                {"organization_id": None},
+                {"organization_id": context.organization._id}
+            ]
+        }
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        allow_text_search = True
+        backend_model = "_work-package"
+
+    work_package_name: str = StringField("Work Package Name")
+    description: str = StringField("Description")
+    example_description: str = StringField("Example Description")
+    complexity_level: int = IntegerField("Complexity Level")
+    estimate: str = StringField("Estimate")
+    type_list: list[str] = ArrayField("Type List")
+    credits: float = FloatField("Credits")
+    architectural_credits: float = FloatField("Architectural Credits")
+    development_credits: float = FloatField("Development Credits")
+    operation_credits: float = FloatField("Operation Credits")
+    upfront_cost: float = FloatField("Upfront Cost")
+    monthly_cost: float = FloatField("Monthly Cost")
+    work_item_count: int = IntegerField("Work Item Count")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    is_custom: bool = BooleanField("Is Custom")
+
+
 @resource('template-work-package')
 class TemplateWorkPackageQuery(DomainQueryResource):
     """Template work package queries"""
@@ -465,28 +459,28 @@ class TemplateWorkPackageQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('custom-work-package')
-class CustomWorkPackageQuery(DomainQueryResource):
-    """Custom work package queries"""
+# @resource('custom-work-package')
+# class CustomWorkPackageQuery(DomainQueryResource):
+#     """Custom work package queries"""
 
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-        backend_model = "_custom-work-package"
+#     class Meta(DomainQueryResource.Meta):
+#         include_all = True
+#         allow_item_view = True
+#         allow_list_view = True
+#         allow_meta_view = True
+#         backend_model = "_custom-work-package"
 
-    work_package_name: str = StringField("Work Package Name")
-    description: str = StringField("Description")
-    example_description: str = StringField("Example Description")
-    complexity_level: int = IntegerField("Complexity Level")
-    estimate: str = StringField("Estimate")
-    type_list: list[str] = ArrayField("Type List")
-    credits: float = FloatField("Credits")
-    architectural_credits: float = FloatField("Architectural Credits")
-    development_credits: float = FloatField("Development Credits")
-    operation_credits: float = FloatField("Operation Credits")
-    upfront_cost: float = FloatField("Upfront Cost")
-    monthly_cost: float = FloatField("Monthly Cost")
-    work_item_count: int = IntegerField("Work Item Count")
-    organization_id: UUID_TYPE = UUIDField("Organization ID")
+#     work_package_name: str = StringField("Work Package Name")
+#     description: str = StringField("Description")
+#     example_description: str = StringField("Example Description")
+#     complexity_level: int = IntegerField("Complexity Level")
+#     estimate: str = StringField("Estimate")
+#     type_list: list[str] = ArrayField("Type List")
+#     credits: float = FloatField("Credits")
+#     architectural_credits: float = FloatField("Architectural Credits")
+#     development_credits: float = FloatField("Development Credits")
+#     operation_credits: float = FloatField("Operation Credits")
+#     upfront_cost: float = FloatField("Upfront Cost")
+#     monthly_cost: float = FloatField("Monthly Cost")
+#     work_item_count: int = IntegerField("Work Item Count")
+#     organization_id: UUID_TYPE = UUIDField("Organization ID")

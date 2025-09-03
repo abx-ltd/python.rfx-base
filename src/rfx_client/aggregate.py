@@ -347,8 +347,8 @@ class RFXClientAggregate(Aggregate):
 
         return self.init_resource("project-work-package", pwp_data)
 
-    @action('clone-work-package', resources='work-package')
-    async def clone_work_package(self, /, data):
+    @action('clone-work-package-deprecated', resources='work-package')
+    async def clone_work_package_deprecated(self, /, data):
         """
         Clone a work-package into a project-work-package template (project_id NULL)
         including all related work items and deliverables.
@@ -466,6 +466,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.invalidate_one('project-work-package', project_work_package._id)
 
     # =========== Project BDM Contact (Project Context) ============
+
     @action('project-bdm-contact-created', resources='project')
     async def create_project_bdm_contact(self, /, data):
         project = self.rootobj
@@ -668,6 +669,55 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.invalidate(work_package)
         return work_package
 
+    @action('clone-work-package', resources='work-package')
+    async def clone_work_package(self, /, data):
+        """
+        Clone a work package into a new work package and copy all related work items
+        via work-package-work-item.
+        """
+        original_wp = self.rootobj
+
+        original_wp_items = await self.statemgr.find_all('work-package-work-item', where=dict(
+            work_package_id=original_wp._id
+        ))
+
+        new_wp_data = serialize_mapping(original_wp)
+        new_wp_data.pop('_id', None)
+        new_wp_data.pop('_created', None)
+        new_wp_data.pop('_updated', None)
+        new_wp_data.pop('_etag', None)
+
+        new_wp_id = UUID_GENR()
+        new_wp_data['_id'] = new_wp_id
+        new_wp_data['work_package_name'] = f"{original_wp.work_package_name} (Copy)"
+
+        new_wp = self.init_resource(
+            "work-package",
+            new_wp_data,
+            _id=new_wp_id,
+            organization_id=self.context.organization_id
+        )
+        await self.statemgr.insert(new_wp)
+
+        if not original_wp_items:
+            return new_wp
+
+        new_wp_items_batch = []
+        for wp_item in original_wp_items:
+            wp_item_data = serialize_mapping(wp_item)
+            wp_item_data.pop('_id', None)
+            wp_item_data.pop('_created', None)
+            wp_item_data.pop('_updated', None)
+            wp_item_data.pop('_etag', None)
+            wp_item_data['work_package_id'] = new_wp_id
+            wp_item_data['_id'] = UUID_GENR()
+            new_wp_items_batch.append(wp_item_data)
+
+        if new_wp_items_batch:
+            await self.statemgr.insert_many('work-package-work-item', *new_wp_items_batch)
+
+        return new_wp
+
     # =========== Work Item Context ============
 
     @action('work-item-created', resources='work-item')
@@ -841,21 +891,6 @@ class RFXClientAggregate(Aggregate):
 
 # =========== Project Work Package (Project Context) ============
 
-    @action('create-custom-work-package', resources='work-package')
-    async def create_custom_work_package(self, /, data):
-        """Create custom work package"""
-        project_work_package = self.init_resource(
-            "project-work-package",
-            _id=UUID_GENR(),
-            work_package_name=data.work_package_name,
-            work_package_description=data.description,
-            work_package_example_description=data.example_description,
-            work_package_is_custom=True,
-            work_package_complexity_level=data.complexity_level,
-        )
-        await self.statemgr.insert(project_work_package)
-        return project_work_package
-
     @action('project-work-package-updated', resources='project')
     async def update_project_work_package(self, /, data):
         """Update project work package"""
@@ -916,74 +951,6 @@ class RFXClientAggregate(Aggregate):
             "project_work_package_id": project_work_package._id,
             "project_work_item_id": project_work_item._id,
             "project_id": self.aggroot.identifier
-        }
-        record = self.init_resource(
-            "project-work-package-work-item",
-            serialize_mapping(link_data)
-        )
-        await self.statemgr.insert(record)
-        return project_work_item
-
-    @action("add-new-work-item-to-custom-work-package", resources='project')
-    async def add_new_work_item_to_custom_work_package(self, /, data):
-        """Add new work item to custom work package and clone into project work item"""
-
-        project_work_package = await self.statemgr.find_one(
-            "project-work-package",
-            where=dict(
-                _id=data.project_work_package_id,
-                project_id=None
-            )
-        )
-        if not project_work_package:
-            raise ValueError("Custom work package not found")
-
-        work_item = await self.statemgr.find_one(
-            "work-item",
-            where=dict(_id=data.work_item_id)
-        )
-        if not work_item:
-            raise ValueError("Work item not found")
-
-        project_work_item_data = {
-            "_id": UUID_GENR(),
-            "name": work_item.name,
-            "type": work_item.type,
-            "description": work_item.description,
-            "price_unit": work_item.price_unit,
-            "credit_per_unit": work_item.credit_per_unit,
-            "estimate": work_item.estimate,
-        }
-        project_work_item = self.init_resource(
-            "project-work-item",
-            serialize_mapping(project_work_item_data)
-        )
-        await self.statemgr.insert(project_work_item)
-
-        work_item_deliverables = await self.statemgr.find_all(
-            "work-item-deliverable",
-            where=dict(work_item_id=data.work_item_id)
-        )
-
-        if work_item_deliverables:
-            cloned_deliverables = []
-            for d in work_item_deliverables:
-                d_data = serialize_mapping(d)
-                d_data.pop("_id", None)
-                d_data.pop("_created", None)
-                d_data.pop("_updated", None)
-                d_data.pop("_etag", None)
-                d_data.pop("work_item_id", None)
-                d_data["project_work_item_id"] = project_work_item._id
-                d_data["_id"] = UUID_GENR()
-                if hasattr(project_work_package, "project_id"):
-                    d_data["project_id"] = project_work_package.project_id
-                cloned_deliverables.append(d_data)
-            await self.statemgr.insert_many("project-work-item-deliverable", *cloned_deliverables)
-
-        link_data = {
-            "project_work_package_id": project_work_package._id,
-            "project_work_item_id": project_work_item._id,
         }
         record = self.init_resource(
             "project-work-package-work-item",

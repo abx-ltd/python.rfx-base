@@ -205,7 +205,6 @@ class ViewProjectWorkPackage(RFXClientBaseModel):
     upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     total_deliverables = sa.Column(sa.Integer, nullable=False)
-    members = sa.Column(pg.ARRAY(pg.UUID))
 
 
 class ViewProjectWorkItem(RFXClientBaseModel):
@@ -400,28 +399,29 @@ class ViewWorkPackage(RFXClientBaseModel):
     monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
     work_item_count = sa.Column(sa.Integer, nullable=False)
     organization_id = sa.Column(pg.UUID)
+    is_custom = sa.Column(sa.Boolean)
 
 
-class ViewCustomWorkPackage(RFXClientBaseModel):
-    __tablename__ = "_custom-work-package"
-    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
-    __ts_index__ = ["work_package_name", "description",
-                    "example_description", "type_list"]
+# class ViewCustomWorkPackage(RFXClientBaseModel):
+#     __tablename__ = "_custom-work-package"
+#     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+#     __ts_index__ = ["work_package_name", "description",
+#                     "example_description", "type_list"]
 
-    work_package_name = sa.Column(sa.String(255), nullable=False)
-    description = sa.Column(sa.Text)
-    example_description = sa.Column(sa.Text)
-    complexity_level = sa.Column(sa.Integer, nullable=False)
-    estimate = sa.Column(sa.Interval)
-    type_list = sa.Column(pg.ARRAY(sa.String))
-    credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
-    upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
-    work_item_count = sa.Column(sa.Integer, nullable=False)
-    organization_id = sa.Column(pg.UUID)
+#     work_package_name = sa.Column(sa.String(255), nullable=False)
+#     description = sa.Column(sa.Text)
+#     example_description = sa.Column(sa.Text)
+#     complexity_level = sa.Column(sa.Integer, nullable=False)
+#     estimate = sa.Column(sa.Interval)
+#     type_list = sa.Column(pg.ARRAY(sa.String))
+#     credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+#     architectural_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+#     development_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+#     operation_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+#     upfront_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+#     monthly_cost = sa.Column(sa.Numeric(10, 2), nullable=False)
+#     work_item_count = sa.Column(sa.Integer, nullable=False)
+#     organization_id = sa.Column(pg.UUID)
 
 
 # ================ Workflow Context ================

@@ -522,62 +522,6 @@ class AddWorkPackageToProject(Command):
         )
 
 
-class AddCustomWorkPackageToProject(Command):
-    """Add Work Package to Project - Adds a specific Work Package to the project"""
-
-    class Meta:
-        key = "add-custom-work-package-to-project"
-        resources = ("project",)
-        tags = ["project", "work-package"]
-        auth_required = True
-        description = "Add custom work package to current estimator draft"
-        policy_required = True
-
-    Data = datadef.AddCustomWorkPackageToProjectPayload
-
-    async def _process(self, agg, stm, payload):
-        """Add work package to estimator draft"""
-
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
-        result = await agg.add_custom_work_package(data=payload)
-
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} added",
-            msglabel="add-work-package-to-project",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "project_work_package_id": result._id,
-                "work_package_id": result.work_package_id,
-                "added_by": f"{profile.name__given} {profile.name__family}",
-            }
-        )
-
-        yield agg.create_response(serialize_mapping(result), _type="project-work-package-response")
-
-        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
-        if project.status == "DRAFT":
-            project_name = f"estimator {project.name}"
-        else:
-            project_name = f"project {project.name}"
-
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
-                    "recipients": [str(user_id) for user_id in user_ids],
-                    "subject": "Work Package Added",
-                    "message_type": "NOTIFICATION",
-                    "priority": "MEDIUM",
-                    "content": f"{profile.name__given} {profile.name__family} added a work package to {project_name}",
-                    "content_type": "TEXT",
-                },
-            }
-        )
-
-
 class RemoveWorkPackageFromProject(Command):
     """Remove Work Package from Project - Removes a specific Work Package from the project"""
 
@@ -1052,8 +996,6 @@ class DeleteProjectCategory(Command):
 
 
 # ---------- Work Package Context ----------
-
-
 class CreateWorkPackage(Command):
     """Create Work Package - For internal/admin use — adds new reusable WP"""
 
@@ -1064,7 +1006,7 @@ class CreateWorkPackage(Command):
         new_resource = True
         auth_required = True
         description = "Create new work package"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.CreateWorkPackagePayload
 
@@ -1072,6 +1014,20 @@ class CreateWorkPackage(Command):
         """Create new work package"""
         result = await agg.create_work_package(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="work-package-response")
+
+
+class CloneWorkPackage(Command):
+    """Clone Work Package - Clones a work package"""
+
+    class Meta:
+        key = "clone-work-package"
+        resources = ("work-package",)
+        tags = ["work-package", "clone"]
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        """Clone work package"""
+        await agg.clone_work_package(data=payload)
 
 
 class UpdateWorkPackage(Command):
@@ -1083,7 +1039,7 @@ class UpdateWorkPackage(Command):
         tags = ["work-package", "update"]
         auth_required = True
         description = "Update work package"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.UpdateWorkPackagePayload
 
@@ -1103,7 +1059,7 @@ class DeleteWorkPackage(Command):
         tags = ['work-package', 'delete']
         auth_required = True
         description = "Delete work package"
-        policy_required = False
+        policy_required = True
 
     async def _process(self, aggregate, stm, payload):
         await aggregate.invalidate_work_package()
@@ -1280,7 +1236,7 @@ class AddWorkItemToWorkPackage(Command):
         key = "add-work-item-to-work-package"
         resources = ("work-package",)
         tags = ["work-package", "work-item", "add"]
-        policy_required = False
+        policy_required = True
 
     Data = datadef.AddWorkItemToWorkPackagePayload
 
@@ -1297,7 +1253,7 @@ class RemoveWorkItemFromWorkPackage(Command):
         tags = ["work-package", "work-item", "remove"]
         auth_required = True
         description = "Remove work item from work package"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.RemoveWorkItemFromWorkPackagePayload
 
@@ -1363,40 +1319,6 @@ class UpdateProjectWorkItem(Command):
 
 # ---------- Project Work Package (Project Context) ----------
 
-class CloneWorkPackage(Command):
-    """Clone Work Package - Clones a work package"""
-
-    class Meta:
-        key = "clone-work-package"
-        resources = ("work-package",)
-        tags = ["work-package", "clone"]
-        policy_required = False
-
-    async def _process(self, agg, stm, payload):
-        """Clone work package"""
-        await agg.clone_work_package(data=payload)
-
-
-class CreateProjectWorkPackage(Command):
-    """Create Project Work Package - Creates a new project work package"""
-
-    class Meta:
-        key = "create-custom-work-package"
-        resources = ("work-package",)
-        tags = ["work-package", "create", "custom"]
-        auth_required = True
-        description = "Create custom work package"
-        new_resource = True
-        policy_required = True
-
-    Data = datadef.CreateCustomWorkPackagePayload
-
-    async def _process(self, agg, stm, payload):
-        """Create custom work package"""
-        project_work_package = await agg.create_custom_work_package(data=payload)
-
-        yield agg.create_response(serialize_mapping(project_work_package), _type="project-work-package-response")
-
 
 class UpdateProjectWorkPackage(Command):
     """Update Project Work Package - Updates a project work package"""
@@ -1454,26 +1376,6 @@ class UpdateProjectWorkPackage(Command):
 
 
 # ---------- Project Work Package Work Item (Project Context) ----------
-
-
-class AddNewWorkItemToCustomWorkPackage(Command):
-    """Add New Work Item to Custom Work Package - Adds a new work item to a custom work package"""
-
-    class Meta:
-        key = "add-new-work-item-to-custom-work-package"
-        resources = ("work-package",)
-        tags = ["work-package", "work-item", "add", "custom"]
-        new_resource = True
-        policy_required = True
-
-    Data = datadef.AddNewWorkItemToProjectWorkPackagePayload
-
-    async def _process(self, agg, stm, payload):
-        """Add new work item to custom work package"""
-        project_work_item = await agg.add_new_work_item_to_custom_work_package(data=payload)
-
-        yield agg.create_response(serialize_mapping(project_work_item), _type="project-work-item-response")
-
 
 class AddNewWorkItemToProjectWorkPackage(Command):
     """Add New Work Item to Project Work Package - Adds a new work item to a project work package"""
