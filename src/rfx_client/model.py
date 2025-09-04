@@ -424,45 +424,6 @@ class ViewWorkPackage(RFXClientBaseModel):
 #     organization_id = sa.Column(pg.UUID)
 
 
-# ================ Workflow Context ================
-# Workflow Aggregate Root
-
-
-class Workflow(RFXClientBaseModel):
-    __tablename__ = "workflow"
-
-    entity_type = sa.Column(
-        sa.Enum(types.EntityType, name="entity_type",
-                schema=config.CPO_CLIENT_SCHEMA),
-        nullable=False
-    )
-    name = sa.Column(sa.String(255), nullable=False)
-    organization_id = sa.Column(pg.UUID)
-
-# Workflow Status Entity
-
-
-class WorkflowStatus(RFXClientBaseModel):
-    __tablename__ = "workflow-status"
-
-    workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
-    key = sa.Column(sa.String(100), nullable=False, unique=True)
-    is_start = sa.Column(sa.Boolean, default=False)
-    is_end = sa.Column(sa.Boolean, default=False)
-
-
-# Workflow Transition Entity
-class WorkflowTransition(RFXClientBaseModel):
-    __tablename__ = "workflow-transition"
-
-    workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
-    src_status_id = sa.Column(sa.ForeignKey(
-        WorkflowStatus._id), nullable=False)
-    dst_status_id = sa.Column(sa.ForeignKey(
-        WorkflowStatus._id), nullable=False)
-    rule_code = sa.Column(sa.String(100))
-    condition = sa.Column(sa.Text)
-
 # ================ Integration Context ================
 # Integration Aggregate Root
 

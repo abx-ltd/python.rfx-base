@@ -52,7 +52,7 @@ class RFXDiscussionAggregate(Aggregate):
         record = self.init_resource(
             "ticket",
             serialize_mapping(data),
-            status="DRAFT",
+            status="NEW",
             organization_id=self.context.organization_id,
             _id=UUID_GENR()
         )
@@ -69,7 +69,7 @@ class RFXDiscussionAggregate(Aggregate):
             "ticket",
             serialize_mapping(data),
             _id=self.aggroot.identifier,
-            status="DRAFT",
+            status="NEW",
             sync_status=SyncStatus.PENDING,
             is_inquiry=False,
             organization_id=self.context.organization_id
@@ -81,6 +81,28 @@ class RFXDiscussionAggregate(Aggregate):
     async def update_ticket_info(self, /, data):
         """Update ticket information"""
         ticket = self.rootobj
+
+        if data.status:
+            workflow = await self.statemgr.find_one("workflow", where=dict(
+                entity_type="ticket",
+            ))
+
+            from_workflow_status = await self.statemgr.find_one("workflow-status", where=dict(
+                workflow_id=workflow._id,
+                key=ticket.status
+            ))
+            to_workflow_status = await self.statemgr.find_one("workflow-status", where=dict(
+                workflow_id=workflow._id,
+                key=data.status
+            ))
+
+            if not to_workflow_status:
+                raise ValueError("Invalid status")
+            transition = await self.statemgr.has_workflow_transition(workflow._id, from_workflow_status.key, to_workflow_status.key)
+            if not transition:
+                raise ValueError(
+                    "Invalid status, Can not transition to this status")
+
         await self.statemgr.update(ticket, **serialize_mapping(data))
 
     @action('ticket-removed', resources='ticket')
@@ -304,4 +326,42 @@ class RFXDiscussionAggregate(Aggregate):
 
         await self.statemgr.insert(record)
         await self.statemgr.insert(ticket_comment)
+        return record
+
+    # =========== Workflow Context ============
+    @action("workflow-created", resources="workflow")
+    async def create_workflow(self, /, data):
+        """Create a new workflow"""
+        record = self.init_resource(
+            "workflow",
+            serialize_mapping(data),
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("workflow-status-created", resources="workflow")
+    async def create_workflow_status(self, /, data):
+        """Create a new workflow status"""
+        workflow = self.rootobj
+        record = self.init_resource(
+            "workflow-status",
+            serialize_mapping(data),
+            workflow_id=workflow._id,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("workflow-transition-created", resources="workflow")
+    async def create_workflow_transition(self, /, data):
+        """Create a new workflow transition"""
+        workflow = self.rootobj
+        record = self.init_resource(
+            "workflow-transition",
+            serialize_mapping(data),
+            workflow_id=workflow._id,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
         return record

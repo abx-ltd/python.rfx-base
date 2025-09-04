@@ -28,3 +28,15 @@ class TagResponse(RFXDiscussionDomain.Response):
 
 class CommentResponse(RFXDiscussionDomain.Response):
     pass
+
+
+class WorkflowResponse(RFXDiscussionDomain.Response):
+    pass
+
+
+class WorkflowStatusResponse(RFXDiscussionDomain.Response):
+    pass
+
+
+class WorkflowTransitionResponse(RFXDiscussionDomain.Response):
+    pass

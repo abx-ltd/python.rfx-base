@@ -63,6 +63,7 @@ class CreateTicket(Command):
         description = "Create a new ticket in project"
         new_resource = True
         internal = True
+        policy_required = False
 
     Data = datadef.CreateTicketPayload
 
@@ -579,3 +580,59 @@ class CreateTicketComment(Command):
         )
 
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
+
+class CreateWorkflow(Command):
+    """Create Workflow - Creates a new workflow"""
+
+    class Meta:
+        key = "create-workflow"
+        resources = ("workflow",)
+        tags = ["workflow"]
+        auth_required = True
+        description = "Create a new workflow"
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.CreateWorkflowPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create workflow"""
+        workflow = await agg.create_workflow(data=payload)
+        yield agg.create_response(serialize_mapping(workflow), _type="workflow-response")
+
+class CreateWorkflowStatus(Command):
+    """Create Workflow Status - Creates a new workflow status"""
+
+    class Meta:
+        key = "create-workflow-status"
+        resources = ("workflow",)
+        tags = ["workflow", "status"]
+        auth_required = True
+        description = "Create a new workflow status"
+        policy_required = False
+
+    Data = datadef.CreateWorkflowStatusPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create workflow status"""
+        workflow_status = await agg.create_workflow_status(data=payload)
+        yield agg.create_response(serialize_mapping(workflow_status), _type="workflow-status-response")
+
+class CreateWorkflowTransition(Command):
+    """Create Workflow Transition - Creates a new workflow transition"""
+
+    class Meta:
+        key = "create-workflow-transition"
+        resources = ("workflow",)
+        tags = ["workflow", "transition"]
+        auth_required = True
+        description = "Create a new workflow transition"
+        policy_required = False
+
+    Data = datadef.CreateWorkflowTransitionPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create workflow transition"""
+        workflow_transition = await agg.create_workflow_transition(data=payload)
+        yield agg.create_response(serialize_mapping(workflow_transition), _type="workflow-transition-response")

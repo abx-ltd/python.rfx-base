@@ -37,7 +37,6 @@ class Ticket(RFXDiscussionBaseModel):
     parent_id = sa.Column(pg.UUID)  # FK to ticket(_id)
     assignee = sa.Column(pg.UUID)  # FK to profile(_id)
     status = sa.Column(sa.String(100), nullable=False)  # FK to ticket_status
-    workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     availability = sa.Column(
         sa.Enum(types.Availability, name="availability",
                 schema=config.RFX_DISCUSSION_SCHEMA),
@@ -138,7 +137,6 @@ class ViewTicket(RFXDiscussionBaseModel):
     parent_id = sa.Column(pg.UUID)
     assignee = sa.Column(pg.UUID)
     status = sa.Column(sa.String(100), nullable=False)
-    workflow_id = sa.Column(pg.UUID)
     availability = sa.Column(
         sa.Enum(types.Availability, name="availability",
                 schema=config.RFX_DISCUSSION_SCHEMA),
@@ -190,3 +188,35 @@ class CommentView(RFXDiscussionBaseModel):
     ticket_id = sa.Column(pg.UUID)
     creator = sa.Column(pg.JSONB)
     organization_id = sa.Column(pg.UUID)
+
+# ================ Workflow Context ================
+
+
+class Workflow(RFXDiscussionBaseModel):
+    __tablename__ = "workflow"
+
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    entity_type = sa.Column(sa.String(100), nullable=False)
+    is_active = sa.Column(sa.Boolean, default=True)
+
+
+class WorkflowStatus(RFXDiscussionBaseModel):
+    __tablename__ = "workflow-status"
+
+    workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
+    key = sa.Column(sa.String(100), nullable=False, unique=True)
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    is_initial = sa.Column(sa.Boolean, default=False)
+    is_final = sa.Column(sa.Boolean, default=False)
+
+
+class WorkflowTransition(RFXDiscussionBaseModel):
+    __tablename__ = "workflow-transition"
+
+    workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
+    src_status_id = sa.Column(sa.ForeignKey(
+        WorkflowStatus._id), nullable=False)
+    dst_status_id = sa.Column(sa.ForeignKey(
+        WorkflowStatus._id), nullable=False)
