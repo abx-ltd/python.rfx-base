@@ -36,11 +36,14 @@ class InquiryQuery(DomainQueryResource):
     """Inquiry listing queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "ticket"
         include_all = True
         allow_list_view = True
         allow_item_view = True
         allow_meta_view = True
+
         backend_model = "_inquiry"
+        policy_required = "id"
 
     type: str = StringField("Type")
     type_icon_color: str = StringField("Type Icon Color")
@@ -58,6 +61,7 @@ class TicketQuery(DomainQueryResource):
     """Ticket queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "ticket"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -65,6 +69,7 @@ class TicketQuery(DomainQueryResource):
 
         backend_model = "_ticket"
         scope_required = scope.TicketScopeSchema
+        policy_required = "id"
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     title: str = StringField("Title")
@@ -104,6 +109,7 @@ class TagQuery(DomainQueryResource):
     """Tag queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "tag"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -125,6 +131,7 @@ class CommentQuery(DomainQueryResource):
     """Comment queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "comment"
         include_all = True
         allow_item_view = True
         allow_list_view = True

@@ -969,6 +969,7 @@ class UpdateProjectCategory(Command):
         auth_required = True
         description = "Update project category"
         new_resource = False
+        policy_required = False
 
     Data = datadef.UpdateProjectCategoryPayload
 
@@ -987,6 +988,7 @@ class DeleteProjectCategory(Command):
         auth_required = True
         description = "Delete project category"
         new_resource = False
+        policy_required = False
 
     Data = datadef.DeleteProjectCategoryPayload
 
@@ -1318,8 +1320,6 @@ class UpdateProjectWorkItem(Command):
 
 
 # ---------- Project Work Package (Project Context) ----------
-
-
 class UpdateProjectWorkPackage(Command):
     """Update Project Work Package - Updates a project work package"""
 
@@ -1369,6 +1369,59 @@ class UpdateProjectWorkPackage(Command):
                     "message_type": "NOTIFICATION",
                     "priority": "MEDIUM",
                     "content": f"{profile.name__given} {profile.name__family} updated a work package {project_work_package.work_package_name} in project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
+
+
+class UpdateProjectWorkPackageWithWorkItems(Command):
+    """Update Project Work Package With Work Items - Updates a project work package with work items"""
+
+    class Meta:
+        key = "update-project-work-package-with-work-items"
+        resources = ("project",)
+        tags = ["project", "work-package", "work-items", "update"]
+        policy_required = True
+
+    Data = datadef.UpdateProjectWorkPackageWithWorkItemsPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update project work package with work items"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+
+        project_work_package = await stm.find_one(
+            "project-work-package",
+            where={"_id": payload.project_work_package_id}
+        )
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} updated a project work package {project_work_package.work_package_name} with work items",
+            msglabel="update-project-work-package-with-work-items",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "project_work_package_id": project_work_package._id,
+                "work_item_ids": payload.work_item_ids,
+                "updated_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.update_project_work_package_with_work_items(data=payload)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Work Package Updated with Work Items",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} updated a project work package {project_work_package.work_package_name} with work items in project {project.name}",
                     "content_type": "TEXT",
                 },
             }

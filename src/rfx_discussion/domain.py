@@ -2,7 +2,7 @@ from fluvius.domain import Domain, SQLDomainLogStore
 
 from .aggregate import RFXDiscussionAggregate
 from .state import RFXDiscussionStateManager
-# from .policy import RFXDiscussionAggregatePolicyManager
+from .policy import RFXDiscussionPolicyManager
 from . import config
 
 
@@ -11,7 +11,7 @@ class RFXDiscussionDomain(Domain):
     __aggregate__ = RFXDiscussionAggregate
     __statemgr__ = RFXDiscussionStateManager
     __logstore__ = SQLDomainLogStore
-    # __policymgr__   = RFXDiscussionPolicyManager
+    __policymgr__ = RFXDiscussionPolicyManager
 
 
 class TicketResponse(RFXDiscussionDomain.Response):

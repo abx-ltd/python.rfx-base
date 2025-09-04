@@ -908,6 +908,76 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(project_work_package, **update_data)
         return project_work_package
 
+    @action('project-work-package-updated-with-work-items', resources='project')
+    async def update_project_work_package_with_work_items(self, /, data):
+        """Update project work package and sync work items"""
+
+        project_work_package = await self.statemgr.find_one('project-work-package', where=dict(
+            _id=data.project_work_package_id,
+            project_id=self.aggroot.identifier
+        ))
+        if not project_work_package:
+            raise ValueError("Project work package not found")
+
+        existing_links = await self.statemgr.find_all(
+            'project-work-package-work-item',
+            where=dict(project_work_package_id=data.project_work_package_id)
+        )
+        existing_project_work_item_ids = {
+            link.project_work_item_id for link in existing_links}
+        input_ids = set(data.work_item_ids)  # Convert list to set
+
+        keep_ids = existing_project_work_item_ids & input_ids
+
+        to_remove_ids = existing_project_work_item_ids - keep_ids
+        for work_item_id in to_remove_ids:
+            link_record = next(
+                (l for l in existing_links if l.project_work_item_id == work_item_id), None)
+            if link_record:
+                await self.statemgr.invalidate_one('project-work-package-work-item', link_record._id)
+            await self.statemgr.invalidate_one('project-work-item', work_item_id)
+
+        to_add_ids = input_ids - existing_project_work_item_ids
+
+        for work_item_id in to_add_ids:
+            work_item = await self.statemgr.find_one('work-item', where=dict(_id=work_item_id))
+            if not work_item:
+                raise ValueError(f"Work item {work_item_id} not found")
+
+            project_work_item_data = {
+                "_id": UUID_GENR(),
+                "project_id": self.aggroot.identifier,
+                "name": work_item.name,
+                "type": work_item.type,
+                "description": work_item.description,
+                "price_unit": work_item.price_unit,
+                "credit_per_unit": work_item.credit_per_unit,
+                "estimate": work_item.estimate,
+            }
+            project_work_item = self.init_resource(
+                "project-work-item",
+                serialize_mapping(project_work_item_data)
+            )
+            await self.statemgr.insert(project_work_item)
+
+            link_data = {
+                "project_work_package_id": project_work_package._id,
+                "project_work_item_id": project_work_item._id,
+                "project_id": self.aggroot.identifier
+            }
+            link_record = self.init_resource(
+                "project-work-package-work-item",
+                serialize_mapping(link_data)
+            )
+            await self.statemgr.insert(link_record)
+
+        update_data = serialize_mapping(data)
+        update_data.pop('project_work_package_id', None)
+        update_data.pop('work_item_ids', None)
+        await self.statemgr.update(project_work_package, **update_data)
+
+        return project_work_package
+
     # =========== Project Work Package Work Item (Project Context) ============
 
     @action("add-new-work-item-to-project-work-package", resources='project')

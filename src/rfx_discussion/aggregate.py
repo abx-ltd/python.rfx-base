@@ -280,7 +280,6 @@ class RFXDiscussionAggregate(Aggregate):
         return new_comment
 
     # =========== Ticket Comment (Ticket Context) ============
-
     @action("ticket-comment-created", resources="ticket")
     async def create_ticket_comment(self, /, data):
         """Create a new comment for a ticket"""

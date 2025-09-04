@@ -21,6 +21,7 @@ class CreateInquiry(Command):
         auth_required = True
         description = "Create a new inquiry"
         new_resource = True
+        policy_required = True
 
     Data = datadef.CreateInquiryPayload
 
@@ -95,6 +96,7 @@ class UpdateTicketInfo(Command):
         tags = ["ticket", "update"]
         auth_required = True
         description = "Update ticket information"
+        policy_required = True
 
     Data = datadef.UpdateTicketPayload
 
@@ -127,6 +129,7 @@ class RemoveTicket(Command):
         tags = ["ticket", "remove"]
         auth_required = True
         description = "Remove ticket"
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
 
@@ -158,6 +161,7 @@ class AssignMemberToTicket(Command):
         tags = ["ticket", "member"]
         auth_required = True
         description = "Assign member to ticket"
+        policy_required = True
 
     Data = datadef.AssignTicketMemberPayload
 
@@ -192,6 +196,7 @@ class RemoveMemberFromTicket(Command):
         tags = ["ticket", "member"]
         auth_required = True
         description = "Remove member from ticket"
+        policy_required = True
 
     Data = datadef.RemoveTicketMemberPayload
 
@@ -227,6 +232,7 @@ class AddParticipantToTicket(Command):
         tags = ["ticket", "participant"]
         auth_required = True
         description = "Add participant to ticket"
+        policy_required = True
 
     Data = datadef.AddTicketParticipantPayload
 
@@ -261,6 +267,7 @@ class RemoveParticipantFromTicket(Command):
         tags = ["ticket", "participant"]
         auth_required = True
         description = "Remove participant from ticket"
+        policy_required = True
 
     Data = datadef.RemoveTicketParticipantPayload
 
@@ -297,6 +304,7 @@ class CreateTag(Command):
         auth_required = True
         description = "Create a new tag in project"
         new_resource = True
+        policy_required = False
 
     Data = datadef.CreateTagPayload
 
@@ -315,6 +323,7 @@ class UpdateTag(Command):
         tags = ["tag", "update"]
         auth_required = True
         description = "Update tag"
+        policy_required = False
 
     Data = datadef.UpdateTagPayload
 
@@ -332,6 +341,7 @@ class DeleteTag(Command):
         tags = ["tag", "delete"]
         auth_required = True
         description = "Delete tag"
+        policy_required = False
 
     async def _process(self, agg, stm, payload):
         """Delete tag"""
@@ -349,6 +359,7 @@ class CreateTicketType(Command):
         auth_required = True
         description = "Create a new ticket type"
         new_resource = True
+        policy_required = False
 
     Data = datadef.CreateTicketTypePayload
 
@@ -368,6 +379,7 @@ class UpdateTicketType(Command):
         auth_required = True
         description = "Update a ticket type"
         new_resource = True
+        policy_required = False
 
     Data = datadef.UpdateTicketTypePayload
 
@@ -386,6 +398,7 @@ class DeleteTicketType(Command):
         auth_required = True
         description = "Delete a ticket type"
         new_resource = True
+        policy_required = False
 
     Data = datadef.DeleteTicketTypePayload
 
@@ -404,6 +417,7 @@ class AddTicketTag(Command):
         tags = ["ticket", "tag"]
         auth_required = True
         description = "Add tag to ticket"
+        policy_required = True
 
     Data = datadef.AddTicketTagPayload
 
@@ -435,6 +449,7 @@ class RemoveTicketTag(Command):
         tags = ["ticket", "tag"]
         auth_required = True
         description = "Remove tag from ticket"
+        policy_required = True
 
     Data = datadef.RemoveTicketTagPayload
 
@@ -541,6 +556,7 @@ class CreateTicketComment(Command):
         tags = ["ticket", "comment"]
         auth_required = True
         description = "Create a new comment for a ticket"
+        policy_required = True
 
     Data = datadef.CreateTicketCommentPayload
 

@@ -49,6 +49,7 @@ class ProjectDraftQuery(DomainQueryResource):
         return {"members.ov": [profile_id], "status": "DRAFT"}
 
     class Meta(DomainQueryResource.Meta):
+        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -56,7 +57,6 @@ class ProjectDraftQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
-        resource = "project"
         policy_required = "id"
 
     name: str = StringField("Project Name")
@@ -256,6 +256,7 @@ class WorkItemDetailQuery(DomainQueryResource):
     """Work item detail queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -277,6 +278,7 @@ class WorkItemListingQuery(DomainQueryResource):
     """Work item listing queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -284,7 +286,6 @@ class WorkItemListingQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project-work-item-listing"
-
         scope_required = scope.ProjectWorkItemListingScopeSchema
 
     project_work_package_id: UUID_TYPE = UUIDField("Project Work Package ID")
@@ -431,56 +432,22 @@ class WorkPackageQuery(DomainQueryResource):
     is_custom: bool = BooleanField("Is Custom")
 
 
-@resource('template-work-package')
-class TemplateWorkPackageQuery(DomainQueryResource):
-    """Template work package queries"""
+@resource('promotion')
+class PromotionQuery(DomainQueryResource):
+    """Promotion queries"""
 
     class Meta(DomainQueryResource.Meta):
+        resource = "promotion"
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
         allow_text_search = True
-        backend_model = "_work-package"
 
-    work_package_name: str = StringField("Work Package Name")
-    description: str = StringField("Description")
-    example_description: str = StringField("Example Description")
-    complexity_level: int = IntegerField("Complexity Level")
-    estimate: str = StringField("Estimate")
-    type_list: list[str] = ArrayField("Type List")
-    credits: float = FloatField("Credits")
-    architectural_credits: float = FloatField("Architectural Credits")
-    development_credits: float = FloatField("Development Credits")
-    operation_credits: float = FloatField("Operation Credits")
-    upfront_cost: float = FloatField("Upfront Cost")
-    monthly_cost: float = FloatField("Monthly Cost")
-    work_item_count: int = IntegerField("Work Item Count")
+    code: str = StringField("Code")
+    valid_from: datetime = DatetimeField("Valid From")
+    valid_until: datetime = DatetimeField("Valid Until")
+    max_uses: int = IntegerField("Max Uses")
+    current_uses: int = IntegerField("Current Uses")
+    discount_value: float = FloatField("Discount Value")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
-
-
-# @resource('custom-work-package')
-# class CustomWorkPackageQuery(DomainQueryResource):
-#     """Custom work package queries"""
-
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         allow_meta_view = True
-#         backend_model = "_custom-work-package"
-
-#     work_package_name: str = StringField("Work Package Name")
-#     description: str = StringField("Description")
-#     example_description: str = StringField("Example Description")
-#     complexity_level: int = IntegerField("Complexity Level")
-#     estimate: str = StringField("Estimate")
-#     type_list: list[str] = ArrayField("Type List")
-#     credits: float = FloatField("Credits")
-#     architectural_credits: float = FloatField("Architectural Credits")
-#     development_credits: float = FloatField("Development Credits")
-#     operation_credits: float = FloatField("Operation Credits")
-#     upfront_cost: float = FloatField("Upfront Cost")
-#     monthly_cost: float = FloatField("Monthly Cost")
-#     work_item_count: int = IntegerField("Work Item Count")
-#     organization_id: UUID_TYPE = UUIDField("Organization ID")

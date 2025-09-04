@@ -77,3 +77,26 @@ class RFXClientStateManager(DataAccessManager):
             FROM filled_data
             ORDER BY week_order;
         """, str(organization_id)
+
+    @item_query
+    def count_work_packages(self, organization_id):
+        return """
+            select COUNT(*) from "cpo-client"."work-package"
+            where organization_id = $1
+        """, str(organization_id)
+
+    @item_query
+    def count_messages(self, organization_id):
+        return """
+            select COUNT(*) from "cpo-message"."message"
+            where organization_id = $1
+        """, str(organization_id)\
+
+
+    @item_query
+    def count_open_inquiries(self, organization_id):
+        return """
+            select COUNT(*) from "cpo-discussion"."ticket"
+            where organization_id = $1
+            and status = 'OPEN'
+        """, str(organization_id)

@@ -292,6 +292,16 @@ class UpdateProjectWorkPackagePayload(DataModel):
     work_package_is_custom: Optional[bool] = None
     work_package_complexity_level: Optional[int] = None
 
+
+class UpdateProjectWorkPackageWithWorkItemsPayload(DataModel):
+    project_work_package_id: UUID_TYPE
+    work_package_name: Optional[str] = Field(max_length=255)
+    work_package_description: Optional[str] = None
+    work_package_example_description: Optional[str] = None
+    work_package_is_custom: Optional[bool] = None
+    work_package_complexity_level: Optional[int] = None
+    work_item_ids: list[UUID_TYPE]
+
 #  Project Work Item Deliverable related payloads
 
 
