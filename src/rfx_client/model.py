@@ -54,7 +54,6 @@ class Project(RFXClientBaseModel):
     duration = sa.Column(sa.Interval)
     free_credit_applied = sa.Column(sa.Integer, default=0)
     referral_code_used = sa.Column(sa.String(50))
-    status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     sync_status = sa.Column(
         sa.Enum(types.SyncStatus, name="sync_status",
                 schema=config.CPO_CLIENT_SCHEMA),
@@ -82,7 +81,6 @@ class ViewProject(RFXClientBaseModel):
     duration = sa.Column(sa.Interval)
     free_credit_applied = sa.Column(sa.Integer, default=0)
     referral_code_used = sa.Column(sa.String(50))
-    status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
     sync_status = sa.Column(
         sa.Enum(types.SyncStatus, name="sync_status",
                 schema=config.CPO_CLIENT_SCHEMA),
@@ -252,7 +250,6 @@ class ProjectBDMContact(RFXClientBaseModel):
     message = sa.Column(sa.Text)
     meeting_time = sa.Column(sa.DateTime(timezone=True))
     status = sa.Column(sa.String(100), nullable=False)
-    status_workflow_id = sa.Column(pg.UUID)  # FK to workflow(_id)
 
 
 class ViewProjectEstimateSummary(RFXClientBaseModel):
