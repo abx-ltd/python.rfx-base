@@ -184,7 +184,8 @@ class ProjectWorkItemDeliverable(RFXClientBaseModel):
 class ViewProjectWorkPackage(RFXClientBaseModel):
     __tablename__ = "_project-work-package"
     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
-    __ts_index__ = ["work_package_name", "description", "example_description"]
+    __ts_index__ = ["work_package_name", "work_package_description",
+                    "work_package_example_description"]
 
     project_id = sa.Column(pg.UUID, primary_key=True)
     work_package_id = sa.Column(pg.UUID, primary_key=True)

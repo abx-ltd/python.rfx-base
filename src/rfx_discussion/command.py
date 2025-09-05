@@ -582,6 +582,7 @@ class CreateTicketComment(Command):
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 
+# ------------ Workflow Context ----------
 class CreateWorkflow(Command):
     """Create Workflow - Creates a new workflow"""
 
