@@ -457,3 +457,5 @@ class ViewCreditUsage(RFXClientBaseModel):
     de_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
     op_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
     total_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
+
+

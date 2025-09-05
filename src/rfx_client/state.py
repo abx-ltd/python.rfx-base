@@ -102,7 +102,7 @@ class RFXClientStateManager(DataAccessManager):
         """, str(organization_id)
 
     @value_query
-    def workflow_id(self, entity_type):
+    def get_workflow_id(self, entity_type):
         return """
             select _id from "cpo-discussion"."workflow"
             where entity_type = $1
@@ -110,12 +110,14 @@ class RFXClientStateManager(DataAccessManager):
         """, str(entity_type)
 
     @value_query
-    def workflow_status_id(self, workflow_id, status):
+    def has_workflow_status(self, workflow_id, status):
         return """
+            select exists (
             select _id from "cpo-discussion"."workflow-status"
-            where workflow_id = $1
-            and key = $2
-            and _deleted is null
+                where workflow_id = $1
+                and key = $2
+                and _deleted is null
+            )
         """, str(workflow_id), str(status)
 
     @value_query

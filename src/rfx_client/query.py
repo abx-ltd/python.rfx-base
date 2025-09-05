@@ -450,3 +450,6 @@ class PromotionQuery(DomainQueryResource):
     current_uses: int = IntegerField("Current Uses")
     discount_value: float = FloatField("Discount Value")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+
+

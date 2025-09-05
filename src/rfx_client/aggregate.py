@@ -100,6 +100,20 @@ class RFXClientAggregate(Aggregate):
     async def update_project(self, /, data):
         """Update a project"""
         project = self.rootobj
+
+        if data.status:
+            workflow_id = await self.statemgr.get_workflow_id("project")
+
+            to_workflow_status = await self.statemgr.has_workflow_status(workflow_id, data.status)
+
+            if not to_workflow_status:
+                raise ValueError("Invalid status")
+
+            transition = await self.statemgr.has_workflow_transition(workflow_id, project.status, data.status)
+            if not transition:
+                raise ValueError(
+                    "Invalid status, Can not transition to this status")
+
         await self.statemgr.update(project, **serialize_mapping(data))
         return project
 
@@ -491,6 +505,16 @@ class RFXClientAggregate(Aggregate):
 
         if not record:
             raise ValueError("BDM contact not found")
+
+        if data.status:
+            workflow_id = await self.statemgr.get_workflow_id("project-bdm-contact")
+            to_workflow_status = await self.statemgr.has_workflow_status(workflow_id, data.status)
+            if not to_workflow_status:
+                raise ValueError("Invalid status")
+            transition = await self.statemgr.has_workflow_transition(workflow_id, record.status, data.status)
+            if not transition:
+                raise ValueError(
+                    "Invalid status, Can not transition to this status")
 
         update_data = serialize_mapping(data)
         update_data.pop('bdm_contact_id', None)

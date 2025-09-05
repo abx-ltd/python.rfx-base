@@ -110,7 +110,6 @@ class RefTicketType(RFXDiscussionBaseModel):
 # View for inquiry listing
 class ViewInquiry(RFXDiscussionBaseModel):
     __tablename__ = "_inquiry"
-    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
 
     type = sa.Column(sa.String(255), primary_key=True)
     type_icon_color = sa.Column(sa.String(7))  # Hex color code
@@ -128,7 +127,6 @@ class ViewInquiry(RFXDiscussionBaseModel):
 
 class ViewTicket(RFXDiscussionBaseModel):
     __tablename__ = "_ticket"
-    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
 
     title = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
@@ -220,3 +218,15 @@ class WorkflowTransition(RFXDiscussionBaseModel):
         WorkflowStatus._id), nullable=False)
     dst_status_id = sa.Column(sa.ForeignKey(
         WorkflowStatus._id), nullable=False)
+
+
+class ViewWorkFlowStatus(RFXDiscussionBaseModel):
+    __tablename__ = "_workflow-status"
+
+    entity_type = sa.Column(sa.String(100), nullable=False)
+    workflow_id = sa.Column(pg.UUID, primary_key=True)
+    key = sa.Column(sa.String(100), nullable=False)
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    is_initial = sa.Column(sa.Boolean, nullable=False)
+    is_final = sa.Column(sa.Boolean, nullable=False)

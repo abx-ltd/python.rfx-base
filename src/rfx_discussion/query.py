@@ -146,3 +146,25 @@ class CommentQuery(DomainQueryResource):
     content: str = StringField("Content")
     creator: dict = DictField("Creator")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+
+@resource('status')
+class WorkflowStatusQuery(DomainQueryResource):
+    """Workflow status queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        allow_text_search = True
+
+        backend_model = "_workflow-status"
+
+    entity_type: str = StringField("Entity Type")
+    workflow_id: UUID_TYPE = UUIDField("Workflow ID")
+    key: str = StringField("Key")
+    name: str = StringField("Name")
+    description: str = StringField("Description")
+    is_initial: bool = BooleanField("Is Initial")
+    is_final: bool = BooleanField("Is Final")

@@ -28,7 +28,7 @@ class CreateProjectPayload(DataModel):
 
 
 class UpdateProjectPayload(DataModel):
-    name: Optional[str] = Field(max_length=255)
+    name: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
     priority: Optional[Priority] = None
