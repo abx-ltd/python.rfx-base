@@ -102,34 +102,34 @@ class RFXClientStateManager(DataAccessManager):
         """, str(organization_id)
 
     @value_query
-    def get_workflow_id(self, entity_type):
+    def get_status_id(self, entity_type):
         return """
-            select _id from "cpo-discussion"."workflow"
+            select _id from "cpo-discussion"."status"
             where entity_type = $1
             and _deleted is null
         """, str(entity_type)
 
     @value_query
-    def has_workflow_status(self, workflow_id, status):
+    def has_status_key(self, status_id, key):
         return """
             select exists (
-            select _id from "cpo-discussion"."workflow-status"
-                where workflow_id = $1
+            select _id from "cpo-discussion"."status-key"
+                where status_id = $1
                 and key = $2
                 and _deleted is null
             )
-        """, str(workflow_id), str(status)
+        """, str(status_id), str(key)
 
     @value_query
-    def has_workflow_transition(self, workflow_id, current_status, new_status):
+    def has_status_transition(self, status_id, current_status, new_status):
         return """
             select exists (
                 select 1
-                from "cpo-discussion"."workflow-transition" wt
-                join "cpo-discussion"."workflow-status" ws_src on ws_src._id = wt.src_status_id
-                join "cpo-discussion"."workflow-status" ws_dst on ws_dst._id = wt.dst_status_id
-                where wt.workflow_id = $1
+                from "cpo-discussion"."status-transition" st
+                join "cpo-discussion"."status-key" ws_src on ws_src._id = st.src_status_key_id
+                join "cpo-discussion"."status-key" ws_dst on ws_dst._id = st.dst_status_key_id
+                where st.status_id = $1
                 and ws_src.key = $2
                 and ws_dst.key = $3
             )
-        """, str(workflow_id), str(current_status), str(new_status)
+        """, str(status_id), str(current_status), str(new_status)

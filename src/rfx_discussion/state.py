@@ -14,15 +14,15 @@ class RFXDiscussionStateManager(DataAccessManager):
         """, str(profile_id)
 
     @value_query
-    def has_workflow_transition(self, workflow_id, current_status, new_status):
+    def has_status_transition(self, workflow_id, current_status_id, new_status_id):
         return """
             select exists (
                 select 1
-                from "cpo-discussion"."workflow-transition" wt
-                join "cpo-discussion"."workflow-status" ws_src on ws_src._id = wt.src_status_id
-                join "cpo-discussion"."workflow-status" ws_dst on ws_dst._id = wt.dst_status_id
-                where wt.workflow_id = $1
-                and ws_src.key = $2
-                and ws_dst.key = $3
+                from "cpo-discussion"."status-transition" st
+                join "cpo-discussion"."status-key" ws_src on ws_src._id = st.src_status_key_id
+                join "cpo-discussion"."status-key" ws_dst on ws_dst._id = st.dst_status_key_id
+                where st.status_id = $1
+                and st.src_status_key_id = $2
+                and st.dst_status_key_id = $3
             )
-        """, str(workflow_id), str(current_status), str(new_status)
+        """, str(workflow_id), str(current_status_id), str(new_status_id)

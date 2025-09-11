@@ -190,8 +190,8 @@ class CommentView(RFXDiscussionBaseModel):
 # ================ Workflow Context ================
 
 
-class Workflow(RFXDiscussionBaseModel):
-    __tablename__ = "workflow"
+class Status(RFXDiscussionBaseModel):
+    __tablename__ = "status"
 
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
@@ -199,10 +199,10 @@ class Workflow(RFXDiscussionBaseModel):
     is_active = sa.Column(sa.Boolean, default=True)
 
 
-class WorkflowStatus(RFXDiscussionBaseModel):
-    __tablename__ = "workflow-status"
+class StatusKey(RFXDiscussionBaseModel):
+    __tablename__ = "status-key"
 
-    workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
+    status_id = sa.Column(sa.ForeignKey(Status._id), nullable=False)
     key = sa.Column(sa.String(100), nullable=False, unique=True)
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)
@@ -210,21 +210,21 @@ class WorkflowStatus(RFXDiscussionBaseModel):
     is_final = sa.Column(sa.Boolean, default=False)
 
 
-class WorkflowTransition(RFXDiscussionBaseModel):
-    __tablename__ = "workflow-transition"
+class StatusTransition(RFXDiscussionBaseModel):
+    __tablename__ = "status-transition"
 
-    workflow_id = sa.Column(sa.ForeignKey(Workflow._id), nullable=False)
-    src_status_id = sa.Column(sa.ForeignKey(
-        WorkflowStatus._id), nullable=False)
-    dst_status_id = sa.Column(sa.ForeignKey(
-        WorkflowStatus._id), nullable=False)
+    status_id = sa.Column(sa.ForeignKey(Status._id), nullable=False)
+    src_status_key_id = sa.Column(sa.ForeignKey(
+        StatusKey._id), nullable=False)
+    dst_status_key_id = sa.Column(sa.ForeignKey(
+        StatusKey._id), nullable=False)
 
 
-class ViewWorkFlowStatus(RFXDiscussionBaseModel):
-    __tablename__ = "_workflow-status"
+class ViewStatus(RFXDiscussionBaseModel):
+    __tablename__ = "_status"
 
     entity_type = sa.Column(sa.String(100), nullable=False)
-    workflow_id = sa.Column(pg.UUID, primary_key=True)
+    status_id = sa.Column(pg.UUID, primary_key=True)
     key = sa.Column(sa.String(100), nullable=False)
     name = sa.Column(sa.String(255), nullable=False)
     description = sa.Column(sa.Text)

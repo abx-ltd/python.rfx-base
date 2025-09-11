@@ -159,10 +159,10 @@ class WorkflowStatusQuery(DomainQueryResource):
         allow_meta_view = True
         allow_text_search = True
 
-        backend_model = "_workflow-status"
+        backend_model = "_status"
 
     entity_type: str = StringField("Entity Type")
-    workflow_id: UUID_TYPE = UUIDField("Workflow ID")
+    status_id: UUID_TYPE = UUIDField("Status ID")
     key: str = StringField("Key")
     name: str = StringField("Name")
     description: str = StringField("Description")

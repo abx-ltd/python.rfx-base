@@ -102,14 +102,14 @@ class RFXClientAggregate(Aggregate):
         project = self.rootobj
 
         if data.status:
-            workflow_id = await self.statemgr.get_workflow_id("project")
+            status_id = await self.statemgr.get_status_id("project")
 
-            to_workflow_status = await self.statemgr.has_workflow_status(workflow_id, data.status)
+            to_status_key = await self.statemgr.has_status_key(status_id, data.status)
 
-            if not to_workflow_status:
+            if not to_status_key:
                 raise ValueError("Invalid status")
 
-            transition = await self.statemgr.has_workflow_transition(workflow_id, project.status, data.status)
+            transition = await self.statemgr.has_status_transition(status_id, project.status, data.status)
             if not transition:
                 raise ValueError(
                     "Invalid status, Can not transition to this status")

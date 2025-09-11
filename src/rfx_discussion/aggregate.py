@@ -83,22 +83,25 @@ class RFXDiscussionAggregate(Aggregate):
         ticket = self.rootobj
 
         if data.status:
-            workflow = await self.statemgr.find_one("workflow", where=dict(
+            status = await self.statemgr.find_one("status", where=dict(
                 entity_type="ticket",
             ))
 
-            from_workflow_status = await self.statemgr.find_one("workflow-status", where=dict(
-                workflow_id=workflow._id,
+            from_status_key = await self.statemgr.find_one("status-key", where=dict(
+                status_id=status._id,
                 key=ticket.status
             ))
-            to_workflow_status = await self.statemgr.find_one("workflow-status", where=dict(
-                workflow_id=workflow._id,
+            to_status_key = await self.statemgr.find_one("status-key", where=dict(
+                status_id=status._id,
                 key=data.status
             ))
 
-            if not to_workflow_status:
+            if not to_status_key:
                 raise ValueError("Invalid status")
-            transition = await self.statemgr.has_workflow_transition(workflow._id, from_workflow_status.key, to_workflow_status.key)
+
+            logger.info(f"from_status_key: {from_status_key._id}")
+            logger.info(f"to_status_key: {to_status_key._id}")
+            transition = await self.statemgr.has_status_transition(status._id, from_status_key._id, to_status_key._id)
             if not transition:
                 raise ValueError(
                     "Invalid status, Can not transition to this status")
