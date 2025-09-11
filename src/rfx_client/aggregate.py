@@ -47,7 +47,6 @@ class RFXClientAggregate(Aggregate):
     async def apply_promotion(self, /, data):
         """Apply a promotion code to a project"""
         project = self.rootobj
-        logger.info(f"Project: {project}")
         promotion = await self.statemgr.find_one('promotion', where=dict(
             code=data.promotion_code
         ))
@@ -197,14 +196,10 @@ class RFXClientAggregate(Aggregate):
         project_work_item_mapping = {}
 
         for wp_work_item in work_package_work_items:
-            logger.info(
-                f"Processing wp_work_item with work_item_id: {wp_work_item.work_item_id}")
             original_work_item = work_item_lookup.get(
                 wp_work_item.work_item_id)
 
             if not original_work_item:
-                logger.warning(
-                    f"Original work item not found for ID: {wp_work_item.work_item_id}")
                 continue
 
             project_work_item_data = serialize_mapping(original_work_item)
@@ -294,8 +289,6 @@ class RFXClientAggregate(Aggregate):
         ))
         template_pwi_ids = [
             link.project_work_item_id for link in template_links]
-
-        logger.info(f"template_links: {template_links}")
 
         # --- STEP 4: Lấy các project-work-item ---
         template_pwis = []

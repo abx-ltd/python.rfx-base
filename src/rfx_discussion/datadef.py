@@ -126,22 +126,25 @@ class CreateTicketCommentPayload(DataModel):
 class ReplyToCommentPayload(DataModel):
     content: str
 
-# ---------- Workflow Context ----------
+# ---------- Status Context ----------
 
-class CreateWorkflowPayload(DataModel):
+
+class CreateStatusPayload(DataModel):
     name: str
     description: Optional[str] = None
     entity_type: str
     is_active: bool = True
- 
-class CreateWorkflowStatusPayload(DataModel):
+
+
+class CreateStatusKeyPayload(DataModel):
     key: str
     name: str
     description: Optional[str] = None
     is_initial: bool = False
     is_final: bool = False
 
-class CreateWorkflowTransitionPayload(DataModel):
-    src_status_id: UUID_TYPE
-    dst_status_id: UUID_TYPE
+
+class CreateStatusTransitionPayload(DataModel):
+    src_status_key_id: UUID_TYPE
+    dst_status_key_id: UUID_TYPE
     condition: Optional[dict] = None

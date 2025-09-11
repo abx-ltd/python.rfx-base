@@ -63,7 +63,6 @@ class RFXDiscussionAggregate(Aggregate):
     @action('ticket-created', resources='ticket')
     async def create_ticket(self, /, data):
         """Create a new ticket tied to project"""
-        logger.info(f"Create a new ticket tied to project: {data}")
 
         record = self.init_resource(
             "ticket",
@@ -99,8 +98,6 @@ class RFXDiscussionAggregate(Aggregate):
             if not to_status_key:
                 raise ValueError("Invalid status")
 
-            logger.info(f"from_status_key: {from_status_key._id}")
-            logger.info(f"to_status_key: {to_status_key._id}")
             transition = await self.statemgr.has_status_transition(status._id, from_status_key._id, to_status_key._id)
             if not transition:
                 raise ValueError(
@@ -331,39 +328,39 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.insert(ticket_comment)
         return record
 
-    # =========== Workflow Context ============
-    @action("workflow-created", resources="workflow")
-    async def create_workflow(self, /, data):
+    # =========== Status Context ============
+    @action("status-created", resources="status")
+    async def create_status(self, /, data):
         """Create a new workflow"""
         record = self.init_resource(
-            "workflow",
+            "status",
             serialize_mapping(data),
             _id=UUID_GENR()
         )
         await self.statemgr.insert(record)
         return record
 
-    @action("workflow-status-created", resources="workflow")
-    async def create_workflow_status(self, /, data):
-        """Create a new workflow status"""
-        workflow = self.rootobj
+    @action("status-key-created", resources="status")
+    async def create_status_key(self, /, data):
+        """Create a new status key"""
+        status = self.rootobj
         record = self.init_resource(
-            "workflow-status",
+            "status-key",
             serialize_mapping(data),
-            workflow_id=workflow._id,
+            status_id=status._id,
             _id=UUID_GENR()
         )
         await self.statemgr.insert(record)
         return record
 
-    @action("workflow-transition-created", resources="workflow")
-    async def create_workflow_transition(self, /, data):
-        """Create a new workflow transition"""
-        workflow = self.rootobj
+    @action("status-transition-created", resources="status")
+    async def create_status_transition(self, /, data):
+        """Create a new status transition"""
+        status = self.rootobj
         record = self.init_resource(
-            "workflow-transition",
+            "status-transition",
             serialize_mapping(data),
-            workflow_id=workflow._id,
+            status_id=status._id,
             _id=UUID_GENR()
         )
         await self.statemgr.insert(record)

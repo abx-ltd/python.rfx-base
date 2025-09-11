@@ -582,58 +582,60 @@ class CreateTicketComment(Command):
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 
-# ------------ Workflow Context ----------
-class CreateWorkflow(Command):
-    """Create Workflow - Creates a new workflow"""
+# ------------ Status Context ----------
+class CreateStatus(Command):
+    """Create Status - Creates a new status"""
 
     class Meta:
-        key = "create-workflow"
-        resources = ("workflow",)
-        tags = ["workflow"]
+        key = "create-status"
+        resources = ("status",)
+        tags = ["status"]
         auth_required = True
-        description = "Create a new workflow"
+        description = "Create a new status"
         new_resource = True
         policy_required = False
 
-    Data = datadef.CreateWorkflowPayload
+    Data = datadef.CreateStatusPayload
 
     async def _process(self, agg, stm, payload):
-        """Create workflow"""
-        workflow = await agg.create_workflow(data=payload)
-        yield agg.create_response(serialize_mapping(workflow), _type="workflow-response")
+        """Create status"""
+        status = await agg.create_status(data=payload)
+        yield agg.create_response(serialize_mapping(status), _type="status-response")
 
-class CreateWorkflowStatus(Command):
-    """Create Workflow Status - Creates a new workflow status"""
+
+class CreateStatusKey(Command):
+    """Create Status Key - Creates a new status key"""
 
     class Meta:
-        key = "create-workflow-status"
-        resources = ("workflow",)
-        tags = ["workflow", "status"]
+        key = "create-status-key"
+        resources = ("status",)
+        tags = ["status", "status-key"]
         auth_required = True
-        description = "Create a new workflow status"
+        description = "Create a new status key"
         policy_required = False
 
-    Data = datadef.CreateWorkflowStatusPayload
+    Data = datadef.CreateStatusKeyPayload
 
     async def _process(self, agg, stm, payload):
-        """Create workflow status"""
-        workflow_status = await agg.create_workflow_status(data=payload)
-        yield agg.create_response(serialize_mapping(workflow_status), _type="workflow-status-response")
+        """Create status key"""
+        status_key = await agg.create_status_key(data=payload)
+        yield agg.create_response(serialize_mapping(status_key), _type="status-key-response")
 
-class CreateWorkflowTransition(Command):
-    """Create Workflow Transition - Creates a new workflow transition"""
+
+class CreateStatusTransition(Command):
+    """Create Status Transition - Creates a new status transition"""
 
     class Meta:
-        key = "create-workflow-transition"
-        resources = ("workflow",)
-        tags = ["workflow", "transition"]
+        key = "create-status-transition"
+        resources = ("status",)
+        tags = ["status", "status-transition"]
         auth_required = True
-        description = "Create a new workflow transition"
+        description = "Create a new status transition"
         policy_required = False
 
-    Data = datadef.CreateWorkflowTransitionPayload
+    Data = datadef.CreateStatusTransitionPayload
 
     async def _process(self, agg, stm, payload):
-        """Create workflow transition"""
-        workflow_transition = await agg.create_workflow_transition(data=payload)
-        yield agg.create_response(serialize_mapping(workflow_transition), _type="workflow-transition-response")
+        """Create status transition"""
+        status_transition = await agg.create_status_transition(data=payload)
+        yield agg.create_response(serialize_mapping(status_transition), _type="status-transition-response")

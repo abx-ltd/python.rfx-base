@@ -30,13 +30,13 @@ class CommentResponse(RFXDiscussionDomain.Response):
     pass
 
 
-class WorkflowResponse(RFXDiscussionDomain.Response):
+class StatusResponse(RFXDiscussionDomain.Response):
     pass
 
 
-class WorkflowStatusResponse(RFXDiscussionDomain.Response):
+class StatusKeyResponse(RFXDiscussionDomain.Response):
     pass
 
 
-class WorkflowTransitionResponse(RFXDiscussionDomain.Response):
+class StatusTransitionResponse(RFXDiscussionDomain.Response):
     pass
