@@ -16,7 +16,7 @@ class IDMQueryManager(DomainQueryManager):
 @IDMQueryManager.register_resource('user')
 class UserQuery(DomainQueryResource):
     """ List all user accounts """
-    class Meta:
+    class Meta(DomainQueryResource.Meta):
         include_all = True
 
     id: UUID = PrimaryID("User ID")
