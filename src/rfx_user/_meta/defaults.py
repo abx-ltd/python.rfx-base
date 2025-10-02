@@ -1,4 +1,4 @@
-USER_PROFILE_SCHEMA = "rfx--user"
+USER_PROFILE_SCHEMA = "ttp-user"
 DB_DSN = None
-POLICY_SCHEMA = "rfx--policy"
+POLICY_SCHEMA = "ttp-policy"
 POLICY_TABLE = "_policy--user-profile"
