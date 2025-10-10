@@ -1,9 +1,11 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
-from fluvius.data import serialize_mapping, UUID_GENR, logger, timestamp
+from fluvius.data import serialize_mapping, UUID_GENR, logger, timestamp, serialize_json
 from datetime import datetime, timezone
 from .helper import parse_duration_for_db
-
+from .utils import safe_getattr
+from .service import LinearService
+from .types import SyncStatus
 
 class RFXClientAggregate(Aggregate):
     """CPO Portal Aggregate Root - Handles all project, work package, ticket, workflow, tag, integration, and notification operations"""
@@ -84,15 +86,25 @@ class RFXClientAggregate(Aggregate):
             duration=duration_interval
         )
 
+        project_data = serialize_mapping(data)
+        project_data.pop('sync_linear', None)
+
+        sync_status = SyncStatus.PENDING
+        if data.sync_linear:
+            sync_status = SyncStatus.SYNCED
+
+
         await self.statemgr.update(
             project,
-            **serialize_mapping(data),
+            **project_data,
             status="ACTIVE",
             target_date=target_date,
-            duration_text=duration_text
+            duration_text=duration_text,
+            sync_status=sync_status
         )
 
         new_project = await self.statemgr.find_one('project', where=dict(_id=project._id))
+
         return new_project
 
     @action('project-updated', resources='project')
@@ -113,7 +125,11 @@ class RFXClientAggregate(Aggregate):
                 raise ValueError(
                     "Invalid status, Can not transition to this status")
 
-        await self.statemgr.update(project, **serialize_mapping(data))
+        sync_status = SyncStatus.PENDING
+        if data.sync_linear:
+            sync_status = SyncStatus.SYNCED
+
+        await self.statemgr.update(project, **serialize_mapping(data), sync_status=sync_status)
         return project
 
     @action('project-deleted', resources='project')
@@ -574,6 +590,21 @@ class RFXClientAggregate(Aggregate):
         )
         await self.statemgr.insert(record)
         return record
+
+    @action('member-updated', resources='project')
+    async def update_project_member(self, /, data):
+        """Update project member"""
+        project = self.rootobj
+        project_member = await self.statemgr.find_one('project-member', where=dict(
+            project_id=project._id,
+            member_id=data.member_id
+        ))
+
+        if not project_member:
+            raise ValueError("Project member not found")
+
+        await self.statemgr.update(project_member, **serialize_mapping(data))
+        return project_member
 
     @action('member-removed', resources='project')
     async def remove_project_member(self, /, member_id: str):
@@ -1076,3 +1107,49 @@ class RFXClientAggregate(Aggregate):
 
         await self.statemgr.update(project_work_item_deliverable, **update_data)
         return project_work_item_deliverable
+
+    @action("project-integration-created", resources="project")
+    async def create_project_integration(self, /, data):
+        """Create a project integration"""
+        project = self.rootobj
+        project_integration = self.init_resource(
+            "project-integration",
+            serialize_mapping(data),
+            project_id=project._id
+        )
+        await self.statemgr.insert(project_integration)
+        return project_integration
+
+    @action("project-integration-updated", resources="project")
+    async def update_project_integration(self, /, data):
+        """Update a project integration"""
+        project_integration = await self.statemgr.find_one('project-integration', where=dict(
+            provider=data.provider,
+            external_id=data.external_id,
+            project_id=self.aggroot.identifier
+        ))
+        if not project_integration:
+            raise ValueError("Project integration not found")
+
+
+    @action("sync-project-integration", resources="project")
+    async def sync_project_integration(self, /, data):
+        """Sync a project integration"""
+        project_integration = await self.statemgr.find_one('project-integration', where=dict(
+            provider=data.provider,
+            external_id=data.external_id,
+            project_id=self.aggroot.identifier
+        ))
+
+        logger.info(f"Project integration: {project_integration}")
+        if not project_integration:
+            project_integration = self.init_resource(
+                "project-integration",
+                serialize_mapping(data),
+                project_id=self.aggroot.identifier
+            )
+            await self.statemgr.insert(project_integration)
+        else:
+            update_data = serialize_mapping(data)
+            await self.statemgr.update(project_integration, **update_data)
+        return project_integration

@@ -102,3 +102,9 @@ class SyncResultResponse(RFXClientDomain.Response):
 
 class CreditUsageSummaryResponse(RFXClientDomain.Response):
     pass
+
+class SyncProjectToLinearResponse(RFXClientDomain.Response):
+    pass
+
+class ProjectIntegrationResponse(RFXClientDomain.Response):
+    pass

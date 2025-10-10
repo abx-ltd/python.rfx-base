@@ -40,3 +40,6 @@ class StatusKeyResponse(RFXDiscussionDomain.Response):
 
 class StatusTransitionResponse(RFXDiscussionDomain.Response):
     pass
+
+class SyncTicketToLinearResponse(RFXDiscussionDomain.Response):
+    pass

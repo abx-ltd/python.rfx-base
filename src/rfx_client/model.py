@@ -459,3 +459,13 @@ class ViewCreditUsage(RFXClientBaseModel):
     total_credits = sa.Column(sa.Numeric(10, 2), nullable=False)
 
 
+
+class ProjectIntegration(RFXClientBaseModel):
+    __tablename__ = "project-integration"
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+    __ts_index__ = ["provider", "external_id", "external_url"]
+
+    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
+    provider = sa.Column(sa.String(100), nullable=False)
+    external_id = sa.Column(sa.String(255), nullable=False)
+    external_url = sa.Column(sa.String(500))

@@ -639,3 +639,27 @@ class CreateStatusTransition(Command):
         """Create status transition"""
         status_transition = await agg.create_status_transition(data=payload)
         yield agg.create_response(serialize_mapping(status_transition), _type="status-transition-response")
+
+# ------------ Linear Integration (Ticket Context) ------------
+class SyncTicketToLinear(Command):
+    """Sync Ticket to Linear - Sync a ticket to Linear"""
+
+    class Meta:
+        key = "sync-ticket-to-linear"
+        resources = ("ticket",)
+        tags = ["ticket", "linear"]
+        auth_required = True
+        description = "Sync a ticket to Linear"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Sync a ticket to Linear"""
+        check = await agg.check_linear_project_ticket_exists()
+        exists = check.get("exists", False)
+
+        if not exists:
+            result = await agg.create_linear_project_ticket()
+        else:
+            result = await agg.update_linear_project_ticket()
+
+        yield agg.create_response({"data": result}, _type="sync-ticket-to-linear-response")

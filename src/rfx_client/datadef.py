@@ -25,6 +25,7 @@ class CreateProjectPayload(DataModel):
     priority: Optional[Priority] = None
     start_date: datetime = Field(default_factory=datetime.now)
     duration: str = Field(default="P9D")
+    sync_linear: bool = False
 
 
 class UpdateProjectPayload(DataModel):
@@ -36,6 +37,9 @@ class UpdateProjectPayload(DataModel):
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     duration: Optional[str] = None
+
+class DeleteProjectPayload(DataModel):
+    sync_linear: bool = False
 
 # Project BDM Contact related payloads
 
@@ -183,7 +187,7 @@ class AddProjectMemberPayload(DataModel):
     role: str
 
 
-class UpdateProjectMemberRolePayload(DataModel):
+class UpdateProjectMemberPayload(DataModel):
     member_id: UUID_TYPE
     role: str
 
@@ -329,3 +333,25 @@ class RemoveProjectWorkItemFromProjectWorkPackagePayload(DataModel):
 
 class CreditUsageSummaryPayload(DataModel):
     organization_id: UUID_TYPE
+
+# Project Integration related payloads
+
+class CreateProjectIntegrationPayload(DataModel):
+    provider: str
+    external_id: str
+    external_url: str
+
+class UpdateProjectIntegrationPayload(DataModel):
+    provider: str
+    external_id: UUID_TYPE
+    external_url: str
+
+class CreateProjectIntegrationPayload(DataModel):
+    provider: str
+    external_id: str
+    external_url: str
+
+class SyncProjectIntegrationPayload(DataModel):
+    provider: str
+    external_id: str
+    external_url: str

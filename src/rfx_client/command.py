@@ -8,6 +8,8 @@ from . import datadef, config
 from .types import ActivityAction
 from fluvius.data import UUID_TYPE, UUID_GENR, logger
 from .helper import get_project_member_user_ids
+from .integration import call_linear_api, get_linear_status_id, get_linear_user_id, get_linear_label_id
+import datetime
 
 processor = RFXClientDomain.command_processor
 Command = RFXClientDomain.Command
@@ -69,24 +71,35 @@ class CreateProject(Command):
 
     async def _process(self, agg, stm, payload):
         """Create a new project directly"""
-        result = await agg.create_project(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="project-response")
+        new_project = await agg.create_project(data=payload)
+        yield agg.create_response(serialize_mapping(new_project), _type="project-response")
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} created a project {result.name}",
+            message=f"{profile.name__given} {profile.name__family} created a project {new_project.name}",
             msglabel="create-project",
             msgtype=ActivityType.USER_ACTION,
             data={
-                "project_name": result.name,
-                "status": result.status,
+                "project_name": new_project.name,
+                "status": new_project.status,
                 "created_by": f"{profile.name__given} {profile.name__family}",
             }
         )
 
+        # project 1 -> n project_integration (provider: linear, external_id: project_id, resource: project)
+        
+        # if payload.sync_linear:
+        #     yield agg.create_message(
+        #         "linear-message",
+        #         data={
+        #             "command": "create-linear-project",
+        #             "project_id": str(new_project._id),
+        #             "project": info
+        #         }
+        #     )
 
 class UpdateProject(Command):
     """Update Project - Updates a project"""
@@ -162,6 +175,8 @@ class DeleteProject(Command):
         description = "Delete a project"
         policy_required = True
 
+    Data = datadef.DeleteProjectPayload
+
     async def _process(self, agg, stm, payload):
         """Delete a project"""
 
@@ -169,6 +184,9 @@ class DeleteProject(Command):
         profile = await stm.get_profile(profile_id)
 
         user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+
+        if payload.sync_linear:
+            await agg.delete_linear_project()
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -202,6 +220,8 @@ class DeleteProject(Command):
                 }
             }
         )
+
+
 
 
 class ApplyPromotion(Command):
@@ -725,6 +745,55 @@ class AddProjectMember(Command):
                     "message_type": "NOTIFICATION",
                     "priority": "MEDIUM",
                     "content": f"{profile.name__given} {profile.name__family} added {member.name__given} {member.name__family} to project {project.name}",
+                    "content_type": "TEXT",
+                },
+            }
+        )
+class UpdateProjectMember(Command):
+    """Update Project Member - Updates a member's role in a project"""
+
+    class Meta:
+        key = "update-member"
+        resources = ("project",)
+        tags = ["project", "member"]
+        auth_required = True
+        description = "Update member's role in project"
+        policy_required = True
+
+    Data = datadef.UpdateProjectMemberPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update member's role in project"""
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
+        member = await stm.get_profile(payload.member_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} updated a member's role",
+            msglabel="update-project-member",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "member_id": payload.member_id,
+                "role": payload.role,
+                "updated_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.update_project_member(member_id=payload.member_id, role=payload.role)
+
+        yield agg.create_message(
+            "noti-message",
+            data={
+                "command": "send-message",
+                "payload": {
+                    "recipients": [str(user_id) for user_id in user_ids],
+                    "subject": "Member Role Updated",
+                    "message_type": "NOTIFICATION",
+                    "priority": "MEDIUM",
+                    "content": f"{profile.name__given} {profile.name__family} updated {member.name__given} {member.name__family}'s role in project {project.name}",
                     "content_type": "TEXT",
                 },
             }
@@ -1625,3 +1694,108 @@ class CreditUsageSummary(Command):
         )
 
         yield agg.create_response({"data": [serialize_mapping(item) for item in summary]}, _type="credit-usage-summary-response")
+
+
+class SyncProjectToLinear(Command):
+    """Sync Project to Linear - Sync a project to Linear"""
+
+    class Meta:
+        key = "sync-project-to-linear"
+        resources = ("project",)
+        tags = ["project", "linear"]
+        auth_required = False 
+        description = "Sync a project to Linear"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Sync a project to Linear"""
+
+
+        # check = await agg.check_linear_project_exists()
+        # exists = check.get("exists", False)
+
+        # if not exists:
+        #     result = await agg.create_linear_project()
+        # else:
+        #     result = await agg.update_linear_project()
+
+        # yield agg.create_response({"data": result}, _type="sync-project-to-linear-response")
+
+        # project 1 -> n project_integration (provider: linear, external_id: project_id, resource: project)
+        project = agg.get_rootobj()
+
+
+        
+        yield agg.create_message(
+            "linear-message",
+            data={
+                "command": "sync-project-integration",
+                "project": serialize_mapping(project),
+                "project_id": str(agg.get_aggroot().identifier),
+                "payload": {
+                    "provider": "linear",
+                    "external_id": str(agg.get_aggroot().identifier),
+                },
+                "context": {
+                    "user_id": agg.get_context().user_id,
+                    "profile_id": agg.get_context().profile_id,
+                    "organization_id": agg.get_context().organization_id,
+                    "realm": agg.get_context().realm,
+                }
+            }
+        )
+
+class CreateProjectIntegration(Command):
+    """Create Project Integration - Create a project integration"""
+
+    class Meta:
+        key = "create-project-integration"
+        resources = ("project",)
+        tags = ["project", "integration"]
+        auth_required = True
+        description = "Create a project integration"
+        policy_required = False
+
+    Data = datadef.CreateProjectIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create a project integration"""
+        result = await agg.create_project_integration(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="project-integration-response")
+
+class UpdateProjectIntegration(Command):
+    """Update Project Integration - Update a project integration"""
+
+    class Meta:
+        key = "update-project-integration"
+        resources = ("project",)
+        tags = ["project", "integration"]
+        auth_required = True
+        description = "Update a project integration"
+        policy_required = False
+
+    Data = datadef.UpdateProjectIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update a project integration"""
+        result = await agg.update_project_integration(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="project-integration-response")
+
+class SyncProjectIntegration(Command):
+    """Sync Project Integration - Sync a project integration"""
+
+    class Meta:
+        key = "sync-project-integration"
+        resources = ("project",)
+        tags = ["project", "integration"]
+        auth_required = True
+        description = "Sync a project integration"
+        policy_required = False
+        internal = True
+
+    Data = datadef.SyncProjectIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Sync a project integration"""
+        result = await agg.sync_project_integration(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="project-integration-response")
