@@ -68,3 +68,78 @@ query Project($projectId: String!) {
 }
 """
 
+GET_PROJECTS_QUERY_URL = """
+query Project($projectId: String!) {
+  project(id: $projectId) {
+    url
+  }
+}
+"""
+
+
+
+
+# milestone 
+
+CREATE_PROJECT_MILESTONE_MUTATION = """
+mutation ProjectMilestoneCreate($input: ProjectMilestoneCreateInput!) {
+  projectMilestoneCreate(input: $input) {
+    lastSyncId
+    projectMilestone {
+      id
+      name
+      description
+      createdAt
+      progress
+      status
+      sortOrder
+      targetDate
+      updatedAt
+    }
+    success
+  }
+}
+"""
+
+UPDATE_PROJECT_MILESTONE_MUTATION = """
+mutation ProjectMilestoneUpdate($projectMilestoneUpdateId: String!, $input: ProjectMilestoneUpdateInput!) {
+  projectMilestoneUpdate(id: $projectMilestoneUpdateId, input: $input) {
+    lastSyncId
+    projectMilestone {
+      id
+      name
+      description
+    }
+    success
+  }
+}
+"""
+
+DELETE_PROJECT_MILESTONE_MUTATION = """
+mutation ProjectDelete($projectDeleteId: String!) {
+  projectDelete(id: $projectDeleteId) {
+    entity {
+      url
+      id
+    }
+    lastSyncId
+    success
+  }
+}
+"""
+
+
+CHECK_PROJECT_MILESTONE_EXISTS_QUERY = """
+query ProjectMilestone($projectMilestoneId: String!) {
+  projectMilestone(id: $projectMilestoneId) {
+    id
+    name
+    description
+    progress
+    status
+    updatedAt
+    targetDate
+  }
+}
+"""
+

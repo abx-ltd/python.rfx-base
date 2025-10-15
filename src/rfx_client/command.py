@@ -88,18 +88,35 @@ class CreateProject(Command):
                 "created_by": f"{profile.name__given} {profile.name__family}",
             }
         )
-
-        # project 1 -> n project_integration (provider: linear, external_id: project_id, resource: project)
         
-        # if payload.sync_linear:
-        #     yield agg.create_message(
-        #         "linear-message",
-        #         data={
-        #             "command": "create-linear-project",
-        #             "project_id": str(new_project._id),
-        #             "project": info
-        #         }
-        #     )
+        if payload.sync_linear:
+            yield agg.create_message(
+                "create-linear-message",
+                data={
+                "command": "create-project-integration",
+                "project": serialize_mapping(new_project),
+                "project_id": str(agg.get_aggroot().identifier),
+                "payload": {
+                    "provider": "linear",
+                    "external_id": str(agg.get_aggroot().identifier),
+                },
+                "context": {
+                    "user_id": agg.get_context().user_id,
+                    "profile_id": agg.get_context().profile_id,
+                    "organization_id": agg.get_context().organization_id,
+                    "realm": agg.get_context().realm,
+                }
+            }
+            )
+        
+        
+       
+        
+        
+        
+        
+        
+        
 
 class UpdateProject(Command):
     """Update Project - Updates a project"""
@@ -162,6 +179,28 @@ class UpdateProject(Command):
                 }
             }
         )
+        if payload.sync_linear:
+            yield agg.create_message(
+                    "update-linear-message",
+                    data={
+                    "command": "update-project-integration",
+                    "project": serialize_mapping(project),
+                    "project_id": str(agg.get_aggroot().identifier),
+                    "payload": {
+                        "provider": "linear",
+                        "external_id": str(agg.get_aggroot().identifier),
+                    },
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )
+        
+        
+        
 
 
 class DeleteProject(Command):
@@ -185,8 +224,8 @@ class DeleteProject(Command):
 
         user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
-        if payload.sync_linear:
-            await agg.delete_linear_project()
+        # if payload.sync_linear:
+        #     await agg.delete_linear_project()
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -199,7 +238,7 @@ class DeleteProject(Command):
             }
         )
 
-        await agg.delete_project()
+        
         yield agg.create_message(
             "noti-message",
             data={
@@ -220,6 +259,28 @@ class DeleteProject(Command):
                 }
             }
         )
+        
+        if payload.sync_linear:
+            yield agg.create_message(
+                    "remove-linear-message",
+                    data={
+                    "command": "remove-project-integration",
+                    "project": serialize_mapping(project),
+                    # "project_id": str(agg.get_aggroot().identifier),
+                    
+                    "payload": {
+                        "provider": "linear",
+                        "external_id": str(agg.get_aggroot().identifier),
+                    },
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )
+        await agg.delete_project()
 
 
 
@@ -900,6 +961,27 @@ class CreateProjectMilestone(Command):
                 },
             }
         )
+        
+        if payload.sync_linear:
+            yield agg.create_message(
+                "create-milestone-message",
+                data={
+                    "command": "create-project-milestone-integration",
+                    "milestone": serialize_mapping(result),
+                    "project_id": str(agg.get_aggroot().identifier),
+                    "payload": {
+                        "provider": "linear",
+                        "external_id": str(result._id),
+                        "milestone_id": str(result._id),
+                    },
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )
 
 
 class UpdateProjectMilestone(Command):
@@ -937,7 +1019,8 @@ class UpdateProjectMilestone(Command):
             }
         )
 
-        await agg.update_project_milestone(data=payload)
+        result = await agg.update_project_milestone(data=payload)
+        
 
         user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
         yield agg.create_message(
@@ -954,6 +1037,27 @@ class UpdateProjectMilestone(Command):
                 },
             }
         )
+        
+        if payload.sync_linear:
+            yield agg.create_message(
+                "update-milestone-message",
+                data={
+                    "command": "update-project-milestone-integration",
+                    "milestone": serialize_mapping(result),
+                    "project_id": str(agg.get_aggroot().identifier),
+                    "payload": {
+                        "provider": "linear",
+                        "external_id": str(result._id),
+                        "milestone_id": str(result._id),
+                    },
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )
 
 
 class DeleteProjectMilestone(Command):
@@ -1007,6 +1111,27 @@ class DeleteProjectMilestone(Command):
                 },
             }
         )
+        
+        if payload.sync_linear:
+            yield agg.create_message(
+                "remove-milestone-message",
+                data={
+                    "command": "remove-project-milestone-integration",
+                    "milestone_id": str(project_milestone._id),
+                    "project_id": str(agg.get_aggroot().identifier),
+                    "payload": {
+                        "provider": "linear",
+                        "external_id": str(project_milestone._id),
+                        "milestone_id": str(project_milestone._id),
+                    },
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )
 
 
 class CreateProjectCategory(Command):
@@ -1755,6 +1880,7 @@ class CreateProjectIntegration(Command):
         auth_required = True
         description = "Create a project integration"
         policy_required = False
+        internal = True
 
     Data = datadef.CreateProjectIntegrationPayload
 
@@ -1773,13 +1899,33 @@ class UpdateProjectIntegration(Command):
         auth_required = True
         description = "Update a project integration"
         policy_required = False
+        internal = False
 
     Data = datadef.UpdateProjectIntegrationPayload
 
     async def _process(self, agg, stm, payload):
         """Update a project integration"""
-        result = await agg.update_project_integration(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="project-integration-response")
+        await agg.update_project_integration(data=payload)
+
+
+class RemoveProjectIntegration(Command):
+    """Remove Project Integration - Remove a project integration"""
+
+    class Meta:
+        key = "remove-project-integration"
+        resources = ("project",)
+        tags = ["project", "integration"]
+        auth_required = True
+        description = "Remove a project integration"
+        policy_required = False
+        internal = False
+        new_resource =True
+
+    Data = datadef.RemoveProjectIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove a project integration"""
+        await agg.remove_project_integration(data=payload)
 
 class SyncProjectIntegration(Command):
     """Sync Project Integration - Sync a project integration"""
@@ -1799,3 +1945,64 @@ class SyncProjectIntegration(Command):
         """Sync a project integration"""
         result = await agg.sync_project_integration(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="project-integration-response")
+        
+        
+        
+
+##-----------Project Milestone Integration--------------
+
+class CreateProjectMilestoneIntegration(Command):
+    """Create Project Milestone Integration - Create a project milestone integration"""
+    
+    class Meta:
+        key = "create-project-milestone-integration"
+        resources = ("project",)
+        tags = ["project", "milestone", "integration"]
+        auth_required = True
+        description = "Create a project milestone integration"
+        policy_required = False
+        internal = True
+        
+    Data = datadef.CreateProjectMilestoneIntegrationPayload
+    
+    async def _process(self, agg, stm, payload):
+        """Create a project milestone integration"""
+        result = await agg.create_project_milestone_integration(data=payload)
+        
+class UpdateProjectMilestoneIntegration(Command):
+    """ Update Project Milestone Integration - Update a project milestone integration"""
+    
+    class Meta:
+        key = "update-project-milestone-integration"
+        resources = ("project",)
+        tags = ["project", "milestone", "integration"]
+        auth_required = True
+        description = "Update a project milestone integration"
+        policy_required = False
+        internal = True
+    
+    Data = datadef.UpdateProjectMilestoneIntegrationPayload
+    
+    async def _process(self, agg, stm, payload):
+        """Update a project milestone integration"""
+        await agg.update_project_milestone_integration(data=payload)
+        
+class RemoveProjectMilestoneIntegration(Command):
+    """Remove Project Milestone Integration - Remove a project milestone integration"""
+    
+    class Meta:
+        key = "remove-project-milestone-integration"
+        resources = ("project",)
+        tags = ["project", "milestone", "integration"]
+        auth_required = True
+        description = "Remove a project milestone integration"
+        policy_required = False
+        internal = True
+        
+    Data = datadef.RemoveProjectMilestoneIntegrationPayload
+    
+    async def _process(self, agg, stm, payload):
+        """Remove a project milestone integration"""
+        await agg.remove_project_milestone_integration(data=payload)
+        
+    

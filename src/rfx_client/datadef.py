@@ -37,6 +37,7 @@ class UpdateProjectPayload(DataModel):
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     duration: Optional[str] = None
+    sync_linear: bool = False
 
 class DeleteProjectPayload(DataModel):
     sync_linear: bool = False
@@ -203,6 +204,8 @@ class CreateProjectMilestonePayload(DataModel):
     due_date: datetime
     description: Optional[str] = None
     is_completed: Optional[bool] = False
+    sync_linear: bool = False
+    
 
 
 class UpdateProjectMilestonePayload(DataModel):
@@ -211,10 +214,12 @@ class UpdateProjectMilestonePayload(DataModel):
     due_date: Optional[datetime] = None
     description: Optional[str] = None
     is_completed: Optional[bool] = False
+    sync_linear: bool = False
 
 
 class DeleteProjectMilestonePayload(DataModel):
     milestone_id: UUID_TYPE
+    sync_linear: bool = False
 
 
 class UploadProjectResourcePayload(DataModel):
@@ -343,15 +348,40 @@ class CreateProjectIntegrationPayload(DataModel):
 
 class UpdateProjectIntegrationPayload(DataModel):
     provider: str
-    external_id: UUID_TYPE
+    external_id: str
     external_url: str
 
 class CreateProjectIntegrationPayload(DataModel):
     provider: str
     external_id: str
     external_url: str
+    
+class RemoveProjectIntegrationPayload(DataModel):
+    provider: str
+    external_id: str
 
 class SyncProjectIntegrationPayload(DataModel):
     provider: str
     external_id: str
     external_url: str
+    
+    
+# ProjectMilestone Integration related payloads
+
+class CreateProjectMilestoneIntegrationPayload(DataModel):
+    provider: str
+    external_id: str
+    external_url: str
+    milestone_id: UUID_TYPE
+
+class UpdateProjectMilestoneIntegrationPayload(DataModel):
+    provider: str
+    external_id: str
+    external_url: str
+    milestone_id: UUID_TYPE
+    
+class RemoveProjectMilestoneIntegrationPayload(DataModel):
+    provider: str
+    external_id: str
+    milestone_id: UUID_TYPE
+
