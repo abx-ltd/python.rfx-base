@@ -16,7 +16,7 @@ class TemplateService:
     def __init__(self, stm: DataAccessManager):
         self.stm = stm
         self.cache_ttl = timedelta(hours=1)
-    
+
     async def resolve_template(
         self,
         key: str,
@@ -46,10 +46,10 @@ class TemplateService:
                 base_locale = locale.split('-')[0]
                 if base_locale not in locales:
                     locales.append(base_locale)
-            
+
         if 'en' not in locales:
             locales.append('en')
-        
+
         scopes = [
             {"tenant_id": tenant_id, "app_id": app_id, "channel": channel},
             {"tenant_id": tenant_id, "app_id": app_id, "channel": None},
@@ -60,10 +60,10 @@ class TemplateService:
         for loc in locales:
             for scope in scopes:
                 query = {**scope, "key": key, "locale": loc, "status": "PUBLISHED", "is_active": True}
-            
+
             if version is not None:
                 query["version"] = version
-            
+
             #remove None values for cleaner query
             query = {k: v for k, v in query.items() if v is not None}
 
@@ -74,7 +74,7 @@ class TemplateService:
 
             logger.warning(f"Template not found: {key} (tenant={tenant_id}, app={app_id}, locale={locale}, channel={channel})")
             return None
-        
+
     async def resolve_render_strategy(
         self,
         message_type: MessageType,
@@ -86,7 +86,7 @@ class TemplateService:
         message.render_strategy > template.render_strategy > type default > SERVER
         """
         return (
-            message_strategy 
+            message_strategy
             or template_strategy
             or get_render_strategy(message_type)
             or RenderStrategy.SERVER
@@ -101,28 +101,28 @@ class TemplateService:
 
         if template.get('variables_schema'):
             self._validate_template_data(data, template['variables_schema'])
-        
+
         # Use cache for CACHED strategy
         if use_cache and template.get('render_strategy') == RenderStrategy.CACHED.value:
             cache_key = self._generate_cache_key(template, data)
             cached_result = await self._get_cached_Render(cache_key)
             if cached_result:
                 return cached_result
-        
+
         try:
             rendered = template_registry.render(engine_name, template_body, data)
 
             # Cache result if using CACHED strategy
             if use_cache and template.get('render_strategy') == RenderStrategy.CACHED.value:
                 await self._cache_render_result(cache_key, rendered)
-            
+
             return rendered
-        
+
         except Exception as e:
             logger.error(f"Template rendering failed: {e}")
             logger.error(f"Template: {template['key']}, Engine: {engine_name}")
             raise ValueError(f"Template rendering failed: {str(e)}")
-    
+
     def _validate_template_data(self, data: Dict[str, Any], schema: Dict[str, Any]):
         """Validate template data against JSON schema."""
         # TODO: Implement JSON schema validation
@@ -131,7 +131,7 @@ class TemplateService:
         missing = [field for field in required if field not in data]
         if missing:
             raise ValueError(f"Missing required template variables: {missing}")
-    
+
     def _generate_cache_key(self, template: Dict[str, Any], data: Dict[str, Any]) -> str:
         """Generate cache key for template + data combination."""
         key_parts = [
@@ -142,22 +142,22 @@ class TemplateService:
             hashlib.md5(str(sorted(data.items())).encode()).hexdigest()
         ]
         return ":".join(key_parts)
-    
+
     async def _get_cached_render(self, cache_key: str) -> Optional[str]:
         """Get cached render result."""
         #TODO: Implement with Redis or in-memory cache
         return None
-    
+
     async def _cache_render_result(self, cache_key: str, result: str):
         """Cache render result"""
         #TODO: Implement with Redis or in-memory cache
         pass
-    
+
     async def invalidate_template_cache(self, template_key: str, version: Optional[int]=None):
         """Invalidate cached templates for a specific template."""
         #TODO: Implement cache invalidation
         logger.info(f"Template cache invalidated: {template_key} v{version}")
-    
+
     async def create_template(
         self,
         key: str,
@@ -177,8 +177,8 @@ class TemplateService:
         """Create a new template."""
         if not template_registry.get(engine).validate_syntax(body):
             raise ValueError(f"Invalid template syntax for engine: {engine}")
-        
-        existing = await self.stm.find_many(
+
+        existing = await self.stm.find_all(
             "message-template",
             where={"key": key, "tenant_id": tenant_id, "app_id": app_id, "locale": locale, "channel": channel},
             order_by=["-version"],
@@ -204,7 +204,7 @@ class TemplateService:
         }
 
         return await self.stm.insert("message-template", template_data)
-    
+
     async def publish_template(self, template_id: str, published_by: Optional[str] = None) -> Dict[str, Any]:
         """Publish a template"""
         template = await self.stm.fetch("message-template", template_id)
