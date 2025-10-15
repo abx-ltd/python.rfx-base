@@ -133,3 +133,19 @@ class RFXClientStateManager(DataAccessManager):
                 and ws_dst.key = $3
             )
         """, str(status_id), str(current_status), str(new_status)
+        
+    @item_query
+    def get_project_integration(self, provider: str, external_id: str, project_id):
+        """
+        Tìm một bản ghi project-integration cụ thể dựa trên
+        provider, external_id, và project_id.
+        """
+        
+        query = f"""
+            SELECT * FROM "cpo-client"."project-integration"
+            WHERE
+                provider = $1 AND
+                external_id = $2 AND
+                project_id = $3
+        """
+        return query, provider, external_id, str(project_id)

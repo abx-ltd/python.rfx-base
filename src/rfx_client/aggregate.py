@@ -110,6 +110,13 @@ class RFXClientAggregate(Aggregate):
     @action('project-updated', resources='project')
     async def update_project(self, /, data):
         """Update a project"""
+        try:
+            parsed_delta, duration_text, duration_interval = parse_duration_for_db(
+                data.duration)
+        except Exception:
+            raise ValueError(f"Invalid duration format: {data.duration}")
+        
+        
         project = self.rootobj
 
         if data.status:
@@ -124,12 +131,23 @@ class RFXClientAggregate(Aggregate):
             if not transition:
                 raise ValueError(
                     "Invalid status, Can not transition to this status")
+                
+        project_data = serialize_mapping(data)
+        project_data.pop('sync_linear', None)
+        project_data.pop('target_date', None)
+        project_data.pop('duration', None)
 
         sync_status = SyncStatus.PENDING
         if data.sync_linear:
             sync_status = SyncStatus.SYNCED
 
-        await self.statemgr.update(project, **serialize_mapping(data), sync_status=sync_status)
+        await self.statemgr.update(
+            project, 
+            **project_data, 
+            target_date=data.target_date,
+            duration_text=duration_text,
+            sync_status=sync_status
+        )
         return project
 
     @action('project-deleted', resources='project')
@@ -625,11 +643,13 @@ class RFXClientAggregate(Aggregate):
     @action('milestone-created', resources='project')
     async def create_project_milestone(self, /, data):
         project = self.rootobj
+        project_data = serialize_mapping(data)
+        project_data.pop('sync_linear', None)
         record = self.init_resource(
             "project-milestone",
-            serialize_mapping(data),
             _id=UUID_GENR(),
-            project_id=project._id
+            project_id=project._id,
+            **project_data
         )
         await self.statemgr.insert(record)
         return record
@@ -648,8 +668,14 @@ class RFXClientAggregate(Aggregate):
 
         update_data = serialize_mapping(data)
         update_data.pop('milestone_id', None)
+        update_data.pop('sync_linear', None)
 
         await self.statemgr.update(milestone, **update_data)
+        result = await self.statemgr.find_one('project-milestone', where=dict(
+            _id=data.milestone_id,
+            project_id=self.aggroot.identifier
+        ))
+        return result
 
     @action('milestone-deleted', resources='project')
     async def delete_project_milestone(self, /, data):
@@ -1123,13 +1149,31 @@ class RFXClientAggregate(Aggregate):
     @action("project-integration-updated", resources="project")
     async def update_project_integration(self, /, data):
         """Update a project integration"""
+        project = self.rootobj
+        logger.info(f"Update project: {project}")
         project_integration = await self.statemgr.find_one('project-integration', where=dict(
             provider=data.provider,
             external_id=data.external_id,
-            project_id=self.aggroot.identifier
+            project_id=project._id
         ))
         if not project_integration:
             raise ValueError("Project integration not found")
+        await self.statemgr.update(project_integration)
+
+    @action("project-integration-removed", resources="project")
+    async def remove_project_integration(self, /, data):
+        """Delete a project integration"""
+        # project = self.rootobj
+        logger.info(f"Delete project: {project}")
+        project_integration = await self.statemgr.find_one('project-integration', where=dict(
+            provider=data.provider,
+            external_id=data.external_id,
+            # project_id=project._id
+        ))
+        
+        if not project_integration:
+            raise ValueError("Project integration not found")
+        await self.statemgr.invalidate_one('project-integration', project_integration._id)
 
 
     @action("sync-project-integration", resources="project")
@@ -1153,3 +1197,81 @@ class RFXClientAggregate(Aggregate):
             update_data = serialize_mapping(data)
             await self.statemgr.update(project_integration, **update_data)
         return project_integration
+    
+    ### Action Project Milestone Integration
+    
+    @action("create-project-milestone-integration", resources="project")
+    async def create_project_milestone_integration(self, /, data):
+        """create a project milestone integration"""
+        milestone = await self.statemgr.find_one('project-milestone', where=dict(
+            _id=data.milestone_id,
+            project_id=self.aggroot.identifier
+        ))
+        
+        if not milestone:
+            raise ValueError(
+                "Milestone not found or does not belong to this project")
+        
+    
+        project_milestone_integration = self.init_resource(
+            "project-milestone-integration",
+            serialize_mapping(data),
+        )
+        await self.statemgr.insert(project_milestone_integration)
+        return project_milestone_integration
+    
+    @action("update-project-milestone-integration", resources="project")
+    async def update_project_milestone_integration(self, /, data):
+        """update project milestone integration"""
+        milestone = await self.statemgr.find_one('project-milestone', where=dict(
+            _id=data.milestone_id,
+            project_id=self.aggroot.identifier
+        ))
+        
+        if not milestone:
+            raise ValueError(
+                "Milestone not found or does not belong to this project")
+        
+        project_milestone_integration = await self.statemgr.find_one('project-milestone-integration', where=dict(
+            milestone_id= data.milestone_id,
+            provider=data.provider,
+            external_id=data.external_id,
+            
+        ))
+        if not project_milestone_integration:
+            raise ValueError("Project milestone integration not found")
+        update_data = serialize_mapping(data)
+        await self.statemgr.update(project_milestone_integration, **update_data)
+        
+    @action("remove-project-milestone-integration", resources="project")
+    async def remove_project_milestone_integration(self, /, data):
+        """remove project milestone integration"""
+        milestone = await self.statemgr.find_one('project-milestone', where=dict(
+            _id=data.milestone_id,
+            project_id=self.aggroot.identifier
+        ))
+        
+        if not milestone:
+            raise ValueError(
+                "Milestone not found or does not belong to this project")
+        
+        project_milestone_integration = await self.statemgr.find_one('project-milestone-integration', where=dict(
+            milestone_id= data.milestone_id,
+            provider=data.provider,
+            external_id=data.external_id,
+            
+        ))
+        if not project_milestone_integration:
+            raise ValueError("Project milestone integration not found")
+        await self.statemgr.invalidate_one('project-milestone-integration', project_milestone_integration._id)
+    
+   
+    
+    
+        
+        
+    
+        
+        
+        
+        

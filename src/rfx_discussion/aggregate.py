@@ -366,33 +366,3 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-
-# =========== Linear Integration ============
-    @action("create-linear-project-ticket", resources="ticket")
-    async def create_linear_project_ticket(self, /):
-        """Create a new ticket in Linear"""
-        sync_status = SyncStatus.SYNCED
-        await self.statemgr.update(self.rootobj, sync_status=sync_status)
-        
-        return LinearService.create_issue(self.rootobj)
-
-    @action("update-linear-project-ticket", resources="ticket")
-    async def update_linear_project_ticket(self, /):
-        """Update a ticket in Linear"""
-        sync_status = SyncStatus.SYNCED
-        await self.statemgr.update(self.rootobj, sync_status=sync_status)
-        return LinearService.update_issue(self.rootobj)
-
-    @action("delete-linear-project-ticket", resources="ticket")
-    async def delete_linear_project_ticket(self, /):
-        """Delete a ticket in Linear"""
-        sync_status = SyncStatus.SYNCED
-        await self.statemgr.update(self.rootobj, sync_status=sync_status)
-        return LinearService.delete_issue(self.rootobj)
-
-    @action("check-linear-project-ticket-exists", resources="ticket")
-    async def check_linear_project_ticket_exists(self, /):
-        """Check if a ticket exists in Linear"""
-        sync_status = SyncStatus.SYNCED
-        await self.statemgr.update(self.rootobj, sync_status=sync_status)
-        return LinearService.check_issue_exists(self.rootobj._id)
