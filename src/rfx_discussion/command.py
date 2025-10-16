@@ -726,7 +726,44 @@ class SyncTicketToLinear(Command):
             }
         )
         
-        
+class SyncAllTicketsToLinear(Command):
+    """Sync All Tickets to Linear - Sync all tickets to Linear"""
+
+    class Meta:
+        key = "sync-all-tickets-to-linear"
+        resources = ("ticket",)
+        tags = ["ticket", "linear"]
+        auth_required = True
+        description = "Sync all tickets to Linear"
+        policy_required = False
+        new_resource = True
+    Data = datadef.SyncAllTicketsToLinearPayload
+    async def _process(self, agg, stm, payload):
+        """Sync all tickets to Linear"""
+        project_id = payload.project_id
+        logger.info(f"[Linear] Syncing all tickets for Project ID: {project_id}")
+        ticket_id_records = await stm.get_ticket_ids_by_project_id(project_id)
+        if not ticket_id_records:
+            logger.info(f"[Linear] No tickets found for Project ID: {project_id}. Sync finished.")
+            return
+        ticket_ids = [record.ticket_id for record in ticket_id_records]
+        tickets = await stm.get_tickets_by_ids(ticket_ids)
+        for ticket in tickets:
+            yield agg.create_message(
+                "sync-ticket-to-linear-message",
+                data={
+                    "command": "sync-ticket-integration",
+                    "ticket": serialize_mapping(ticket),
+                    "ticket_id": str(ticket._id),
+                    "project_id": str(project_id),
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )       
 #--------------- Ticket Integration------------
 
 class CreateTicketIntegration(Command):

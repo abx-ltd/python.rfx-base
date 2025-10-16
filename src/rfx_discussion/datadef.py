@@ -42,7 +42,8 @@ class UpdateTicketPayload(DataModel):
 class RemoveTicketPayload(DataModel):
     ticket_id: UUID_TYPE
 
-
+class SyncAllTicketsToLinearPayload(DataModel):
+    project_id: UUID_TYPE
 # ---------- Ticket Assignee (Ticket Context) ----------
 class AssignTicketMemberPayload(DataModel):
     member_id: UUID_TYPE
