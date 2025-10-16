@@ -20,30 +20,34 @@ mutation CreateIssue($input: IssueCreateInput!) {
 """
 
 UPDATE_ISSUE_MUTATION = """
-mutation UpdateIssue($input: IssueUpdateInput!) {
-  issueUpdate(input: $input) {
+mutation UpdateIssue($issueId: String!, $input: IssueUpdateInput!) {
+  issueUpdate(id: $issueId, input: $input) {
     success
     issue {
       id
+      identifier
       title
-      description
-      priority
-      url
-      createdAt
       updatedAt
-      assignee { id name }
-      team { id name }
-      project { id name }
-      state { id name }
+      state {
+        name
+      }
+      assignee {
+        name
+      }
     }
   }
 }
 """
 
 DELETE_ISSUE_MUTATION = """
-mutation DeleteIssue($input: IssueDeleteInput!) {
-  issueDelete(input: $input) {
+mutation IssueDelete($issueDeleteId: String!, $permanentlyDelete: Boolean) {
+  issueDelete(id: $issueDeleteId, permanentlyDelete: $permanentlyDelete) {
+    entity {
+      id
+      url
+    }
     success
+    lastSyncId
   }
 }
 """

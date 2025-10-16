@@ -26,3 +26,13 @@ class RFXDiscussionStateManager(DataAccessManager):
                 and st.dst_status_key_id = $3
             )
         """, str(workflow_id), str(current_status_id), str(new_status_id)
+        
+    @value_query
+    def get_project_id_by_ticket_id(self, ticket_id):
+        """
+        Lấy project_id từ bảng project-ticket bằng ticket_id.
+        """
+        return """
+            SELECT project_id FROM "cpo-client"."project-ticket"
+            WHERE ticket_id = $1
+        """, str(ticket_id)

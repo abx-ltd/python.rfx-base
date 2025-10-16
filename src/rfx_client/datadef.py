@@ -98,6 +98,8 @@ class CreateProjectTicketPayload(DataModel):
     availability: str = "OPEN"
     status: Optional[str] = "DRAFT"
     sync_status: Optional[SyncStatus] = SyncStatus.PENDING
+    sync_linear: bool = False
+    
 
 
 class AddCustomWorkPackageToProjectPayload(DataModel):

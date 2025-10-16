@@ -84,6 +84,23 @@ class CreateTicket(Command):
                 "created_by": f"{profile.name__given} {profile.name__family}",
             }
         )
+        ticket_id = result._id
+        
+        if payload.sync_linear:
+            yield agg.create_message(
+                "create-ticket-integration-message",
+                data={
+                    "command": "create-ticket-integration",
+                    "ticket": serialize_mapping(payload),
+                    "ticket_id": str(agg.get_aggroot().identifier),
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+        )
 
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
@@ -97,7 +114,7 @@ class UpdateTicketInfo(Command):
         tags = ["ticket", "update"]
         auth_required = True
         description = "Update ticket information"
-        policy_required = True
+        policy_required = False
 
     Data = datadef.UpdateTicketPayload
 
@@ -119,6 +136,27 @@ class UpdateTicketInfo(Command):
                 "updated_by": f"{profile.name__given} {profile.name__family}",
             }
         )
+        
+        ticket_update = await stm.find_one("ticket", where=dict(_id=agg.get_aggroot().identifier))
+        
+        if payload.sync_linear:
+            yield agg.create_message(
+                "update-ticket-integration-message",
+                data={
+                    "command": "update-ticket-integration",
+                    "ticket": serialize_mapping(ticket_update),
+                    "ticket_id": str(agg.get_aggroot().identifier),
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            
+            )
+        
+        yield agg.create_response(serialize_mapping(ticket_update), _type="ticket-response")
 
 
 class RemoveTicket(Command):
@@ -130,7 +168,7 @@ class RemoveTicket(Command):
         tags = ["ticket", "remove"]
         auth_required = True
         description = "Remove ticket"
-        policy_required = True
+        policy_required = False
 
     async def _process(self, agg, stm, payload):
 
@@ -148,6 +186,21 @@ class RemoveTicket(Command):
                 "removed_by": f"{profile.name__given} {profile.name__family}",
             }
         )
+        
+        # yield agg.create_message(
+        #     "remove-ticket-integration-message",
+        #     data={
+        #         "command": "remove-ticket-integration",
+        #         "ticket": serialize_mapping(ticket),
+        #         "ticket_id": str(agg.get_aggroot().identifier),
+        #         "context": {
+        #             "user_id": agg.get_context().user_id,
+        #             "profile_id": agg.get_context().profile_id,
+        #             "organization_id": agg.get_context().organization_id,
+        #             "realm": agg.get_context().realm,
+        #         }
+        #     }
+        # )
 
         await agg.remove_ticket()
 
@@ -654,12 +707,103 @@ class SyncTicketToLinear(Command):
 
     async def _process(self, agg, stm, payload):
         """Sync a ticket to Linear"""
-        check = await agg.check_linear_project_ticket_exists()
-        exists = check.get("exists", False)
+        ticket = agg.get_rootobj()
+        project_id = await stm.get_project_id_by_ticket_id(agg.get_aggroot().identifier)
+        logger.info(f"[Linear] Project ID: {project_id}")
+        yield agg.create_message(
+            "sync-ticket-to-linear-message",
+            data={
+                "command": "sync-ticket-integration",
+                "ticket": serialize_mapping(ticket),
+                "ticket_id": str(agg.get_aggroot().identifier),
+                "project_id": str(project_id),
+                "context": {
+                    "user_id": agg.get_context().user_id,
+                    "profile_id": agg.get_context().profile_id,
+                    "organization_id": agg.get_context().organization_id,
+                    "realm": agg.get_context().realm,
+                }
+            }
+        )
+        
+        
+#--------------- Ticket Integration------------
 
-        if not exists:
-            result = await agg.create_linear_project_ticket()
-        else:
-            result = await agg.update_linear_project_ticket()
+class CreateTicketIntegration(Command):
+    """Create Ticket Integration"""
+    
+    class Meta:
+        key = "create-ticket-integration"
+        resources = ("ticket",)
+        tags = ["ticket", "integration"]
+        auth_required = True
+        description = "Create a ticket integration"
+        policy_required = False
+        internal = True
+        
+    Data = datadef.CreateTicketIntegrationPayload
+    
+    async def _process(self, agg, stm, payload):
+        """Create a ticket integration"""
+        await agg.create_ticket_integration(data=payload)
 
-        yield agg.create_response({"data": result}, _type="sync-ticket-to-linear-response")
+
+class UpdateTicketIntegration(Command):
+    """Update Ticket Integration - Update a ticket integration"""
+
+    class Meta:
+        key = "update-ticket-integration"
+        resources = ("ticket",)
+        tags = ["ticket", "integration"]
+        auth_required = True
+        description = "Update a ticket integration"
+        policy_required = False
+        internal = True
+
+    Data = datadef.UpdateTicketIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update a ticket integration"""
+        await agg.update_ticket_integration(data=payload)
+
+
+class RemoveTicketIntegration(Command):
+    """Remove Ticket Integration - Remove a ticket integration"""
+
+    class Meta:
+        key = "remove-ticket-integration"
+        resources = ("ticket",)
+        tags = ["ticket", "integration"]
+        auth_required = True
+        description = "Remove a ticket integration"
+        policy_required = False
+        internal = True
+
+    Data = datadef.RemoveTicketIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove a ticket integration"""
+        await agg.remove_ticket_integration(data=payload)
+        
+        
+class SyncTicketIntegration(Command):
+    """Sync Ticket Integration - Sync a ticket integration"""
+
+    class Meta:
+        key = "sync-ticket-integration"
+        resources = ("ticket",)
+        tags = ["ticket", "integration"]
+        auth_required = True
+        description = "Sync a ticket integration"
+        policy_required = False
+        internal = True
+
+    Data = datadef.SyncTicketIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Sync a ticket integration"""
+        await agg.sync_ticket_integration(data=payload)
+
+
+        
+
