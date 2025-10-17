@@ -240,3 +240,13 @@ class TicketIntegration(RFXDiscussionBaseModel):
     provider = sa.Column(sa.String(100), nullable=False)  # e.g., 'linear'
     external_id = sa.Column(sa.String(255), nullable=False)
     external_url = sa.Column(sa.String(255), nullable=False)  
+
+
+class CommentIntegration(RFXDiscussionBaseModel):
+    __tablename__ = "comment-integration"
+    __ts_index__ = ["provider", "external_id", "external_url"]
+    
+    comment_id = sa.Column(sa.ForeignKey(Comment._id), nullable=False)
+    provider = sa.Column(sa.String(100), nullable=False)  # e.g., 'linear'
+    external_id = sa.Column(sa.String(255), nullable=False)
+    external_url = sa.Column(sa.String(255), nullable=False)
