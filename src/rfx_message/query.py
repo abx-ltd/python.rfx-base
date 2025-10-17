@@ -7,21 +7,21 @@ from fluvius.query.field import (
 from typing import Optional, List
 
 from .state import MessageStateManager
-from .domain import MessageServiceDomain
+from .domain import RFXMessageServiceDomain
 from .types import PriorityLevel, ContentType, MessageType, RenderStrategy
 from . import logger
 
 
-class MessageQueryManager(DomainQueryManager):
+class RFXMessageServiceQueryManager(DomainQueryManager):
     __data_manager__ = MessageStateManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = MessageServiceDomain.Meta.prefix
-        tags = MessageServiceDomain.Meta.tags
+        prefix = RFXMessageServiceDomain.Meta.prefix
+        tags = RFXMessageServiceDomain.Meta.tags
 
 
-resource = MessageQueryManager.register_resource
-endpoint = MessageQueryManager.register_endpoint
+resource = RFXMessageServiceQueryManager.register_resource
+endpoint = RFXMessageServiceQueryManager.register_endpoint
 
 
 # class ResourceScope(BaseModel):
@@ -29,7 +29,7 @@ endpoint = MessageQueryManager.register_endpoint
 #     resource_id: str
 
 
-@resource('message_recipients')
+@resource('message-recipients')
 class MessageQuery(DomainQueryResource):
     """ Query resource for notifications received by the current user. """
 

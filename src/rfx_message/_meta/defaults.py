@@ -1,5 +1,9 @@
+from rfx_base import config
+
+LOG_LEVEL = config.LOG_LEVEL
+DB_DSN = config.DB_DSN
+
 MESSAGE_SERVICE_SCHEMA = "rfx-message"
-DB_DSN = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
 POLICY_SCHEMA = "rfx--policy"
-# POLICY_TABLE = "_policy"
+POLICY_TABLE = "_policy_rfx_message"
 NAMESPACE = "rfx-message"

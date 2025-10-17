@@ -1,5 +1,9 @@
+from rfx_base import config as baseconf
+
+LOG_LEVEL = baseconf.LOG_LEVEL
+DB_DSN = baseconf.DB_DSN
+
 RFX_DISCUSSION_SCHEMA = "cpo-discussion"
-DB_DSN = None
 POLICY_SCHEMA = "cpo-policy"
 POLICY_TABLE = "_policy--rfx-discussion"
 COMMENT_NESTED_LEVEL = 2
