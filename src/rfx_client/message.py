@@ -10,7 +10,9 @@ class DiscussionMessageData(DataModel):
     command: str = "create-ticket"
     payload: dict = {}
     ticket_id: str = None
+    project_id: str = None
     context: dict = {}
+    
 
 
 class DiscussionMessage(RFXClientDomain.Message):
@@ -18,6 +20,9 @@ class DiscussionMessage(RFXClientDomain.Message):
 
     async def _dispatch(msg):
         data = msg.data
+        
+        if data.project_id:
+            data.payload['project_id'] = data.project_id
 
         await get_worker_client().request(
             f"{config.DISCUSSION_NAMESPACE}:{data.command}",
@@ -145,7 +150,7 @@ class LinearMessage(RFXClientDomain.Message):
             )
         )
 
-\
+
 
 class CreateLinearMessageData(DataModel):
     command: str = "create-project-integration"

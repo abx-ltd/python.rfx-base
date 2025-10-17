@@ -63,10 +63,13 @@ class RFXDiscussionAggregate(Aggregate):
     @action('ticket-created', resources='ticket')
     async def create_ticket(self, /, data):
         """Create a new ticket tied to project"""
+        data_result=serialize_mapping(data)
+        data_result.pop("project_id", None)
+        data_result.pop("sync_linear", None)
 
         record = self.init_resource(
             "ticket",
-            serialize_mapping(data),
+            data_result,
             _id=self.aggroot.identifier,
             status="NEW",
             sync_status=SyncStatus.PENDING,
@@ -102,8 +105,11 @@ class RFXDiscussionAggregate(Aggregate):
             if not transition:
                 raise ValueError(
                     "Invalid status, Can not transition to this status")
+                
+        data_result=serialize_mapping(data)
+        data_result.pop("sync_linear", None)
 
-        await self.statemgr.update(ticket, **serialize_mapping(data))
+        await self.statemgr.update(ticket, **data_result)
 
     @action('ticket-removed', resources='ticket')
     async def remove_ticket(self, /):
@@ -254,7 +260,9 @@ class RFXDiscussionAggregate(Aggregate):
     @action("comment-updated", resources="comment")
     async def update_comment(self, /, data):
         """Update comment"""
-        await self.statemgr.update(self.rootobj, **serialize_mapping(data))
+        data_result=serialize_mapping(data)
+        data_result.pop("sync_linear", None)
+        await self.statemgr.update(self.rootobj, **data_result)
 
     @action("comment-deleted", resources="comment")
     async def delete_comment(self, /):
@@ -308,10 +316,12 @@ class RFXDiscussionAggregate(Aggregate):
         ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
         if not ticket:
             raise ValueError("Ticket not found")
+        data_result = serialize_mapping(data)
+        data_result.pop("sync_linear", None)
 
         record = self.init_resource(
             "comment",
-            serialize_mapping(data),
+            data_result,
             organization_id=self.context.organization_id,
             _id=UUID_GENR()
         )
@@ -366,3 +376,133 @@ class RFXDiscussionAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
+
+#----------- Agg Ticket Integration (Ticket Context) -----------
+    @action("create-ticket-integration", resources="ticket")
+    async def create_ticket_integration(self, /, data):
+        """Create a new ticket integration"""
+        ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
+        if not ticket:
+            raise ValueError("Ticket not found")
+
+        record = self.init_resource(
+            "ticket-integration",
+            serialize_mapping(data),
+            ticket_id=self.aggroot.identifier,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        
+    @action("update-ticket-integration", resources="ticket")
+    async def update_ticket_integration(self, /, data):
+        """Update ticket integration"""
+        ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
+        if not ticket:
+            raise ValueError("Ticket not found")
+        ticket_integration = await self.statemgr.find_one("ticket-integration", where=dict(
+            provider=data.provider,
+            ticket_id=self.aggroot.identifier,
+            external_id=data.external_id
+            ))
+        if not ticket_integration:
+            raise ValueError("Ticket integration not found")
+        await self.statemgr.update(ticket_integration, **serialize_mapping(data))
+    
+    @action("remove-ticket-integration", resources="ticket")
+    async def remove_ticket_integration(self, /, data):
+        """Remove ticket integration"""
+        ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
+        if not ticket:
+            raise ValueError("Ticket not found")
+        ticket_integration = await self.statemgr.find_one("ticket-integration", where=dict(
+            provider=data.provider,
+            ticket_id=self.aggroot.identifier,
+            external_id=data.external_id
+            ))
+        if not ticket_integration:
+            raise ValueError("Ticket integration not found")
+        
+        # Call LinearService to delete the issue in Linear
+        LinearService.delete_issue(ticket_integration.external_id)
+        
+        await self.statemgr.invalidate(ticket_integration)
+        return {"removed": True}
+    
+    @action("sync-ticket-integration", resources="ticket")
+    async def sync_ticket_integration(self, /, data):
+        """Sync a ticket to Linear"""
+        ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
+        if not ticket:
+            raise ValueError("Ticket not found")
+        ticket_integration = await self.statemgr.find_one("ticket-integration", where=dict(
+            provider=data.provider,
+            ticket_id=self.aggroot.identifier,
+            external_id=data.external_id
+            ))
+        
+        if not ticket_integration:
+            record = self.init_resource(
+                "ticket-integration",
+                serialize_mapping(data),
+                ticket_id=self.aggroot.identifier,
+                _id=UUID_GENR()
+            )
+            await self.statemgr.insert(record)
+        else: 
+            await self.statemgr.update(ticket_integration, **serialize_mapping(data))
+            
+            
+    #----------- Comment Integration (Comment Context) -----------
+    @action("create-comment-integration", resources="comment")
+    async def create_comment_integration(self, /, data):
+        """Create a new comment integration"""
+        comment = await self.statemgr.find_one("comment", where=dict(_id=self.aggroot.identifier))
+        if not comment:
+            raise ValueError("Comment not found")
+
+        record = self.init_resource(
+            "comment-integration",
+            serialize_mapping(data),
+            comment_id=self.aggroot.identifier,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+        
+    @action("update-comment-integration", resources="comment")
+    async def update_comment_integration(self, /, data):
+        """Update comment integration"""
+        comment = await self.statemgr.find_one("comment", where=dict(_id=self.aggroot.identifier))
+        if not comment:
+            raise ValueError("Comment not found")
+        
+        comment_integration = await self.statemgr.find_one("comment-integration", where=dict(
+            provider=data.provider,
+            comment_id=self.aggroot.identifier,
+            external_id=data.external_id
+        ))
+        
+        if not comment_integration:
+            raise ValueError("Comment integration not found")
+        await self.statemgr.update(comment_integration, **serialize_mapping(data))
+        return comment_integration
+
+    @action("remove-comment-integration", resources="comment")
+    async def remove_comment_integration(self, /, data):
+        """Remove comment integration"""
+        logger.warn(f"Attempting to remove integration with payload: {data}")
+        comment_integration = await self.statemgr.find_one("comment-integration", where=dict(
+            provider=data.provider,
+            #comment_id=self.aggroot.identifier,
+            external_id=data.external_id
+        ))
+        
+        if not comment_integration:
+            raise ValueError("Comment integration not found")
+        
+        # Call LinearService to delete the comment in Linear
+        LinearService.delete_comment(comment_integration.external_id)
+        
+        await self.statemgr.invalidate(comment_integration)
+        return {"removed": True}
+            

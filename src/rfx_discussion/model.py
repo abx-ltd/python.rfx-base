@@ -230,3 +230,23 @@ class ViewStatus(RFXDiscussionBaseModel):
     description = sa.Column(sa.Text)
     is_initial = sa.Column(sa.Boolean, nullable=False)
     is_final = sa.Column(sa.Boolean, nullable=False)
+    
+    
+class TicketIntegration(RFXDiscussionBaseModel):
+    __tablename__ = "ticket-integration"
+    __ts_index__ = ["provider", "external_id", "external_url"]
+    
+    ticket_id = sa.Column(sa.ForeignKey(Ticket._id), nullable=False)
+    provider = sa.Column(sa.String(100), nullable=False)  # e.g., 'linear'
+    external_id = sa.Column(sa.String(255), nullable=False)
+    external_url = sa.Column(sa.String(255), nullable=False)  
+
+
+class CommentIntegration(RFXDiscussionBaseModel):
+    __tablename__ = "comment-integration"
+    __ts_index__ = ["provider", "external_id", "external_url"]
+    
+    comment_id = sa.Column(sa.ForeignKey(Comment._id), nullable=False)
+    provider = sa.Column(sa.String(100), nullable=False)  # e.g., 'linear'
+    external_id = sa.Column(sa.String(255), nullable=False)
+    external_url = sa.Column(sa.String(255), nullable=False)

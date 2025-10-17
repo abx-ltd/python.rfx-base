@@ -1245,16 +1245,7 @@ class RFXClientAggregate(Aggregate):
         
     @action("remove-project-milestone-integration", resources="project")
     async def remove_project_milestone_integration(self, /, data):
-        """remove project milestone integration"""
-        milestone = await self.statemgr.find_one('project-milestone', where=dict(
-            _id=data.milestone_id,
-            project_id=self.aggroot.identifier
-        ))
-        
-        if not milestone:
-            raise ValueError(
-                "Milestone not found or does not belong to this project")
-        
+        """remove project milestone integration"""     
         project_milestone_integration = await self.statemgr.find_one('project-milestone-integration', where=dict(
             milestone_id= data.milestone_id,
             provider=data.provider,
