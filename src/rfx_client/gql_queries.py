@@ -116,12 +116,9 @@ mutation ProjectMilestoneUpdate($projectMilestoneUpdateId: String!, $input: Proj
 """
 
 DELETE_PROJECT_MILESTONE_MUTATION = """
-mutation ProjectDelete($projectDeleteId: String!) {
-  projectDelete(id: $projectDeleteId) {
-    entity {
-      url
-      id
-    }
+mutation ProjectMilestoneDelete($projectMilestoneDeleteId: String!) {
+  projectMilestoneDelete(id: $projectMilestoneDeleteId) {
+    entityId
     lastSyncId
     success
   }

@@ -711,6 +711,7 @@ class CreateProjectTicket(Command):
             data={
                 "command": "create-ticket",
                 "ticket_id": str(ticket_id),
+                "project_id": str(project_id),
                 "payload": serialize_mapping(payload),
                 "context": {
                     "user_id": agg.get_context().user_id,
