@@ -5,13 +5,13 @@ Commands for the RFX messaging domain.
 from fluvius.data import serialize_mapping, UUID_GENR
 import asyncio
 
-from .domain import MessageServiceDomain
+from .domain import RFXMessageServiceDomain
 from .helper import extract_template_context, determine_processing_mode
 from .types import MessageType, ProcessingMode
 from . import datadef, logger
 
-processor = MessageServiceDomain.command_processor
-Command = MessageServiceDomain.Command
+processor = RFXMessageServiceDomain.command_processor
+Command = RFXMessageServiceDomain.Command
 
 
 def notify_recipients(client, recipients: list, kind: str, target: str, msg: dict, batch_id=None):

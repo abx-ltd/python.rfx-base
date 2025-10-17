@@ -5,7 +5,7 @@ from .aggregate import MessageAggregate
 from . import config
 
 
-class MessageServiceDomain(Domain):
+class RFXMessageServiceDomain(Domain):
     """Domain for the message service, encapsulating message-related operations."""
 
     __namespace__ = config.NAMESPACE
@@ -15,11 +15,11 @@ class MessageServiceDomain(Domain):
     # __policymgr__ = None
 
 
-class MessageServiceResponse(MessageServiceDomain.Response):
+class MessageServiceResponse(RFXMessageServiceDomain.Response):
     """Response class for message service operations."""
     pass
 
 
-class MessageServiceMessage(MessageServiceDomain.Message):
+class MessageServiceMessage(RFXMessageServiceDomain.Message):
     """Message class for message service operations."""
     pass
