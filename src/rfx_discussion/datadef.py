@@ -119,12 +119,18 @@ class CreateCommentPayload(DataModel):
 
 class UpdateCommentPayload(DataModel):
     content: str
+    sync_linear: bool = False
+    
+    
+class DeleteCommentPayload(DataModel):
+    sync_linear: bool = False
 
 # ---------- Ticket Comment (Ticket Context) ----------
 
 
 class CreateTicketCommentPayload(DataModel):
     content: str
+    sync_linear: bool = False
 
 
 class ReplyToCommentPayload(DataModel):
@@ -180,3 +186,31 @@ class SyncTicketIntegrationPayload(DataModel):
     provider: str = "linear"
     external_id: Optional[str] = None
     external_url: Optional[str] = None
+#------------- Comment Integration----------
+class CreateCommentIntegrationPayload(DataModel):
+    """Payload for creating comment integration"""
+    provider: str = "linear"
+    external_id: str
+    external_url: Optional[str] = None
+    issue_id: Optional[str] = None  # Linear issue ID
+
+class UpdateCommentIntegrationPayload(DataModel):
+    """Payload for updating comment integration"""
+    provider: str = "linear"
+    external_id: str
+    external_url: Optional[str] = None
+class RemoveCommentIntegrationPayload(DataModel):
+    """Payload for removing comment integration"""
+    provider: str = "linear"
+    external_id: str
+    
+
+class SyncCommentIntegrationPayload(DataModel):
+    """Payload for syncing comment integration"""
+    provider: str = "linear"
+    external_id: Optional[str] = None
+    external_url: Optional[str] = None
+    resource_type: str = "comment"
+    issue_id: Optional[str] = None  # Linear issue ID
+
+

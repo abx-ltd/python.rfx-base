@@ -59,3 +59,76 @@ query Issue($issueId: String!) {
   }
 }
 """
+
+
+
+#---------- Query Commmnet to Linear ----------
+
+CREATE_ISSUE_MUTATION_COMMENT = """
+mutation CommentCreate($input: CommentCreateInput!) {
+  commentCreate(input: $input) {
+    comment {
+      body
+      bodyData
+      documentContentId
+      editedAt
+      id
+      issue {
+        id
+        identifier
+        title
+        url
+      }
+      parent {
+        id
+        body
+        bodyData
+      }
+      post {
+        id
+        body
+        bodyData
+        title
+      }
+      resolvedAt
+      updatedAt
+      url
+    }
+  }
+}
+"""
+
+UPDATE_ISSUE_MUTATION_COMMENT = """
+mutation CommentUpdate($commentUpdateId: String!, $input: CommentUpdateInput!) {
+  commentUpdate(id: $commentUpdateId, input: $input) {
+    comment {
+      body
+      bodyData
+      id
+      url
+    }
+    lastSyncId
+    success
+  }
+}
+"""
+
+DELETE_ISSUE_MUTATION_COMMENT = """
+mutation CommentDelete($commentDeleteId: String!) {
+  commentDelete(id: $commentDeleteId) {
+    entityId
+    lastSyncId
+    success
+  }
+}
+"""
+
+
+CHECK_COMMENT_EXISTS_QUERY = """
+query GetComment($id: String!) {
+  comment(id: $id) {
+    id
+    url
+  }
+}
+"""

@@ -559,12 +559,32 @@ class UpdateComment(Command):
         tags = ["comment", "update"]
         auth_required = True
         description = "Update a comment"
+        policy_required = False
 
     Data = datadef.UpdateCommentPayload
 
     async def _process(self, agg, stm, payload):
         """Update comment"""
         await agg.update_comment(data=payload)
+        updated_comment = await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
+        yield agg.create_message(
+                "update-comment-integration-message",
+                data={
+                    "command": "update-comment-integration",
+                    "comment": serialize_mapping(updated_comment),
+                    "comment_id": str(agg.get_aggroot().identifier),
+                    "payload": {
+                        "provider": "linear",
+                        "external_id": str(agg.get_aggroot().identifier),
+                    },
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )
 
 
 class DeleteComment(Command):
@@ -576,10 +596,36 @@ class DeleteComment(Command):
         tags = ["comment", "delete"]
         auth_required = True
         description = "Delete a comment"
+        policy_required = False
+        
+        
+    Data = datadef.DeleteCommentPayload
 
     async def _process(self, agg, stm, payload):
         """Delete comment"""
+        
+        
+        if payload.sync_linear:
+            yield agg.create_message(
+                "remove-comment-integration-message",
+                data={
+                    "command": "remove-comment-integration",
+                    "comment_id": str(agg.get_aggroot().identifier),
+                    "payload": {
+                        "provider": "linear",
+                        "external_id": str(agg.get_aggroot().identifier),
+                    },
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )
+        
         await agg.delete_comment()
+        
 
 
 class ReplyToComment(Command):
@@ -631,6 +677,26 @@ class CreateTicketComment(Command):
                 "created_by": f"{profile.name__given} {profile.name__family}",
             }
         )
+        
+        yield agg.create_message(
+                "create-comment-integration-message",
+                data={
+                    "command": "create-comment-integration",
+                    "comment": serialize_mapping(result),
+                    "comment_id": str(result._id),
+                    "ticket_id": str(agg.get_aggroot().identifier), 
+                    "payload": {
+                        "provider": "linear",
+                        "external_id": str(result._id),
+                    },
+                    "context": {
+                        "user_id": agg.get_context().user_id,
+                        "profile_id": agg.get_context().profile_id,
+                        "organization_id": agg.get_context().organization_id,
+                        "realm": agg.get_context().realm,
+                    }
+                }
+            )
 
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
@@ -841,6 +907,66 @@ class SyncTicketIntegration(Command):
         """Sync a ticket integration"""
         await agg.sync_ticket_integration(data=payload)
 
+
+#--------------- Comment Integration Commands ---------------
+class CreateCommentIntegration(Command):
+    """Create Comment Integration"""
+    
+    class Meta:
+        key = "create-comment-integration"
+        resources = ("comment",)
+        tags = ["comment", "integration"]
+        auth_required = True
+        description = "Create a comment integration"
+        policy_required = False
+        internal = True
+        
+    Data = datadef.CreateCommentIntegrationPayload
+    
+    async def _process(self, agg, stm, payload):
+        """Create a comment integration"""
+        result = await agg.create_comment_integration(data=payload)
+
+
+class UpdateCommentIntegration(Command):
+    """Update Comment Integration - Update a comment integration"""
+
+    class Meta:
+        key = "update-comment-integration"
+        resources = ("comment",)
+        tags = ["comment", "integration"]
+        auth_required = True
+        description = "Update a comment integration"
+        policy_required = False
+        internal = True
+
+    Data = datadef.UpdateCommentIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update a comment integration"""
+        result = await agg.update_comment_integration(data=payload)
+        
+
+
+class RemoveCommentIntegration(Command):
+    """Remove Comment Integration - Remove a comment integration"""
+
+    class Meta:
+        key = "remove-comment-integration"
+        resources = ("comment",)
+        tags = ["comment", "integration"]
+        auth_required = True
+        description = "Remove a comment integration"
+        policy_required = False
+        internal = False
+        new_resource = True
+
+    Data = datadef.RemoveCommentIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove a comment integration"""
+        result = await agg.remove_comment_integration(data=payload)
+        
 
         
 
