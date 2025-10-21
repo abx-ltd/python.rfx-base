@@ -115,9 +115,9 @@ class RFXDiscussionAggregate(Aggregate):
     async def remove_ticket(self, /):
         """Remove ticket"""
         ticket = self.rootobj
-        if not ticket.is_inquiry:
-            raise ValueError(
-                "You cannot remove a ticket that attached to a project")
+        # if not ticket.is_inquiry:
+        #     raise ValueError(
+        #         "You cannot remove a ticket that attached to a project")
         await self.statemgr.invalidate(ticket)
 
     # =========== Ticket Assignee (Ticket Context) ============

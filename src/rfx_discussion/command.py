@@ -6,6 +6,9 @@ from .domain import RFXDiscussionDomain
 from . import datadef, config
 from .types import ActivityAction
 
+from rfx_integration.pm_service import PMService
+from rfx_integration.pm_service.base import CreateTicketPayload
+from rfx_integration.pm_service.base import UpdateTicketPayload as PMUpdatePayload
 processor = RFXDiscussionDomain.command_processor
 Command = RFXDiscussionDomain.Command
 
@@ -62,7 +65,7 @@ class CreateTicket(Command):
         auth_required = True
         description = "Create a new ticket in project"
         new_resource = True
-        internal = True
+        internal = False
         policy_required = False
 
     Data = datadef.CreateTicketPayload
@@ -86,21 +89,44 @@ class CreateTicket(Command):
         )
         ticket_id = result._id
         
-        if payload.sync_linear:
-            yield agg.create_message(
-                "create-ticket-integration-message",
-                data={
-                    "command": "create-ticket-integration",
-                    "ticket": serialize_mapping(payload),
-                    "ticket_id": str(agg.get_aggroot().identifier),
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-        )
+        logger.info(f"PROJECT_MANAGEMENT_INTEGRATION_ENABLED: {config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED}, sync_linear: {payload.sync_linear}")
+        logger.info(f"Payload: {payload}")
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+               
+                async with PMService.init_client(
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                ) as pm_service:
+                    
+                    
+                    pm_payload = CreateTicketPayload(
+                        ticket_id=str(result._id),  
+                        title=payload.title,
+                        description=payload.description,
+                        assignee_id=str(payload.assignee),
+                        priority=payload.priority,
+                        project_id=str(payload.project_id),
+                        team_id=str(config.LINEAR_TEAM_ID),
+                    )
+                    
+                    pm_response = await pm_service.create_ticket(pm_payload)
+                    
+                    logger.info(f"pm_responese {pm_response}")
+                    
+                  
+                    integration_result = await agg.create_ticket_integration(
+                        data=datadef.CreateTicketIntegrationPayload(
+                            provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                            external_id=pm_response.external_id,
+                            external_url=pm_response.url
+                        )
+                    )
+                    
+                    
+                    
+            except Exception as e:
+                logger.error(f"Failed to sync ticket to Linear: {str(e)}")
+        
 
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
@@ -136,25 +162,61 @@ class UpdateTicketInfo(Command):
                 "updated_by": f"{profile.name__given} {profile.name__family}",
             }
         )
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+                # Find existing integration
+                integration = await stm.find_one("ticket-integration", where=dict(
+                    ticket_id=agg.get_aggroot().identifier,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if not integration:
+                    logger.warning("No integration found for this ticket, skipping sync")
+                else:
+                    
+                    
+                    logger.info(f"Syncing update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"External ID: {integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Build update payload - only include changed fields
+                        pm_payload = PMUpdatePayload(
+                            external_id=integration.external_id,
+                            title=payload.title if payload.title else None,
+                            description=payload.description if payload.description else None,
+                            status_id=str(payload.status) if hasattr(payload, 'status') and payload.status else None,
+                            assignee_id=str(payload.assignee) if hasattr(payload, 'assignee') and payload.assignee else None,
+                            priority=payload.priority if hasattr(payload, 'priority') and payload.priority else None,
+                        )
+                        
+                        pm_response = await pm_service.update_ticket(pm_payload)
+                        logger.info(f"PM Response: {pm_response}")
+                        
+                        logger.info(f"✓ Updated in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        logger.info(f"  External ID: {integration.external_id}")
+                        logger.info(f"  Updated: {pm_response.updated}")
+                        
+                        # ✅ Update integration metadata
+                        integration_update_result = await agg.update_ticket_integration(
+                            data=datadef.UpdateTicketIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=integration.external_id,
+                                external_url=pm_response.external_url
+                            )
+                        )
+                        
+                        logger.info(f"✓ Updated integration metadata")
+                        
+            except Exception as e:
+                logger.error(f"✗ Failed to sync update to PM service: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
         
         ticket_update = await stm.find_one("ticket", where=dict(_id=agg.get_aggroot().identifier))
         
-        if payload.sync_linear:
-            yield agg.create_message(
-                "update-ticket-integration-message",
-                data={
-                    "command": "update-ticket-integration",
-                    "ticket": serialize_mapping(ticket_update),
-                    "ticket_id": str(agg.get_aggroot().identifier),
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-            
-            )
         
         yield agg.create_response(serialize_mapping(ticket_update), _type="ticket-response")
 
@@ -187,20 +249,52 @@ class RemoveTicket(Command):
             }
         )
         
-        # yield agg.create_message(
-        #     "remove-ticket-integration-message",
-        #     data={
-        #         "command": "remove-ticket-integration",
-        #         "ticket": serialize_mapping(ticket),
-        #         "ticket_id": str(agg.get_aggroot().identifier),
-        #         "context": {
-        #             "user_id": agg.get_context().user_id,
-        #             "profile_id": agg.get_context().profile_id,
-        #             "organization_id": agg.get_context().organization_id,
-        #             "realm": agg.get_context().realm,
-        #         }
-        #     }
-        # )
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
+            try:
+                # Find integration
+                integration = await stm.find_one("ticket-integration", where=dict(
+                    ticket_id=agg.get_aggroot().identifier,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if integration:
+                    from rfx_integration.pm_service import PMService
+                    
+                    logger.info(f"Removing ticket from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"External ID: {integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Delete from PM service
+                        success = await pm_service.delete_ticket(
+                            external_id=integration.external_id,
+                            permanently=True  # or False for soft delete
+                        )
+                        
+                        if success:
+                            logger.info(f"✓ Deleted from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        else:
+                            logger.warning(f"Failed to delete from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        
+                  
+                        await agg.remove_ticket_integration(
+                            data=datadef.RemoveTicketIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=integration.external_id
+                            )
+                        )
+                        
+                        logger.info(f"✓ Removed integration record")
+                else:
+                    logger.info("No integration found, skipping PM service deletion")
+                    
+            except Exception as e:
+                logger.error(f"✗ Failed to remove from PM service: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
 
         await agg.remove_ticket()
 
