@@ -149,3 +149,37 @@ class RFXClientStateManager(DataAccessManager):
                 project_id = $3
         """
         return query, provider, external_id, str(project_id)
+    
+    
+    # Ticket Queries
+    @value_query
+    def get_project_id_by_ticket_id(self, ticket_id):
+        """
+        Lấy project_id từ bảng project-ticket bằng ticket_id.
+        """
+        return """
+            SELECT project_id FROM "cpo-client"."project-ticket"
+            WHERE ticket_id = $1
+        """, str(ticket_id)
+        
+    @list_query
+    def get_ticket_ids_by_project_id(self, project_id):
+        """
+        Lấy danh sách ticket_id từ bảng project-ticket (schema cpo-client).
+        """
+        return """
+            SELECT ticket_id FROM "cpo-client"."project-ticket"
+            WHERE project_id = $1
+        """, str(project_id)
+
+    @list_query
+    def get_tickets_by_ids(self, ticket_ids: list):
+        """
+        Lấy thông tin chi tiết của các ticket dựa trên danh sách ID.
+        """
+        return """
+            SELECT * FROM "cpo-discussion"."ticket"
+            WHERE _id = ANY($1)
+        """, ticket_ids
+    
+    

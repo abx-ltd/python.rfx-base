@@ -11,6 +11,11 @@ from .helper import get_project_member_user_ids
 from .integration import call_linear_api, get_linear_status_id, get_linear_user_id, get_linear_label_id
 import datetime
 
+from rfx_integration.pm_service import PMService
+from rfx_integration.pm_service.base import CreateTicketPayload
+from rfx_integration.pm_service.base import UpdateTicketPayload as PMUpdatePayload
+
+from rfx_integration.pm_service import PMService
 processor = RFXClientDomain.command_processor
 Command = RFXClientDomain.Command
 
@@ -2006,4 +2011,492 @@ class RemoveProjectMilestoneIntegration(Command):
         """Remove a project milestone integration"""
         await agg.remove_project_milestone_integration(data=payload)
         
+
+
+
+### Ticket Command 
+
+# ---------- Inquiry (Ticket Context) ----------
+class CreateInquiry(Command):
+    """Create Inquiry - Creates a new inquiry (ticket not tied to project)"""
+
+    class Meta:
+        key = "create-inquiry"
+        resources = ("ticket",)
+        tags = ["ticket", "inquiry"]
+        auth_required = True
+        description = "Create a new inquiry"
+        new_resource = True
+        policy_required = True
+
+    Data = datadef.CreateInquiryPayload
+
+    async def _process(self, agg, stm, payload):
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        result = await agg.create_inquiry(data=payload)
+
+        yield agg.create_activity(
+            logroot=AggregateRoot(
+                resource="ticket",
+                identifier=result._id,
+                domain_sid=agg.get_aggroot().domain_sid,
+                domain_iid=agg.get_aggroot().domain_iid,
+            ),
+            message=f"{profile.name__given} {profile.name__family} created a inquiry {result.title}",
+            msglabel="create inquiry",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "ticket_id": result._id,
+                "ticket_title": result.title,
+                "created_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
+
+
+# ---------- Ticket (Ticket Context) ----------
+class CreateTicket(Command):
+    """Create Ticket - Creates a new ticket tied to a project"""
+
+    class Meta:
+        key = "create-ticket"
+        resources = ("ticket",)
+        tags = ["ticket"]
+        auth_required = True
+        description = "Create a new ticket in project"
+        new_resource = True
+        internal = False
+        policy_required = False
+
+    Data = datadef.CreateTicketPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create a new ticket in project"""
+        result = await agg.create_ticket(data=payload)
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} created a ticket {result.title}",
+            msglabel="create ticket",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "ticket_id": agg.get_aggroot().identifier,
+                "created_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+        ticket_id = result._id
+        
+        logger.info(f"PROJECT_MANAGEMENT_INTEGRATION_ENABLED: {config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED}, sync_linear: {payload.sync_linear}")
+        logger.info(f"Payload: {payload}")
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+               
+                async with PMService.init_client(
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                ) as pm_service:
+                    
+                    
+                    pm_payload = CreateTicketPayload(
+                        ticket_id=str(result._id),  
+                        title=payload.title,
+                        description=payload.description,
+                        assignee_id=str(payload.assignee),
+                        priority=payload.priority,
+                        project_id=str(payload.project_id),
+                        team_id=str(config.LINEAR_TEAM_ID),
+                    )
+                    
+                    pm_response = await pm_service.create_ticket(pm_payload)
+                    
+                    logger.info(f"pm_responese {pm_response}")
+                    
+                  
+                    integration_result = await agg.create_ticket_integration(
+                        data=datadef.CreateTicketIntegrationPayload(
+                            provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                            external_id=pm_response.external_id,
+                            external_url=pm_response.url
+                        )
+                    )
+                    
+                    
+                    
+            except Exception as e:
+                logger.error(f"Failed to sync ticket to Linear: {str(e)}")
+        
+
+        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
+
+
+class UpdateTicketInfo(Command):
+    """Update Ticket Info - Updates ticket information"""
+
+    class Meta:
+        key = "update-ticket"
+        resources = ("ticket",)
+        tags = ["ticket", "update"]
+        auth_required = True
+        description = "Update ticket information"
+        policy_required = False
+
+    Data = datadef.UpdateTicketPayload
+
+    async def _process(self, agg, stm, payload):
+        await agg.update_ticket_info(payload)
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        ticket = await stm.find_one("ticket", where=dict(_id=agg.get_aggroot().identifier))
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} updated a ticket {ticket.title}",
+            msglabel="update ticket",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "ticket_id": agg.get_aggroot().identifier,
+                "updated_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+        
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+                # Find existing integration
+                integration = await stm.find_one("ticket-integration", where=dict(
+                    ticket_id=agg.get_aggroot().identifier,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if not integration:
+                    logger.warning("No integration found for this ticket, skipping sync")
+                else:
+                    
+                    
+                    logger.info(f"Syncing update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"External ID: {integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Build update payload - only include changed fields
+                        pm_payload = PMUpdatePayload(
+                            external_id=integration.external_id,
+                            title=payload.title if payload.title else None,
+                            description=payload.description if payload.description else None,
+                            status_id=str(payload.status) if hasattr(payload, 'status') and payload.status else None,
+                            assignee_id=str(payload.assignee) if hasattr(payload, 'assignee') and payload.assignee else None,
+                            priority=payload.priority if hasattr(payload, 'priority') and payload.priority else None,
+                        )
+                        
+                        pm_response = await pm_service.update_ticket(pm_payload)
+                        logger.info(f"PM Response: {pm_response}")
+                        
+                        logger.info(f"✓ Updated in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        logger.info(f"  External ID: {integration.external_id}")
+                        logger.info(f"  Updated: {pm_response.updated}")
+                        
+                        # ✅ Update integration metadata
+                        integration_update_result = await agg.update_ticket_integration(
+                            data=datadef.UpdateTicketIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=integration.external_id,
+                                external_url=pm_response.external_url
+                            )
+                        )
+                        
+                        logger.info(f"✓ Updated integration metadata")
+                        
+            except Exception as e:
+                logger.error(f"✗ Failed to sync update to PM service: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        ticket_update = await stm.find_one("ticket", where=dict(_id=agg.get_aggroot().identifier))
+        
+        yield agg.create_response(serialize_mapping(ticket_update), _type="ticket-response")
+
+
+class RemoveTicket(Command):
+    """Remove Ticket - Removes a ticket"""
+
+    class Meta:
+        key = "remove-ticket"
+        resources = ("ticket",)
+        tags = ["ticket", "remove"]
+        auth_required = True
+        description = "Remove ticket"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        ticket = await stm.find_one("ticket", where=dict(_id=agg.get_aggroot().identifier))
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} removed a ticket {ticket.title}",
+            msglabel="remove ticket",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "removed_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+        
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
+            try:
+                # Find integration
+                integration = await stm.find_one("ticket-integration", where=dict(
+                    ticket_id=agg.get_aggroot().identifier,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if integration:
+                    from rfx_integration.pm_service import PMService
+                    
+                    logger.info(f"Removing ticket from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"External ID: {integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Delete from PM service
+                        success = await pm_service.delete_ticket(
+                            external_id=integration.external_id,
+                            permanently=True  # or False for soft delete
+                        )
+                        
+                        if success:
+                            logger.info(f"✓ Deleted from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        else:
+                            logger.warning(f"Failed to delete from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        
+                  
+                        await agg.remove_ticket_integration(
+                            data=datadef.RemoveTicketIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=integration.external_id
+                            )
+                        )
+                        
+                        logger.info(f"✓ Removed integration record")
+                else:
+                    logger.info("No integration found, skipping PM service deletion")
+                    
+            except Exception as e:
+                logger.error(f"✗ Failed to remove from PM service: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+
+        await agg.remove_ticket()
+
+
+# ---------- Ticket Assignee (Ticket Context) ----------
+class AssignMemberToTicket(Command):
+    """Assign Member to Ticket - Assigns a member to ticket"""
+
+    class Meta:
+        key = "assign-member"
+        resources = ("ticket",)
+        tags = ["ticket", "member"]
+        auth_required = True
+        description = "Assign member to ticket"
+        policy_required = True
+
+    Data = datadef.AssignTicketMemberPayload
+
+    async def _process(self, agg, stm, payload):
+        """Assign member to ticket"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        member = await stm.get_profile(payload.member_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} assigned {member.name__given} {member.name__family}",
+            msglabel="assign member",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "member_id": member._id,
+                "assigned_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.assign_member_to_ticket(data=payload)
+
+
+class RemoveMemberFromTicket(Command):
+    """Remove Member from Ticket - Removes a member from ticket"""
+
+    class Meta:
+        key = "remove-member-ticket"
+        resources = ("ticket",)
+        tags = ["ticket", "member"]
+        auth_required = True
+        description = "Remove member from ticket"
+        policy_required = True
+
+    Data = datadef.RemoveTicketMemberPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove member from ticket"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        member = await stm.get_profile(payload.member_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} removed {member.name__given} {member.name__family}",
+            msglabel="remove member",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "member_id": member._id,
+                "removed_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.remove_member_from_ticket(payload.member_id)
+
+
+# ---------- Ticket Participant (Ticket Context) ----------
+class AddParticipantToTicket(Command):
+    """Add Participant to Ticket - Adds a participant to ticket"""
+
+    class Meta:
+        key = "add-participant"
+        resources = ("ticket",)
+        tags = ["ticket", "participant"]
+        auth_required = True
+        description = "Add participant to ticket"
+        policy_required = True
+
+    Data = datadef.AddTicketParticipantPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add participant to ticket"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        participant = await stm.get_profile(payload.participant_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} added {participant.name__given} {participant.name__family} as a participant",
+            msglabel="add participant",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "participant_id": participant._id,
+                "added_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.add_ticket_participant(payload.participant_id)
+
+
+class RemoveParticipantFromTicket(Command):
+    """Remove Participant from Ticket - Removes a participant from ticket"""
+
+    class Meta:
+        key = "remove-participant"
+        resources = ("ticket",)
+        tags = ["ticket", "participant"]
+        auth_required = True
+        description = "Remove participant from ticket"
+        policy_required = True
+
+    Data = datadef.RemoveTicketParticipantPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove participant from ticket"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        participant = await stm.get_profile(payload.participant_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} removed a participant {participant.name__given} {participant.name__family}",
+            msglabel="remove participant",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "participant_id": participant._id,
+                "removed_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.remove_ticket_participant(payload.participant_id)
+
+
+#--------------- Ticket Integration------------
+
+class CreateTicketIntegration(Command):
+    """Create Ticket Integration"""
     
+    class Meta:
+        key = "create-ticket-integration"
+        resources = ("ticket",)
+        tags = ["ticket", "integration"]
+        auth_required = True
+        description = "Create a ticket integration"
+        policy_required = False
+        internal = True
+        
+    Data = datadef.CreateTicketIntegrationPayload
+    
+    async def _process(self, agg, stm, payload):
+        """Create a ticket integration"""
+        await agg.create_ticket_integration(data=payload)
+
+
+class UpdateTicketIntegration(Command):
+    """Update Ticket Integration - Update a ticket integration"""
+
+    class Meta:
+        key = "update-ticket-integration"
+        resources = ("ticket",)
+        tags = ["ticket", "integration"]
+        auth_required = True
+        description = "Update a ticket integration"
+        policy_required = False
+        internal = True
+
+    Data = datadef.UpdateTicketIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update a ticket integration"""
+        await agg.update_ticket_integration(data=payload)
+
+
+class RemoveTicketIntegration(Command):
+    """Remove Ticket Integration - Remove a ticket integration"""
+
+    class Meta:
+        key = "remove-ticket-integration"
+        resources = ("ticket",)
+        tags = ["ticket", "integration"]
+        auth_required = True
+        description = "Remove a ticket integration"
+        policy_required = False
+        internal = True
+
+    Data = datadef.RemoveTicketIntegrationPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove a ticket integration"""
+        await agg.remove_ticket_integration(data=payload)

@@ -108,3 +108,16 @@ class SyncProjectToLinearResponse(RFXClientDomain.Response):
 
 class ProjectIntegrationResponse(RFXClientDomain.Response):
     pass
+
+
+#======= Ticket Responses ========
+class TicketResponse(RFXClientDomain.Response):
+    pass
+
+
+class TicketTypeResponse(RFXClientDomain.Response):
+    pass
+
+
+class TagResponse(RFXClientDomain.Response):
+    pass

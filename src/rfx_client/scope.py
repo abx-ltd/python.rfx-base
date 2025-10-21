@@ -25,3 +25,8 @@ class WorkItemDeliverableScopeSchema(BaseModel):
 
 class ProjectWorkItemListingScopeSchema(BaseModel):
     project_work_package_id: UUID_TYPE = UUIDField("Project Work Package ID")
+
+
+## Ticket Scopes
+class TicketScopeSchema(BaseModel):
+    project_id: UUID_TYPE = UUIDField("Project ID")

@@ -387,3 +387,135 @@ class RemoveProjectMilestoneIntegrationPayload(DataModel):
     external_id: str
     milestone_id: UUID_TYPE
 
+#=============== Ticket Datadef ===============
+
+# ---------- Inquiry (Ticket Context) ----------
+class CreateInquiryPayload(DataModel):
+    title: str = Field(max_length=255)
+    description: Optional[str] = None
+    type: str
+    priority: Optional[Priority] = Priority.MEDIUM
+    availability: Optional[Availability] = Availability.CLOSED
+
+
+# ---------- Ticket (Ticket Context) ----------
+class CreateTicketPayload(DataModel):
+    title: str = Field(max_length=255)
+    description: Optional[str] = None
+    type: str
+    priority: str
+    assignee: Optional[UUID_TYPE] = None
+    parent_id: Optional[UUID_TYPE] = None
+    availability: Optional[Availability] = Availability.OPEN
+    project_id: str
+    sync_linear: bool = False
+
+
+class UpdateTicketPayload(DataModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    type: Optional[str] = None
+    priority: Optional[Priority] = None
+    assignee: Optional[UUID_TYPE] = None
+    availability: Optional[Availability] = None
+    status: Optional[str] = None
+    sync_linear: bool = False
+
+
+class RemoveTicketPayload(DataModel):
+    ticket_id: UUID_TYPE
+
+class SyncAllTicketsToLinearPayload(DataModel):
+    project_id: UUID_TYPE
+# ---------- Ticket Assignee (Ticket Context) ----------
+class AssignTicketMemberPayload(DataModel):
+    member_id: UUID_TYPE
+
+
+class RemoveTicketMemberPayload(DataModel):
+    member_id: UUID_TYPE
+
+
+# ---------- Ticket Participant (Ticket Context) ----------
+class AddTicketParticipantPayload(DataModel):
+    participant_id: UUID_TYPE
+
+
+class RemoveTicketParticipantPayload(DataModel):
+    participant_id: UUID_TYPE
+
+
+# ---------- Ticket Tag (Ticket Context) ----------
+class AddTicketTagPayload(DataModel):
+    tag_id: UUID_TYPE
+
+
+class RemoveTicketTagPayload(DataModel):
+    tag_id: UUID_TYPE
+
+
+# ---------- Ticket Type (Ticket Context) ----------
+class CreateTicketTypePayload(DataModel):
+    key: str = Field(max_length=50)
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+    icon_color: Optional[str] = Field(max_length=7, default=None)
+    is_active: bool = True
+    is_inquiry: bool = False
+
+
+class UpdateTicketTypePayload(DataModel):
+    ticket_type_id: UUID_TYPE
+    key: str = Field(max_length=50)
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    icon_color: Optional[str] = Field(max_length=7, default=None)
+    is_active: Optional[bool] = None
+    is_inquiry: Optional[bool] = None
+
+
+class DeleteTicketTypePayload(DataModel):
+    ticket_type_id: UUID_TYPE = None
+
+
+# Tag related payloads
+class CreateTagPayload(DataModel):
+    key: str = Field(max_length=50)
+    name: str = Field(max_length=255)
+    description: Optional[str] = None
+    target_resource: str
+
+
+class UpdateTagPayload(DataModel):
+    key: str = Field(max_length=50)
+    name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    target_resource: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+#------------- Ticket Integration-----------
+
+class CreateTicketIntegrationPayload(DataModel):
+    """Payload for creating ticket integration"""
+    provider: str = "linear"
+    external_id: str
+    external_url: Optional[str] = None
+    
+class UpdateTicketIntegrationPayload(DataModel):
+    """Payload for updating ticket integration"""
+    provider: str = "linear"
+    external_id: str
+    external_url: Optional[str] = None
+    
+    
+class RemoveTicketIntegrationPayload(DataModel):
+    """Payload for removing ticket integration"""
+    provider: str = "linear"
+    external_id: str
+    
+class SyncTicketIntegrationPayload(DataModel):
+    """Payload for syncing ticket integration"""
+    provider: str = "linear"
+    external_id: Optional[str] = None
+    external_url: Optional[str] = None

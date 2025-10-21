@@ -1255,7 +1255,259 @@ class RFXClientAggregate(Aggregate):
         if not project_milestone_integration:
             raise ValueError("Project milestone integration not found")
         await self.statemgr.invalidate_one('project-milestone-integration', project_milestone_integration._id)
+        
+    @action("ticket-type-created", resources="ticket")
+    async def create_ticket_type(self, /, data):
+        """Create a new ticket type"""
+        record = self.init_resource(
+            "ref--ticket-type",
+            serialize_mapping(data),
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("ticket-type-updated", resources="ticket")
+    async def update_ticket_type(self, /, data):
+        """Update a ticket type"""
+        ticket_type = await self.statemgr.find_one("ref--ticket-type", where=dict(_id=data.ticket_type_id))
+        if not ticket_type:
+            raise ValueError("Ticket type not found")
+        updated_data = serialize_mapping(data)
+        updated_data.pop("ticket_type_id")
+        await self.statemgr.update(ticket_type, **updated_data)
+        return ticket_type
+
+    @action("ticket-type-deleted", resources="ticket")
+    async def delete_ticket_type(self, /, data):
+        """Delete a ticket type"""
+        ticket_type = await self.statemgr.find_one("ref--ticket-type", where=dict(_id=data.ticket_type_id))
+        if not ticket_type:
+            raise ValueError("Ticket type not found")
+        await self.statemgr.invalidate_one("ref--ticket-type", data.ticket_type_id)
+        return {"deleted": True}
+
+    # =========== Inquiry (Ticket Context) ============
+
+    @action('inquiry-created', resources='ticket')
+    async def create_inquiry(self, /, data):
+        """Create a new inquiry"""
+
+        record = self.init_resource(
+            "ticket",
+            serialize_mapping(data),
+            status="NEW",
+            organization_id=self.context.organization_id,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    # =========== Ticket (Ticket Context) ============
+    @action('ticket-created', resources='ticket')
+    async def create_ticket(self, /, data):
+        """Create a new ticket tied to project"""
+        data_result=serialize_mapping(data)
+        data_result.pop("project_id", None)
+        data_result.pop("sync_linear", None)
+
+        record = self.init_resource(
+            "ticket",
+            data_result,
+            _id=self.aggroot.identifier,
+            status="NEW",
+            sync_status=SyncStatus.PENDING,
+            is_inquiry=False,
+            organization_id=self.context.organization_id
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action('ticket-updated', resources='ticket')
+    async def update_ticket_info(self, /, data):
+        """Update ticket information"""
+        ticket = self.rootobj
+
+        if data.status:
+            status = await self.statemgr.find_one("status", where=dict(
+                entity_type="ticket",
+            ))
+
+            from_status_key = await self.statemgr.find_one("status-key", where=dict(
+                status_id=status._id,
+                key=ticket.status
+            ))
+            to_status_key = await self.statemgr.find_one("status-key", where=dict(
+                status_id=status._id,
+                key=data.status
+            ))
+
+            if not to_status_key:
+                raise ValueError("Invalid status")
+
+            transition = await self.statemgr.has_status_transition(status._id, from_status_key._id, to_status_key._id)
+            if not transition:
+                raise ValueError(
+                    "Invalid status, Can not transition to this status")
+                
+        data_result=serialize_mapping(data)
+        data_result.pop("sync_linear", None)
+
+        await self.statemgr.update(ticket, **data_result)
+
+    @action('ticket-removed', resources='ticket')
+    async def remove_ticket(self, /):
+        """Remove ticket"""
+        ticket = self.rootobj
+        # if not ticket.is_inquiry:
+        #     raise ValueError(
+        #         "You cannot remove a ticket that attached to a project")
+        await self.statemgr.invalidate(ticket)
+
+    # =========== Ticket Assignee (Ticket Context) ============
+
+    @action('member-assigned-to-ticket', resources='ticket')
+    async def assign_member_to_ticket(self, /, data):
+        """Assign member to ticket"""
+        ticket_assignee = await self.statemgr.find_one('ticket-assignee',
+                                                       where=dict(ticket_id=self.aggroot.identifier))
+        if ticket_assignee and ticket_assignee.member_id == data.member_id:
+            raise ValueError("Member already assigned to ticket")
+
+        if ticket_assignee:
+            await self.statemgr.invalidate_one('ticket-assignee', ticket_assignee._id)
+
+        record = self.init_resource(
+            "ticket-assignee",
+            {
+                "ticket_id": self.aggroot.identifier,
+                "member_id": data.member_id
+            },
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action('member-removed-from-ticket', resources='ticket')
+    async def remove_member_from_ticket(self, /, member_id: str):
+        """Remove member from ticket"""
+        assignee = await self.statemgr.find_one('ticket-assignee',                                                 where=dict(
+            ticket_id=self.aggroot.identifier,
+            member_id=member_id
+        ))
+        if not assignee:
+            raise ValueError("Assignee not found")
+        await self.statemgr.invalidate_one('ticket-assignee', assignee._id)
+        return {"removed": True}
+
+    # =========== Ticket Participant (Ticket Context) ============
+
+    @action('participant-added-to-ticket', resources='ticket')
+    async def add_ticket_participant(self, /, participant_id: str):
+        """Add participant to ticket"""
+        ticket_participant = await self.statemgr.find_one('ticket-participant', where=dict(ticket_id=self.aggroot.identifier,
+                                                                                           participant_id=participant_id))
+        if ticket_participant:
+            raise ValueError("Participant already added to ticket")
+
+        record = self.init_resource(
+            "ticket-participant",
+            {
+                "ticket_id": self.aggroot.identifier,
+                "participant_id": participant_id
+            },
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action('participant-removed-from-ticket', resources='ticket')
+    async def remove_ticket_participant(self, /, participant_id: str):
+        """Remove participant from ticket"""
+        participant = await self.statemgr.find_one('ticket-participant',                                                   where=dict(
+            ticket_id=self.aggroot.identifier,
+            participant_id=participant_id
+        ))
+        if not participant:
+            raise ValueError("Participant not found")
+        await self.statemgr.invalidate_one('ticket-participant', participant._id)
+        return {"removed": True}
+
+    # =========== Ticket Tag (Ticket Context) ============
+    @action('tag-added-to-ticket', resources='ticket')
+    async def add_ticket_tag(self, /, tag_id: str):
+        """Add tag to ticket"""
+        record = self.init_resource(
+            "ticket-tag",
+            {
+                "ticket_id": self.aggroot.identifier,
+                "tag_id": tag_id
+            },
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action('tag-removed-from-ticket', resources='ticket')
+    async def remove_ticket_tag(self, /, tag_id: str):
+        """Remove tag from ticket"""
+        tags = await self.statemgr.find_all('ticket-tag', where=dict(
+            ticket_id=self.aggroot.identifier,
+            tag_id=tag_id
+        ))
+        for tag in tags:
+            await self.statemgr.invalidate_one('ticket-tag', tag._id)
+        return {"removed": True}
     
+    #----------- Agg Ticket Integration (Ticket Context) -----------
+    @action("create-ticket-integration", resources="ticket")
+    async def create_ticket_integration(self, /, data):
+        """Create a new ticket integration"""
+        ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
+        if not ticket:
+            raise ValueError("Ticket not found")
+
+        record = self.init_resource(
+            "ticket-integration",
+            serialize_mapping(data),
+            ticket_id=self.aggroot.identifier,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        
+    @action("update-ticket-integration", resources="ticket")
+    async def update_ticket_integration(self, /, data):
+        """Update ticket integration"""
+        ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
+        if not ticket:
+            raise ValueError("Ticket not found")
+        ticket_integration = await self.statemgr.find_one("ticket-integration", where=dict(
+            provider=data.provider,
+            ticket_id=self.aggroot.identifier,
+            external_id=data.external_id
+            ))
+        if not ticket_integration:
+            raise ValueError("Ticket integration not found")
+        await self.statemgr.update(ticket_integration, **serialize_mapping(data))
+    
+    @action("remove-ticket-integration", resources="ticket")
+    async def remove_ticket_integration(self, /, data):
+        """Remove ticket integration"""
+        ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
+        if not ticket:
+            raise ValueError("Ticket not found")
+        ticket_integration = await self.statemgr.find_one("ticket-integration", where=dict(
+            provider=data.provider,
+            ticket_id=self.aggroot.identifier,
+            external_id=data.external_id
+            ))
+        if not ticket_integration:
+            raise ValueError("Ticket integration not found")
+        
+        
+        
+        await self.statemgr.invalidate(ticket_integration)
+        return {"removed": True}
    
     
     
