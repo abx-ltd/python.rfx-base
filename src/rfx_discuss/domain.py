@@ -19,17 +19,3 @@ class RFXDiscussDomain(Domain):
 class CommentResponse(RFXDiscussDomain.Response):
     pass
 
-
-class StatusResponse(RFXDiscussDomain.Response):
-    pass
-
-
-class StatusKeyResponse(RFXDiscussDomain.Response):
-    pass
-
-
-class StatusTransitionResponse(RFXDiscussDomain.Response):
-    pass
-
-class SyncTicketToLinearResponse(RFXDiscussDomain.Response):
-    pass

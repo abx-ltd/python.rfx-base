@@ -13,8 +13,11 @@ UAPI_URL = "https://uapi.adaptive-bits.com/api/unified/proxy?api_key=69ENLxox1Tk
 LINEAR_CONNECTION_ID = "d1f8831d-6808-4845-8db6-b8082fbb99e8"
 DEFAULT_TEAM_ID = "a7fc113d-5b51-4f6e-8a82-18eccf73c71c"
 
+COMMENT_AGGROOTS = "project, ticket, comment"
+
 PROJECT_MANAGEMENT_INTEGRATION_ENABLED = True
 PROJECT_MANAGEMENT_INTEGRATION_PROVIDER = "linear" 
+
 
 
 # env for JIRA and CLICKUP integration
