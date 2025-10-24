@@ -28,16 +28,7 @@ class LinearIntegration:
             self._client = None
     
     async def _call_linear_api(self, graphql_query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Call Linear API through UAPI proxy using httpx
         
-        Args:
-            graphql_query: GraphQL query/mutation string
-            variables: GraphQL variables
-            
-        Returns:
-            Response data from Linear API
-        """
         payload = {
             "query": graphql_query,
             "variables": variables
@@ -86,24 +77,7 @@ class LinearIntegration:
     # ---------- Issue Operations ----------
     
     async def create_issue(self, issue_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a new issue in Linear
-        
-        Args:
-            issue_data: {
-                "id": str (optional - your internal ID),
-                "title": str,
-                "description": str,
-                "teamId": str,
-                "projectId": str (optional),
-                "priority": int (1-4),
-                "estimate": int (optional),
-                "assigneeId": str (optional),
-                "stateId": str (optional),
-                "labelIds": list (optional),
-                "parentId": str (optional)
-            }
-        """
+       
         from .gql_queries import CREATE_ISSUE_MUTATION
         
         # Ensure teamId is set
@@ -296,6 +270,271 @@ class LinearIntegration:
                 "exists": False,
                 "message": "Không tìm thấy comment trên Linear."
             }
+            
+            
+    # ---------- Project Operations ----------
+    async def create_project(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
+        
+        from .gql_queries import CREATE_PROJECT_MUTATION
+        
+        # Validate required fields
+        if "name" not in project_data:
+            raise ValueError("Project name is required")
+        
+        if "teamIds" not in project_data or not project_data["teamIds"]:
+            # Use default team if not specified
+            project_data["teamIds"] = [self.team_id]
+        
+        variables = {"input": project_data}
+        result = await self._call_linear_api(CREATE_PROJECT_MUTATION, variables)
+        
+        project = result.get('projectCreate', {}).get('project', {})
+        if not project:
+            raise Exception("Failed to create project in Linear")
+        
+        logger.info(f"Created Linear project: {project.get('name')} (ID: {project.get('id')})")
+        return project
+
+
+    async def update_project(self, project_id: str, project_data: Dict[str, Any]) -> Dict[str, Any]:
+        
+        from .gql_queries import UPDATE_PROJECT_MUTATION
+        
+        # ✅ Clean data - remove None/empty values
+        cleaned_data = {}
+        
+        if project_data.get("name"):
+            cleaned_data["name"] = str(project_data["name"])
+        
+        if project_data.get("description"):
+            cleaned_data["description"] = str(project_data["description"])
+        
+        if project_data.get("leadId"):
+            cleaned_data["leadId"] = str(project_data["leadId"])
+        
+        if project_data.get("state"):
+            # Validate state
+            valid_states = ["planned", "started", "paused", "completed", "canceled"]
+            if project_data["state"] in valid_states:
+                cleaned_data["state"] = project_data["state"]
+        
+        if project_data.get("color"):
+            cleaned_data["color"] = str(project_data["color"])
+        
+        if project_data.get("icon"):
+            cleaned_data["icon"] = str(project_data["icon"])
+        
+        if project_data.get("startDate"):
+            cleaned_data["startDate"] = project_data["startDate"]
+        
+        if project_data.get("targetDate"):
+            cleaned_data["targetDate"] = project_data["targetDate"]
+        
+        # Check if there's anything to update
+        if not cleaned_data:
+            logger.warning(f"No valid fields to update for project {project_id}")
+            return {"id": project_id}
+        
+        logger.info(f"[Linear] Updating project {project_id} with: {cleaned_data}")
+        
+        # ✅ Use "id" instead of "projectId" to match mutation
+        variables = {
+            "id": str(project_id),  # ← Changed from "projectId"
+            "input": cleaned_data
+        }
+        
+        result = await self._call_linear_api(UPDATE_PROJECT_MUTATION, variables)
+        
+        project = result.get('projectUpdate', {}).get('project', {})
+        if not project:
+            raise Exception(f"Failed to update project {project_id} in Linear")
+        
+        logger.info(f"Updated Linear project: {project_id}")
+        return project
+
+
+    async def delete_project(self, project_id: str, permanently: bool = False) -> Dict[str, Any]:
+        """
+        Delete or archive a project in Linear
+        
+        Args:
+            project_id: Linear project ID
+            permanently: If True, delete permanently. If False, archive
+            
+        Returns:
+            Dict with success status
+        """
+        from .gql_queries import DELETE_PROJECT_MUTATION, ARCHIVE_PROJECT_MUTATION
+        
+        mutation = DELETE_PROJECT_MUTATION if permanently else ARCHIVE_PROJECT_MUTATION
+        variables = {"projectId": project_id}
+        
+        result = await self._call_linear_api(mutation, variables)
+        
+        if permanently:
+            success = result.get('projectDelete', {}).get('success', False)
+            action = "deleted"
+        else:
+            success = result.get('projectArchive', {}).get('success', False)
+            action = "archived"
+        
+        if success:
+            logger.info(f"Successfully {action} Linear project: {project_id}")
+        else:
+            logger.warning(f"Failed to {action} Linear project: {project_id}")
+        
+        return {'success': success}
+
+
+    async def get_project(self, project_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get project by ID from Linear
+        
+        Args:
+            project_id: Linear project ID
+            
+        Returns:
+            Dict with project data or None if not found
+        """
+        from .gql_queries import CHECK_PROJECT_EXISTS_QUERY
+        
+        variables = {"projectId": project_id}
+        result = await self._call_linear_api(CHECK_PROJECT_EXISTS_QUERY, variables)
+        
+        project = result.get('project')
+        if project:
+            logger.info(f"Found Linear project: {project.get('name')} (ID: {project_id})")
+        else:
+            logger.warning(f"Linear project not found: {project_id}")
+        
+        return project
+
+
+    async def check_project_exists(self, project_id: str) -> bool:
+        """
+        Check if project exists in Linear
+        
+        Args:
+            project_id: Linear project ID
+            
+        Returns:
+            bool: True if exists, False otherwise
+        """
+        try:
+            project = await self.get_project(project_id)
+            return project is not None
+        except Exception as e:
+            logger.error(f"Error checking project existence: {str(e)}")
+            return False
+        
+    #============ Project Milestone===========
+    
+    async def create_project_milestone(self, milestone_data: Dict[str, Any]) -> Dict[str, Any]:
+        from .gql_queries import CREATE_PROJECT_MILESTONE_MUTATION
+        
+        if "name" not in milestone_data:
+            raise ValueError("Milestone name is required")
+        
+        if "projectId" not in milestone_data:
+            raise ValueError("Project ID is required")
+        
+        variables = {"input": milestone_data}
+        result = await self._call_linear_api(CREATE_PROJECT_MILESTONE_MUTATION, variables)
+        
+        milestone = result.get('projectMilestoneCreate', {}).get('projectMilestone', {})
+        if not milestone:
+            raise Exception("Failed to create project milestone in Linear")
+        
+        logger.info(f"Created Linear milestone: {milestone.get('name')} (ID: {milestone.get('id')})")
+        return milestone
+
+    async def update_project_milestone(self, milestone_id: str, milestone_data: Dict[str, Any]) -> Dict[str, Any]:
+        from .gql_queries import UPDATE_PROJECT_MILESTONE_MUTATION
+        
+        cleaned_data = {}
+        
+        if milestone_data.get("name"):
+            cleaned_data["name"] = str(milestone_data["name"])
+        
+        if milestone_data.get("description"):
+            cleaned_data["description"] = str(milestone_data["description"])
+        
+        if milestone_data.get("targetDate"):
+            cleaned_data["targetDate"] = milestone_data["targetDate"]
+        
+        if "sortOrder" in milestone_data:
+            cleaned_data["sortOrder"] = float(milestone_data["sortOrder"])
+        
+        if not cleaned_data:
+            logger.warning(f"No valid fields to update for milestone {milestone_id}")
+            return {"id": milestone_id}
+        
+        logger.info(f"[Linear] Updating milestone {milestone_id} with: {cleaned_data}")
+        
+        variables = {
+            "id": str(milestone_id),
+            "input": cleaned_data
+        }
+        
+        result = await self._call_linear_api(UPDATE_PROJECT_MILESTONE_MUTATION, variables)
+        
+        milestone = result.get('projectMilestoneUpdate', {}).get('projectMilestone', {})
+        if not milestone:
+            raise Exception(f"Failed to update milestone {milestone_id} in Linear")
+        
+        logger.info(f"Updated Linear milestone: {milestone_id}")
+        return milestone
+
+    async def delete_project_milestone(self, milestone_id: str) -> Dict[str, Any]:
+        from .gql_queries import DELETE_PROJECT_MILESTONE_MUTATION
+        
+        variables = {"id": str(milestone_id)}
+        
+        result = await self._call_linear_api(DELETE_PROJECT_MILESTONE_MUTATION, variables)
+        
+        success = result.get('projectMilestoneDelete', {}).get('success', False)
+        
+        if success:
+            logger.info(f"Successfully deleted Linear milestone: {milestone_id}")
+        else:
+            logger.warning(f"Failed to delete Linear milestone: {milestone_id}")
+        
+        return {'success': success}
+
+    async def get_project_milestone(self, milestone_id: str) -> Optional[Dict[str, Any]]:
+        from .gql_queries import GET_PROJECT_MILESTONE_QUERY
+        
+        variables = {"id": str(milestone_id)}
+        result = await self._call_linear_api(GET_PROJECT_MILESTONE_QUERY, variables)
+        
+        milestone = result.get('projectMilestone')
+        if milestone:
+            logger.info(f"Found Linear milestone: {milestone.get('name')} (ID: {milestone_id})")
+        else:
+            logger.warning(f"Linear milestone not found: {milestone_id}")
+        
+        return milestone
+
+    async def check_project_milestone_exists(self, milestone_id: str) -> bool:
+        try:
+            milestone = await self.get_project_milestone(milestone_id)
+            return milestone is not None
+        except Exception as e:
+            logger.error(f"Error checking milestone existence: {str(e)}")
+            return False
+
+    async def list_project_milestones(self, project_id: str) -> list:
+        from .gql_queries import LIST_PROJECT_MILESTONES_QUERY
+        
+        variables = {"projectId": str(project_id)}
+        result = await self._call_linear_api(LIST_PROJECT_MILESTONES_QUERY, variables)
+        
+        project = result.get('project', {})
+        milestones = project.get('projectMilestones', {}).get('nodes', [])
+        
+        logger.info(f"Found {len(milestones)} milestones for project {project_id}")
+        return milestones
+        
 
 
 # Helper functions for mapping
@@ -338,3 +577,7 @@ def map_priority(priority_value: str) -> int:
         "NO_PRIORITY": 0
     }
     return priority_map.get(priority_value.upper(), 3)
+
+
+
+

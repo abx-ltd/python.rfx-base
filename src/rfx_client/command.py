@@ -14,6 +14,8 @@ import datetime
 from rfx_integration.pm_service import PMService
 from rfx_integration.pm_service.base import CreateTicketPayload
 from rfx_integration.pm_service.base import UpdateTicketPayload as PMUpdatePayload
+from rfx_integration.pm_service.base import CreateProjectPayload as PMProjectPayload
+
 
 from rfx_integration.pm_service import PMService
 processor = RFXClientDomain.command_processor
@@ -94,25 +96,47 @@ class CreateProject(Command):
             }
         )
         
-        if payload.sync_linear:
-            yield agg.create_message(
-                "create-linear-message",
-                data={
-                "command": "create-project-integration",
-                "project": serialize_mapping(new_project),
-                "project_id": str(agg.get_aggroot().identifier),
-                "payload": {
-                    "provider": "linear",
-                    "external_id": str(agg.get_aggroot().identifier),
-                },
-                "context": {
-                    "user_id": agg.get_context().user_id,
-                    "profile_id": agg.get_context().profile_id,
-                    "organization_id": agg.get_context().organization_id,
-                    "realm": agg.get_context().realm,
-                }
-            }
-            )
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:               
+                logger.info(f"Starting sync project to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                
+                async with PMService.init_client(
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ) as pm_service:
+                    
+                    pm_payload = PMProjectPayload(
+                        name=new_project.name,
+                        description=new_project.description if hasattr(new_project, 'description') else None,
+                        team_id=config.LINEAR_TEAM_ID,
+                        lead_id=str(profile_id) if profile_id else None,
+                        state=new_project.status if hasattr(new_project, 'status') else "PLANNED",
+                        start_date=new_project.start_date.isoformat() if hasattr(new_project, 'start_date') and new_project.start_date else None,
+                        target_date=new_project.target_date.isoformat() if hasattr(new_project, 'target_date') and new_project.target_date else None,
+                    )
+                    
+                    pm_response = await pm_service.create_project(pm_payload)
+                    
+                    logger.info(f"✓ Synced project to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"  External ID: {pm_response.external_id}")
+                    logger.info(f"  URL: {pm_response.url}")
+                    
+                    # ✅ Create integration record
+                    integration_result = await agg.create_project_integration(
+                        data=datadef.CreateProjectIntegrationPayload(
+                            provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                            external_id=pm_response.external_id,
+                            external_url=pm_response.url
+                        )
+                    )
+                    
+
+                    
+            except Exception as e:
+                logger.error(f"✗ Failed to sync project: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                
+
         
         
        
@@ -184,25 +208,77 @@ class UpdateProject(Command):
                 }
             }
         )
-        if payload.sync_linear:
-            yield agg.create_message(
-                    "update-linear-message",
-                    data={
-                    "command": "update-project-integration",
-                    "project": serialize_mapping(project),
-                    "project_id": str(agg.get_aggroot().identifier),
-                    "payload": {
-                        "provider": "linear",
-                        "external_id": str(agg.get_aggroot().identifier),
-                    },
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-            )
+        # if payload.sync_linear:
+        #     yield agg.create_message(
+        #             "update-linear-message",
+        #             data={
+        #             "command": "update-project-integration",
+        #             "project": serialize_mapping(project),
+        #             "project_id": str(agg.get_aggroot().identifier),
+        #             "payload": {
+        #                 "provider": "linear",
+        #                 "external_id": str(agg.get_aggroot().identifier),
+        #             },
+        #             "context": {
+        #                 "user_id": agg.get_context().user_id,
+        #                 "profile_id": agg.get_context().profile_id,
+        #                 "organization_id": agg.get_context().organization_id,
+        #                 "realm": agg.get_context().realm,
+        #             }
+        #         }
+        #     )
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+                # Find existing integration
+                integration = await stm.find_one("project-integration", where=dict(
+                    project_id=agg.get_aggroot().identifier,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if not integration:
+                    logger.warning("No integration found for this project, skipping sync")
+                else:
+                    from rfx_integration.pm_service import PMService
+                    from rfx_integration.pm_service.base import UpdateProjectPayload as PMUpdateProjectPayload
+                    
+                    logger.info(f"Syncing update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"External ID: {integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Build update payload - only include changed fields
+                        pm_payload = PMUpdateProjectPayload(
+                            external_id=integration.external_id,
+                            name=payload.name if payload.name else None,
+                            description=payload.description if payload.description else None,
+                            state=payload.status if hasattr(payload, 'status') and payload.status else None,
+                            lead_id=str(payload.lead_id) if hasattr(payload, 'lead_id') and payload.lead_id else None,
+                            target_date=payload.target_date.isoformat() if hasattr(payload, 'target_date') and payload.target_date else None,
+                        )
+                        
+                        pm_response = await pm_service.update_project(pm_payload)
+                        
+                        logger.info(f"✓ Updated in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        logger.info(f"  External ID: {integration.external_id}")
+                        logger.info(f"  Updated: {pm_response.updated}")
+                        
+                        # ✅ Update integration metadata
+                        await agg.update_project_integration(
+                            data=datadef.UpdateProjectIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=integration.external_id,
+                                external_url=pm_response.external_url
+                            )
+                        )
+                        
+                        logger.info(f"✓ Updated integration metadata")
+                        
+            except Exception as e:
+                logger.error(f"✗ Failed to sync update to PM service: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
         
         
         
@@ -265,26 +341,73 @@ class DeleteProject(Command):
             }
         )
         
-        if payload.sync_linear:
-            yield agg.create_message(
-                    "remove-linear-message",
-                    data={
-                    "command": "remove-project-integration",
-                    "project": serialize_mapping(project),
-                    # "project_id": str(agg.get_aggroot().identifier),
+        # if payload.sync_linear:
+        #     yield agg.create_message(
+        #             "remove-linear-message",
+        #             data={
+        #             "command": "remove-project-integration",
+        #             "project": serialize_mapping(project),
+        #             # "project_id": str(agg.get_aggroot().identifier),
                     
-                    "payload": {
-                        "provider": "linear",
-                        "external_id": str(agg.get_aggroot().identifier),
-                    },
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-            )
+        #             "payload": {
+        #                 "provider": "linear",
+        #                 "external_id": str(agg.get_aggroot().identifier),
+        #             },
+        #             "context": {
+        #                 "user_id": agg.get_context().user_id,
+        #                 "profile_id": agg.get_context().profile_id,
+        #                 "organization_id": agg.get_context().organization_id,
+        #                 "realm": agg.get_context().realm,
+        #             }
+        #         }
+        #     )
+        
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+                # Find integration
+                integration = await stm.find_one("project-integration", where=dict(
+                    project_id=agg.get_aggroot().identifier,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if integration:
+                    from rfx_integration.pm_service import PMService
+                    
+                    logger.info(f"Removing project from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"External ID: {integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Delete from PM service
+                        success = await pm_service.delete_project(
+                            project_id=integration.external_id,
+                            permanently=True  # or False for archive
+                        )
+                        
+                        if success:
+                            logger.info(f"✓ Deleted from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        else:
+                            logger.warning(f"Failed to delete from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        
+                        # ✅ Remove integration record
+                        await agg.remove_project_integration(
+                            data=datadef.RemoveProjectIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=integration.external_id
+                            )
+                        )
+                        
+                        logger.info(f"✓ Removed integration record")
+                else:
+                    logger.info("No integration found, skipping PM service deletion")
+                    
+            except Exception as e:
+                logger.error(f"✗ Failed to remove from PM service: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                
         await agg.delete_project()
 
 
@@ -968,26 +1091,59 @@ class CreateProjectMilestone(Command):
             }
         )
         
-        if payload.sync_linear:
-            yield agg.create_message(
-                "create-milestone-message",
-                data={
-                    "command": "create-project-milestone-integration",
-                    "milestone": serialize_mapping(result),
-                    "project_id": str(agg.get_aggroot().identifier),
-                    "payload": {
-                        "provider": "linear",
-                        "external_id": str(result._id),
-                        "milestone_id": str(result._id),
-                    },
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-            )
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+                # Find project integration to get external project ID
+                project_integration = await stm.find_one("project-integration", where=dict(
+                    project_id=agg.get_aggroot().identifier,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if not project_integration:
+                    logger.warning("No project integration found, cannot sync milestone")
+                else:
+                    from rfx_integration.pm_service import PMService
+                    from rfx_integration.pm_service.base import CreateProjectMilestonePayload as PMCreateMilestonePayload
+                    
+                    logger.info(f"Syncing milestone to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Build payload
+                        pm_payload = PMCreateMilestonePayload(
+                            name=result.name,
+                            project_id=project_integration.external_id,  # Use external project ID
+                            description=result.description if hasattr(result, 'description') else None,
+                            target_date=result.target_date.isoformat() if hasattr(result, 'target_date') and result.target_date else None,
+                            sort_order=result.sort_order if hasattr(result, 'sort_order') else None,
+                        )
+                        
+                        pm_response = await pm_service.create_project_milestone(pm_payload)
+                        
+                        logger.info(f"✓ Synced milestone to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+    
+                        
+                        # ✅ Create integration record
+                        await agg.create_project_milestone_integration(
+                            data=datadef.CreateProjectMilestoneIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=pm_response.external_id,
+                                milestone_id=str(result._id),
+                                project_id=str(agg.get_aggroot().identifier),
+                                external_url=pm_response.external_url
+                            )
+                        )
+                        
+                        logger.info(f"✓ Created milestone integration record")
+                        
+            except Exception as e:
+                logger.error(f"✗ Failed to sync milestone: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+       
 
 
 class UpdateProjectMilestone(Command):
@@ -1044,26 +1200,61 @@ class UpdateProjectMilestone(Command):
             }
         )
         
-        if payload.sync_linear:
-            yield agg.create_message(
-                "update-milestone-message",
-                data={
-                    "command": "update-project-milestone-integration",
-                    "milestone": serialize_mapping(result),
-                    "project_id": str(agg.get_aggroot().identifier),
-                    "payload": {
-                        "provider": "linear",
-                        "external_id": str(result._id),
-                        "milestone_id": str(result._id),
-                    },
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-            )
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+                # Find milestone integration
+                milestone_integration = await stm.find_one("project-milestone-integration", where=dict(
+                    milestone_id=payload.milestone_id,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if not milestone_integration:
+                    logger.warning("No milestone integration found, skipping sync")
+                else:
+                    from rfx_integration.pm_service import PMService
+                    from rfx_integration.pm_service.base import UpdateProjectMilestonePayload as PMUpdateMilestonePayload
+                    
+                    logger.info(f"Syncing milestone update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"External ID: {milestone_integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Build update payload - only include changed fields
+                        pm_payload = PMUpdateMilestonePayload(
+                            external_id=milestone_integration.external_id,
+                            name=payload.name if hasattr(payload, 'name') and payload.name else None,
+                            description=payload.description if hasattr(payload, 'description') and payload.description else None,
+                            target_date=payload.target_date.isoformat() if hasattr(payload, 'target_date') and payload.target_date else None,
+                            sort_order=payload.sort_order if hasattr(payload, 'sort_order') else None,
+                        )
+                        
+                        pm_response = await pm_service.update_project_milestone(pm_payload)
+                        
+                        logger.info(f"✓ Updated milestone in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        logger.info(f"  External ID: {milestone_integration.external_id}")
+                        logger.info(f"  Updated: {pm_response.updated}")
+                        
+                        # ✅ Update integration metadata (optional)
+                        await agg.update_project_milestone_integration(
+                            data=datadef.UpdateProjectMilestoneIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=milestone_integration.external_id,
+                                milestone_id=str(payload.milestone_id),
+                                project_id=str(agg.get_aggroot().identifier),
+                                external_url=pm_response.external_url
+                            )
+                        )
+                        
+                        logger.info(f"✓ Updated milestone integration metadata")
+                        
+            except Exception as e:
+                logger.error(f"✗ Failed to sync milestone update: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        
 
 
 class DeleteProjectMilestone(Command):
@@ -1118,26 +1309,54 @@ class DeleteProjectMilestone(Command):
             }
         )
         
-        if payload.sync_linear:
-            yield agg.create_message(
-                "remove-milestone-message",
-                data={
-                    "command": "remove-project-milestone-integration",
-                    "milestone_id": str(project_milestone._id),
-                    "project_id": str(agg.get_aggroot().identifier),
-                    "payload": {
-                        "provider": "linear",
-                        "external_id": str(project_milestone._id),
-                        "milestone_id": str(project_milestone._id),
-                    },
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-            )
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+            try:
+                # Find milestone integration
+                milestone_integration = await stm.find_one("project-milestone-integration", where=dict(
+                    milestone_id=payload.milestone_id,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if milestone_integration:
+                    from rfx_integration.pm_service import PMService
+                    
+                    logger.info(f"Deleting milestone from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"External ID: {milestone_integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Delete from PM service
+                        success = await pm_service.delete_project_milestone(
+                            external_id=milestone_integration.external_id
+                        )
+                        
+                        if success:
+                            logger.info(f"✓ Deleted milestone from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        else:
+                            logger.warning(f"Failed to delete milestone from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        
+                        # ✅ Remove integration record
+                        await agg.remove_project_milestone_integration(
+                            data=datadef.RemoveProjectMilestoneIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=milestone_integration.external_id,
+                                milestone_id=str(payload.milestone_id),
+                                project_id=str(agg.get_aggroot().identifier)
+                            )
+                        )
+                        
+                        logger.info(f"✓ Removed milestone integration record")
+                else:
+                    logger.info("No milestone integration found, skipping PM service deletion")
+                    
+            except Exception as e:
+                logger.error(f"✗ Failed to delete milestone from PM service: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+       
 
 
 class CreateProjectCategory(Command):
@@ -2441,6 +2660,245 @@ class RemoveParticipantFromTicket(Command):
         )
 
         await agg.remove_ticket_participant(payload.participant_id)
+        
+        
+
+# ---------- Tag Context ----------
+class CreateTag(Command):
+    """Create Tag - Creagtes a new tag"""
+
+    class Meta:
+        key = "create-tag"
+        resources = ("tag",)
+        tags = ["tag"]
+        auth_required = True
+        description = "Create a new tag in project"
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.CreateTagPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create tag"""
+        result = await agg.create_tag(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="tag-response")
+
+
+class UpdateTag(Command):
+    """Update Tag - Updates a tag"""
+
+    class Meta:
+        key = "update-tag"
+        resources = ("tag",)
+        tags = ["tag", "update"]
+        auth_required = True
+        description = "Update tag"
+        policy_required = False
+
+    Data = datadef.UpdateTagPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update tag"""
+        await agg.update_tag(data=payload)
+
+
+class DeleteTag(Command):
+    """Delete Tag - Deletes a tag"""
+
+    class Meta:
+        key = "delete-tag"
+        resources = ("tag",)
+        tags = ["tag", "delete"]
+        auth_required = True
+        description = "Delete tag"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Delete tag"""
+        await agg.delete_tag()
+
+
+# ---------- Ticket Type (Ticket Context) ----------
+class CreateTicketType(Command):
+    """Create Ticket Type - Creates a new ticket type"""
+
+    class Meta:
+        key = "create-ticket-type"
+        resources = ("ticket",)
+        tags = ["ticket", "ticket-type", "reference"]
+        auth_required = True
+        description = "Create a new ticket type"
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.CreateTicketTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Create ticket type"""
+        result = await agg.create_ticket_type(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="ticket-type-response")
+
+
+class UpdateTicketType(Command):
+    """Update Ticket Type - Updates a ticket type"""
+
+    class Meta:
+        key = "update-ticket-type"
+        resources = ("ticket",)
+        tags = ["ticket", "ticket-type", "update"]
+        auth_required = True
+        description = "Update a ticket type"
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.UpdateTicketTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Update ticket type"""
+        await agg.update_ticket_type(data=payload)
+
+
+class DeleteTicketType(Command):
+    """Delete Ticket Type - Deletes a ticket type"""
+
+    class Meta:
+        key = "delete-ticket-type"
+        resources = ("ticket",)
+        tags = ["ticket", "ticket-type", "delete"]
+        auth_required = True
+        description = "Delete a ticket type"
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.DeleteTicketTypePayload
+
+    async def _process(self, agg, stm, payload):
+        """Delete ticket type"""
+        await agg.delete_ticket_type(data=payload)
+
+
+# ---------- Ticket Tag (Ticket Context) ----------
+class AddTicketTag(Command):
+    """Add Tag to Ticket - Adds a tag to ticket"""
+
+    class Meta:
+        key = "add-ticket-tag"
+        resources = ("ticket",)
+        tags = ["ticket", "tag"]
+        auth_required = True
+        description = "Add tag to ticket"
+        policy_required = True
+
+    Data = datadef.AddTicketTagPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add tag to ticket"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} added a tag",
+            msglabel="add tag",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "tag_id": payload.tag_id,
+                "added_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+        await agg.add_ticket_tag(payload.tag_id)
+
+
+class RemoveTicketTag(Command):
+    """Remove Tag from Ticket - Removes a tag from ticket"""
+
+    class Meta:
+        key = "remove-ticket-tag"
+        resources = ("ticket",)
+        tags = ["ticket", "tag"]
+        auth_required = True
+        description = "Remove tag from ticket"
+        policy_required = True
+
+    Data = datadef.RemoveTicketTagPayload
+
+    async def _process(self, agg, stm, payload):
+        """Remove tag from ticket"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} removed a tag",
+            msglabel="remove tag",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "tag_id": payload.tag_id,
+                "removed_by": f"{profile.name__given} {profile.name__family}",
+            }
+        )
+
+        await agg.remove_ticket_tag(payload.tag_id)
+
+# ------------ Status Context ----------
+class CreateStatus(Command):
+    """Create Status - Creates a new status"""
+
+    class Meta:
+        key = "create-status"
+        resources = ("status",)
+        tags = ["status"]
+        auth_required = True
+        description = "Create a new status"
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.CreateStatusPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create status"""
+        status = await agg.create_status(data=payload)
+        yield agg.create_response(serialize_mapping(status), _type="status-response")
+
+
+class CreateStatusKey(Command):
+    """Create Status Key - Creates a new status key"""
+
+    class Meta:
+        key = "create-status-key"
+        resources = ("status",)
+        tags = ["status", "status-key"]
+        auth_required = True
+        description = "Create a new status key"
+        policy_required = False
+
+    Data = datadef.CreateStatusKeyPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create status key"""
+        status_key = await agg.create_status_key(data=payload)
+        yield agg.create_response(serialize_mapping(status_key), _type="status-key-response")
+
+
+class CreateStatusTransition(Command):
+    """Create Status Transition - Creates a new status transition"""
+
+    class Meta:
+        key = "create-status-transition"
+        resources = ("status",)
+        tags = ["status", "status-transition"]
+        auth_required = True
+        description = "Create a new status transition"
+        policy_required = False
+
+    Data = datadef.CreateStatusTransitionPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create status transition"""
+        status_transition = await agg.create_status_transition(data=payload)
+        yield agg.create_response(serialize_mapping(status_transition), _type="status-transition-response")
 
 
 #--------------- Ticket Integration------------

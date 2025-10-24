@@ -583,8 +583,69 @@ class Tag(RFXClientBaseModel):
     is_active = sa.Column(sa.Boolean, default=True)
     target_resource = sa.Column(sa.String(100), nullable=False)
     organization_id = sa.Column(pg.UUID)
+    
+
+# ================ Workflow Context ================
+
+
+class Status(RFXClientBaseModel):
+    __tablename__ = "status"
+
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    entity_type = sa.Column(sa.String(100), nullable=False)
+    is_active = sa.Column(sa.Boolean, default=True)
+
+
+class StatusKey(RFXClientBaseModel):
+    __tablename__ = "status-key"
+
+    status_id = sa.Column(sa.ForeignKey(Status._id), nullable=False)
+    key = sa.Column(sa.String(100), nullable=False, unique=True)
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    is_initial = sa.Column(sa.Boolean, default=False)
+    is_final = sa.Column(sa.Boolean, default=False)
+
+
+class StatusTransition(RFXClientBaseModel):
+    __tablename__ = "status-transition"
+
+    status_id = sa.Column(sa.ForeignKey(Status._id), nullable=False)
+    src_status_key_id = sa.Column(sa.ForeignKey(
+        StatusKey._id), nullable=False)
+    dst_status_key_id = sa.Column(sa.ForeignKey(
+        StatusKey._id), nullable=False)
+
+
+class ViewStatus(RFXClientBaseModel):
+    __tablename__ = "_status"
+
+    entity_type = sa.Column(sa.String(100), nullable=False)
+    status_id = sa.Column(pg.UUID, primary_key=True)
+    key = sa.Column(sa.String(100), nullable=False)
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    is_initial = sa.Column(sa.Boolean, nullable=False)
+    is_final = sa.Column(sa.Boolean, nullable=False)
 
 # View
+
+class ViewInquiry(RFXClientBaseModel):
+    __tablename__ = "_inquiry"
+
+    type = sa.Column(sa.String(255), primary_key=True)
+    type_icon_color = sa.Column(sa.String(7))  # Hex color code
+    title = sa.Column(sa.String(255), nullable=False)
+    tag_names = sa.Column(pg.ARRAY(sa.String))
+    participants = sa.Column(pg.JSONB)
+    activity = sa.Column(sa.DateTime)
+    availability = sa.Column(
+        sa.Enum(types.Availability, name="availability",
+                schema=config.CPO_CLIENT_SCHEMA),
+        nullable=False
+    )
+    organization_id = sa.Column(pg.UUID)
 class ViewTicket(RFXClientBaseModel):
     __tablename__ = "_ticket"
 

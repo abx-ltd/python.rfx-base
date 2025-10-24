@@ -1164,7 +1164,7 @@ class RFXClientAggregate(Aggregate):
     async def remove_project_integration(self, /, data):
         """Delete a project integration"""
         # project = self.rootobj
-        logger.info(f"Delete project: {project}")
+        #logger.info(f"Delete project: {project}")
         project_integration = await self.statemgr.find_one('project-integration', where=dict(
             provider=data.provider,
             external_id=data.external_id,
@@ -1458,6 +1458,72 @@ class RFXClientAggregate(Aggregate):
         for tag in tags:
             await self.statemgr.invalidate_one('ticket-tag', tag._id)
         return {"removed": True}
+    
+    # =========== Tag Context ============
+    @action("tag-created", resources="tag")
+    async def create_tag(self, /, data):
+        """Create a new tag"""
+        record = self.init_resource(
+            "tag",
+            serialize_mapping(data),
+            organization_id=self.context.organization_id,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("tag-updated", resources="tag")
+    async def update_tag(self, /, data):
+        """Update tag"""
+        tag = self.rootobj
+        await self.statemgr.update(tag, **serialize_mapping(data))
+        return tag
+
+    @action("tag-deleted", resources="tag")
+    async def delete_tag(self, /):
+        """Delete tag"""
+        tag = self.rootobj
+        if not tag:
+            raise ValueError("Tag not found")
+        await self.statemgr.invalidate(tag)
+        return {"deleted": True}
+    
+    @action("status-created", resources="status")
+    async def create_status(self, /, data):
+        """Create a new workflow"""
+        record = self.init_resource(
+            "status",
+            serialize_mapping(data),
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("status-key-created", resources="status")
+    async def create_status_key(self, /, data):
+        """Create a new status key"""
+        status = self.rootobj
+        record = self.init_resource(
+            "status-key",
+            serialize_mapping(data),
+            status_id=status._id,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("status-transition-created", resources="status")
+    async def create_status_transition(self, /, data):
+        """Create a new status transition"""
+        status = self.rootobj
+        record = self.init_resource(
+            "status-transition",
+            serialize_mapping(data),
+            status_id=status._id,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
     
     #----------- Agg Ticket Integration (Ticket Context) -----------
     @action("create-ticket-integration", resources="ticket")

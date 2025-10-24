@@ -373,13 +373,13 @@ class SyncProjectIntegrationPayload(DataModel):
 class CreateProjectMilestoneIntegrationPayload(DataModel):
     provider: str
     external_id: str
-    external_url: str
+    external_url: Optional[str] = None
     milestone_id: UUID_TYPE
 
 class UpdateProjectMilestoneIntegrationPayload(DataModel):
     provider: str
     external_id: str
-    external_url: str
+    external_url: Optional[str] = None
     milestone_id: UUID_TYPE
     
 class RemoveProjectMilestoneIntegrationPayload(DataModel):
@@ -492,6 +492,31 @@ class UpdateTagPayload(DataModel):
     description: Optional[str] = None
     target_resource: Optional[str] = None
     is_active: Optional[bool] = None
+    
+
+# ---------- Status Context ----------
+
+
+class CreateStatusPayload(DataModel):
+    name: str
+    description: Optional[str] = None
+    entity_type: str
+    is_active: bool = True
+
+
+class CreateStatusKeyPayload(DataModel):
+    key: str
+    name: str
+    description: Optional[str] = None
+    is_initial: bool = False
+    is_final: bool = False
+
+
+class CreateStatusTransitionPayload(DataModel):
+    src_status_key_id: UUID_TYPE
+    dst_status_key_id: UUID_TYPE
+    condition: Optional[dict] = None
+
 
 
 #------------- Ticket Integration-----------
