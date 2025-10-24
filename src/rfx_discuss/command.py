@@ -36,12 +36,12 @@ class CreateComment(Command):
         description = "Create a new comment"
         policy_required = False
         new_resource = True
-
+    Data = datadef.CreateCommentPayload
 
     async def _process(self, agg, stm, payload):
         """Create comment"""
     
-        result = await agg.create_comment()
+        result = await agg.create_comment(data=payload)
 
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
@@ -77,7 +77,7 @@ class DeleteComment(Command):
         policy_required = False
         
         
-    Data = datadef.DeleteCommentPayload
+    
 
     async def _process(self, agg, stm, payload):
         """Delete comment"""
