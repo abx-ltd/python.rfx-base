@@ -4,8 +4,8 @@ from fluvius.data import serialize_mapping, UUID_GENR, logger, timestamp, serial
 from datetime import datetime, timezone
 from .helper import parse_duration_for_db
 from .utils import safe_getattr
-from .service import LinearService
 from .types import SyncStatus
+from . import config
 
 class RFXClientAggregate(Aggregate):
     """CPO Portal Aggregate Root - Handles all project, work package, ticket, workflow, tag, integration, and notification operations"""
@@ -28,7 +28,7 @@ class RFXClientAggregate(Aggregate):
             serialize_mapping(data),
             status="DRAFT",
             organization_id=self.context.organization_id,
-            _id=UUID_GENR()
+            _id=self.aggroot.identifier
         )
         # we will check user permission to add project-member role correct (now we just default it client)
         project_member = self.init_resource(
@@ -36,7 +36,7 @@ class RFXClientAggregate(Aggregate):
             {
                 "member_id": self.context.profile_id,
                 "role": "CLIENT",
-                "project_id": estimator._id
+                "project_id": self.aggroot.identifier
             },
             _id=UUID_GENR(),
         )
@@ -87,10 +87,9 @@ class RFXClientAggregate(Aggregate):
         )
 
         project_data = serialize_mapping(data)
-        project_data.pop('sync_linear', None)
 
         sync_status = SyncStatus.PENDING
-        if data.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             sync_status = SyncStatus.SYNCED
 
 
@@ -133,12 +132,11 @@ class RFXClientAggregate(Aggregate):
                     "Invalid status, Can not transition to this status")
                 
         project_data = serialize_mapping(data)
-        project_data.pop('sync_linear', None)
         project_data.pop('target_date', None)
         project_data.pop('duration', None)
 
         sync_status = SyncStatus.PENDING
-        if data.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             sync_status = SyncStatus.SYNCED
 
         await self.statemgr.update(
@@ -644,7 +642,6 @@ class RFXClientAggregate(Aggregate):
     async def create_project_milestone(self, /, data):
         project = self.rootobj
         project_data = serialize_mapping(data)
-        project_data.pop('sync_linear', None)
         record = self.init_resource(
             "project-milestone",
             _id=UUID_GENR(),
@@ -668,7 +665,6 @@ class RFXClientAggregate(Aggregate):
 
         update_data = serialize_mapping(data)
         update_data.pop('milestone_id', None)
-        update_data.pop('sync_linear', None)
 
         await self.statemgr.update(milestone, **update_data)
         result = await self.statemgr.find_one('project-milestone', where=dict(
@@ -1309,7 +1305,7 @@ class RFXClientAggregate(Aggregate):
         """Create a new ticket tied to project"""
         data_result=serialize_mapping(data)
         data_result.pop("project_id", None)
-        data_result.pop("sync_linear", None)
+      
 
         record = self.init_resource(
             "ticket",
@@ -1351,7 +1347,7 @@ class RFXClientAggregate(Aggregate):
                     "Invalid status, Can not transition to this status")
                 
         data_result=serialize_mapping(data)
-        data_result.pop("sync_linear", None)
+       
 
         await self.statemgr.update(ticket, **data_result)
 
@@ -1391,7 +1387,7 @@ class RFXClientAggregate(Aggregate):
     @action('member-removed-from-ticket', resources='ticket')
     async def remove_member_from_ticket(self, /, member_id: str):
         """Remove member from ticket"""
-        assignee = await self.statemgr.find_one('ticket-assignee',                                                 where=dict(
+        assignee = await self.statemgr.find_one('ticket-assignee',where=dict(
             ticket_id=self.aggroot.identifier,
             member_id=member_id
         ))
@@ -1573,6 +1569,122 @@ class RFXClientAggregate(Aggregate):
         
         
         await self.statemgr.invalidate(ticket_integration)
+        return {"removed": True}
+
+
+    @action("comment-created", resources=tuple(config.COMMENT_AGGROOTS.split(",")))
+    async def create_comment(self, /, data):
+        """Create a new comment"""
+        record = self.init_resource(
+            "comment",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+            organization_id=self.context.organization_id
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("comment-updated", resources="comment")
+    async def update_comment(self, /, data):
+        """Update comment"""
+        data_result=serialize_mapping(data)
+        await self.statemgr.update(self.rootobj, **data_result)
+
+    @action("comment-deleted", resources="comment")
+    async def delete_comment(self, /):
+        """Delete comment"""
+        comment = self.rootobj
+        await self.statemgr.invalidate(comment)
+
+    @action("reply-to-comment", resources="comment")
+    async def reply_to_comment(self, /, data):
+        """Reply to comment"""
+        parent_comment = self.rootobj
+        profile_id = self.get_context().profile_id
+        organization_id = self.get_context().organization_id
+        
+        logger.info(f"Creating reply to comment: {parent_comment._id}")
+        
+       
+        parent_id = parent_comment._id
+        depth = parent_comment.depth + 1
+        
+        
+        if parent_comment.depth >= config.COMMENT_NESTED_LEVEL:
+            depth = parent_comment.depth
+            parent_id = parent_comment.parent_id
+            logger.info(f"Max nest level reached, attaching to parent: {parent_id}")
+        
+        
+        reply_data = serialize_mapping(data)
+        reply_data.update({
+            "parent_id": parent_id,
+            "depth": depth,
+            "resource": parent_comment.resource,
+            "resource_id": parent_comment.resource_id
+        })
+        
+        
+        new_comment = self.init_resource(
+            "comment",
+            reply_data,
+            _id=UUID_GENR(),
+            organization_id=organization_id
+        )
+        
+        await self.statemgr.insert(new_comment)
+        return new_comment
+    
+    # comment integration 
+    
+    @action("create-comment-integration", resources=tuple(config.COMMENT_AGGROOTS.split(",")))
+    async def create_comment_integration(self, /, data):
+        """Create a new comment integration"""
+        comment = await self.statemgr.find_one("comment", where=dict(_id=data.comment_id))
+        if not comment:
+            raise ValueError("Comment not found")
+
+        record = self.init_resource(
+            "comment-integration",
+            serialize_mapping(data),
+            # comment_id=self.aggroot.identifier,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+        
+    @action("update-comment-integration", resources="comment")
+    async def update_comment_integration(self, /, data):
+        """Update comment integration"""
+        comment = await self.statemgr.find_one("comment", where=dict(_id=self.aggroot.identifier))
+        if not comment:
+            raise ValueError("Comment not found")
+        
+        comment_integration = await self.statemgr.find_one("comment-integration", where=dict(
+            provider=data.provider,
+            comment_id=self.aggroot.identifier,
+            external_id=data.external_id
+        ))
+        
+        if not comment_integration:
+            raise ValueError("Comment integration not found")
+        await self.statemgr.update(comment_integration, **serialize_mapping(data))
+        return comment_integration
+
+    @action("remove-comment-integration", resources="comment")
+    async def remove_comment_integration(self, /, data):
+        """Remove comment integration"""
+        logger.warn(f"Attempting to remove integration with payload: {data}")
+        comment_integration = await self.statemgr.find_one("comment-integration", where=dict(
+            provider=data.provider,
+            comment_id=data.comment_id,
+            external_id=data.external_id
+        ))
+        
+        if not comment_integration:
+            raise ValueError("Comment integration not found")
+
+        await self.statemgr.invalidate(comment_integration)
         return {"removed": True}
    
     

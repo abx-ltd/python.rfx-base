@@ -121,3 +121,9 @@ class TicketTypeResponse(RFXClientDomain.Response):
 
 class TagResponse(RFXClientDomain.Response):
     pass
+
+
+class CommentResponse(RFXClientDomain.Response):
+    pass
+
+

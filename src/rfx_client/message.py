@@ -3,7 +3,6 @@ from .domain import RFXClientDomain
 from . import config
     
 from cpo_portal.integration import get_worker_client
-from .service import LinearService
 
 
 class DiscussionMessageData(DataModel):

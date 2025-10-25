@@ -8,13 +8,16 @@ from . import datadef, config
 from .types import ActivityAction
 from fluvius.data import UUID_TYPE, UUID_GENR, logger
 from .helper import get_project_member_user_ids
-from .integration import call_linear_api, get_linear_status_id, get_linear_user_id, get_linear_label_id
+
 import datetime
 
 from rfx_integration.pm_service import PMService
 from rfx_integration.pm_service.base import CreateTicketPayload
 from rfx_integration.pm_service.base import UpdateTicketPayload as PMUpdatePayload
 from rfx_integration.pm_service.base import CreateProjectPayload as PMProjectPayload
+from rfx_integration.pm_service.base import UpdateProjectPayload as PMUpdateProjectPayload
+from rfx_integration.pm_service.base import CreateCommentPayload as PMCreateCommentPayload
+from rfx_integration.pm_service.base import UpdateCommentPayload as PMUpdateCommentPayload
 
 
 from rfx_integration.pm_service import PMService
@@ -96,7 +99,7 @@ class CreateProject(Command):
             }
         )
         
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:               
                 logger.info(f"Starting sync project to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
                 
@@ -112,6 +115,7 @@ class CreateProject(Command):
                         state=new_project.status if hasattr(new_project, 'status') else "PLANNED",
                         start_date=new_project.start_date.isoformat() if hasattr(new_project, 'start_date') and new_project.start_date else None,
                         target_date=new_project.target_date.isoformat() if hasattr(new_project, 'target_date') and new_project.target_date else None,
+                        project_id=str(new_project._id)
                     )
                     
                     pm_response = await pm_service.create_project(pm_payload)
@@ -208,26 +212,8 @@ class UpdateProject(Command):
                 }
             }
         )
-        # if payload.sync_linear:
-        #     yield agg.create_message(
-        #             "update-linear-message",
-        #             data={
-        #             "command": "update-project-integration",
-        #             "project": serialize_mapping(project),
-        #             "project_id": str(agg.get_aggroot().identifier),
-        #             "payload": {
-        #                 "provider": "linear",
-        #                 "external_id": str(agg.get_aggroot().identifier),
-        #             },
-        #             "context": {
-        #                 "user_id": agg.get_context().user_id,
-        #                 "profile_id": agg.get_context().profile_id,
-        #                 "organization_id": agg.get_context().organization_id,
-        #                 "realm": agg.get_context().realm,
-        #             }
-        #         }
-        #     )
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find existing integration
                 integration = await stm.find_one("project-integration", where=dict(
@@ -305,8 +291,7 @@ class DeleteProject(Command):
 
         user_ids, project = await get_project_member_user_ids(stm, agg.get_aggroot().identifier)
 
-        # if payload.sync_linear:
-        #     await agg.delete_linear_project()
+
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -341,28 +326,8 @@ class DeleteProject(Command):
             }
         )
         
-        # if payload.sync_linear:
-        #     yield agg.create_message(
-        #             "remove-linear-message",
-        #             data={
-        #             "command": "remove-project-integration",
-        #             "project": serialize_mapping(project),
-        #             # "project_id": str(agg.get_aggroot().identifier),
-                    
-        #             "payload": {
-        #                 "provider": "linear",
-        #                 "external_id": str(agg.get_aggroot().identifier),
-        #             },
-        #             "context": {
-        #                 "user_id": agg.get_context().user_id,
-        #                 "profile_id": agg.get_context().profile_id,
-        #                 "organization_id": agg.get_context().organization_id,
-        #                 "realm": agg.get_context().realm,
-        #             }
-        #         }
-        #     )
         
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find integration
                 integration = await stm.find_one("project-integration", where=dict(
@@ -1091,7 +1056,7 @@ class CreateProjectMilestone(Command):
             }
         )
         
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find project integration to get external project ID
                 project_integration = await stm.find_one("project-integration", where=dict(
@@ -1200,7 +1165,7 @@ class UpdateProjectMilestone(Command):
             }
         )
         
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find milestone integration
                 milestone_integration = await stm.find_one("project-milestone-integration", where=dict(
@@ -1309,7 +1274,7 @@ class DeleteProjectMilestone(Command):
             }
         )
         
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find milestone integration
                 milestone_integration = await stm.find_one("project-milestone-integration", where=dict(
@@ -2046,54 +2011,7 @@ class CreditUsageSummary(Command):
         yield agg.create_response({"data": [serialize_mapping(item) for item in summary]}, _type="credit-usage-summary-response")
 
 
-class SyncProjectToLinear(Command):
-    """Sync Project to Linear - Sync a project to Linear"""
 
-    class Meta:
-        key = "sync-project-to-linear"
-        resources = ("project",)
-        tags = ["project", "linear"]
-        auth_required = False 
-        description = "Sync a project to Linear"
-        policy_required = False
-
-    async def _process(self, agg, stm, payload):
-        """Sync a project to Linear"""
-
-
-        # check = await agg.check_linear_project_exists()
-        # exists = check.get("exists", False)
-
-        # if not exists:
-        #     result = await agg.create_linear_project()
-        # else:
-        #     result = await agg.update_linear_project()
-
-        # yield agg.create_response({"data": result}, _type="sync-project-to-linear-response")
-
-        # project 1 -> n project_integration (provider: linear, external_id: project_id, resource: project)
-        project = agg.get_rootobj()
-
-
-        
-        yield agg.create_message(
-            "linear-message",
-            data={
-                "command": "sync-project-integration",
-                "project": serialize_mapping(project),
-                "project_id": str(agg.get_aggroot().identifier),
-                "payload": {
-                    "provider": "linear",
-                    "external_id": str(agg.get_aggroot().identifier),
-                },
-                "context": {
-                    "user_id": agg.get_context().user_id,
-                    "profile_id": agg.get_context().profile_id,
-                    "organization_id": agg.get_context().organization_id,
-                    "realm": agg.get_context().realm,
-                }
-            }
-        )
 
 class CreateProjectIntegration(Command):
     """Create Project Integration - Create a project integration"""
@@ -2311,9 +2229,7 @@ class CreateTicket(Command):
         )
         ticket_id = result._id
         
-        logger.info(f"PROJECT_MANAGEMENT_INTEGRATION_ENABLED: {config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED}, sync_linear: {payload.sync_linear}")
-        logger.info(f"Payload: {payload}")
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                
                 async with PMService.init_client(
@@ -2385,7 +2301,7 @@ class UpdateTicketInfo(Command):
             }
         )
         
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find existing integration
                 integration = await stm.find_one("ticket-integration", where=dict(
@@ -2958,3 +2874,265 @@ class RemoveTicketIntegration(Command):
     async def _process(self, agg, stm, payload):
         """Remove a ticket integration"""
         await agg.remove_ticket_integration(data=payload)
+        
+        
+# ---------- Comment Context ----------
+
+class CreateComment(Command):
+    """
+        Create Comment - Creates a new comment
+        API Endpoint Example:
+            - Endpoint: POST /api/v1/namespace:create-comment/<aggroot>/<aggroot_id>
+            - Sample:
+                + aggroot = project, aggroot_id = <project_id>
+                + aggroot = ticket, aggroot_id = <ticket_id>
+            - Data: resource = project/ticket, resource_id = <project_id>/<ticket_id>, content = "This is a comment", sync_linear = True/False
+        
+    """
+
+
+    class Meta:
+        key = "create-comment"
+        resources : tuple(config.COMMENT_AGGROOTS.split(","))
+        tags = ["comment"]
+        auth_required = True
+        description = "Create a new comment"
+        policy_required = False
+        
+    Data = datadef.CreateCommentPayload
+
+
+    async def _process(self, agg, stm, payload):
+        """Create comment"""
+        
+        
+        aggroot = agg.get_aggroot()
+        resource_type = aggroot.resource  
+        resource_id = aggroot.identifier
+        
+        payload_dict = serialize_mapping(payload)
+        payload_dict['resource'] = resource_type
+        payload_dict['resource_id'] = str(resource_id)
+       
+
+        result = await agg.create_comment(data=payload_dict)
+        
+
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and resource_type != "project":
+            try:
+                if not config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER:
+                    raise ValueError("PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set")
+                # Find resource integration (project or ticket)
+                integration_table = f"{resource_type}-integration"
+                resource_integration = await stm.find_one(integration_table, where=dict(
+                    **{f"{resource_type}_id": resource_id},
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if not resource_integration:
+                    logger.warning(f"No {resource_type} integration found, cannot sync comment")
+                else:
+                    logger.info(f"Syncing comment to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"  Resource: {resource_type}/{resource_id}")
+                    logger.info(f"  External ID: {resource_integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        pm_payload = PMCreateCommentPayload(
+                            body=result.content,
+                            target_id=resource_integration.external_id,
+                            comment_id=str(result._id),
+                            parent_id=None,
+                            resource_type=resource_type
+                        )
+                        
+                        pm_response = await pm_service.create_comment(pm_payload)
+                        
+                        logger.info(f"✓ Synced comment to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        logger.info(f"  External Comment ID: {pm_response.external_id}")
+                        logger.info(f"  URL: {pm_response.url}")
+                        
+                        # ✅ Create comment integration record
+                        await agg.create_comment_integration(
+                            data=datadef.CreateCommentIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=pm_response.external_id,
+                                external_url=pm_response.url,
+                                comment_id=result._id
+                            )
+                        )
+                        
+                        logger.info(f"✓ Created comment integration record")
+                    
+            except Exception as e:
+                logger.error(f"✗ Failed to sync comment: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+
+        yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
+
+class UpdateComment(Command):
+    """Update Comment - Updates a comment"""
+
+    class Meta:
+        key = "update-comment"
+        resources = ("comment",)
+        tags = ["comment", "update"]
+        auth_required = True
+        description = "Update a comment"
+        policy_required = False
+
+    Data = datadef.UpdateCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update comment"""
+        await agg.update_comment(data=payload)
+        updated_comment = await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
+        aggroot = agg.get_aggroot()
+        resource_type = aggroot.resource  
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and resource_type != "project":
+            try:
+                if not config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER:
+                    raise ValueError("PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set")
+                
+                # Find comment integration
+                comment_integration = await stm.find_one("comment-integration", where=dict(
+                    comment_id=updated_comment._id,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if not comment_integration:
+                    logger.warning("No comment integration found, skipping sync")
+                else:
+                    logger.info(f"Syncing comment update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"  External ID: {comment_integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        pm_payload = PMUpdateCommentPayload(
+                            external_id=comment_integration.external_id,
+                            body=updated_comment.content
+                        )
+                        
+                        pm_response = await pm_service.update_comment(pm_payload)
+                        
+                        logger.info(f"✓ Updated comment in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        logger.info(f"  External ID: {comment_integration.external_id}")
+                        
+                        # ✅ Update integration metadata
+                        await agg.update_comment_integration(
+                            data=datadef.UpdateCommentIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=comment_integration.external_id,
+                                # comment_id=str(comment_id),
+                                external_url=pm_response.external_url if hasattr(pm_response, 'external_url') else comment_integration.external_url
+                            )
+                        )
+                        
+                        logger.info(f"✓ Updated comment integration metadata")
+                        
+            except Exception as e:
+                logger.error(f"✗ Failed to sync comment update: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        yield agg.create_response(serialize_mapping(updated_comment), _type="comment-response")
+        
+        
+
+
+class DeleteComment(Command):
+    """Delete Comment - Deletes a comment"""
+
+    class Meta:
+        key = "delete-comment"
+        resources = ("comment",)
+        tags = ["comment", "delete"]
+        auth_required = True
+        description = "Delete a comment"
+        policy_required = False
+        
+        
+
+    async def _process(self, agg, stm, payload):
+        """Delete comment"""
+        comment_id = agg.get_aggroot().identifier
+        comment = await stm.find_one("comment", where=dict(_id=comment_id))
+        resource_type = agg.get_aggroot().resource 
+        
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and resource_type != "project":
+            try:
+                if not config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER:
+                    raise ValueError("PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set")
+                
+                # Find comment integration
+                comment_integration = await stm.find_one("comment-integration", where=dict(
+                    comment_id=comment_id,
+                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                ))
+                
+                if comment_integration:
+                    logger.info(f"Deleting comment from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(f"  External ID: {comment_integration.external_id}")
+                    
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        
+                        # Delete from PM service
+                        success = await pm_service.delete_comment(
+                            external_id=comment_integration.external_id
+                        )
+                        
+                        if success:
+                            logger.info(f"✓ Deleted comment from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        else:
+                            logger.warning(f"Failed to delete comment from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                        
+                        # ✅ Remove integration record
+                        await agg.remove_comment_integration(
+                            data=datadef.RemoveCommentIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=comment_integration.external_id,
+                                comment_id=comment_id
+                            )
+                        )
+                        
+                        logger.info(f"✓ Removed comment integration record")
+                else:
+                    logger.info("No comment integration found, skipping PM service deletion")
+                    
+            except Exception as e:
+                logger.error(f"✗ Failed to delete from PM service: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                
+        await agg.delete_comment()
+        
+
+
+class ReplyToComment(Command):
+    """Reply to Comment - Replies to a comment"""
+
+    class Meta:
+        key = "reply-to-comment"
+        resources = ("comment",)
+        tags = ["comment", "reply"]
+        auth_required = True
+        description = "Reply to a comment"
+        policy_required = False
+
+    Data = datadef.ReplyToCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Reply to comment"""
+        result = await agg.reply_to_comment(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
+
+

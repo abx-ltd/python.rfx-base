@@ -25,7 +25,6 @@ class CreateProjectPayload(DataModel):
     priority: Optional[Priority] = None
     start_date: datetime = Field(default_factory=datetime.now)
     duration: str = Field(default="P9D")
-    sync_linear: bool = False
 
 
 class UpdateProjectPayload(DataModel):
@@ -37,10 +36,9 @@ class UpdateProjectPayload(DataModel):
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     duration: Optional[str] = None
-    sync_linear: bool = False
 
 class DeleteProjectPayload(DataModel):
-    sync_linear: bool = False
+    pass
 
 # Project BDM Contact related payloads
 
@@ -206,7 +204,6 @@ class CreateProjectMilestonePayload(DataModel):
     due_date: datetime
     description: Optional[str] = None
     is_completed: Optional[bool] = False
-    sync_linear: bool = False
     
 
 
@@ -216,12 +213,11 @@ class UpdateProjectMilestonePayload(DataModel):
     due_date: Optional[datetime] = None
     description: Optional[str] = None
     is_completed: Optional[bool] = False
-    sync_linear: bool = False
+
 
 
 class DeleteProjectMilestonePayload(DataModel):
     milestone_id: UUID_TYPE
-    sync_linear: bool = False
 
 
 class UploadProjectResourcePayload(DataModel):
@@ -408,7 +404,6 @@ class CreateTicketPayload(DataModel):
     parent_id: Optional[UUID_TYPE] = None
     availability: Optional[Availability] = Availability.OPEN
     project_id: str
-    sync_linear: bool = False
 
 
 class UpdateTicketPayload(DataModel):
@@ -419,7 +414,6 @@ class UpdateTicketPayload(DataModel):
     assignee: Optional[UUID_TYPE] = None
     availability: Optional[Availability] = None
     status: Optional[str] = None
-    sync_linear: bool = False
 
 
 class RemoveTicketPayload(DataModel):
@@ -544,3 +538,42 @@ class SyncTicketIntegrationPayload(DataModel):
     provider: str = "linear"
     external_id: Optional[str] = None
     external_url: Optional[str] = None
+
+
+# ---------- Comment Context ----------
+
+
+class CreateCommentPayload(DataModel):
+    content: str
+
+
+class UpdateCommentPayload(DataModel):
+    content: str
+    
+    
+class DeleteCommentPayload(DataModel):
+    pass 
+
+
+
+class ReplyToCommentPayload(DataModel):
+    content: str
+    
+    
+class CreateCommentIntegrationPayload(DataModel):
+    """Payload for creating comment integration"""
+    provider: str 
+    external_id: str
+    external_url: Optional[str] = None
+    comment_id: UUID_TYPE
+
+class UpdateCommentIntegrationPayload(DataModel):
+    """Payload for updating comment integration"""
+    provider: str
+    external_id: str
+    external_url: Optional[str] = None
+class RemoveCommentIntegrationPayload(DataModel):
+    """Payload for removing comment integration"""
+    provider: str 
+    external_id: str
+    comment_id: UUID_TYPE

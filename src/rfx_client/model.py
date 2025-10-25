@@ -668,3 +668,40 @@ class ViewTicket(RFXClientBaseModel):
     )
     project_id = sa.Column(pg.UUID)
     organization_id = sa.Column(pg.UUID)
+    
+    
+    
+#---------- comment context-------------
+class Comment(RFXClientBaseModel):
+    __tablename__ = "comment"
+
+    master_id = sa.Column(pg.UUID)
+    parent_id = sa.Column(pg.UUID)
+    content = sa.Column(sa.Text)
+    depth = sa.Column(sa.Integer, default=0)
+    organization_id = sa.Column(pg.UUID)
+    resource = sa.Column(sa.String(100))
+    resource_id = sa.Column(pg.UUID)
+    
+class CommentIntegration(RFXClientBaseModel):
+    __tablename__ = "comment-integration"
+    __ts_index__ = ["provider", "external_id", "external_url"]
+    
+    comment_id = sa.Column(sa.ForeignKey(Comment._id), nullable=False)
+    provider = sa.Column(sa.String(100), nullable=False)  # e.g., 'linear'
+    external_id = sa.Column(sa.String(255), nullable=False)
+    external_url = sa.Column(sa.String(255), nullable=False)
+
+class CommentView(RFXClientBaseModel):
+    __tablename__ = "_comment"
+    __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+
+    master_id = sa.Column(pg.UUID)
+    parent_id = sa.Column(pg.UUID)
+    content = sa.Column(sa.Text)
+    depth = sa.Column(sa.Integer, default=0)
+    creator = sa.Column(pg.JSONB)
+    organization_id = sa.Column(pg.UUID)
+    resource = sa.Column(sa.String(100))
+    resource_id = sa.Column(pg.UUID)
+
