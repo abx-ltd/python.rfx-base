@@ -47,9 +47,18 @@ endpoint = UserProfileQueryManager.register_endpoint
 @resource('profile')
 class ProfileQuery(DomainQueryResource):
     """ List current profile's user """
+    class Meta(DomainQueryResource.Meta):
+        allow_item_view = True
+        allow_list_view = True
+
+    @classmethod
+    def base_query(cls, context, scope):
+      return {'organization_id': context.organization._id}
 
     name__family: str = StringField("Family Name")
     name__given: str = StringField("Given Name")
+    telecom__email: str = StringField("Email")
+    status: str = StringField("Status")
 
 
 class OrganizationRoleQuery(DomainQueryResource):
