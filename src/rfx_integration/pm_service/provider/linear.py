@@ -169,55 +169,6 @@ class LinearProvider(PMService):
         """Check if ticket exists in Linear"""
         return await self._client.check_issue_exists(external_id)
     
-    # ---------- Comment Operations ----------
-    
-    async def create_comment(
-        self, 
-        issue_id: str, 
-        content: str, 
-        comment_id: Optional[str] = None,
-        parent_id: Optional[str] = None
-    ) -> Dict[str, Any]:
-        
-        comment_data = {
-            "body": content,
-            "issueId": issue_id
-        }
-        
-        if comment_id:
-            comment_data["id"] = str(comment_id)
-        
-        if parent_id:
-            comment_data["parentId"] = str(parent_id)
-        
-        try:
-            logger.info(f"[Linear] Creating comment for issue {issue_id}")
-            return await self._client.create_comment(comment_data)
-        except Exception as e:
-            logger.error(f"Failed to create Linear comment: {str(e)}")
-            raise
-    
-    async def update_comment(self, comment_id: str, content: str) -> Dict[str, Any]:
-        """Update comment in Linear"""
-        try:
-            logger.info(f"[Linear] Updating comment {comment_id}")
-            return await self._client.update_comment(comment_id, content)
-        except Exception as e:
-            logger.error(f"Failed to update Linear comment: {str(e)}")
-            raise
-    
-    async def delete_comment(self, comment_id: str) -> bool:
-        """Delete comment in Linear"""
-        try:
-            result = await self._client.delete_comment(comment_id)
-            return result.get('success', False)
-        except Exception as e:
-            logger.error(f"Failed to delete Linear comment: {str(e)}")
-            return False
-    
-    async def check_comment_exists(self, comment_id: str) -> Dict[str, Any]:
-        """Check if comment exists in Linear"""
-        return await self._client.check_comment_exists(comment_id)
     
     #========= Project Operations ==========
     async def create_project(self, payload: CreateProjectPayload) -> CreateProjectResponse:
@@ -225,6 +176,7 @@ class LinearProvider(PMService):
         linear_data = {
             "name": payload.name,
             "teamIds": [payload.team_id] if payload.team_id else [self.team_id],
+            "id": str(payload.project_id) if payload.project_id else None
         }
         
         if payload.description:
@@ -456,10 +408,12 @@ class LinearProvider(PMService):
         Returns:
             CreateCommentResponse with external_id and URL
         """
+        logger.info(f"payload in create_comment: {payload}")
         comment_data = {
-            "body": payload.body,
-            "issueId": payload.issue_id
-        }
+                "body": payload.body,
+                "issueId": payload.target_id
+            }
+        
         
         # Use internal comment ID if provided
         if payload.comment_id:
@@ -470,7 +424,7 @@ class LinearProvider(PMService):
             comment_data["parentId"] = str(payload.parent_id)
         
         try:
-            logger.info(f"[Linear] Creating comment for issue: {payload.issue_id}")
+            logger.info(f"[Linear] Creating comment for issue: {payload.target_id}")
             result = await self._client.create_comment(comment_data)
             
             return CreateCommentResponse(

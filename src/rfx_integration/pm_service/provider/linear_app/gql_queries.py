@@ -318,3 +318,56 @@ query ListProjectMilestones($projectId: String!) {
 }
 """
 
+
+# ========== PROJECT UPDATE MUTATIONS ==========
+
+CREATE_PROJECT_UPDATE_MUTATION = """
+mutation CreateProjectUpdate($input: ProjectUpdateCreateInput!) {
+  projectUpdateCreate(input: $input) {
+    success
+    projectUpdate {
+      id
+      body
+      health
+      project {
+        id
+        name
+        url
+      }
+      createdAt
+      updatedAt
+    }
+  }
+}
+"""
+
+GET_PROJECT_UPDATE_QUERY = """
+query GetProjectUpdate($id: String!) {
+  projectUpdate(id: $id) {
+    id
+    body
+    health
+    project {
+      id
+      name
+    }
+  }
+}
+"""
+
+LIST_PROJECT_UPDATES_QUERY = """
+query ListProjectUpdates($projectId: String!) {
+  project(id: $projectId) {
+    id
+    name
+    projectUpdates(first: 50) {
+      nodes {
+        id
+        body
+        health
+        createdAt
+      }
+    }
+  }
+}
+"""

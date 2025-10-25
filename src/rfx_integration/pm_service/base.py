@@ -53,6 +53,7 @@ class CreateProjectPayload(BaseModel):
     state: Optional[str] = None  # "PLANNED", "STARTED", "COMPLETED", etc.
     start_date: Optional[str] = None  # ISO date string
     target_date: Optional[str] = None  # ISO date string
+    project_id: Optional[str] = None  # Internal project ID
     
     
 
@@ -125,9 +126,10 @@ class UpdateProjectMilestoneResponse(BaseModel):
 class CreateCommentPayload(BaseModel):
     """Payload for creating comment in PM service"""
     body: str
-    issue_id: str  # Linear issue/ticket ID
+    target_id: str  # Linear issue/ticket ID
     comment_id: Optional[str] = None  # Internal comment ID
-    parent_id: Optional[str] = None  # For nested comments
+    parent_id: Optional[str] = None
+    resource_type: Optional[str] = None  # For nested comments
 
 
 class CreateCommentResponse(BaseModel):

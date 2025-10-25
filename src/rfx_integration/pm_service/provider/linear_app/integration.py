@@ -193,6 +193,8 @@ class LinearIntegration:
         """
         from .gql_queries import CREATE_ISSUE_MUTATION_COMMENT
         
+        
+        
         variables = {"input": comment_data}
         
         result = await self._call_linear_api(CREATE_ISSUE_MUTATION_COMMENT, variables)
@@ -224,20 +226,20 @@ class LinearIntegration:
         logger.info(f"Updated Linear comment: {comment_id}")
         return update_result
     
-    async def delete_comment(self, comment_id: str) -> Dict[str, Any]:
+    async def delete_comment(self, external_id: str) -> Dict[str, Any]:
         """Delete comment in Linear"""
         from .gql_queries import DELETE_ISSUE_MUTATION_COMMENT
         
-        variables = {"commentDeleteId": comment_id}
+        variables = {"commentDeleteId": external_id}
         
         result = await self._call_linear_api(DELETE_ISSUE_MUTATION_COMMENT, variables)
         
         delete_result = result.get('commentDelete', {})
         
         if not delete_result.get('success'):
-            raise Exception(f"Failed to delete Linear comment {comment_id}")
-        
-        logger.info(f"Deleted Linear comment: {comment_id}")
+            raise Exception(f"Failed to delete Linear comment {external_id}")
+
+        logger.info(f"Deleted Linear comment: {external_id}")
         return delete_result
     
     async def get_comment(self, comment_id: str) -> Dict[str, Any]:
@@ -292,7 +294,10 @@ class LinearIntegration:
         if not project:
             raise Exception("Failed to create project in Linear")
         
-        logger.info(f"Created Linear project: {project.get('name')} (ID: {project.get('id')})")
+        project_id = project.get('id')
+
+        logger.info(f"Created Linear project: {project.get('name')} (ID: {project_id})")
+
         return project
 
 
@@ -534,6 +539,107 @@ class LinearIntegration:
         
         logger.info(f"Found {len(milestones)} milestones for project {project_id}")
         return milestones
+    
+    #----------- Project Update Operations -----------
+    async def create_project_update(
+        self, 
+        project_id: str, 
+        body: str,
+        health: str = "onTrack"
+    ) -> Dict[str, Any]:
+        """
+        Create a project update in Linear
+        
+        Args:
+            project_id: Linear project ID
+            body: Update content/description
+            health: Project health status (onTrack, atRisk, offTrack, complete)
+            
+        Returns:
+            Dict with project update data
+        """
+        from .gql_queries import CREATE_PROJECT_UPDATE_MUTATION
+        
+        # Validate health
+        valid_health = ["onTrack", "atRisk", "offTrack", "complete"]
+        if health not in valid_health:
+            health = "onTrack"
+        
+        update_data = {
+            "projectId": str(project_id),
+            "body": body,
+            "health": health
+        }
+        
+        variables = {"input": update_data}
+        
+        result = await self._call_linear_api(CREATE_PROJECT_UPDATE_MUTATION, variables)
+        
+        project_update = result.get('projectUpdateCreate', {}).get('projectUpdate', {})
+        
+        if not project_update:
+            raise Exception(f"Failed to create project update for project {project_id}")
+        
+        logger.info(f"Created Linear project update: {project_update.get('id')}")
+        return project_update
+    
+    async def get_project_update(self, update_id: str) -> Optional[Dict[str, Any]]:
+        """Get project update by ID"""
+        from .gql_queries import GET_PROJECT_UPDATE_QUERY
+        
+        variables = {"id": str(update_id)}
+        result = await self._call_linear_api(GET_PROJECT_UPDATE_QUERY, variables)
+        
+        return result.get('projectUpdate')
+    
+    async def list_project_updates(self, project_id: str) -> list:
+        """List all project updates for a project"""
+        from .gql_queries import LIST_PROJECT_UPDATES_QUERY
+        
+        variables = {"projectId": str(project_id)}
+        result = await self._call_linear_api(LIST_PROJECT_UPDATES_QUERY, variables)
+        
+        project = result.get('project', {})
+        updates = project.get('projectUpdates', {}).get('nodes', [])
+        
+        logger.info(f"Found {len(updates)} updates for project {project_id}")
+        return updates
+    
+    async def get_or_create_discussion_update(self, project_id: str) -> Dict[str, Any]:
+        """
+        Get existing "Discussion" project update or create new one
+        
+        Args:
+            project_id: Linear project ID
+            
+        Returns:
+            Dict with project update data (containing 'id')
+        """
+        try:
+            # Check if "Discussion" update already exists
+            updates = await self.list_project_updates(project_id)
+            
+            for update in updates:
+                # Check if this is the discussion update
+                # You can identify it by body content or add a marker
+                if update.get('body', '').startswith('[Discussion]'):
+                    logger.info(f"Found existing discussion update: {update['id']}")
+                    return update
+            
+            # If not found, create new one
+            logger.info(f"Creating new discussion update for project {project_id}")
+            
+            discussion_update = await self.create_project_update(
+                project_id=project_id,
+                body="[Discussion] Thảo luận về dự án",
+                health="onTrack"
+            )
+            
+            return discussion_update
+            
+        except Exception as e:
+            logger.error(f"Failed to get/create discussion update: {str(e)}")
+            raise
         
 
 
