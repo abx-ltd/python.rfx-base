@@ -8,7 +8,7 @@ the RFX User domain for consistent state management and data validation.
 from enum import Enum
 
 
-class OrganizationStatus(Enum):
+class OrganizationStatusEnum(Enum):
     """Organization lifecycle status values."""
     ACTIVE      = "ACTIVE"      # Organization is operational and accepting members
     INACTIVE    = "INACTIVE"    # Organization is temporarily disabled
@@ -17,7 +17,7 @@ class OrganizationStatus(Enum):
     DEACTIVATED = "DEACTIVATED" # Organization permanently disabled
 
 
-class ProfileStatus(Enum):
+class ProfileStatusEnum(Enum):
     """User profile status within organization context."""
     ACTIVE                   = "ACTIVE"                   # Profile is active and has access
     INACTIVE                 = "INACTIVE"                 # Profile temporarily disabled
@@ -27,7 +27,7 @@ class ProfileStatus(Enum):
     ORGANIZATION_DEACTIVATED = "ORGANIZATION_DEACTIVATED" # Disabled due to organization status
 
 
-class UserSource(Enum):
+class UserSourceEnum(Enum):
     """Source system or method of user authentication."""
     WEB       = "WEB"       # Web browser authentication
     MOBILE    = "MOBILE"    # Mobile app direct authentication
@@ -35,7 +35,7 @@ class UserSource(Enum):
     MOBILE_KC = "MOBILE_KC" # Mobile app via Keycloak
 
 
-class UserStatus(Enum):
+class UserStatusEnum(Enum):
     """User account status across the system."""
     ACTIVE      = "ACTIVE"      # User account is active and accessible
     INACTIVE    = "INACTIVE"    # User account temporarily disabled
@@ -44,7 +44,7 @@ class UserStatus(Enum):
     DEACTIVATED = "DEACTIVATED" # User account permanently disabled
 
 
-class InvitationStatus(Enum):
+class InvitationStatusEnum(Enum):
     """Organization invitation workflow status."""
     PENDING  = "PENDING"  # Invitation sent, awaiting response
     ACCEPTED = "ACCEPTED" # Invitation accepted by user
@@ -52,7 +52,7 @@ class InvitationStatus(Enum):
     REVOKED  = "REVOKED"  # Invitation cancelled by sender
 
 
-class UserActionStatus(str, Enum):
+class UserActionStatusEnum(str, Enum):
     """Status of required user actions (e.g., password reset, email verification)."""
     PENDING   = 'PENDING'   # Action required, not yet completed
     COMPLETED = 'COMPLETED' # Action successfully completed

@@ -30,7 +30,7 @@ Integration Points:
 
 import sqlalchemy as sa
 
-from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
+from fluvius.data import DomainSchema, SqlaDriver
 from sqlalchemy.dialects import postgresql as pg
 
 from . import types, config
@@ -60,7 +60,7 @@ class IDMBaseModel(IDMConnector.__data_schema_base__, DomainSchema):
 
 class RefAction(IDMBaseModel):
     """Reference table for user actions that can be tracked and audited."""
-    __tablename__ = "ref--action"
+    __tablename__ = "ref__action"
 
     key = sa.Column(sa.String(1024), nullable=False, unique=True)
     display = sa.Column(sa.String(1024), nullable=True)
@@ -68,7 +68,7 @@ class RefAction(IDMBaseModel):
 
 class RefOrganizationType(IDMBaseModel):
     """Reference table for organization type classifications (e.g., healthcare, business)."""
-    __tablename__ = "ref--organization-type"
+    __tablename__ = "ref__organization_type"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
     display = sa.Column(sa.String, nullable=True)
@@ -76,7 +76,7 @@ class RefOrganizationType(IDMBaseModel):
 
 class RefRealm(IDMBaseModel):
     """Reference table for authentication realms in multi-tenant system."""
-    __tablename__ = "ref--realm"
+    __tablename__ = "ref__realm"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
     display = sa.Column(sa.String, nullable=True)
@@ -84,7 +84,7 @@ class RefRealm(IDMBaseModel):
 
 class RefRoleType(IDMBaseModel):
     """Reference table for role type classifications (system, organization, custom)."""
-    __tablename__ = "ref--role-type"
+    __tablename__ = "ref__role_type"
 
     key = sa.Column(sa.String, nullable=False, unique=True)
     display = sa.Column(sa.String, nullable=True)
@@ -95,7 +95,7 @@ class RefSystemRole(IDMBaseModel):
     System-wide role definitions with priority and default assignments.
     Defines roles that span across organizations with specific capabilities.
     """
-    __tablename__ = "ref--system-role"
+    __tablename__ = "ref__system_role"
 
     description = sa.Column(sa.String(1024))
     name = sa.Column(sa.String(1024), nullable=False)
@@ -142,7 +142,7 @@ class UserSchema(IDMBaseModel):
 
     # Enum: user_status (from PostgreSQL ENUM type)
     status = sa.Column(
-        sa.Enum(types.UserStatus, name="user_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.UserStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     realm_access = sa.Column(sa.JSON)
@@ -156,7 +156,7 @@ class UserIdentity(IDMBaseModel):
     External identity provider linkages for federated authentication.
     Links users to external providers like social login or enterprise SSO.
     """
-    __tablename__ = "user-identity"
+    __tablename__ = "user_identity"
 
     provider = sa.Column(sa.String, nullable=False)
     provider_user_id = sa.Column(sa.String, nullable=False)
@@ -172,9 +172,9 @@ class UserSession(IDMBaseModel):
     User session tracking for authentication and activity monitoring.
     Links sessions to users and identity providers for audit trails.
     """
-    __tablename__ = "user-session"
+    __tablename__ = "user_session"
 
-    source = sa.Column(sa.Enum(types.UserSource), nullable=True)
+    source = sa.Column(sa.Enum(types.UserSourceEnum), nullable=True)
     telecom__email = sa.Column(sa.String)
     user_id = sa.Column(sa.ForeignKey(UserSchema._id))
     user_identity_id = sa.Column(sa.ForeignKey(UserIdentity._id))
@@ -185,14 +185,14 @@ class UserStatus(IDMBaseModel):
     Audit trail for user status changes with source and destination states.
     Tracks user lifecycle transitions for compliance and debugging.
     """
-    __tablename__ = "user-status"
+    __tablename__ = "user_status"
 
     src_state = sa.Column(
-        sa.Enum(types.UserStatus, name="user_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.UserStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     dst_state = sa.Column(
-        sa.Enum(types.UserStatus, name="user_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.UserStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     user_id = sa.Column(sa.ForeignKey(UserSchema._id), nullable=False)
@@ -204,7 +204,7 @@ class UserVerification(IDMBaseModel):
     Email and phone verification tracking with timestamp history.
     Manages verification codes and tracks verification request frequency.
     """
-    __tablename__ = "user-verification"
+    __tablename__ = "user_verification"
 
     verification = sa.Column(sa.String(1024), nullable=False)
     last_sent_email = sa.Column(sa.DateTime(timezone=True))
@@ -218,15 +218,15 @@ class UserAction(IDMBaseModel):
     User action tracking with status monitoring for Keycloak actions.
     Records actions sent to users and tracks completion status.
     """
-    __tablename__ = "user-action"
+    __tablename__ = "user_action"
 
     _iid = sa.Column(pg.UUID)
     action = sa.Column(sa.ForeignKey(RefAction.key))
     name = sa.Column(sa.String(1024))
     status = sa.Column(
-        sa.Enum(types.UserActionStatus, name="user_action_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.UserActionStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False,
-        server_default=types.UserActionStatus.PENDING.value
+        server_default=types.UserActionStatusEnum.PENDING.value
     )
 
     user_id = sa.Column(sa.ForeignKey(UserSchema._id), nullable=False)
@@ -257,7 +257,7 @@ class Organization(IDMBaseModel):
     organization_code = sa.Column(sa.String(255))
 
     status = sa.Column(
-        sa.Enum(types.OrganizationStatus, name="organization_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.OrganizationStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
 
@@ -270,7 +270,7 @@ class OrganizationDelegatedAccess(IDMBaseModel):
     Cross-organizational access delegation for shared resources.
     Enables organizations to grant limited access to other organizations.
     """
-    __tablename__ = "organization-delegated-access"
+    __tablename__ = "organization_delegated_access"
 
     organization_id = sa.Column(sa.ForeignKey(Organization._id))
     delegated_organization_id = sa.Column(sa.ForeignKey(Organization._id))
@@ -282,7 +282,7 @@ class OrganizationRole(IDMBaseModel):
     Custom roles defined within organizational scope with full-text search.
     Allows organizations to create specialized roles beyond system defaults.
     """
-    __tablename__ = "organization-role"
+    __tablename__ = "organization_role"
 
     _iid = sa.Column(pg.UUID)
     _txt = sa.Column(pg.TSVECTOR)
@@ -298,15 +298,15 @@ class OrganizationStatus(IDMBaseModel):
     Audit trail for organization status changes with transition tracking.
     Records organizational lifecycle events for compliance and history.
     """
-    __tablename__ = "organization-status"
+    __tablename__ = "organization_status"
 
     organization_id = sa.Column(sa.ForeignKey(Organization._id))
     src_state = sa.Column(
-        sa.Enum(types.OrganizationStatus, name="organization_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.OrganizationStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     dst_state = sa.Column(
-        sa.Enum(types.OrganizationStatus, name="organization_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.OrganizationStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     note = sa.Column(sa.String())
@@ -376,7 +376,7 @@ class Profile(IDMBaseModel):
     is_super_admin = sa.Column(sa.Boolean)
     system_tag = sa.Column(pg.ARRAY(sa.String))
     status = sa.Column(
-        sa.Enum(types.ProfileStatus, name="profile_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.ProfileStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     preferred_name = sa.Column(sa.String(255))
@@ -392,7 +392,7 @@ class ProfileLocation(IDMBaseModel):
     Geographic and device tracking for profile security and analytics.
     Records device information and location data for session management.
     """
-    __tablename__ = "profile-location"
+    __tablename__ = "profile_location"
 
     _iid = sa.Column(pg.UUID)
     profile_id = sa.Column(sa.ForeignKey(Profile._id), nullable=False)
@@ -410,13 +410,13 @@ class ProfileStatus(IDMBaseModel):
     Audit trail for profile status transitions within organizations.
     Tracks profile lifecycle changes with notes for compliance.
     """
-    __tablename__ = "profile-status"
+    __tablename__ = "profile_status"
     src_state = sa.Column(
-        sa.Enum(types.ProfileStatus, name="profile_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.ProfileStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     dst_state = sa.Column(
-        sa.Enum(types.ProfileStatus, name="profile_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.ProfileStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     note = sa.Column(sa.String())
@@ -428,7 +428,7 @@ class ProfileRole(IDMBaseModel):
     Role assignments linking profiles to system or organizational roles.
     Supports multiple role sources for flexible permission management.
     """
-    __tablename__ = "profile-role"
+    __tablename__ = "profile_role"
 
     profile_id = sa.Column(sa.ForeignKey(Profile._id))
     role_key = sa.Column(sa.String(255))
@@ -459,7 +459,7 @@ class ProfileGroup(IDMBaseModel):
     Many-to-many relationship linking profiles to security groups.
     Enables group-based permission management and access control.
     """
-    __tablename__ = "profile-group"
+    __tablename__ = "profile_group"
 
     group_id = sa.Column(pg.UUID, sa.ForeignKey(Group._id))
     profile_id = sa.Column(pg.UUID, sa.ForeignKey(Profile._id))
@@ -483,7 +483,7 @@ class Invitation(IDMBaseModel):
     email = sa.Column(sa.String)
     token = sa.Column(sa.String)
     status = sa.Column(
-        sa.Enum(types.InvitationStatus, name="invitation_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.InvitationStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     expires_at = sa.Column(sa.DateTime(timezone=True))
@@ -496,15 +496,15 @@ class InvitationStatus(IDMBaseModel):
     Audit trail for invitation status changes with transition tracking.
     Records invitation lifecycle events for security and compliance.
     """
-    __tablename__ = "invitation-status"
+    __tablename__ = "invitation_status"
 
     invitation_id = sa.Column(pg.UUID, sa.ForeignKey(Invitation._id))
     src_state = sa.Column(
-        sa.Enum(types.InvitationStatus, name="invitation_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.InvitationStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     dst_state = sa.Column(
-        sa.Enum(types.InvitationStatus, name="invitation_status", schema=config.USER_PROFILE_SCHEMA),
+        sa.Enum(types.InvitationStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
     note = sa.Column(sa.String)

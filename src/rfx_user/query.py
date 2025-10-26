@@ -1,14 +1,10 @@
-from fastapi import Request
-from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID
-from typing import Optional
 
 from .state import IDMStateManager
 from .domain import UserProfileDomain
 from .policy import UserProfilePolicyManager
-from .types import OrganizationStatus
 
 
 class UserProfileQueryManager(DomainQueryManager):
@@ -81,7 +77,7 @@ class OrganizationRoleQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('profile-role')
+@resource('profile_role')
 class ProfileRole(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
         include_all = True

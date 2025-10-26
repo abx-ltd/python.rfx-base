@@ -7,11 +7,10 @@ Used by command handlers for input validation and serialization.
 
 from typing import Optional, List
 from pydantic import Field
-from datetime import datetime
 
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import OrganizationStatus
+from .types import OrganizationStatusEnum
 
 class CreateOrganizationPayload(DataModel):
     """Payload for creating new organizations."""
@@ -23,7 +22,7 @@ class CreateOrganizationPayload(DataModel):
     active: Optional[bool] = True
     system_tag: Optional[List[str]] = []
     user_tag: Optional[List[str]] = []
-    status: OrganizationStatus = 'ACTIVE'
+    status: OrganizationStatusEnum = 'ACTIVE'
     organization_code: Optional[str] = Field(max_length=255, default=None)
     invitation_code: Optional[str] = Field(max_length=10, default=None)
     type: Optional[str] = None # FK to RefOrganizationType.key
