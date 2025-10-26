@@ -8,7 +8,7 @@ from . import types, config
 
 
 class RFXDiscussConnector(SqlaDriver):
-    assert config.DB_DSN, "[rfx_discussion.DB_DSN] not set."
+    assert config.DB_DSN, "[rfx_discuss.DB_DSN] not set."
 
     __db_dsn__ = config.DB_DSN
 
