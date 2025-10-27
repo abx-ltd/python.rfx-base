@@ -1,1 +1,11 @@
 DB_DSN = None
+RFX_BILLING_SCHEMA = "rfx_billing"
+RFX_CLIENT_SCHEMA  = "rfx_client"
+RFX_CQRS_SCHEMA    = "rfx_cqrs"
+RFX_DISCUSS_SCHEMA = "rfx_discuss"
+RFX_FORM_SCHEMA    = "rfx_form"
+RFX_IDM_SCHEMA     = "rfx_idm"
+RFX_MEDIA_SCHEMA   = "rfx_media"
+RFX_MESSAGE_SCHEMA = "rfx_message"
+RFX_POLICY_SCHEMA  = "rfx_policy"
+RFX_USER_SCHEMA    = "rfx_user"
