@@ -108,7 +108,7 @@ class MessageAction(MServiceBaseModel):
     Supports HTTP calls with authentication and different targets.
     """
 
-    __tablename__ = "message-action"
+    __tablename__ = "message_action"
 
     # Reference fields
     _iid = sa.Column(pg.UUID)
@@ -152,7 +152,7 @@ class MessageBoxUser(MServiceBaseModel):
     Junction table linking users to message boxes for access control.
     """
 
-    __tablename__ = "message-box-user"
+    __tablename__ = "message_box_user"
 
     # Reference fields
     user_id = sa.Column(pg.UUID)
@@ -165,7 +165,7 @@ class MessageRecipient(MServiceBaseModel):
     Manages read status, archiving, labels, and message direction.
     """
 
-    __tablename__ = "message-recipient"
+    __tablename__ = "message_recipient"
 
     # Reference fields
     recipient_id = sa.Column(pg.UUID)
@@ -190,7 +190,7 @@ class MessageRecipientAction(MServiceBaseModel):
     Tracks when recipients execute message actions and stores responses.
     """
 
-    __tablename__ = "message-recipient-action"
+    __tablename__ = "message_recipient_action"
 
     # Reference fields
     message_recipient_id = sa.Column(
@@ -206,7 +206,7 @@ class MessageAttachment(MServiceBaseModel):
     Links file attachments to messages.
     """
 
-    __tablename__ = "message-attachment"
+    __tablename__ = "message_attachment"
 
     # Reference fields
     _iid = sa.Column(pg.UUID)
@@ -221,7 +221,7 @@ class MessageEmbedded(MServiceBaseModel):
     Supports various embed types with configurable options.
     """
 
-    __tablename__ = "message-embedded"
+    __tablename__ = "message_embedded"
 
     # Reference fields
     _iid = sa.Column(pg.UUID)
@@ -244,7 +244,7 @@ class MessageReference(MServiceBaseModel):
     Supports various reference types with metadata and contact information.
     """
 
-    __tablename__ = "message-reference"
+    __tablename__ = "message_reference"
 
     # Reference fields
     _iid = sa.Column(pg.UUID)
@@ -299,7 +299,7 @@ class TagPreference(MServiceBaseModel):
     User preferences for tag behavior and display options.
     """
 
-    __tablename__ = "tag-preference"
+    __tablename__ = "tag_preference"
 
     option = sa.Column(pg.JSONB, default=dict)
 
@@ -309,7 +309,7 @@ class RefRole(MServiceBaseModel):
     Reference table for role definitions used in the message system.
     """
 
-    __tablename__ = "ref--role"
+    __tablename__ = "ref__role"
 
     key = sa.Column(sa.String(255), primary_key=True,
                     nullable=False, unique=True)
@@ -319,7 +319,7 @@ class MessageTemplate(MServiceBaseModel):
     """
     Template for creating new messages.
     """
-    __tablename__ = "message-template"
+    __tablename__ = "message_template"
 
     # Template fields
     key = sa.Column(sa.String(255), nullable=False)
@@ -351,7 +351,7 @@ class MessageTemplate(MServiceBaseModel):
     # Meta
     status = sa.Column(
         sa.Enum(types.TemplateStatusEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
-        default="DRAFT"
+        default=types.TemplateStatusEnum.DRAFT.value
     )
     is_active = sa.Column(sa.Boolean, default=True)
 
@@ -367,7 +367,7 @@ class TemplateRenderCache(MServiceBaseModel):
     """
     Caches the rendered output of message templates.
     """
-    __tablename__ = "template-render-cache"
+    __tablename__ = "template_render_cache"
 
     # Cache key components
     template_key = sa.Column(sa.String(255), nullable=False)

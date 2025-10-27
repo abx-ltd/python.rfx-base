@@ -67,7 +67,7 @@ class TemplateService:
             #remove None values for cleaner query
             query = {k: v for k, v in query.items() if v is not None}
 
-            template = await self.stm.find_one("message-template", where=query, order_by=["-version"])
+            template = await self.stm.find_one("message_template", where=query, order_by=["-version"])
             if template:
                 logger.debug(f"Resolved template {key} with scope: {query}")
                 return template
@@ -179,7 +179,7 @@ class TemplateService:
             raise ValueError(f"Invalid template syntax for engine: {engine}")
 
         existing = await self.stm.find_all(
-            "message-template",
+            "message_template",
             where={"key": key, "tenant_id": tenant_id, "app_id": app_id, "locale": locale, "channel": channel},
             order_by=["-version"],
             limit=1
@@ -203,11 +203,11 @@ class TemplateService:
             "created_by": created_by
         }
 
-        return await self.stm.insert("message-template", template_data)
+        return await self.stm.insert("message_template", template_data)
 
     async def publish_template(self, template_id: str, published_by: Optional[str] = None) -> Dict[str, Any]:
         """Publish a template"""
-        template = await self.stm.fetch("message-template", template_id)
+        template = await self.stm.fetch("message_template", template_id)
         if not template:
             raise ValueError(f"Template not found: {template_id}")
 

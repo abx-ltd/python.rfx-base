@@ -85,7 +85,7 @@ class MessageAggregate(Aggregate):
 
         return {"message_id": message_id, "status": "PENDING"}
 
-    @action("recipients-added", resources=("message", "message-recipient"))
+    @action("recipients-added", resources=("message", "message_recipient"))
     async def add_recipients(self, *, data, message_id):
         """Action to add recipients to a message."""
         recipients = data
@@ -97,33 +97,33 @@ class MessageAggregate(Aggregate):
                 "read": False,
             }
 
-            recipient = self.init_resource("message-recipient", recipient_data)
+            recipient = self.init_resource("message_recipient", recipient_data)
             records.append(serialize_mapping(recipient))
 
-        await self.statemgr.insert_many("message-recipient", *records)
+        await self.statemgr.insert_many("message_recipient", *records)
 
         return {
             "message_id": message_id,
             "recipients_count": len(recipients)
         }
 
-    @action("message-read", resources="message-recipient")
+    @action("message-read", resources="message_recipient")
     async def mark_message_read(self):
         """Action to mark a message as read for a specific user."""
         # Find the recipient record
-        recipient = await self.statemgr.fetch("message-recipient", self.aggroot.identifier)
+        recipient = await self.statemgr.fetch("message_recipient", self.aggroot.identifier)
 
         if not recipient:
             raise ValueError(f"Recipient not found: {self.aggroot.identifier}")
 
         await self.statemgr.update(recipient, read=True, mark_as_read=timestamp())
 
-    @action("all-messages-read", resources="message-recipient")
+    @action("all-messages-read", resources="message_recipient")
     async def mark_all_messages_read(self):
         """Action to mark all messages as read for a user."""
         user_id = self.context.user_id
         recipients = await self.statemgr.find_all(
-            "message-recipient",
+            "message_recipient",
             where={"recipient_id": user_id, "read": False}
         )
 
@@ -137,12 +137,12 @@ class MessageAggregate(Aggregate):
             "updated_count": updated_count
         }
 
-    @action("message-archived", resources="message-recipient")
+    @action("message-archived", resources="message_recipient")
     async def archive_message(self):
         """Action to archive a message for a specific user."""
         message_id = self.aggroot.identifier
 
-        recipient = await self.statemgr.fetch("message-recipient", message_id)
+        recipient = await self.statemgr.fetch("message_recipient", message_id)
         if not recipient:
             raise ValueError(f"Recipient not found: {self.context.user_id} for message {message_id}")
 
@@ -154,13 +154,13 @@ class MessageAggregate(Aggregate):
     # TEMPLATE OPERATIONS
     # ========================================================================
 
-    @action("template-created", resources="message-template")
+    @action("template-created", resources="message_template")
     async def create_template(self, *, data):
         """Create a new message template."""
         template_data = serialize_mapping(data)
 
         old_template = self.statemgr.find_one(
-            "message-template",
+            "message_template",
             where=dict(
                 tenant_id=getattr(data, 'tenant_id', None),
                 app_id=getattr(data, 'app_id', None),
@@ -175,7 +175,7 @@ class MessageAggregate(Aggregate):
         else:
             template_data['version'] = 1
 
-        template = self.init_resource("message-template", template_data, _id=self.aggroot.identifier)
+        template = self.init_resource("message_template", template_data, _id=self.aggroot.identifier)
         await self.statemgr.insert(template)
 
         return {
@@ -183,10 +183,10 @@ class MessageAggregate(Aggregate):
             "key": template.key,
         }
 
-    @action("template-updated", resources="message-template")
+    @action("template-updated", resources="message_template")
     async def update_template(self, *, data):
         """Update an existing message template."""
-        template = self.statemgr.fetch("message-template", self.aggroot.identifier)
+        template = self.statemgr.fetch("message_template", self.aggroot.identifier)
         if template:
             return ValueError(f"Template not found: {self.aggroot.identifier}")
 
@@ -198,10 +198,10 @@ class MessageAggregate(Aggregate):
             "version": template.version
         }
 
-    @action("template-published", resources="message-template")
+    @action("template-published", resources="message_template")
     async def publish_template(self, *, template_id, published_by=None):
         """Publish a template to make it available for use."""
-        template = await self.statemgr.fetch("message-template", template_id)
+        template = await self.statemgr.fetch("message_template", template_id)
         if not template:
             raise ValueError(f"Template not found: {template_id}")
 

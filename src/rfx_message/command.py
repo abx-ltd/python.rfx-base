@@ -131,7 +131,7 @@ class ReadMessage(Command):
 
     class Meta:
         key = "read-message"
-        resources = ("message-recipient",)
+        resources = ("message_recipient",)
         tags = ["message", "read"]
         auth_required = True
         policy_required = False
@@ -152,7 +152,7 @@ class MarkAllMessagesRead(Command):
         key = "mark-all-message-read"
         # Substitute for the next Fluvius Batch update
         new_resource = True
-        resources = ("message-recipient",)
+        resources = ("message_recipient",)
         tags = ["messages", "read"]
         auth_required = True
         policy_required = False
@@ -170,7 +170,7 @@ class ArchiveMessage(Command):
     """Archive a message for the current user."""
     class Meta:
         key = "archive-message"
-        resources = ("message-recipient",)
+        resources = ("message_recipient",)
         tags = ["messages", "archived"]
         auth_required = True
         policy_required = False
@@ -194,7 +194,7 @@ class CreateTemplate(Command):
     class Meta:
         key = "create-template"
         new_resource = True
-        resources = ("message-template",)
+        resources = ("message_template",)
         tags = ["template", "create"]
         auth_required = True
         policy_required = False
@@ -216,7 +216,7 @@ class UpdateTemplate(Command):
 
     class Meta:
         key = "update-template"
-        resource = ("message-template")
+        resource = ("message_template")
         tags = ["template", "create"]
         auth_required = True
         policy_required = False
@@ -239,7 +239,7 @@ class PublishTemplate(Command):
 
     class Meta:
         key = "publish-template"
-        resources = ("message-template",)
+        resources = ("message_template",)
         tags = ["template", "publish"]
         auth_required = True
         policy_required = False
