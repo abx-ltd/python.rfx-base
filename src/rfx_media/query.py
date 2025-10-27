@@ -31,7 +31,10 @@ class MediaQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "media-entry"
-        scope_required = scope.ResourceScope
+    
+    @classmethod
+    async def base_query(cls, context, scope):
+        return {"resource": "organization", "resource__id": context.organization._id}
 
     filename: str = StringField("Filename")
     filehash: str = StringField("File Hash")
