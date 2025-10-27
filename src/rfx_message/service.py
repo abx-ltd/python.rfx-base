@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from fluvius.data import DataAccessManager
 from .template import template_registry
 from .helper import get_render_strategy
-from .types import MessageType, RenderStatus, RenderStrategy
+from .types import MessageTypeEnum, RenderStatusEnum, RenderStrategyEnum
 from . import logger
 
 class TemplateService:
@@ -77,9 +77,9 @@ class TemplateService:
 
     async def resolve_render_strategy(
         self,
-        message_type: MessageType,
-        message_strategy: Optional[RenderStrategy] = None,
-        template_strategy: Optional[RenderStrategy] = None
+        message_type: MessageTypeEnum,
+        message_strategy: Optional[RenderStrategyEnum] = None,
+        template_strategy: Optional[RenderStrategyEnum] = None
     ):
         """
         Resolve rendering strategy with precedence:
@@ -89,7 +89,7 @@ class TemplateService:
             message_strategy
             or template_strategy
             or get_render_strategy(message_type)
-            or RenderStrategy.SERVER
+            or RenderStrategyEnum.SERVER
         )
 
     async def render_template(self, template: Dict[str, Any], data: Dict[str, Any], *, use_cache: bool=True):
@@ -103,7 +103,7 @@ class TemplateService:
             self._validate_template_data(data, template['variables_schema'])
 
         # Use cache for CACHED strategy
-        if use_cache and template.get('render_strategy') == RenderStrategy.CACHED.value:
+        if use_cache and template.get('render_strategy') == RenderStrategyEnum.CACHED.value:
             cache_key = self._generate_cache_key(template, data)
             cached_result = await self._get_cached_Render(cache_key)
             if cached_result:
@@ -113,7 +113,7 @@ class TemplateService:
             rendered = template_registry.render(engine_name, template_body, data)
 
             # Cache result if using CACHED strategy
-            if use_cache and template.get('render_strategy') == RenderStrategy.CACHED.value:
+            if use_cache and template.get('render_strategy') == RenderStrategyEnum.CACHED.value:
                 await self._cache_render_result(cache_key, rendered)
 
             return rendered
@@ -171,7 +171,7 @@ class TemplateService:
         app_id: Optional[str] = None,
         variables_schema: Optional[Dict[str, Any]] = None,
         sample_data: Optional[Dict[str, Any]] = None,
-        render_strategy: Optional[RenderStrategy] = None,
+        render_strategy: Optional[RenderStrategyEnum] = None,
         created_by: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create a new template."""
@@ -199,7 +199,7 @@ class TemplateService:
             "variables_schema": variables_schema or {},
             "sample_data": sample_data or {},
             "render_strategy": render_strategy.value if render_strategy else None,
-            "status": RenderStatus.DRAFT.value,
+            "status": RenderStatusEnum.DRAFT.value,
             "created_by": created_by
         }
 
@@ -211,7 +211,7 @@ class TemplateService:
         if not template:
             raise ValueError(f"Template not found: {template_id}")
 
-        updated = await self.stm.update(template, status=RenderStatus.PUBLISHED.value, _updater=published_by)
+        updated = await self.stm.update(template, status=RenderStatusEnum.PUBLISHED.value, _updater=published_by)
 
         await self.invalidate_template_cache(template['key'], template['version'])
 

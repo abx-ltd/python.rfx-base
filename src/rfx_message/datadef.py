@@ -4,7 +4,7 @@ from enum import Enum
 from datetime import datetime
 
 from fluvius.data import DataModel, UUID_TYPE, UUID_GENR
-from .types import MessageType, PriorityLevel, ContentType, RenderStrategy
+from .types import MessageTypeEnum, PriorityLevelEnum, ContentTypeEnum, RenderStrategyEnum
 
 class SendMessagePayload(DataModel):
     """
@@ -17,12 +17,12 @@ class SendMessagePayload(DataModel):
 
     # Message metadata
     subject: Optional[str] = Field(None, description="Message subject")
-    message_type: MessageType = Field(MessageType.NOTIFICATION, description="Type of message")
-    priority: PriorityLevel = Field(PriorityLevel.MEDIUM, description="Message priority")
+    message_type: MessageTypeEnum = Field(MessageTypeEnum.NOTIFICATION, description="Type of message")
+    priority: PriorityLevelEnum = Field(PriorityLevelEnum.MEDIUM, description="Message priority")
     
     # Content source (one of these must be provided)
     content: Optional[str] = Field(None, description="Direct message content (no template)")
-    content_type: Optional[ContentType] = Field(ContentType.TEXT, description="Content type")
+    content_type: Optional[ContentTypeEnum] = Field(ContentTypeEnum.TEXT, description="Content type")
     
     # Template-based content
     template_key: Optional[str] = Field(None, description="Template key for rendering")
@@ -79,7 +79,7 @@ class CreateTemplatePayload(DataModel):
     # sample_data: Optional[Dict[str, Any]] = Field({}, description="Sample data for testing")
     
     # Rendering control
-    render_strategy: Optional[RenderStrategy] = Field(None, description="Default rendering strategy")
+    render_strategy: Optional[RenderStrategyEnum] = Field(None, description="Default rendering strategy")
 
 class PublishTemplatePayload(DataModel):
     """Payload for publishing templates."""
@@ -102,7 +102,7 @@ class Notification(DataModel):
     subject: str = Field(..., description="Subject of the message")
     content: str = Field(..., description="Content of the message")
     content_type: str = Field(..., description="Content type of the message")
-    priority: PriorityLevel = Field(PriorityLevel.MEDIUM, description="Priority level of the message")
+    priority: PriorityLevelEnum = Field(PriorityLevelEnum.MEDIUM, description="Priority level of the message")
 
     is_important: Optional[bool] = Field(False, description="Whether the message is marked as important")
     expiration_date: Optional[datetime] = Field(None, description="Expiration date of the message")
@@ -113,5 +113,5 @@ class Notification(DataModel):
     template_version: Optional[int] = Field(None, description="Version of the template used")
     template_locale: Optional[str] = Field("en", description="Locale for the template")
     template_data: Optional[Dict[str, Any]] = Field(None, description="Additional data for the template")
-    render_strategy: Optional[RenderStrategy] = Field(None, description="Rendering strategy for the template")
+    render_strategy: Optional[RenderStrategyEnum] = Field(None, description="Rendering strategy for the template")
 

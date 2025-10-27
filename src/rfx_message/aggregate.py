@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 # import asyncio
 
 from .processor import MessageContentProcessor
-from .types import MessageType, RenderStrategy, ProcessingMode, RenderStatus
+from .types import MessageTypeEnum, RenderStrategyEnum, ProcessingModeEnum, RenderStatusEnum
 from . import logger
 
 class MessageAggregate(Aggregate):
@@ -58,7 +58,7 @@ class MessageAggregate(Aggregate):
         if not message:
             raise ValueError(f"Message not found: {message_id}")
 
-        processing_mode = ProcessingMode(mode)
+        processing_mode = ProcessingModeEnum(mode)
 
         # Process content
         processed_message = await self.content_processor.process_message_content(
@@ -78,7 +78,7 @@ class MessageAggregate(Aggregate):
 
         # Check if message is rendered or ready for client rendering
         # Compare against enum values
-        if message.render_status not in [RenderStatus.COMPLETED, RenderStatus.CLIENT_RENDERING]:
+        if message.render_status not in [RenderStatusEnum.COMPLETED, RenderStatusEnum.CLIENT_RENDERING]:
             raise ValueError(f"Message {message_id} is not ready for delivery (status: {message.render_status})")
 
         await self.statemgr.update(message, delivery_status='PENDING')
