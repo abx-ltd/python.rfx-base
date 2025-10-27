@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from abc import ABC, abstractmethod
-
+from fastapi import Request
 _PM_REGISTRY = {}
 
 
@@ -150,6 +150,33 @@ class UpdateCommentResponse(BaseModel):
     external_id: str
     updated: bool
     url: Optional[str] = None
+    
+class WebhookEventType:
+    """Webhook event types"""
+    COMMENT_CREATED = "comment_created"
+    COMMENT_UPDATED = "comment_updated"
+    COMMENT_DELETED = "comment_deleted"
+    ISSUE_CREATED = "issue_created"
+    ISSUE_UPDATED = "issue_updated"
+    ISSUE_DELETED = "issue_deleted"
+    PROJECT_CREATED = "project_created"
+    PROJECT_UPDATED = "project_updated"
+    PROJECT_DELETED = "project_deleted"
+
+
+class WebhookResponse(BaseModel):
+    """Standardized webhook response"""
+    event_type: str 
+    action: str  
+    resource_type: str  
+    external_id: str  
+    external_data: Dict[str, Any]  
+    provider: str  
+    
+    
+    target_id: Optional[str] = None  
+    target_type: Optional[str] = None  
+
 
 
 class PMService(ABC):
@@ -260,4 +287,28 @@ class PMService(ABC):
     @abstractmethod
     async def delete_comment(self, external_id: str) -> bool:
         """Delete a comment from the PM service"""
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def verify_webhook_signature(self, request: Request) -> bool:
+        """
+        Verify webhook signature from provider
+        
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def parse_webhook_payload(self, request: Request) -> Dict[str, Any]:
+        """
+        Parse webhook payload from provider
+        
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def handle_webhook(self, payload: Dict[str, Any]) -> WebhookResponse:
+        """
+        Handle webhook event and return standardized response
+        
+        """
         raise NotImplementedError

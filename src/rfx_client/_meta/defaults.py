@@ -15,3 +15,5 @@ LINEAR_API_KEY = "69ENLxox1TkKm9nEP9AmdqWZ5xMUC7_QREOUBrXxd1A"
 LINEAR_TEAM_ID = "a7fc113d-5b51-4f6e-8a82-18eccf73c71c"
 
 COMMENT_AGGROOTS = "project,ticket,comment"
+
+LINEAR_WEBHOOK_SECRET= "lin_wh_Fa00liaNqhuLIv5xwztzX4HKdIhhAoxddAeTYnkVKI9R"

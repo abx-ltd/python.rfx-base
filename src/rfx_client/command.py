@@ -3136,3 +3136,115 @@ class ReplyToComment(Command):
 
 
 
+class ProcessLinearWebhook(Command):
+    """
+    Xử lý các sự kiện webhook đi vào từ Linear.
+    Đây là "bộ định tuyến" trung tâm cho logic đồng bộ hóa ngược.
+    """
+    class Meta:
+        key = "process-linear-webhook"
+        resources = ("project",) # Dùng một aggregate root chung
+        tags = ["webhook", "integration", "linear"]
+        auth_required = False # Webhook không cần user xác thực
+        internal = True # Được gọi bởi hệ thống (endpoint)
+        description = "Xử lý một webhook từ Linear"
+
+    Data = datadef.ProcessLinearWebhookPayload
+
+    async def _process(self, agg, stm, payload):
+        """
+        Định tuyến payload đến đúng hàm xử lý (handler).
+        """
+        logger.info(f"[WebhookCommand] Đang xử lý event: {payload.event_type}")
+        
+        event_body = payload.data.get("event", {})
+        event_type = event_body.get("type", payload.event_type) # "Comment", "Issue", v.v.
+        action = event_body.get("action") # "create", "update", "remove"
+        data = event_body.get("data", {}) # Nội dung chính của data
+        
+        if not all([event_type, action, data]):
+            logger.warning("[WebhookCommand] Cấu trúc payload không hợp lệ, bỏ qua.")
+            return
+
+        # --- LOGIC ĐỊNH TUYẾN CHÍNH ---
+        try:
+            if event_type == "Comment":
+                if action == "create":
+                    await self.handle_comment_create(agg, stm, data)
+                # elif action == "update":
+                #     await self.handle_comment_update(agg, stm, data)
+                # elif action == "remove":
+                #     await self.handle_comment_delete(agg, stm, data)
+            
+            # elif event_type == "Issue":
+            #     if action == "update":
+            #         await self.handle_issue_update(agg, stm, data)
+            #     # ...
+            
+            # Trả về response để endpoint biết đã xử lý xong
+            yield agg.create_response({"status": f"processed {event_type} {action}"}, _type="webhook-response")
+            
+        except Exception as e:
+            logger.error(f"[WebhookCommand] Lỗi khi xử lý {event_type} {action}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            yield agg.create_response({"status": "error", "error": str(e)}, _type="webhook-response")
+
+    async def handle_comment_create(self, agg, stm, data: dict):
+        """
+        Xử lý khi có comment mới từ Linear (dựa trên log của bạn).
+        'data' là nội dung của 'event.data'.
+        """
+        external_comment_id = data.get("id")
+        external_issue_id = data.get("issueId")
+        body = data.get("body")
+        external_url = data.get("url") # Lấy từ "event.url" trong log
+        if not external_url:
+            external_url = data.get("url") # Hoặc từ "event.data.url"
+
+        logger.info(f"[WebhookCommand] Đang xử lý tạo Comment: {external_comment_id}")
+        
+        if not all([external_comment_id, external_issue_id, body]):
+            logger.warning("[WebhookCommand] Comment payload thiếu trường, bỏ qua.")
+            return
+
+        # 1. Kiểm tra xem comment này đã được xử lý chưa (tránh lặp)
+        existing_integ = await stm.find_one("comment-integration", where={
+            "external_id": external_comment_id, "provider": "linear"
+        })
+        if existing_integ:
+            logger.info(f"Comment {external_comment_id} đã được xử lý, bỏ qua.")
+            return
+
+        # 2. Tìm local_ticket_id từ external_issue_id
+        ticket_integ = await stm.find_one("ticket-integration", where={
+            "external_id": external_issue_id, "provider": "linear"
+        })
+        if not ticket_integ:
+            logger.warning(f"Không tìm thấy ticket integration cho external issue {external_issue_id}, bỏ qua.")
+            return
+            
+        local_ticket_id = ticket_integ.ticket_id
+        
+        # 3. Tạo comment cục bộ (GỌI AGGREGATE.PY)
+        # Chúng ta gọi action 'create_comment' trên aggregate
+        comment_payload = {
+            "content": body,
+            "resource": "ticket",
+            "resource_id": str(local_ticket_id),
+        }
+        
+        # Đây là nơi gọi đến aggregate.py
+        new_comment = await agg.create_comment(data=comment_payload)
+        
+        # 4. Tạo liên kết integration cho comment này (GỌI AGGREGATE.PY)
+        integration_payload = {
+            "provider": "linear",
+            "external_id": external_comment_id,
+            "external_url": external_url,
+            "comment_id": new_comment._id
+        }
+        # Đây cũng là nơi gọi đến aggregate.py
+        await agg.create_comment_integration(data=integration_payload)
+        
+        logger.info(f"✓ Đã tạo comment cục bộ {new_comment._id} từ webhook {external_comment_id}")

@@ -5,7 +5,7 @@ from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
 from .types import Priority, Availability, SyncStatus, ContactMethod
-
+from typing import Any, Dict
 
 # Project related payloads
 
@@ -577,3 +577,9 @@ class RemoveCommentIntegrationPayload(DataModel):
     provider: str 
     external_id: str
     comment_id: UUID_TYPE
+    
+class ProcessLinearWebhookPayload(DataModel):
+    """Payload cho command xử lý webhook tập trung"""
+    event_type: str  # Lấy từ header 'x-linear-event'
+    data: Dict[str, Any] # Toàn bộ JSON payload từ body
+    signature: Optional[str] = None
