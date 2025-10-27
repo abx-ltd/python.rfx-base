@@ -1,5 +1,26 @@
 from fluvius.data import DataAccessManager, item_query, list_query, value_query
 from .model import RFXClientConnector
+from pypika import Table, Schema
+from . import config
+
+user_s = Schema(config.USER_PROFILE_SCHEMA)
+client_s = Schema(config.CPO_CLIENT_SCHEMA)
+message_s = Schema(config.MESSAGE_SERVICE_SCHEMA)
+discussion_s = Schema(config.CPO_DISCUSSION_SCHEMA)
+
+
+user_profile = Table("profile", schema=user_s)
+message_table = Table("message", schema=message_s)
+
+credit_usage_table = Table("_credit-usage", schema=client_s)
+work_package_table = Table("work-package", schema=client_s)
+project_integration_table = Table("project-integration", schema=client_s)
+project_ticket_table = Table("project-ticket", schema=client_s)
+
+ticket_table = Table("ticket", schema=discussion_s)
+status_table = Table("status", schema=discussion_s)
+status_key_table = Table("status-key", schema=discussion_s)
+status_transition_table = Table("status-transition", schema=discussion_s)
 
 
 class RFXClientStateManager(DataAccessManager):
@@ -9,20 +30,20 @@ class RFXClientStateManager(DataAccessManager):
     @item_query
     def get_profile(self, profile_id):
         return """
-            select * from "cpo-user"."profile"
+            select * from {user_profile}
             where _id = $1
-        """, str(profile_id)
+        """.format(user_profile=user_profile), str(profile_id)
 
     @list_query
     def get_profiles(self, profile_ids):
         if not profile_ids:
-            return "SELECT * FROM \"cpo-user\".\"profile\" WHERE 1=0", ()
+            return "SELECT * FROM {user_profile} WHERE 1=0".format(user_profile=user_profile), ()
 
         placeholders = ', '.join(f'${i+1}' for i in range(len(profile_ids)))
-        query = f"""
-            select * from "cpo-user"."profile"
+        query = """
+            select * from {user_profile}
             where _id in ({placeholders})
-        """
+        """.format(user_profile=user_profile, placeholders=placeholders)
         return query, *[str(profile_id) for profile_id in profile_ids]
 
     @list_query
@@ -30,7 +51,7 @@ class RFXClientStateManager(DataAccessManager):
         self,
         organization_id,
     ):
-        return """
+        query = """
             WITH date_series AS (
                 SELECT 
                     (DATE_TRUNC('week', NOW()) - (i * INTERVAL '1 week'))::date AS week_date
@@ -44,7 +65,7 @@ class RFXClientStateManager(DataAccessManager):
                     COALESCE(SUM(cu.op_credits), 0) AS op_credits,
                     COALESCE(SUM(cu.total_credits), 0) AS total_credits
                 FROM date_series ds
-                LEFT JOIN "cpo-client"."_credit-usage" cu
+                LEFT JOIN {credit_usage} cu
                     ON cu.organization_id = $1
                 AND cu.usage_year = EXTRACT(isoyear FROM ds.week_date)
                 AND cu.usage_week = EXTRACT(week FROM ds.week_date)
@@ -76,63 +97,68 @@ class RFXClientStateManager(DataAccessManager):
                 total_credits
             FROM filled_data
             ORDER BY week_order;
-        """, str(organization_id)
+        """
+        return query.format(credit_usage=credit_usage_table), str(organization_id)
 
     @item_query
     def count_work_packages(self, organization_id):
         return """
-            select COUNT(*) from "cpo-client"."work-package"
+            select COUNT(*) from {wp_table}
             where organization_id = $1
-        """, str(organization_id)
+        """.format(wp_table=work_package_table), str(organization_id)
 
     @item_query
     def count_messages(self, organization_id):
         return """
-            select COUNT(*) from "cpo-message"."message"
+            select COUNT(*) from {message_table}
             where organization_id = $1
-        """, str(organization_id)\
+        """.format(message_table=message_table), str(organization_id)
 
 
     @item_query
     def count_open_inquiries(self, organization_id):
         return """
-            select COUNT(*) from "cpo-discussion"."ticket"
+            select COUNT(*) from {ticket_table}
             where organization_id = $1
             and status = 'OPEN'
-        """, str(organization_id)
+        """.format(ticket_table=ticket_table), str(organization_id)
 
     @value_query
     def get_status_id(self, entity_type):
         return """
-            select _id from "cpo-discussion"."status"
+            select _id from {status_table}
             where entity_type = $1
             and _deleted is null
-        """, str(entity_type)
+        """.format(status_table=status_table), str(entity_type)
 
     @value_query
     def has_status_key(self, status_id, key):
         return """
             select exists (
-            select _id from "cpo-discussion"."status-key"
+            select _id from {sk_table}
                 where status_id = $1
                 and key = $2
                 and _deleted is null
             )
-        """, str(status_id), str(key)
+        """.format(sk_table=status_key_table), str(status_id), str(key)
 
     @value_query
     def has_status_transition(self, status_id, current_status, new_status):
-        return """
+        query = """
             select exists (
                 select 1
-                from "cpo-discussion"."status-transition" st
-                join "cpo-discussion"."status-key" ws_src on ws_src._id = st.src_status_key_id
-                join "cpo-discussion"."status-key" ws_dst on ws_dst._id = st.dst_status_key_id
+                from {st_table} st
+                join {sk_table} ws_src on ws_src._id = st.src_status_key_id
+                join {sk_table} ws_dst on ws_dst._id = st.dst_status_key_id
                 where st.status_id = $1
                 and ws_src.key = $2
                 and ws_dst.key = $3
             )
-        """, str(status_id), str(current_status), str(new_status)
+        """
+        return query.format(
+            st_table=status_transition_table,
+            sk_table=status_key_table
+        ), str(status_id), str(current_status), str(new_status)
         
     @item_query
     def get_project_integration(self, provider: str, external_id: str, project_id):
@@ -141,14 +167,16 @@ class RFXClientStateManager(DataAccessManager):
         provider, external_id, và project_id.
         """
         
-        query = f"""
-            SELECT * FROM "cpo-client"."project-integration"
+        query = """
+            SELECT * FROM {pi_table}
             WHERE
                 provider = $1 AND
                 external_id = $2 AND
                 project_id = $3
         """
-        return query, provider, external_id, str(project_id)
+        return query.format(
+            pi_table=project_integration_table
+        ), provider, external_id, str(project_id)
     
     
     # Ticket Queries
@@ -158,9 +186,9 @@ class RFXClientStateManager(DataAccessManager):
         Lấy project_id từ bảng project-ticket bằng ticket_id.
         """
         return """
-            SELECT project_id FROM "cpo-client"."project-ticket"
+            SELECT project_id FROM {pt_table}
             WHERE ticket_id = $1
-        """, str(ticket_id)
+        """.format(pt_table=project_ticket_table), str(ticket_id)
         
     @list_query
     def get_ticket_ids_by_project_id(self, project_id):
@@ -168,9 +196,9 @@ class RFXClientStateManager(DataAccessManager):
         Lấy danh sách ticket_id từ bảng project-ticket (schema cpo-client).
         """
         return """
-            SELECT ticket_id FROM "cpo-client"."project-ticket"
+            SELECT ticket_id FROM {pt_table}
             WHERE project_id = $1
-        """, str(project_id)
+        """.format(pt_table=project_ticket_table), str(project_id)
 
     @list_query
     def get_tickets_by_ids(self, ticket_ids: list):
@@ -178,8 +206,8 @@ class RFXClientStateManager(DataAccessManager):
         Lấy thông tin chi tiết của các ticket dựa trên danh sách ID.
         """
         return """
-            SELECT * FROM "cpo-discussion"."ticket"
+            SELECT * FROM {ticket_table}
             WHERE _id = ANY($1)
-        """, ticket_ids
+        """.format(ticket_table=ticket_table), ticket_ids
     
     

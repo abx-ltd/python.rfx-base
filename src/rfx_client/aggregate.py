@@ -4,7 +4,7 @@ from fluvius.data import serialize_mapping, UUID_GENR, logger, timestamp, serial
 from datetime import datetime, timezone
 from .helper import parse_duration_for_db
 from .utils import safe_getattr
-from .types import SyncStatus
+from .types import SyncStatusEnum
 from . import config
 
 class RFXClientAggregate(Aggregate):
@@ -32,7 +32,7 @@ class RFXClientAggregate(Aggregate):
         )
         # we will check user permission to add project-member role correct (now we just default it client)
         project_member = self.init_resource(
-            "project-member",
+            "project_member",
             {
                 "member_id": self.context.profile_id,
                 "role": "CLIENT",
@@ -88,9 +88,9 @@ class RFXClientAggregate(Aggregate):
 
         project_data = serialize_mapping(data)
 
-        sync_status = SyncStatus.PENDING
+        sync_status = SyncStatusEnum.PENDING
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
-            sync_status = SyncStatus.SYNCED
+            sync_status = SyncStatusEnum.SYNCED
 
 
         await self.statemgr.update(
@@ -135,9 +135,9 @@ class RFXClientAggregate(Aggregate):
         project_data.pop('target_date', None)
         project_data.pop('duration', None)
 
-        sync_status = SyncStatus.PENDING
+        sync_status = SyncStatusEnum.PENDING
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
-            sync_status = SyncStatus.SYNCED
+            sync_status = SyncStatusEnum.SYNCED
 
         await self.statemgr.update(
             project, 
@@ -159,7 +159,7 @@ class RFXClientAggregate(Aggregate):
         project_id = self.aggroot.identifier
         """Add ticket to project"""
         record = self.init_resource(
-            "project-ticket",
+            "project_ticket",
             {
                 "project_id": project_id,
                 "ticket_id": data.ticket_id
@@ -173,14 +173,14 @@ class RFXClientAggregate(Aggregate):
         """Add work package to estimator and clone all related work items"""
         project = self.rootobj
 
-        work_package = await self.statemgr.find_one('work-package', where=dict(
+        work_package = await self.statemgr.find_one('work_package', where=dict(
             _id=data.work_package_id
         ))
         if not work_package:
             raise ValueError("Work package not found")
 
         project_work_package = self.init_resource(
-            "project-work-package",
+            "project_work_package",
             {
                 "work_package_id": data.work_package_id,
                 "project_id": project._id,
@@ -195,7 +195,7 @@ class RFXClientAggregate(Aggregate):
         )
         await self.statemgr.insert(project_work_package)
 
-        work_package_work_items = await self.statemgr.find_all('work-package-work-item', where=dict(
+        work_package_work_items = await self.statemgr.find_all('work_package_work_item', where=dict(
             work_package_id=data.work_package_id
         ))
 
@@ -205,13 +205,13 @@ class RFXClientAggregate(Aggregate):
         work_item_ids = [
             wp_work_item.work_item_id for wp_work_item in work_package_work_items]
 
-        original_work_items = await self.statemgr.find_all('work-item', where={
+        original_work_items = await self.statemgr.find_all('work_item', where={
             '_id.in': work_item_ids
         })
 
         work_item_lookup = {item._id: item for item in original_work_items}
 
-        all_deliverables = await self.statemgr.find_all('work-item-deliverable', where={
+        all_deliverables = await self.statemgr.find_all('work_item_deliverable', where={
             'work_item_id.in': work_item_ids
         })
         deliverables_by_work_item = {}
@@ -281,13 +281,13 @@ class RFXClientAggregate(Aggregate):
             project_wp_work_items_batch.append(project_wp_work_item_data)
 
         if project_work_items_batch:
-            await self.statemgr.insert_many("project-work-item", *project_work_items_batch)
-
+            await self.statemgr.insert_many("project_work_item", *project_work_items_batch)
         if project_deliverables_batch:
-            await self.statemgr.insert_many("project-work-item-deliverable", *project_deliverables_batch)
-
+            await self.statemgr.insert_many("project_work_item_deliverable", *project_deliverables_batch)
         if project_wp_work_items_batch:
-            await self.statemgr.insert_many("project-work-package-work-item", *project_wp_work_items_batch)
+            await self.statemgr.insert_many("project_work_package_work_item", *project_wp_work_items_batch)
+        if project_wp_work_items_batch:
+            await self.statemgr.insert_many("project_work_package_work_item", *project_wp_work_items_batch)
 
         return project_work_package
 
@@ -297,7 +297,7 @@ class RFXClientAggregate(Aggregate):
         project = self.rootobj
 
         # --- STEP 1: Lấy project-work-package template ---
-        template_pwp = await self.statemgr.find_one('project-work-package', where=dict(
+        template_pwp = await self.statemgr.find_one('project_work_package', where=dict(
             _id=data.project_work_package_id,
             project_id=None
         ))
@@ -313,10 +313,10 @@ class RFXClientAggregate(Aggregate):
         pwp_data.pop('_created', None)
         pwp_data.pop('_updated', None)
         pwp_data.pop('_etag', None)
-        await self.statemgr.insert(self.init_resource("project-work-package", pwp_data))
+        await self.statemgr.insert(self.init_resource("project_work_package", pwp_data))
 
         # --- STEP 3: Lấy các liên kết project-work-package-work-item ---
-        template_links = await self.statemgr.find_all('project-work-package-work-item', where=dict(
+        template_links = await self.statemgr.find_all('project_work_package_work_item', where=dict(
             project_work_package_id=data.project_work_package_id
         ))
         template_pwi_ids = [
@@ -325,14 +325,14 @@ class RFXClientAggregate(Aggregate):
         # --- STEP 4: Lấy các project-work-item ---
         template_pwis = []
         if template_pwi_ids:
-            template_pwis = await self.statemgr.find_all('project-work-item', where={
+            template_pwis = await self.statemgr.find_all('project_work_item', where={
                 '_id.in': template_pwi_ids
             })
 
         # --- STEP 5: Lấy các deliverable ---
         template_deliverables = []
         if template_pwi_ids:
-            template_deliverables = await self.statemgr.find_all('project-work-item-deliverable', where={
+            template_deliverables = await self.statemgr.find_all('project_work_item_deliverable', where={
                 'project_work_item_id.in': template_pwi_ids
             })
 
@@ -353,7 +353,7 @@ class RFXClientAggregate(Aggregate):
             data_pwi.pop('_etag', None)
             new_pwis.append(data_pwi)
         if new_pwis:
-            await self.statemgr.insert_many("project-work-item", *new_pwis)
+            await self.statemgr.insert_many("project_work_item", *new_pwis)
 
         # --- STEP 8: Clone project-work-item-deliverable ---
         new_deliverables = []
@@ -367,7 +367,7 @@ class RFXClientAggregate(Aggregate):
             data_d.pop('_etag', None)
             new_deliverables.append(data_d)
         if new_deliverables:
-            await self.statemgr.insert_many("project-work-item-deliverable", *new_deliverables)
+            await self.statemgr.insert_many("project_work_item_deliverable", *new_deliverables)
 
         # --- STEP 9: Clone project-work-package-work-item ---
         new_links = []
@@ -382,9 +382,9 @@ class RFXClientAggregate(Aggregate):
             data_l.pop('_etag', None)
             new_links.append(data_l)
         if new_links:
-            await self.statemgr.insert_many("project-work-package-work-item", *new_links)
+            await self.statemgr.insert_many("project_work_package_work_item", *new_links)
 
-        return self.init_resource("project-work-package", pwp_data)
+        return self.init_resource("project_work_package", pwp_data)
 
     @action('clone-work-package-deprecated', resources='work-package')
     async def clone_work_package_deprecated(self, /, data):
@@ -408,23 +408,23 @@ class RFXClientAggregate(Aggregate):
             "work_package_complexity_level": work_package.complexity_level,
             "work_package_estimate": work_package.estimate
         }
-        await self.statemgr.insert(self.init_resource("project-work-package", pwp_data))
+        await self.statemgr.insert(self.init_resource("project_work_package", pwp_data))
 
         # --- STEP 3: Lấy work-package-work-item ---
-        wp_work_items = await self.statemgr.find_all('work-package-work-item', where=dict(
+        wp_work_items = await self.statemgr.find_all('work_package_work_item', where=dict(
             work_package_id=work_package._id
         ))
         if not wp_work_items:
-            return self.init_resource("project-work-package", pwp_data)
+            return self.init_resource("project_work_package", pwp_data)
 
         work_item_ids = [w.work_item_id for w in wp_work_items]
-        original_work_items = await self.statemgr.find_all('work-item', where={
+        original_work_items = await self.statemgr.find_all('work_item', where={
             "_id.in": work_item_ids
         })
         work_item_lookup = {w._id: w for w in original_work_items}
 
         # --- STEP 4: Lấy deliverables ---
-        all_deliverables = await self.statemgr.find_all('work-item-deliverable', where={
+        all_deliverables = await self.statemgr.find_all('work_item_deliverable', where={
             "work_item_id.in": work_item_ids
         })
         deliverables_by_work_item = {}
@@ -485,24 +485,24 @@ class RFXClientAggregate(Aggregate):
 
         # --- STEP 6: Insert batch ---
         if project_work_items_batch:
-            await self.statemgr.insert_many("project-work-item", *project_work_items_batch)
+            await self.statemgr.insert_many("project_work_item", *project_work_items_batch)
         if project_deliverables_batch:
-            await self.statemgr.insert_many("project-work-item-deliverable", *project_deliverables_batch)
+            await self.statemgr.insert_many("project_work_item_deliverable", *project_deliverables_batch)
         if project_wp_work_items_batch:
-            await self.statemgr.insert_many("project-work-package-work-item", *project_wp_work_items_batch)
+            await self.statemgr.insert_many("project_work_package_work_item", *project_wp_work_items_batch)
 
-        return self.init_resource("project-work-package", pwp_data)
+        return self.init_resource("project_work_package", pwp_data)
 
     @action('work-package-removed', resources='project')
     async def remove_work_package_from_estimator(self, /, data):
         """Remove a work package and all related items from the project estimator"""
         project = self.rootobj
 
-        project_work_package = await self.statemgr.find_one('project-work-package', where=dict(
+        project_work_package = await self.statemgr.find_one('project_work_package', where=dict(
             work_package_id=data.work_package_id,
             project_id=project._id
         ))
-        await self.statemgr.invalidate_one('project-work-package', project_work_package._id)
+        await self.statemgr.invalidate_one('project_work_package', project_work_package._id)
 
     # =========== Project BDM Contact (Project Context) ============
 
@@ -511,7 +511,7 @@ class RFXClientAggregate(Aggregate):
         project = self.rootobj
         """Create a new BDM contact for a project"""
         record = self.init_resource(
-            "project-bdm-contact",
+            "project_bdm_contact",
             serialize_mapping(data),
             project_id=project._id,
             _id=UUID_GENR()
@@ -523,7 +523,7 @@ class RFXClientAggregate(Aggregate):
     async def update_project_bdm_contact(self, /, data):
         project = self.rootobj
         """Update a project BDM contact"""
-        record = await self.statemgr.find_one('project-bdm-contact', where=dict(
+        record = await self.statemgr.find_one('project_bdm_contact', where=dict(
             project_id=project._id,
             _id=data.bdm_contact_id
         ))
@@ -532,7 +532,7 @@ class RFXClientAggregate(Aggregate):
             raise ValueError("BDM contact not found")
 
         if data.status:
-            workflow_id = await self.statemgr.get_workflow_id("project-bdm-contact")
+            workflow_id = await self.statemgr.get_workflow_id("project_bdm_contact")
             to_workflow_status = await self.statemgr.has_workflow_status(workflow_id, data.status)
             if not to_workflow_status:
                 raise ValueError("Invalid status")
@@ -550,7 +550,7 @@ class RFXClientAggregate(Aggregate):
     async def delete_project_bdm_contact(self, /, data):
         project = self.rootobj
         """Delete a project BDM contact"""
-        record = await self.statemgr.find_one('project-bdm-contact', where=dict(
+        record = await self.statemgr.find_one('project_bdm_contact', where=dict(
             _id=data.bdm_contact_id,
             project_id=project._id
         ))
@@ -596,7 +596,7 @@ class RFXClientAggregate(Aggregate):
 
         """Add member to project"""
         record = self.init_resource(
-            "project-member",
+            "project_member",
             {
                 "member_id": member_id,
                 "role": role,
@@ -611,7 +611,7 @@ class RFXClientAggregate(Aggregate):
     async def update_project_member(self, /, data):
         """Update project member"""
         project = self.rootobj
-        project_member = await self.statemgr.find_one('project-member', where=dict(
+        project_member = await self.statemgr.find_one('project_member', where=dict(
             project_id=project._id,
             member_id=data.member_id
         ))
@@ -626,7 +626,7 @@ class RFXClientAggregate(Aggregate):
     async def remove_project_member(self, /, member_id: str):
         """Remove project member"""
         project = self.rootobj
-        project_member = await self.statemgr.find_one('project-member', where=dict(
+        project_member = await self.statemgr.find_one('project_member', where=dict(
             project_id=project._id,
             member_id=member_id
         ))
@@ -634,7 +634,7 @@ class RFXClientAggregate(Aggregate):
         if not project_member:
             raise ValueError("Project member not found")
 
-        await self.statemgr.invalidate_one('project-member', project_member._id)
+        await self.statemgr.invalidate_one('project_member', project_member._id)
 
     # =========== Project Milestone (Project Context) ============
 
@@ -643,7 +643,7 @@ class RFXClientAggregate(Aggregate):
         project = self.rootobj
         project_data = serialize_mapping(data)
         record = self.init_resource(
-            "project-milestone",
+            "project_milestone",
             _id=UUID_GENR(),
             project_id=project._id,
             **project_data
@@ -654,7 +654,7 @@ class RFXClientAggregate(Aggregate):
     @action('milestone-updated', resources='project')
     async def update_project_milestone(self, /, data):
         """Update project milestone"""
-        milestone = await self.statemgr.find_one('project-milestone', where=dict(
+        milestone = await self.statemgr.find_one('project_milestone', where=dict(
             _id=data.milestone_id,
             project_id=self.aggroot.identifier
         ))
@@ -667,7 +667,7 @@ class RFXClientAggregate(Aggregate):
         update_data.pop('milestone_id', None)
 
         await self.statemgr.update(milestone, **update_data)
-        result = await self.statemgr.find_one('project-milestone', where=dict(
+        result = await self.statemgr.find_one('project_milestone', where=dict(
             _id=data.milestone_id,
             project_id=self.aggroot.identifier
         ))
@@ -676,14 +676,14 @@ class RFXClientAggregate(Aggregate):
     @action('milestone-deleted', resources='project')
     async def delete_project_milestone(self, /, data):
         """Delete project milestone"""
-        await self.statemgr.invalidate_one('project-milestone', data.milestone_id)
+        await self.statemgr.invalidate_one('project_milestone', data.milestone_id)
 
     # =========== Project Category (Project Context) ============
     @action('project-category-created', resources='project')
     async def create_project_category(self, /, data):
         """Create project category"""
         record = self.init_resource(
-            "ref--project-category",
+            "ref__project_category",
             serialize_mapping(data),
             _id=UUID_GENR()
         )
@@ -693,7 +693,7 @@ class RFXClientAggregate(Aggregate):
     @action('project-category-updated', resources='project')
     async def update_project_category(self, /, data):
         """Update project category"""
-        category = await self.statemgr.find_one('ref--project-category', where=dict(
+        category = await self.statemgr.find_one('ref__project_category', where=dict(
             _id=data.project_category_id
         ))
 
@@ -709,7 +709,7 @@ class RFXClientAggregate(Aggregate):
     @action('project-category-deleted', resources='project')
     async def delete_project_category(self, /, data):
         """Delete project category"""
-        await self.statemgr.invalidate_one('ref--project-category', data.project_category_id)
+        await self.statemgr.invalidate_one('ref__project_category', data.project_category_id)
 
     # =========== Work Package Context ============
 
@@ -717,7 +717,7 @@ class RFXClientAggregate(Aggregate):
     async def create_work_package(self, /, data):
         """Create new work package"""
         record = self.init_resource(
-            "work-package",
+            "work_package",
             serialize_mapping(data),
             _id=UUID_GENR(),
             organization_id=self.context.organization_id
@@ -747,7 +747,7 @@ class RFXClientAggregate(Aggregate):
         """
         original_wp = self.rootobj
 
-        original_wp_items = await self.statemgr.find_all('work-package-work-item', where=dict(
+        original_wp_items = await self.statemgr.find_all('work_package_work_item', where=dict(
             work_package_id=original_wp._id
         ))
 
@@ -762,7 +762,7 @@ class RFXClientAggregate(Aggregate):
         new_wp_data['work_package_name'] = f"{original_wp.work_package_name} (Copy)"
 
         new_wp = self.init_resource(
-            "work-package",
+            "work_package",
             new_wp_data,
             _id=new_wp_id,
             organization_id=self.context.organization_id
@@ -784,7 +784,7 @@ class RFXClientAggregate(Aggregate):
             new_wp_items_batch.append(wp_item_data)
 
         if new_wp_items_batch:
-            await self.statemgr.insert_many('work-package-work-item', *new_wp_items_batch)
+            await self.statemgr.insert_many('work_package_work_item', *new_wp_items_batch)
 
         return new_wp
 
@@ -800,7 +800,7 @@ class RFXClientAggregate(Aggregate):
 
         """Create new work item"""
         record = self.init_resource(
-            "work-item",
+            "work_item",
             serialize_mapping(data),
             _id=UUID_GENR(),
             organization_id=self.context.organization_id
@@ -835,7 +835,7 @@ class RFXClientAggregate(Aggregate):
     async def create_work_item_deliverable(self, /, data):
         """Create new work item deliverable"""
         record = self.init_resource(
-            "work-item-deliverable",
+            "work_item_deliverable",
             serialize_mapping(data),
             _id=UUID_GENR()
         )
@@ -845,7 +845,7 @@ class RFXClientAggregate(Aggregate):
     @action('work-item-deliverable-updated', resources='work-item')
     async def update_work_item_deliverable(self, /, data):
         """Update work item deliverable"""
-        work_item_deliverable = await self.statemgr.find_one('work-item-deliverable', where=dict(
+        work_item_deliverable = await self.statemgr.find_one('work_item_deliverable', where=dict(
             _id=data.work_item_deliverable_id,
             work_item_id=self.rootobj._id
         ))
@@ -861,12 +861,12 @@ class RFXClientAggregate(Aggregate):
     @action('work-item-deliverable-invalidated', resources='work-item')
     async def invalidate_work_item_deliverable(self, /, data):
         """Invalidate work item deliverable"""
-        deliverable = await self.statemgr.find_one('work-item-deliverable', where=dict(
+        deliverable = await self.statemgr.find_one('work_item_deliverable', where=dict(
             work_item_id=self.rootobj._id,
             _id=data.work_item_deliverable_id
         ))
         if deliverable:
-            await self.statemgr.invalidate_one('work-item-deliverable', deliverable._id)
+            await self.statemgr.invalidate_one('work_item_deliverable', deliverable._id)
         else:
             raise ValueError("Work item deliverable not found")
 
@@ -880,7 +880,7 @@ class RFXClientAggregate(Aggregate):
             "work_item_id": work_item_id
         }
         record = self.init_resource(
-            "work-package-work-item",
+            "work_package_work_item",
             serialize_mapping(data)
         )
         await self.statemgr.insert(record)
@@ -890,14 +890,14 @@ class RFXClientAggregate(Aggregate):
     async def remove_work_item_from_work_package(self, /, work_item_id):
         """Remove work item from work package"""
         work_package = self.rootobj
-        work_package_work_item = await self.statemgr.find_one('work-package-work-item', where=dict(
+        work_package_work_item = await self.statemgr.find_one('work_package_work_item', where=dict(
             work_package_id=work_package._id,
             work_item_id=work_item_id
         ))
         if not work_package_work_item:
             raise ValueError("Work item not found")
 
-        await self.statemgr.invalidate_one('work-package-work-item', work_package_work_item._id)
+        await self.statemgr.invalidate_one('work_package_work_item', work_package_work_item._id)
 
     # =========== Work Item Type (Work Item Context) ============
 
@@ -905,7 +905,7 @@ class RFXClientAggregate(Aggregate):
     async def create_work_item_type(self, /, data):
         """Create new work item type"""
         record = self.init_resource(
-            "ref--work-item-type",
+            "ref__work_item_type",
             serialize_mapping(data),
             _id=UUID_GENR()
         )
@@ -915,7 +915,7 @@ class RFXClientAggregate(Aggregate):
     @action('work-item-type-updated', resources='work-item')
     async def update_work_item_type(self, /, data):
         """Update work item type"""
-        work_item_type = await self.statemgr.find_one('ref--work-item-type', where=dict(
+        work_item_type = await self.statemgr.find_one('ref__work_item_type', where=dict(
             _id=data.work_item_type_id
         ))
 
@@ -931,14 +931,14 @@ class RFXClientAggregate(Aggregate):
     @action('work-item-type-invalidated', resources='work-item')
     async def invalidate_work_item_type(self, /, data):
         """Invalidate work item type"""
-        work_item_type = await self.statemgr.find_one('ref--work-item-type', where=dict(
+        work_item_type = await self.statemgr.find_one('ref__work_item_type', where=dict(
             _id=data.work_item_type_id
         ))
 
         if not work_item_type:
             raise ValueError("Work item type not found")
 
-        await self.statemgr.invalidate_one('ref--work-item-type', work_item_type._id)
+        await self.statemgr.invalidate_one('ref__work_item_type', work_item_type._id)
         return work_item_type
 
     # =========== Project Work Item (Project Context) ============
@@ -946,7 +946,7 @@ class RFXClientAggregate(Aggregate):
     @action('project-work-item-updated', resources='project')
     async def update_project_work_item(self, /, data):
         """Update project work item"""
-        project_work_item = await self.statemgr.find_one('project-work-item', where=dict(
+        project_work_item = await self.statemgr.find_one('project_work_item', where=dict(
             _id=data.project_work_item_id,
             project_id=self.aggroot.identifier
         ))
@@ -964,7 +964,7 @@ class RFXClientAggregate(Aggregate):
     @action('project-work-package-updated', resources='project')
     async def update_project_work_package(self, /, data):
         """Update project work package"""
-        project_work_package = await self.statemgr.find_one('project-work-package', where=dict(
+        project_work_package = await self.statemgr.find_one('project_work_package', where=dict(
             _id=data.project_work_package_id,
             project_id=self.aggroot.identifier
         ))
@@ -982,7 +982,7 @@ class RFXClientAggregate(Aggregate):
     async def update_project_work_package_with_work_items(self, /, data):
         """Update project work package and sync work items"""
 
-        project_work_package = await self.statemgr.find_one('project-work-package', where=dict(
+        project_work_package = await self.statemgr.find_one('project_work_package', where=dict(
             _id=data.project_work_package_id,
             project_id=self.aggroot.identifier
         ))
@@ -990,7 +990,7 @@ class RFXClientAggregate(Aggregate):
             raise ValueError("Project work package not found")
 
         existing_links = await self.statemgr.find_all(
-            'project-work-package-work-item',
+            'project_work_package_work_item',
             where=dict(project_work_package_id=data.project_work_package_id)
         )
         existing_project_work_item_ids = {
@@ -1004,13 +1004,13 @@ class RFXClientAggregate(Aggregate):
             link_record = next(
                 (l for l in existing_links if l.project_work_item_id == work_item_id), None)
             if link_record:
-                await self.statemgr.invalidate_one('project-work-package-work-item', link_record._id)
-            await self.statemgr.invalidate_one('project-work-item', work_item_id)
+                await self.statemgr.invalidate_one('project_work_package_work_item', link_record._id)
+            await self.statemgr.invalidate_one('project_work_item', work_item_id)
 
         to_add_ids = input_ids - existing_project_work_item_ids
 
         for work_item_id in to_add_ids:
-            work_item = await self.statemgr.find_one('work-item', where=dict(_id=work_item_id))
+            work_item = await self.statemgr.find_one('work_item', where=dict(_id=work_item_id))
             if not work_item:
                 raise ValueError(f"Work item {work_item_id} not found")
 
@@ -1025,7 +1025,7 @@ class RFXClientAggregate(Aggregate):
                 "estimate": work_item.estimate,
             }
             project_work_item = self.init_resource(
-                "project-work-item",
+                "project_work_item",
                 serialize_mapping(project_work_item_data)
             )
             await self.statemgr.insert(project_work_item)
@@ -1036,7 +1036,7 @@ class RFXClientAggregate(Aggregate):
                 "project_id": self.aggroot.identifier
             }
             link_record = self.init_resource(
-                "project-work-package-work-item",
+                "project_work_package_work_item",
                 serialize_mapping(link_data)
             )
             await self.statemgr.insert(link_record)
@@ -1055,7 +1055,7 @@ class RFXClientAggregate(Aggregate):
         """Add new work item to project work package and clone into project work item"""
 
         project_work_package = await self.statemgr.find_one(
-            "project-work-package",
+            "project_work_package",
             where=dict(
                 _id=data.project_work_package_id,
                 project_id=self.aggroot.identifier
@@ -1065,7 +1065,7 @@ class RFXClientAggregate(Aggregate):
             raise ValueError("Project work package not found")
 
         work_item = await self.statemgr.find_one(
-            "work-item",
+            "work_item",
             where=dict(_id=data.work_item_id)
         )
         if not work_item:
@@ -1082,7 +1082,7 @@ class RFXClientAggregate(Aggregate):
             "estimate": work_item.estimate,
         }
         project_work_item = self.init_resource(
-            "project-work-item",
+            "project_work_item",
             serialize_mapping(project_work_item_data)
         )
         await self.statemgr.insert(project_work_item)
@@ -1093,7 +1093,7 @@ class RFXClientAggregate(Aggregate):
             "project_id": self.aggroot.identifier
         }
         record = self.init_resource(
-            "project-work-package-work-item",
+            "project_work_package_work_item",
             serialize_mapping(link_data)
         )
         await self.statemgr.insert(record)
@@ -1102,21 +1102,21 @@ class RFXClientAggregate(Aggregate):
     @action("remove-project-work-item-from-project-work-package", resources='project')
     async def remove_project_work_item_from_project_work_package(self, /, data):
         """Remove project work item from project work package"""
-        project_work_item = await self.statemgr.find_one('project-work-item', where=dict(
+        project_work_item = await self.statemgr.find_one('project_work_item', where=dict(
             _id=data.project_work_item_id,
             project_id=self.aggroot.identifier
         ))
         if not project_work_item:
             raise ValueError("Project work item not found")
 
-        await self.statemgr.invalidate_one('project-work-item', project_work_item._id)
+        await self.statemgr.invalidate_one('project_work_item', project_work_item._id)
 
 # =========== Project Work Item Deliverable (Project Context) ============
 
     @action('project-work-item-deliverable-updated', resources='project')
     async def update_project_work_item_deliverable(self, /, data):
         """Update project work item deliverable"""
-        project_work_item_deliverable = await self.statemgr.find_one('project-work-item-deliverable', where=dict(
+        project_work_item_deliverable = await self.statemgr.find_one('project_work_item_deliverable', where=dict(
             _id=data.project_work_item_deliverable_id,
             project_id=self.aggroot.identifier
         ))
@@ -1135,7 +1135,7 @@ class RFXClientAggregate(Aggregate):
         """Create a project integration"""
         project = self.rootobj
         project_integration = self.init_resource(
-            "project-integration",
+            "project_integration",
             serialize_mapping(data),
             project_id=project._id
         )
@@ -1147,7 +1147,7 @@ class RFXClientAggregate(Aggregate):
         """Update a project integration"""
         project = self.rootobj
         logger.info(f"Update project: {project}")
-        project_integration = await self.statemgr.find_one('project-integration', where=dict(
+        project_integration = await self.statemgr.find_one('project_integration', where=dict(
             provider=data.provider,
             external_id=data.external_id,
             project_id=project._id
@@ -1161,7 +1161,7 @@ class RFXClientAggregate(Aggregate):
         """Delete a project integration"""
         # project = self.rootobj
         #logger.info(f"Delete project: {project}")
-        project_integration = await self.statemgr.find_one('project-integration', where=dict(
+        project_integration = await self.statemgr.find_one('project_integration', where=dict(
             provider=data.provider,
             external_id=data.external_id,
             # project_id=project._id
@@ -1169,13 +1169,13 @@ class RFXClientAggregate(Aggregate):
         
         if not project_integration:
             raise ValueError("Project integration not found")
-        await self.statemgr.invalidate_one('project-integration', project_integration._id)
+        await self.statemgr.invalidate_one('project_integration', project_integration._id)
 
 
     @action("sync-project-integration", resources="project")
     async def sync_project_integration(self, /, data):
         """Sync a project integration"""
-        project_integration = await self.statemgr.find_one('project-integration', where=dict(
+        project_integration = await self.statemgr.find_one('project_integration', where=dict(
             provider=data.provider,
             external_id=data.external_id,
             project_id=self.aggroot.identifier
@@ -1184,7 +1184,7 @@ class RFXClientAggregate(Aggregate):
         logger.info(f"Project integration: {project_integration}")
         if not project_integration:
             project_integration = self.init_resource(
-                "project-integration",
+                "project_integration",
                 serialize_mapping(data),
                 project_id=self.aggroot.identifier
             )
@@ -1199,7 +1199,7 @@ class RFXClientAggregate(Aggregate):
     @action("create-project-milestone-integration", resources="project")
     async def create_project_milestone_integration(self, /, data):
         """create a project milestone integration"""
-        milestone = await self.statemgr.find_one('project-milestone', where=dict(
+        milestone = await self.statemgr.find_one('project_milestone', where=dict(
             _id=data.milestone_id,
             project_id=self.aggroot.identifier
         ))
@@ -1210,7 +1210,7 @@ class RFXClientAggregate(Aggregate):
         
     
         project_milestone_integration = self.init_resource(
-            "project-milestone-integration",
+            "project_milestone_integration",
             serialize_mapping(data),
         )
         await self.statemgr.insert(project_milestone_integration)
@@ -1219,7 +1219,7 @@ class RFXClientAggregate(Aggregate):
     @action("update-project-milestone-integration", resources="project")
     async def update_project_milestone_integration(self, /, data):
         """update project milestone integration"""
-        milestone = await self.statemgr.find_one('project-milestone', where=dict(
+        milestone = await self.statemgr.find_one('project_milestone', where=dict(
             _id=data.milestone_id,
             project_id=self.aggroot.identifier
         ))
@@ -1228,7 +1228,7 @@ class RFXClientAggregate(Aggregate):
             raise ValueError(
                 "Milestone not found or does not belong to this project")
         
-        project_milestone_integration = await self.statemgr.find_one('project-milestone-integration', where=dict(
+        project_milestone_integration = await self.statemgr.find_one('project_milestone_integration', where=dict(
             milestone_id= data.milestone_id,
             provider=data.provider,
             external_id=data.external_id,
@@ -1242,7 +1242,7 @@ class RFXClientAggregate(Aggregate):
     @action("remove-project-milestone-integration", resources="project")
     async def remove_project_milestone_integration(self, /, data):
         """remove project milestone integration"""     
-        project_milestone_integration = await self.statemgr.find_one('project-milestone-integration', where=dict(
+        project_milestone_integration = await self.statemgr.find_one('project_milestone_integration', where=dict(
             milestone_id= data.milestone_id,
             provider=data.provider,
             external_id=data.external_id,
@@ -1250,13 +1250,13 @@ class RFXClientAggregate(Aggregate):
         ))
         if not project_milestone_integration:
             raise ValueError("Project milestone integration not found")
-        await self.statemgr.invalidate_one('project-milestone-integration', project_milestone_integration._id)
+        await self.statemgr.invalidate_one('project_milestone_integration', project_milestone_integration._id)
         
     @action("ticket-type-created", resources="ticket")
     async def create_ticket_type(self, /, data):
         """Create a new ticket type"""
         record = self.init_resource(
-            "ref--ticket-type",
+            "ref__ticket_type",
             serialize_mapping(data),
             _id=UUID_GENR()
         )
@@ -1266,7 +1266,7 @@ class RFXClientAggregate(Aggregate):
     @action("ticket-type-updated", resources="ticket")
     async def update_ticket_type(self, /, data):
         """Update a ticket type"""
-        ticket_type = await self.statemgr.find_one("ref--ticket-type", where=dict(_id=data.ticket_type_id))
+        ticket_type = await self.statemgr.find_one("ref__ticket_type", where=dict(_id=data.ticket_type_id))
         if not ticket_type:
             raise ValueError("Ticket type not found")
         updated_data = serialize_mapping(data)
@@ -1277,10 +1277,10 @@ class RFXClientAggregate(Aggregate):
     @action("ticket-type-deleted", resources="ticket")
     async def delete_ticket_type(self, /, data):
         """Delete a ticket type"""
-        ticket_type = await self.statemgr.find_one("ref--ticket-type", where=dict(_id=data.ticket_type_id))
+        ticket_type = await self.statemgr.find_one("ref__ticket_type", where=dict(_id=data.ticket_type_id))
         if not ticket_type:
             raise ValueError("Ticket type not found")
-        await self.statemgr.invalidate_one("ref--ticket-type", data.ticket_type_id)
+        await self.statemgr.invalidate_one("ref__ticket_type", data.ticket_type_id)
         return {"deleted": True}
 
     # =========== Inquiry (Ticket Context) ============
@@ -1312,7 +1312,7 @@ class RFXClientAggregate(Aggregate):
             data_result,
             _id=self.aggroot.identifier,
             status="NEW",
-            sync_status=SyncStatus.PENDING,
+            sync_status=SyncStatusEnum.PENDING,
             is_inquiry=False,
             organization_id=self.context.organization_id
         )
@@ -1329,11 +1329,11 @@ class RFXClientAggregate(Aggregate):
                 entity_type="ticket",
             ))
 
-            from_status_key = await self.statemgr.find_one("status-key", where=dict(
+            from_status_key = await self.statemgr.find_one("status_key", where=dict(
                 status_id=status._id,
                 key=ticket.status
             ))
-            to_status_key = await self.statemgr.find_one("status-key", where=dict(
+            to_status_key = await self.statemgr.find_one("status_key", where=dict(
                 status_id=status._id,
                 key=data.status
             ))
@@ -1365,16 +1365,16 @@ class RFXClientAggregate(Aggregate):
     @action('member-assigned-to-ticket', resources='ticket')
     async def assign_member_to_ticket(self, /, data):
         """Assign member to ticket"""
-        ticket_assignee = await self.statemgr.find_one('ticket-assignee',
+        ticket_assignee = await self.statemgr.find_one('ticket_assignee',
                                                        where=dict(ticket_id=self.aggroot.identifier))
         if ticket_assignee and ticket_assignee.member_id == data.member_id:
             raise ValueError("Member already assigned to ticket")
 
         if ticket_assignee:
-            await self.statemgr.invalidate_one('ticket-assignee', ticket_assignee._id)
+            await self.statemgr.invalidate_one('ticket_assignee', ticket_assignee._id)
 
         record = self.init_resource(
-            "ticket-assignee",
+            "ticket_assignee",
             {
                 "ticket_id": self.aggroot.identifier,
                 "member_id": data.member_id
@@ -1387,13 +1387,13 @@ class RFXClientAggregate(Aggregate):
     @action('member-removed-from-ticket', resources='ticket')
     async def remove_member_from_ticket(self, /, member_id: str):
         """Remove member from ticket"""
-        assignee = await self.statemgr.find_one('ticket-assignee',where=dict(
+        assignee = await self.statemgr.find_one('ticket_assignee',where=dict(
             ticket_id=self.aggroot.identifier,
             member_id=member_id
         ))
         if not assignee:
             raise ValueError("Assignee not found")
-        await self.statemgr.invalidate_one('ticket-assignee', assignee._id)
+        await self.statemgr.invalidate_one('ticket_assignee', assignee._id)
         return {"removed": True}
 
     # =========== Ticket Participant (Ticket Context) ============
@@ -1401,13 +1401,13 @@ class RFXClientAggregate(Aggregate):
     @action('participant-added-to-ticket', resources='ticket')
     async def add_ticket_participant(self, /, participant_id: str):
         """Add participant to ticket"""
-        ticket_participant = await self.statemgr.find_one('ticket-participant', where=dict(ticket_id=self.aggroot.identifier,
+        ticket_participant = await self.statemgr.find_one('ticket_participant', where=dict(ticket_id=self.aggroot.identifier,
                                                                                            participant_id=participant_id))
         if ticket_participant:
             raise ValueError("Participant already added to ticket")
 
         record = self.init_resource(
-            "ticket-participant",
+            "ticket_participant",
             {
                 "ticket_id": self.aggroot.identifier,
                 "participant_id": participant_id
@@ -1420,13 +1420,13 @@ class RFXClientAggregate(Aggregate):
     @action('participant-removed-from-ticket', resources='ticket')
     async def remove_ticket_participant(self, /, participant_id: str):
         """Remove participant from ticket"""
-        participant = await self.statemgr.find_one('ticket-participant',                                                   where=dict(
+        participant = await self.statemgr.find_one('ticket_participant',                                                   where=dict(
             ticket_id=self.aggroot.identifier,
             participant_id=participant_id
         ))
         if not participant:
             raise ValueError("Participant not found")
-        await self.statemgr.invalidate_one('ticket-participant', participant._id)
+        await self.statemgr.invalidate_one('ticket_participant', participant._id)
         return {"removed": True}
 
     # =========== Ticket Tag (Ticket Context) ============
@@ -1434,7 +1434,7 @@ class RFXClientAggregate(Aggregate):
     async def add_ticket_tag(self, /, tag_id: str):
         """Add tag to ticket"""
         record = self.init_resource(
-            "ticket-tag",
+            "ticket_tag",
             {
                 "ticket_id": self.aggroot.identifier,
                 "tag_id": tag_id
@@ -1447,12 +1447,12 @@ class RFXClientAggregate(Aggregate):
     @action('tag-removed-from-ticket', resources='ticket')
     async def remove_ticket_tag(self, /, tag_id: str):
         """Remove tag from ticket"""
-        tags = await self.statemgr.find_all('ticket-tag', where=dict(
+        tags = await self.statemgr.find_all('ticket_tag', where=dict(
             ticket_id=self.aggroot.identifier,
             tag_id=tag_id
         ))
         for tag in tags:
-            await self.statemgr.invalidate_one('ticket-tag', tag._id)
+            await self.statemgr.invalidate_one('ticket_tag', tag._id)
         return {"removed": True}
     
     # =========== Tag Context ============
@@ -1500,7 +1500,7 @@ class RFXClientAggregate(Aggregate):
         """Create a new status key"""
         status = self.rootobj
         record = self.init_resource(
-            "status-key",
+            "status_key",
             serialize_mapping(data),
             status_id=status._id,
             _id=UUID_GENR()
@@ -1513,7 +1513,7 @@ class RFXClientAggregate(Aggregate):
         """Create a new status transition"""
         status = self.rootobj
         record = self.init_resource(
-            "status-transition",
+            "status_transition",
             serialize_mapping(data),
             status_id=status._id,
             _id=UUID_GENR()
@@ -1530,7 +1530,7 @@ class RFXClientAggregate(Aggregate):
             raise ValueError("Ticket not found")
 
         record = self.init_resource(
-            "ticket-integration",
+            "ticket_integration",
             serialize_mapping(data),
             ticket_id=self.aggroot.identifier,
             _id=UUID_GENR()
@@ -1543,7 +1543,7 @@ class RFXClientAggregate(Aggregate):
         ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
         if not ticket:
             raise ValueError("Ticket not found")
-        ticket_integration = await self.statemgr.find_one("ticket-integration", where=dict(
+        ticket_integration = await self.statemgr.find_one("ticket_integration", where=dict(
             provider=data.provider,
             ticket_id=self.aggroot.identifier,
             external_id=data.external_id
@@ -1558,7 +1558,7 @@ class RFXClientAggregate(Aggregate):
         ticket = await self.statemgr.find_one("ticket", where=dict(_id=self.aggroot.identifier))
         if not ticket:
             raise ValueError("Ticket not found")
-        ticket_integration = await self.statemgr.find_one("ticket-integration", where=dict(
+        ticket_integration = await self.statemgr.find_one("ticket_integration", where=dict(
             provider=data.provider,
             ticket_id=self.aggroot.identifier,
             external_id=data.external_id
@@ -1645,7 +1645,7 @@ class RFXClientAggregate(Aggregate):
             raise ValueError("Comment not found")
 
         record = self.init_resource(
-            "comment-integration",
+            "comment_integration",
             serialize_mapping(data),
             # comment_id=self.aggroot.identifier,
             _id=UUID_GENR()
@@ -1660,7 +1660,7 @@ class RFXClientAggregate(Aggregate):
         if not comment:
             raise ValueError("Comment not found")
         
-        comment_integration = await self.statemgr.find_one("comment-integration", where=dict(
+        comment_integration = await self.statemgr.find_one("comment_integration", where=dict(
             provider=data.provider,
             comment_id=self.aggroot.identifier,
             external_id=data.external_id
@@ -1675,7 +1675,7 @@ class RFXClientAggregate(Aggregate):
     async def remove_comment_integration(self, /, data):
         """Remove comment integration"""
         logger.warn(f"Attempting to remove integration with payload: {data}")
-        comment_integration = await self.statemgr.find_one("comment-integration", where=dict(
+        comment_integration = await self.statemgr.find_one("comment_integration", where=dict(
             provider=data.provider,
             comment_id=data.comment_id,
             external_id=data.external_id

@@ -4,7 +4,7 @@ from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import Priority, Availability, SyncStatus, ContactMethod
+from .types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum
 from typing import Any, Dict
 
 # Project related payloads
@@ -15,14 +15,14 @@ class CreateProjectEstimatorPayload(DataModel):
     name: Optional[str] = Field(max_length=255, default="")
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[PriorityEnum] = None
 
 
 class CreateProjectPayload(DataModel):
     name: str = Field(max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[PriorityEnum] = None
     start_date: datetime = Field(default_factory=datetime.now)
     duration: str = Field(default="P9D")
 
@@ -31,7 +31,7 @@ class UpdateProjectPayload(DataModel):
     name: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[PriorityEnum] = None
     status: Optional[str] = None
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
@@ -44,7 +44,7 @@ class DeleteProjectPayload(DataModel):
 
 
 class CreateProjectBDMContactPayload(DataModel):
-    contact_method: Optional[list[ContactMethod]] = None
+    contact_method: Optional[list[ContactMethodEnum]] = None
     message: Optional[str] = None
     meeting_time: Optional[datetime] = None
     status: Optional[str] = None
@@ -52,7 +52,7 @@ class CreateProjectBDMContactPayload(DataModel):
 
 class UpdateProjectBDMContactPayload(DataModel):
     bdm_contact_id: UUID_TYPE
-    contact_method: Optional[list[ContactMethod]] = None
+    contact_method: Optional[list[ContactMethodEnum]] = None
     message: Optional[str] = None
     meeting_time: Optional[datetime] = None
     status: Optional[str] = None
@@ -90,12 +90,12 @@ class CreateProjectTicketPayload(DataModel):
     title: str = Field(max_length=255)
     description: Optional[str] = None
     type: str  # Changed from 'type' to avoid reserved keyword conflict
-    priority: Optional[Priority] = Priority.MEDIUM
+    priority: Optional[PriorityEnum] = PriorityEnum.MEDIUM
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
     availability: str = "OPEN"
     status: Optional[str] = "DRAFT"
-    sync_status: Optional[SyncStatus] = SyncStatus.PENDING
+    sync_status: Optional[SyncStatusEnum] = SyncStatusEnum.PENDING
     sync_linear: bool = False
     
 
@@ -390,8 +390,8 @@ class CreateInquiryPayload(DataModel):
     title: str = Field(max_length=255)
     description: Optional[str] = None
     type: str
-    priority: Optional[Priority] = Priority.MEDIUM
-    availability: Optional[Availability] = Availability.CLOSED
+    priority: Optional[PriorityEnum] = PriorityEnum.MEDIUM
+    availability: Optional[AvailabilityEnum] = AvailabilityEnum.CLOSED
 
 
 # ---------- Ticket (Ticket Context) ----------
@@ -402,7 +402,7 @@ class CreateTicketPayload(DataModel):
     priority: str
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
-    availability: Optional[Availability] = Availability.OPEN
+    availability: Optional[AvailabilityEnum] = AvailabilityEnum.OPEN
     project_id: str
 
 
@@ -410,9 +410,9 @@ class UpdateTicketPayload(DataModel):
     title: Optional[str] = None
     description: Optional[str] = None
     type: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[PriorityEnum] = None
     assignee: Optional[UUID_TYPE] = None
-    availability: Optional[Availability] = None
+    availability: Optional[AvailabilityEnum] = None
     status: Optional[str] = None
 
 

@@ -1,7 +1,7 @@
-CPO_CLIENT_SCHEMA = "cpo-client"
+CPO_CLIENT_SCHEMA = "cpo_client"
 DB_DSN = None
-POLICY_SCHEMA = "cpo-policy"
-POLICY_TABLE = "_policy--rfx-client"
+POLICY_SCHEMA = "cpo_policy"
+POLICY_TABLE = "_policy__rfx_client"
 NAMESPACE = "rfx-client"
 DISCUSSION_NAMESPACE = "rfx-discussion"
 MESSAGE_NAMESPACE = "rfx-message"
@@ -17,3 +17,7 @@ LINEAR_TEAM_ID = "a7fc113d-5b51-4f6e-8a82-18eccf73c71c"
 COMMENT_AGGROOTS = "project,ticket,comment"
 
 LINEAR_WEBHOOK_SECRET= "lin_wh_Fa00liaNqhuLIv5xwztzX4HKdIhhAoxddAeTYnkVKI9R"
+
+USER_PROFILE_SCHEMA = "cpo_user"
+MESSAGE_SERVICE_SCHEMA = "cpo_message"
+CPO_DISCUSSION_SCHEMA = "cpo_discussion"

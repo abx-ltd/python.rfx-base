@@ -5,7 +5,7 @@ from fluvius.domain.aggregate import AggregateRoot
 
 from .domain import RFXClientDomain
 from . import datadef, config
-from .types import ActivityAction
+from .types import ActivityActionEnum
 from fluvius.data import UUID_TYPE, UUID_GENR, logger
 from .helper import get_project_member_user_ids
 
@@ -216,7 +216,7 @@ class UpdateProject(Command):
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find existing integration
-                integration = await stm.find_one("project-integration", where=dict(
+                integration = await stm.find_one("project_integration", where=dict(
                     project_id=agg.get_aggroot().identifier,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -224,7 +224,7 @@ class UpdateProject(Command):
                 if not integration:
                     logger.warning("No integration found for this project, skipping sync")
                 else:
-                    from rfx_integration.pm_service import PMService
+                    from rfx_integration.pm_service import PMService     
                     from rfx_integration.pm_service.base import UpdateProjectPayload as PMUpdateProjectPayload
                     
                     logger.info(f"Syncing update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
@@ -330,7 +330,7 @@ class DeleteProject(Command):
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find integration
-                integration = await stm.find_one("project-integration", where=dict(
+                integration = await stm.find_one("project_integration", where=dict(
                     project_id=agg.get_aggroot().identifier,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -1059,7 +1059,7 @@ class CreateProjectMilestone(Command):
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find project integration to get external project ID
-                project_integration = await stm.find_one("project-integration", where=dict(
+                project_integration = await stm.find_one("project_integration", where=dict(
                     project_id=agg.get_aggroot().identifier,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -1131,7 +1131,7 @@ class UpdateProjectMilestone(Command):
         profile = await stm.get_profile(profile_id)
 
         project_milestone = await stm.find_one(
-            "project-milestone",
+            "project_milestone",
             where={"_id": payload.milestone_id}
         )
 
@@ -1168,7 +1168,7 @@ class UpdateProjectMilestone(Command):
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find milestone integration
-                milestone_integration = await stm.find_one("project-milestone-integration", where=dict(
+                milestone_integration = await stm.find_one("project_milestone_integration", where=dict(
                     milestone_id=payload.milestone_id,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -1241,7 +1241,7 @@ class DeleteProjectMilestone(Command):
         profile = await stm.get_profile(profile_id)
 
         project_milestone = await stm.find_one(
-            "project-milestone",
+            "project_milestone",
             where={"_id": payload.milestone_id}
         )
 
@@ -1277,7 +1277,7 @@ class DeleteProjectMilestone(Command):
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find milestone integration
-                milestone_integration = await stm.find_one("project-milestone-integration", where=dict(
+                milestone_integration = await stm.find_one("project_milestone_integration", where=dict(
                     milestone_id=payload.milestone_id,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -2304,7 +2304,7 @@ class UpdateTicketInfo(Command):
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find existing integration
-                integration = await stm.find_one("ticket-integration", where=dict(
+                integration = await stm.find_one("ticket_integration", where=dict(
                     ticket_id=agg.get_aggroot().identifier,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -2390,7 +2390,7 @@ class RemoveTicket(Command):
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find integration
-                integration = await stm.find_one("ticket-integration", where=dict(
+                integration = await stm.find_one("ticket_integration", where=dict(
                     ticket_id=agg.get_aggroot().identifier,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -2999,7 +2999,7 @@ class UpdateComment(Command):
                     raise ValueError("PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set")
                 
                 # Find comment integration
-                comment_integration = await stm.find_one("comment-integration", where=dict(
+                comment_integration = await stm.find_one("comment_integration", where=dict(
                     comment_id=updated_comment._id,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -3071,7 +3071,7 @@ class DeleteComment(Command):
                     raise ValueError("PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set")
                 
                 # Find comment integration
-                comment_integration = await stm.find_one("comment-integration", where=dict(
+                comment_integration = await stm.find_one("comment_integration", where=dict(
                     comment_id=comment_id,
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ))
@@ -3209,7 +3209,7 @@ class ProcessLinearWebhook(Command):
             return
 
         # 1. Kiểm tra xem comment này đã được xử lý chưa (tránh lặp)
-        existing_integ = await stm.find_one("comment-integration", where={
+        existing_integ = await stm.find_one("comment_integration", where={
             "external_id": external_comment_id, "provider": "linear"
         })
         if existing_integ:
@@ -3217,7 +3217,7 @@ class ProcessLinearWebhook(Command):
             return
 
         # 2. Tìm local_ticket_id từ external_issue_id
-        ticket_integ = await stm.find_one("ticket-integration", where={
+        ticket_integ = await stm.find_one("ticket_integration", where={
             "external_id": external_issue_id, "provider": "linear"
         })
         if not ticket_integ:

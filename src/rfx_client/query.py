@@ -1,5 +1,5 @@
 from sqlalchemy import true
-from .types import Priority, SyncStatus, Availability
+from .types import PriorityEnum, SyncStatusEnum, AvailabilityEnum
 from .policy import RFXClientPolicyManager
 from .domain import RFXClientDomain
 from .state import RFXClientStateManager
@@ -8,7 +8,7 @@ from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, IntegerField, FloatField, DatetimeField, ArrayField, TextSearchField
 from . import scope
-from .types import ContactMethod
+from .types import ContactMethodEnum 
 from datetime import datetime
 from typing import Optional
 
@@ -62,7 +62,7 @@ class ProjectDraftQuery(DomainQueryResource):
     name: str = StringField("Project Name")
     description: str = StringField("Description")
     category: str = StringField("Category")
-    priority: Priority = EnumField("Priority")
+    priority: PriorityEnum = EnumField("Priority")
     start_date: str = DatetimeField("Start Date")
     target_date: str = DatetimeField("Target Date")
     free_credit_applied: int = IntegerField("Free Credit Applied")
@@ -95,13 +95,13 @@ class ProjectQuery(DomainQueryResource):
     name: str = StringField("Project Name")
     description: str = StringField("Description")
     category: str = StringField("Category")
-    priority: Priority = EnumField("Priority")
+    priority: PriorityEnum = EnumField("Priority")
     status: str = StringField("Status")
     start_date: str = DatetimeField("Start Date")
     target_date: str = DatetimeField("Target Date")
     free_credit_applied: int = IntegerField("Free Credit Applied")
     referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
-    sync_status: SyncStatus = EnumField("Sync Status")
+    sync_status: SyncStatusEnum = EnumField("Sync Status")
     members: list[UUID_TYPE] = ArrayField("Members")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
@@ -120,7 +120,7 @@ class ProjectBDMContactQuery(DomainQueryResource):
         policy_required = "project_id"
         scope_required = scope.ProjectBDMContactScopeSchema
 
-    contact_method: list[ContactMethod] = ArrayField("Contact Method")
+    contact_method: list[ContactMethodEnum] = ArrayField("Contact Method")
     message: str = StringField("Message")
     meeting_time: datetime = DatetimeField("Meeting Time")
     status: str = StringField("Status")
@@ -472,7 +472,7 @@ class InquiryQuery(DomainQueryResource):
     type_icon_color: str = StringField("Type Icon Color")
     title: str = StringField("Title")
     tag_names: list[str] = ArrayField("Tag Names")
-    availability: Availability = EnumField("Availability")
+    availability: AvailabilityEnum = EnumField("Availability")
     activity: datetime = DatetimeField("Activity")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
@@ -497,13 +497,13 @@ class TicketQuery(DomainQueryResource):
     project_id: UUID_TYPE = UUIDField("Project ID")
     title: str = StringField("Title")
     description: str = StringField("Description")
-    priority: Priority = EnumField("Priority")
+    priority: PriorityEnum = EnumField("Priority")
     type: str = StringField("Type")
     parent_id: UUID_TYPE = UUIDField("Parent ID")
     assignee: UUID_TYPE = UUIDField("Assignee")
     status: str = StringField("Status")
-    availability: Availability = EnumField("Availability")
-    sync_status: SyncStatus = EnumField("Sync Status")
+    availability: AvailabilityEnum = EnumField("Availability")
+    sync_status: SyncStatusEnum = EnumField("Sync Status")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
