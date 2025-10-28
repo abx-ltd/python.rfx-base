@@ -139,7 +139,7 @@ class MessageBox(MServiceBaseModel):
     Supports email aliases and different box types.
     """
 
-    __tablename__ = "message-box"
+    __tablename__ = "message_box"
 
     _txt = sa.Column(pg.TSVECTOR)  # Full-text search vector
     name = sa.Column(sa.String(1024))

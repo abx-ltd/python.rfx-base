@@ -15,7 +15,7 @@ class ContentTypeEnum(Enum):
     """
     TEXT = "TEXT"           # Plain text content
     HTML = "HTML"           # HTML formatted content
-    MARKDOWN = "MARKDOWN"   # Markdown formatted content  
+    MARKDOWN = "MARKDOWN"   # Markdown formatted content
     JSON = "JSON"           # Structured JSON data
     XML = "XML"             # XML formatted content
 
@@ -92,7 +92,7 @@ class TagGroupEnum(Enum):
 class BoxTypeEnum(Enum):
     """
     Message box types for categorizing message boxes.
-    """ 
+    """
     GROUP = "GROUP"         # Group message box, shared among users
     SINGLE = "SINGLE"       # Single user message box, personal to the user
 

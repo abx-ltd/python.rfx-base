@@ -30,8 +30,8 @@ class MediaQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "media-entry"
-    
+        backend_model = "media_entry"
+
     @classmethod
     async def base_query(cls, context, scope):
         return {"resource": "organization", "resource__id": context.organization._id}
