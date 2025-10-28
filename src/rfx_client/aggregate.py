@@ -395,7 +395,7 @@ class RFXClientAggregate(Aggregate):
 
         return self.init_resource("project_work_package", pwp_data)
 
-    @action("clone-work-package-deprecated", resources="work-package")
+    @action("clone-work-package-deprecated", resources="work_package")
     async def clone_work_package_deprecated(self, /, data):
         """
         Clone a work-package into a project-work-package template (project_id NULL)
@@ -723,7 +723,7 @@ class RFXClientAggregate(Aggregate):
 
     # =========== Work Package Context ============
 
-    @action("work-package-created", resources="work-package")
+    @action("work-package-created", resources="work_package")
     async def create_work_package(self, /, data):
         """Create new work package"""
         record = self.init_resource(
@@ -735,21 +735,21 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action("work-package-updated", resources="work-package")
+    @action("work-package-updated", resources="work_package")
     async def update_work_package(self, /, data):
         """Update work package details"""
         work_package = self.rootobj
         await self.statemgr.update(work_package, **serialize_mapping(data))
         return work_package
 
-    @action("work-package-invalidated", resources="work-package")
+    @action("work-package-invalidated", resources="work_package")
     async def invalidate_work_package(self, /):
         """Invalidate work package"""
         work_package = self.rootobj
         await self.statemgr.invalidate(work_package)
         return work_package
 
-    @action("clone-work-package", resources="work-package")
+    @action("clone-work-package", resources="work_package")
     async def clone_work_package(self, /, data):
         """
         Clone a work package into a new work package and copy all related work items
@@ -802,7 +802,7 @@ class RFXClientAggregate(Aggregate):
 
     # =========== Work Item Context ============
 
-    @action("work-item-created", resources="work-item")
+    @action("work-item-created", resources="work_item")
     async def create_work_item(self, /, data):
         try:
             parsed_estimate = parse_duration_for_db(data.estimate)
@@ -820,7 +820,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action("work-item-updated", resources="work-item")
+    @action("work-item-updated", resources="work_item")
     async def update_work_item(self, /, data):
         """Update work item"""
         work_item = self.rootobj
@@ -835,7 +835,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(work_item, **serialize_mapping(data))
         return work_item
 
-    @action("work-item-invalidated", resources="work-item")
+    @action("work-item-invalidated", resources="work_item")
     async def invalidate_work_item(self, /, data):
         """Invalidate work item"""
         work_item = self.rootobj
@@ -843,7 +843,7 @@ class RFXClientAggregate(Aggregate):
         return work_item
 
     # =========== Work Item Deliverable (Work Item Context) ============
-    @action("work-item-deliverable-created", resources="work-item")
+    @action("work-item-deliverable-created", resources="work_item")
     async def create_work_item_deliverable(self, /, data):
         """Create new work item deliverable"""
         record = self.init_resource(
@@ -852,7 +852,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action("work-item-deliverable-updated", resources="work-item")
+    @action("work-item-deliverable-updated", resources="work_item")
     async def update_work_item_deliverable(self, /, data):
         """Update work item deliverable"""
         work_item_deliverable = await self.statemgr.find_one(
@@ -870,7 +870,7 @@ class RFXClientAggregate(Aggregate):
         result = await self.statemgr.update(work_item_deliverable, **update_data)
         return result
 
-    @action("work-item-deliverable-invalidated", resources="work-item")
+    @action("work-item-deliverable-invalidated", resources="work_item")
     async def invalidate_work_item_deliverable(self, /, data):
         """Invalidate work item deliverable"""
         deliverable = await self.statemgr.find_one(
@@ -885,7 +885,7 @@ class RFXClientAggregate(Aggregate):
             raise ValueError("Work item deliverable not found")
 
     # =========== Work Item to Work Package (Work Package Context) ============
-    @action("work-item-added-to-work-package", resources="work-package")
+    @action("work-item-added-to-work-package", resources="work_package")
     async def add_work_item_to_work_package(self, /, work_item_id):
         """Add work item to work package"""
         work_package = self.rootobj
@@ -894,7 +894,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action("work-item-removed-from-work-package", resources="work-package")
+    @action("work-item-removed-from-work-package", resources="work_package")
     async def remove_work_item_from_work_package(self, /, work_item_id):
         """Remove work item from work package"""
         work_package = self.rootobj
@@ -911,7 +911,7 @@ class RFXClientAggregate(Aggregate):
 
     # =========== Work Item Type (Work Item Context) ============
 
-    @action("work-item-type-created", resources="work-item")
+    @action("work-item-type-created", resources="work_item")
     async def create_work_item_type(self, /, data):
         """Create new work item type"""
         record = self.init_resource(
@@ -920,7 +920,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action("work-item-type-updated", resources="work-item")
+    @action("work-item-type-updated", resources="work_item")
     async def update_work_item_type(self, /, data):
         """Update work item type"""
         work_item_type = await self.statemgr.find_one(
@@ -936,7 +936,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(work_item_type, **update_data)
         return work_item_type
 
-    @action("work-item-type-invalidated", resources="work-item")
+    @action("work-item-type-invalidated", resources="work_item")
     async def invalidate_work_item_type(self, /, data):
         """Invalidate work item type"""
         work_item_type = await self.statemgr.find_one(

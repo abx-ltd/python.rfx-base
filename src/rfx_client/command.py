@@ -1487,7 +1487,7 @@ class CreateWorkPackage(Command):
 
     class Meta:
         key = "create-work-package"
-        resources = ("work-package",)
+        resources = ("work_package",)
         tags = ["work-package", "create"]
         new_resource = True
         auth_required = True
@@ -1509,7 +1509,7 @@ class CloneWorkPackage(Command):
 
     class Meta:
         key = "clone-work-package"
-        resources = ("work-package",)
+        resources = ("work_package",)
         tags = ["work-package", "clone"]
         policy_required = True
 
@@ -1523,7 +1523,7 @@ class UpdateWorkPackage(Command):
 
     class Meta:
         key = "update-work-package"
-        resources = ("work-package",)
+        resources = ("work_package",)
         tags = ["work-package", "update"]
         auth_required = True
         description = "Update work package"
@@ -1545,7 +1545,7 @@ class DeleteWorkPackage(Command):
 
     class Meta:
         key = "delete-work-package"
-        resources = ("work-package",)
+        resources = ("work_package",)
         tags = ["work-package", "delete"]
         auth_required = True
         description = "Delete work package"
@@ -1561,7 +1561,7 @@ class CreateWorkItem(Command):
 
     class Meta:
         key = "create-work-item"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "create"]
         new_resource = True
         policy_required = False
@@ -1579,7 +1579,7 @@ class UpdateWorkItem(Command):
 
     class Meta:
         key = "update-work-item"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "update"]
         auth_required = True
         description = "Update work item"
@@ -1597,7 +1597,7 @@ class DeleteWorkItem(Command):
 
     class Meta:
         key = "delete-work-item"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "delete"]
         auth_required = True
         description = "Delete work item"
@@ -1613,7 +1613,7 @@ class CreateWorkItemType(Command):
 
     class Meta:
         key = "create-work-item-type"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "type", "reference"]
         new_resource = True
         policy_required = False
@@ -1633,7 +1633,7 @@ class UpdateWorkItemType(Command):
 
     class Meta:
         key = "update-work-item-type"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "type", "update"]
         auth_required = True
         description = "Update work item type"
@@ -1652,7 +1652,7 @@ class DeleteWorkItemType(Command):
 
     class Meta:
         key = "delete-work-item-type"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "type", "delete"]
         auth_required = True
         description = "Delete work item type"
@@ -1671,7 +1671,7 @@ class CreateWorkItemDeliverable(Command):
 
     class Meta:
         key = "create-work-item-deliverable"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "deliverable", "create"]
         new_resource = True
         auth_required = True
@@ -1691,7 +1691,7 @@ class CreateWorkItemDeliverable(Command):
 class UpdateWorkItemDeliverable(Command):
     class Meta:
         key = "update-work-item-deliverable"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "deliverable", "update"]
         auth_required = True
         description = "Update work item deliverable"
@@ -1709,7 +1709,7 @@ class DeleteWorkItemDeliverable(Command):
 
     class Meta:
         key = "delete-work-item-deliverable"
-        resources = ("work-item",)
+        resources = ("work_item",)
         tags = ["work-item", "deliverable", "delete"]
         auth_required = True
         description = "Delete work package deliverable"
@@ -1727,7 +1727,7 @@ class AddWorkItemToWorkPackage(Command):
 
     class Meta:
         key = "add-work-item-to-work-package"
-        resources = ("work-package",)
+        resources = ("work_package",)
         tags = ["work-package", "work-item", "add"]
         policy_required = True
 
@@ -1742,7 +1742,7 @@ class RemoveWorkItemFromWorkPackage(Command):
 
     class Meta:
         key = "remove-work-item-from-work-package"
-        resources = ("work-package",)
+        resources = ("work_package",)
         tags = ["work-package", "work-item", "remove"]
         auth_required = True
         description = "Remove work item from work package"
