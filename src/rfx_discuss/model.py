@@ -4,7 +4,7 @@ from fluvius.data import DomainSchema, SqlaDriver
 from sqlalchemy.dialects import postgresql as pg
 
 
-from . import types, config
+from . import config
 
 
 class RFXDiscussConnector(SqlaDriver):
@@ -15,9 +15,10 @@ class RFXDiscussConnector(SqlaDriver):
 
 class RFXDiscussBaseModel(RFXDiscussConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
-    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
+    __table_args__ = {"schema": config.RFX_DISCUSSION_SCHEMA}
 
     _realm = sa.Column(sa.String)
+
 
 # ================ Comment Context ================
 
@@ -32,11 +33,11 @@ class Comment(RFXDiscussBaseModel):
     organization_id = sa.Column(pg.UUID)
     resource = sa.Column(sa.String(100))
     resource_id = sa.Column(pg.UUID)
-    
+
 
 class CommentView(RFXDiscussBaseModel):
     __tablename__ = "_comment"
-    __table_args__ = {'schema': config.RFX_DISCUSSION_SCHEMA}
+    __table_args__ = {"schema": config.RFX_DISCUSSION_SCHEMA}
 
     master_id = sa.Column(pg.UUID)
     parent_id = sa.Column(pg.UUID)

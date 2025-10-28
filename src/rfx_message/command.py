@@ -7,7 +7,7 @@ import asyncio
 
 from .domain import RFXMessageServiceDomain
 from .helper import extract_template_context, determine_processing_mode
-from .types import MessageType, ProcessingMode
+from .types import MessageTypeEnum, ProcessingModeEnum
 from . import datadef, logger
 
 processor = RFXMessageServiceDomain.command_processor
@@ -80,7 +80,7 @@ class SendMessage(Command):
             await agg.add_recipients(data=recipients, message_id=message_id)
 
             # 3. Determine processing mode
-            message_type = MessageType(
+            message_type = MessageTypeEnum(
                 message_payload.get('message_type', 'NOTIFICATION'))
             processing_mode = await determine_processing_mode(message_type=message_type, payload=message_payload)
 
@@ -88,14 +88,14 @@ class SendMessage(Command):
             client = context.service_proxy.mqtt_client
             channels = []
             # 4. Process content
-            if processing_mode == ProcessingMode.SYNC:
+            if processing_mode == ProcessingModeEnum.SYNC:
                 # Process immediately (blocking)
                 message = await self.process_message(agg, message_id, message_payload, processing_mode)
                 logger.warning(f"Processed message {message} synchronously")
                 channels = notify_recipients(
                     client, recipients, "message", message_id, message, batch_id="sync_batch")
 
-            elif processing_mode == ProcessingMode.IMMEDIATE:
+            elif processing_mode == ProcessingModeEnum.IMMEDIATE:
                 # Critical alerts - process sync but with high priority
                 message = await self.process_message(agg, message_id, message_payload, "SYNC")
                 channels = notify_recipients(
@@ -131,7 +131,7 @@ class ReadMessage(Command):
 
     class Meta:
         key = "read-message"
-        resources = ("message-recipient",)
+        resources = ("message_recipient",)
         tags = ["message", "read"]
         auth_required = True
         policy_required = False
@@ -152,7 +152,7 @@ class MarkAllMessagesRead(Command):
         key = "mark-all-message-read"
         # Substitute for the next Fluvius Batch update
         new_resource = True
-        resources = ("message-recipient",)
+        resources = ("message_recipient",)
         tags = ["messages", "read"]
         auth_required = True
         policy_required = False
@@ -170,7 +170,7 @@ class ArchiveMessage(Command):
     """Archive a message for the current user."""
     class Meta:
         key = "archive-message"
-        resources = ("message-recipient",)
+        resources = ("message_recipient",)
         tags = ["messages", "archived"]
         auth_required = True
         policy_required = False
@@ -194,7 +194,7 @@ class CreateTemplate(Command):
     class Meta:
         key = "create-template"
         new_resource = True
-        resources = ("message-template",)
+        resources = ("message_template",)
         tags = ["template", "create"]
         auth_required = True
         policy_required = False
@@ -216,7 +216,7 @@ class UpdateTemplate(Command):
 
     class Meta:
         key = "update-template"
-        resource = ("message-template")
+        resource = ("message_template")
         tags = ["template", "create"]
         auth_required = True
         policy_required = False
@@ -239,7 +239,7 @@ class PublishTemplate(Command):
 
     class Meta:
         key = "publish-template"
-        resources = ("message-template",)
+        resources = ("message_template",)
         tags = ["template", "publish"]
         auth_required = True
         policy_required = False

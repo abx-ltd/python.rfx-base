@@ -4,25 +4,26 @@ from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import Priority, Availability, SyncStatus, ContactMethod
-
+from .types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum
+from typing import Any, Dict
 
 # Project related payloads
 
 
 class CreateProjectEstimatorPayload(DataModel):
     """Payload for creating project estimator"""
+
     name: Optional[str] = Field(max_length=255, default="")
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[PriorityEnum] = None
 
 
 class CreateProjectPayload(DataModel):
     name: str = Field(max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[PriorityEnum] = None
     start_date: datetime = Field(default_factory=datetime.now)
     duration: str = Field(default="P9D")
 
@@ -31,20 +32,22 @@ class UpdateProjectPayload(DataModel):
     name: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None
     category: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[PriorityEnum] = None
     status: Optional[str] = None
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     duration: Optional[str] = None
 
+
 class DeleteProjectPayload(DataModel):
     pass
+
 
 # Project BDM Contact related payloads
 
 
 class CreateProjectBDMContactPayload(DataModel):
-    contact_method: Optional[list[ContactMethod]] = None
+    contact_method: Optional[list[ContactMethodEnum]] = None
     message: Optional[str] = None
     meeting_time: Optional[datetime] = None
     status: Optional[str] = None
@@ -52,7 +55,7 @@ class CreateProjectBDMContactPayload(DataModel):
 
 class UpdateProjectBDMContactPayload(DataModel):
     bdm_contact_id: UUID_TYPE
-    contact_method: Optional[list[ContactMethod]] = None
+    contact_method: Optional[list[ContactMethodEnum]] = None
     message: Optional[str] = None
     meeting_time: Optional[datetime] = None
     status: Optional[str] = None
@@ -90,14 +93,13 @@ class CreateProjectTicketPayload(DataModel):
     title: str = Field(max_length=255)
     description: Optional[str] = None
     type: str  # Changed from 'type' to avoid reserved keyword conflict
-    priority: Optional[Priority] = Priority.MEDIUM
+    priority: Optional[PriorityEnum] = PriorityEnum.MEDIUM
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
     availability: str = "OPEN"
     status: Optional[str] = "DRAFT"
-    sync_status: Optional[SyncStatus] = SyncStatus.PENDING
+    sync_status: Optional[SyncStatusEnum] = SyncStatusEnum.PENDING
     sync_linear: bool = False
-    
 
 
 class AddCustomWorkPackageToProjectPayload(DataModel):
@@ -135,6 +137,7 @@ class UpdateWorkItemPayload(DataModel):
 
 class CreateWorkItemDeliverablePayload(DataModel):
     """Payload for creating work item deliverable"""
+
     work_item_id: UUID_TYPE
     name: str = Field(max_length=255)
     description: Optional[str] = None
@@ -151,6 +154,7 @@ class DeleteWorkItemDeliverablePayload(DataModel):
 
 
 # Work Item Type related payloads
+
 
 class CreateWorkItemTypePayload(DataModel):
     key: str = Field(max_length=50)
@@ -170,6 +174,7 @@ class UpdateWorkItemTypePayload(DataModel):
 class DeleteWorkItemTypePayload(DataModel):
     work_item_type_id: UUID_TYPE
 
+
 # Work Item to Work Package related payloads
 
 
@@ -182,6 +187,7 @@ class RemoveWorkItemFromWorkPackagePayload(DataModel):
 
 
 # Project Member related payloads
+
 
 class AddProjectMemberPayload(DataModel):
     member_id: UUID_TYPE
@@ -199,12 +205,12 @@ class RemoveProjectMemberPayload(DataModel):
 
 # Project Milestone related payloads
 
+
 class CreateProjectMilestonePayload(DataModel):
     name: str = Field(max_length=255)
     due_date: datetime
     description: Optional[str] = None
     is_completed: Optional[bool] = False
-    
 
 
 class UpdateProjectMilestonePayload(DataModel):
@@ -213,7 +219,6 @@ class UpdateProjectMilestonePayload(DataModel):
     due_date: Optional[datetime] = None
     description: Optional[str] = None
     is_completed: Optional[bool] = False
-
 
 
 class DeleteProjectMilestonePayload(DataModel):
@@ -265,6 +270,7 @@ class UpdateWorkPackagePayload(DataModel):
     example_description: Optional[str] = None
     complexity_level: Optional[int] = None
 
+
 # Project Work Item related payloads
 
 
@@ -280,6 +286,7 @@ class UpdateProjectWorkItemPayload(DataModel):
 
 class RemoveProjectWorkItemPayload(DataModel):
     project_work_item_id: UUID_TYPE
+
 
 # Project Work Package related payloads
 
@@ -309,6 +316,7 @@ class UpdateProjectWorkPackageWithWorkItemsPayload(DataModel):
     work_package_complexity_level: Optional[int] = None
     work_item_ids: list[UUID_TYPE]
 
+
 #  Project Work Item Deliverable related payloads
 
 
@@ -320,6 +328,7 @@ class UpdateProjectWorkItemDeliverablePayload(DataModel):
 
 class DeleteProjectWorkItemDeliverablePayload(DataModel):
     project_work_item_deliverable_id: UUID_TYPE
+
 
 # Project Work Package Work Item related payloads
 
@@ -337,34 +346,35 @@ class RemoveProjectWorkItemFromProjectWorkPackagePayload(DataModel):
 class CreditUsageSummaryPayload(DataModel):
     organization_id: UUID_TYPE
 
+
 # Project Integration related payloads
+
 
 class CreateProjectIntegrationPayload(DataModel):
     provider: str
     external_id: str
     external_url: str
+
 
 class UpdateProjectIntegrationPayload(DataModel):
     provider: str
     external_id: str
     external_url: str
 
-class CreateProjectIntegrationPayload(DataModel):
-    provider: str
-    external_id: str
-    external_url: str
-    
+
 class RemoveProjectIntegrationPayload(DataModel):
     provider: str
     external_id: str
+
 
 class SyncProjectIntegrationPayload(DataModel):
     provider: str
     external_id: str
     external_url: str
-    
-    
+
+
 # ProjectMilestone Integration related payloads
+
 
 class CreateProjectMilestoneIntegrationPayload(DataModel):
     provider: str
@@ -372,26 +382,30 @@ class CreateProjectMilestoneIntegrationPayload(DataModel):
     external_url: Optional[str] = None
     milestone_id: UUID_TYPE
 
+
 class UpdateProjectMilestoneIntegrationPayload(DataModel):
     provider: str
     external_id: str
     external_url: Optional[str] = None
     milestone_id: UUID_TYPE
-    
+
+
 class RemoveProjectMilestoneIntegrationPayload(DataModel):
     provider: str
     external_id: str
     milestone_id: UUID_TYPE
 
-#=============== Ticket Datadef ===============
+
+# =============== Ticket Datadef ===============
+
 
 # ---------- Inquiry (Ticket Context) ----------
 class CreateInquiryPayload(DataModel):
     title: str = Field(max_length=255)
     description: Optional[str] = None
     type: str
-    priority: Optional[Priority] = Priority.MEDIUM
-    availability: Optional[Availability] = Availability.CLOSED
+    priority: Optional[PriorityEnum] = PriorityEnum.MEDIUM
+    availability: Optional[AvailabilityEnum] = AvailabilityEnum.CLOSED
 
 
 # ---------- Ticket (Ticket Context) ----------
@@ -402,7 +416,7 @@ class CreateTicketPayload(DataModel):
     priority: str
     assignee: Optional[UUID_TYPE] = None
     parent_id: Optional[UUID_TYPE] = None
-    availability: Optional[Availability] = Availability.OPEN
+    availability: Optional[AvailabilityEnum] = AvailabilityEnum.OPEN
     project_id: str
 
 
@@ -410,17 +424,20 @@ class UpdateTicketPayload(DataModel):
     title: Optional[str] = None
     description: Optional[str] = None
     type: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[PriorityEnum] = None
     assignee: Optional[UUID_TYPE] = None
-    availability: Optional[Availability] = None
+    availability: Optional[AvailabilityEnum] = None
     status: Optional[str] = None
 
 
 class RemoveTicketPayload(DataModel):
     ticket_id: UUID_TYPE
 
+
 class SyncAllTicketsToLinearPayload(DataModel):
     project_id: UUID_TYPE
+
+
 # ---------- Ticket Assignee (Ticket Context) ----------
 class AssignTicketMemberPayload(DataModel):
     member_id: UUID_TYPE
@@ -486,7 +503,7 @@ class UpdateTagPayload(DataModel):
     description: Optional[str] = None
     target_resource: Optional[str] = None
     is_active: Optional[bool] = None
-    
+
 
 # ---------- Status Context ----------
 
@@ -512,29 +529,35 @@ class CreateStatusTransitionPayload(DataModel):
     condition: Optional[dict] = None
 
 
+# ------------- Ticket Integration-----------
 
-#------------- Ticket Integration-----------
 
 class CreateTicketIntegrationPayload(DataModel):
     """Payload for creating ticket integration"""
+
     provider: str = "linear"
     external_id: str
     external_url: Optional[str] = None
-    
+
+
 class UpdateTicketIntegrationPayload(DataModel):
     """Payload for updating ticket integration"""
+
     provider: str = "linear"
     external_id: str
     external_url: Optional[str] = None
-    
-    
+
+
 class RemoveTicketIntegrationPayload(DataModel):
     """Payload for removing ticket integration"""
+
     provider: str = "linear"
     external_id: str
-    
+
+
 class SyncTicketIntegrationPayload(DataModel):
     """Payload for syncing ticket integration"""
+
     provider: str = "linear"
     external_id: Optional[str] = None
     external_url: Optional[str] = None
@@ -549,31 +572,44 @@ class CreateCommentPayload(DataModel):
 
 class UpdateCommentPayload(DataModel):
     content: str
-    
-    
-class DeleteCommentPayload(DataModel):
-    pass 
 
+
+class DeleteCommentPayload(DataModel):
+    pass
 
 
 class ReplyToCommentPayload(DataModel):
     content: str
-    
-    
+
+
 class CreateCommentIntegrationPayload(DataModel):
     """Payload for creating comment integration"""
-    provider: str 
+
+    provider: str
     external_id: str
     external_url: Optional[str] = None
     comment_id: UUID_TYPE
 
+
 class UpdateCommentIntegrationPayload(DataModel):
     """Payload for updating comment integration"""
+
     provider: str
     external_id: str
     external_url: Optional[str] = None
+
+
 class RemoveCommentIntegrationPayload(DataModel):
     """Payload for removing comment integration"""
-    provider: str 
+
+    provider: str
     external_id: str
     comment_id: UUID_TYPE
+
+
+class ProcessLinearWebhookPayload(DataModel):
+    """Payload cho command xử lý webhook tập trung"""
+
+    event_type: str  # Lấy từ header 'x-linear-event'
+    data: Dict[str, Any]  # Toàn bộ JSON payload từ body
+    signature: Optional[str] = None

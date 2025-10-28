@@ -9,7 +9,7 @@ from enum import Enum
 from fluvius.data import DataAccessManager, timestamp, DataModel, serialize_mapping
 from .service import TemplateService
 from .helper import render_on_server, extract_template_context, message_to_notification_data
-from .types import MessageType, RenderStrategy, ProcessingMode
+from .types import MessageTypeEnum, RenderStrategyEnum, ProcessingModeEnum
 from .datadef import Notification
 from . import logger
 
@@ -24,7 +24,7 @@ class MessageContentProcessor:
         self,
         message: DataModel,
         *,
-        mode: ProcessingMode = ProcessingMode.SYNC,
+        mode: ProcessingModeEnum = ProcessingModeEnum.SYNC,
         context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -97,11 +97,11 @@ class MessageContentProcessor:
             raise ValueError(f"Template not found: {message.template_key}")
         
         # Determine rendering strategy
-        message_type = MessageType(getattr(message, 'message_type', 'NOTIFICATION'))
+        message_type = MessageTypeEnum(getattr(message, 'message_type', 'NOTIFICATION'))
         strategy = await self.template_service.resolve_render_strategy(
             message_type,
-            message_strategy=RenderStrategy(message.render_strategy) if getattr(message, 'render_strategy', None) else None,
-            template_strategy=RenderStrategy(template.render_strategy) if getattr(template, 'render_strategy', None) else None
+            message_strategy=RenderStrategyEnum(message.render_strategy) if getattr(message, 'render_strategy', None) else None,
+            template_strategy=RenderStrategyEnum(template.render_strategy) if getattr(template, 'render_strategy', None) else None
         )
 
         logger.debug(f"Using rendering strategy: {strategy.value} for message {message._id}")
@@ -116,7 +116,7 @@ class MessageContentProcessor:
         self,
         message: DataModel,
         template: DataModel,
-        strategy: RenderStrategy
+        strategy: RenderStrategyEnum
     ) -> DataModel:
         """Render template on server and store result."""
         
@@ -132,7 +132,7 @@ class MessageContentProcessor:
         })
         
         # Render template
-        use_cache = (strategy == RenderStrategy.CACHED)
+        use_cache = (strategy == RenderStrategyEnum.CACHED)
         rendered_content = await self.template_service.render_template(
             template,
             template_data,

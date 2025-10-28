@@ -53,8 +53,7 @@ class Message(MServiceBaseModel):
     content = sa.Column(sa.String(1024))
     rendered_content = sa.Column(sa.String(1024))
     content_type = sa.Column(
-        sa.Enum(types.ContentType, name="content_type",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
+        sa.Enum(types.ContentTypeEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
     )
 
     # Message Metadata fields
@@ -64,19 +63,16 @@ class Message(MServiceBaseModel):
     expiration_date = sa.Column(sa.DateTime(timezone=True))
     request_read_receipt = sa.Column(sa.DateTime(timezone=True))
     priority = sa.Column(
-        sa.Enum(types.PriorityLevel, name="priority_level",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
-        default=types.PriorityLevel.MEDIUM,
+        sa.Enum(types.PriorityLevelEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
+        default=types.PriorityLevelEnum.MEDIUM,
         nullable=False
     )
     message_type = sa.Column(
-        sa.Enum(types.MessageType, name="message_type",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
+        sa.Enum(types.MessageTypeEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
     )
     delivery_status = sa.Column(
-        sa.Enum(types.DeliveryStatus, name="delivery_status",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
-        default=types.DeliveryStatus.PENDING,
+        sa.Enum(types.DeliveryStatusEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
+        default=types.DeliveryStatusEnum.PENDING,
         nullable=False
     )
 
@@ -94,13 +90,11 @@ class Message(MServiceBaseModel):
 
     # Rendering Control and Status
     render_strategy = sa.Column(
-        sa.Enum(types.RenderStrategy, name="render_strategy",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
+        sa.Enum(types.RenderStrategyEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
         nullable=True
     )
     render_status = sa.Column(
-        sa.Enum(types.RenderStatus, name="render_status",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
+        sa.Enum(types.RenderStatusEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
         nullable=True
     )
     rendered_at = sa.Column(sa.DateTime(timezone=True),
@@ -114,15 +108,14 @@ class MessageAction(MServiceBaseModel):
     Supports HTTP calls with authentication and different targets.
     """
 
-    __tablename__ = "message-action"
+    __tablename__ = "message_action"
 
     # Reference fields
     _iid = sa.Column(pg.UUID)
     message_id = sa.Column(pg.UUID, sa.ForeignKey(Message._id))
 
     # Content fields
-    type = sa.Column(sa.Enum(types.ActionType, name="action_type",
-                     schema=config.MESSAGE_SERVICE_SCHEMA))
+    type = sa.Column(sa.Enum(types.ActionTypeEnum, schema=config.MESSAGE_SERVICE_SCHEMA))
     name = sa.Column(sa.String(1024))
     description = sa.Column(sa.String(1024))
 
@@ -132,12 +125,12 @@ class MessageAction(MServiceBaseModel):
     host = sa.Column(sa.String(1024))
     endpoint = sa.Column(sa.String())
     method = sa.Column(sa.Enum(
-        types.HTTPMethod, name="http_method", schema=config.MESSAGE_SERVICE_SCHEMA))
+        types.HTTPMethodEnum, schema=config.MESSAGE_SERVICE_SCHEMA))
     is_primary = sa.Column(sa.Boolean, default=False)
     mobile_endpoint = sa.Column(sa.String(1024))
     destination = sa.Column(pg.ARRAY(sa.String), default=list)
     target = sa.Column(sa.Enum(
-        types.HTTPTarget, name="http_target", schema=config.MESSAGE_SERVICE_SCHEMA))
+        types.HTTPTargetEnum, schema=config.MESSAGE_SERVICE_SCHEMA))
 
 
 class MessageBox(MServiceBaseModel):
@@ -146,13 +139,12 @@ class MessageBox(MServiceBaseModel):
     Supports email aliases and different box types.
     """
 
-    __tablename__ = "message-box"
+    __tablename__ = "message_box"
 
     _txt = sa.Column(pg.TSVECTOR)  # Full-text search vector
     name = sa.Column(sa.String(1024))
     email_alias = sa.Column(sa.Text())
-    type = sa.Column(sa.Enum(types.BoxType, name="box_type",
-                     schema=config.MESSAGE_SERVICE_SCHEMA))
+    type = sa.Column(sa.Enum(types.BoxTypeEnum, schema=config.MESSAGE_SERVICE_SCHEMA))
 
 
 class MessageBoxUser(MServiceBaseModel):
@@ -160,7 +152,7 @@ class MessageBoxUser(MServiceBaseModel):
     Junction table linking users to message boxes for access control.
     """
 
-    __tablename__ = "message-box-user"
+    __tablename__ = "message_box_user"
 
     # Reference fields
     user_id = sa.Column(pg.UUID)
@@ -173,7 +165,7 @@ class MessageRecipient(MServiceBaseModel):
     Manages read status, archiving, labels, and message direction.
     """
 
-    __tablename__ = "message-recipient"
+    __tablename__ = "message_recipient"
 
     # Reference fields
     recipient_id = sa.Column(pg.UUID)
@@ -189,8 +181,7 @@ class MessageRecipient(MServiceBaseModel):
     is_ignored = sa.Column(sa.DateTime(timezone=True))
     label = sa.Column(sa.ARRAY(pg.UUID), default=list)
     direction = sa.Column(
-        sa.Enum(types.MessageType, name="message_direction",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
+        sa.Enum(types.MessageTypeEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
     )
 
 
@@ -199,7 +190,7 @@ class MessageRecipientAction(MServiceBaseModel):
     Tracks when recipients execute message actions and stores responses.
     """
 
-    __tablename__ = "message-recipient-action"
+    __tablename__ = "message_recipient_action"
 
     # Reference fields
     message_recipient_id = sa.Column(
@@ -215,7 +206,7 @@ class MessageAttachment(MServiceBaseModel):
     Links file attachments to messages.
     """
 
-    __tablename__ = "message-attachment"
+    __tablename__ = "message_attachment"
 
     # Reference fields
     _iid = sa.Column(pg.UUID)
@@ -230,7 +221,7 @@ class MessageEmbedded(MServiceBaseModel):
     Supports various embed types with configurable options.
     """
 
-    __tablename__ = "message-embedded"
+    __tablename__ = "message_embedded"
 
     # Reference fields
     _iid = sa.Column(pg.UUID)
@@ -253,7 +244,7 @@ class MessageReference(MServiceBaseModel):
     Supports various reference types with metadata and contact information.
     """
 
-    __tablename__ = "message-reference"
+    __tablename__ = "message_reference"
 
     # Reference fields
     _iid = sa.Column(pg.UUID)
@@ -285,8 +276,7 @@ class Tag(MServiceBaseModel):
     background_color = sa.Column(sa.String(7))  # Hex color code
     font_color = sa.Column(sa.String(7))  # Hex color code
     description = sa.Column(sa.String(1024))
-    group = sa.Column(sa.Enum(types.TagGroup, name="tag_group",
-                      schema=config.MESSAGE_SERVICE_SCHEMA))
+    group = sa.Column(sa.Enum(types.TagGroupEnum, schema=config.MESSAGE_SERVICE_SCHEMA))
 
 
 class Label(MServiceBaseModel):
@@ -309,7 +299,7 @@ class TagPreference(MServiceBaseModel):
     User preferences for tag behavior and display options.
     """
 
-    __tablename__ = "tag-preference"
+    __tablename__ = "tag_preference"
 
     option = sa.Column(pg.JSONB, default=dict)
 
@@ -319,7 +309,7 @@ class RefRole(MServiceBaseModel):
     Reference table for role definitions used in the message system.
     """
 
-    __tablename__ = "ref--role"
+    __tablename__ = "ref__role"
 
     key = sa.Column(sa.String(255), primary_key=True,
                     nullable=False, unique=True)
@@ -329,7 +319,7 @@ class MessageTemplate(MServiceBaseModel):
     """
     Template for creating new messages.
     """
-    __tablename__ = "message-template"
+    __tablename__ = "message_template"
 
     # Template fields
     key = sa.Column(sa.String(255), nullable=False)
@@ -354,16 +344,14 @@ class MessageTemplate(MServiceBaseModel):
 
     # Rendering control
     render_strategy = sa.Column(
-        sa.Enum(types.RenderStrategy, name="render_strategy",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
+        sa.Enum(types.RenderStrategyEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
         nullable=True
     )  # Override default strategy for this template
 
     # Meta
     status = sa.Column(
-        sa.Enum(types.TemplateStatus, name="template_status",
-                schema=config.MESSAGE_SERVICE_SCHEMA),
-        default="DRAFT"
+        sa.Enum(types.TemplateStatusEnum, schema=config.MESSAGE_SERVICE_SCHEMA),
+        default=types.TemplateStatusEnum.DRAFT.value
     )
     is_active = sa.Column(sa.Boolean, default=True)
 
@@ -379,7 +367,7 @@ class TemplateRenderCache(MServiceBaseModel):
     """
     Caches the rendered output of message templates.
     """
-    __tablename__ = "template-render-cache"
+    __tablename__ = "template_render_cache"
 
     # Cache key components
     template_key = sa.Column(sa.String(255), nullable=False)
@@ -419,8 +407,7 @@ class MessageRecipientsView(MServiceBaseModel):
     subject = sa.Column(sa.String(1024))
     content = sa.Column(sa.String(1024))
     content_type = sa.Column(
-        sa.Enum(types.ContentType, name="content_type",
-                schema=config.MESSAGE_SERVICE_SCHEMA)
+        sa.Enum(types.ContentTypeEnum, schema=config.MESSAGE_SERVICE_SCHEMA)
     )
 
     # Message metadata fields
@@ -428,12 +415,10 @@ class MessageRecipientsView(MServiceBaseModel):
     tags = sa.Column(pg.ARRAY(sa.String))
     expirable = sa.Column(sa.Boolean)
     priority = sa.Column(
-        sa.Enum(types.PriorityLevel, name="priority_level",
-                schema=config.MESSAGE_SERVICE_SCHEMA)
+        sa.Enum(types.PriorityLevelEnum, schema=config.MESSAGE_SERVICE_SCHEMA)
     )
     message_type = sa.Column(
-        sa.Enum(types.MessageType, name="message_type",
-                schema=config.MESSAGE_SERVICE_SCHEMA)
+        sa.Enum(types.MessageTypeEnum, schema=config.MESSAGE_SERVICE_SCHEMA)
     )
 
     # Recipient-specific fields

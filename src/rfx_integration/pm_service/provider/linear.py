@@ -10,6 +10,7 @@ from ..base import (
     UpdateProjectMilestonePayload, UpdateProjectMilestoneResponse,
     CreateCommentPayload, CreateCommentResponse,
     UpdateCommentPayload, UpdateCommentResponse,
+    WebhookResponse
 )
 from .linear_app.integration import (
     LinearIntegration,
@@ -22,6 +23,11 @@ from typing import Dict, Any, Optional
 from fluvius.data import logger
 
 from ..._meta import config as _config
+
+from fastapi import Request, HTTPException
+import hmac
+import hashlib
+import json
 
 
 class LinearProvider(PMService):
@@ -489,4 +495,148 @@ class LinearProvider(PMService):
         except Exception as e:
             logger.error(f"Failed to delete Linear comment: {str(e)}")
             raise
+        
+        
+    async def verify_webhook_signature(self, request: Request) -> bool:
+        """Verify Linear webhook signature"""
+        
+        body = await request.body()
+        x_linear_signature = request.headers.get("x-linear-signature")
+        
+        if not x_linear_signature:
+            logger.warning("[Linear] No signature provided")
+            return True  # Allow if no signature (for testing)
+        
+        webhook_secret = _config.LINEAR_WEBHOOK_SECRET
+        if not webhook_secret:
+            logger.warning("[Linear] No webhook secret configured")
+            return True
+        
+        # Verify HMAC signature
+        expected_signature = hmac.new(
+            webhook_secret.encode(),
+            body,
+            hashlib.sha256
+        ).hexdigest()
+        
+        is_valid = hmac.compare_digest(x_linear_signature, expected_signature)
+        
+        if not is_valid:
+            logger.error("[Linear] Invalid webhook signature")
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        
+        logger.info("[Linear] ✓ Signature verified")
+        return True
     
+    async def parse_webhook_payload(self, request: Request) -> Dict[str, Any]:
+        """Parse Linear webhook payload"""
+        
+        payload = await request.json()
+        
+        logger.info(f"[Linear] Received webhook event")
+        logger.info(f"[Linear] Event type: {request.headers.get('x-linear-event')}")
+        
+        return {
+            "event_type": request.headers.get("x-linear-event"),
+            "event_data": payload.get("event", {}),
+            "raw_payload": payload
+        }
+    
+    async def handle_webhook(self, payload: Dict[str, Any]) -> WebhookResponse:
+        """
+        Handle Linear webhook and return standardized response
+        
+        Maps Linear events to standardized format
+        """
+        
+        event_type = payload.get("event_type")
+        event_data = payload.get("event_data", {})
+        action = event_data.get("action")  # create, update, remove
+        data = event_data.get("data", {})
+        
+        logger.info(f"[Linear] Handling: {event_type} - {action}")
+        
+        # ✅ Route to specific handler
+        if event_type == "Comment":
+            return await self._handle_comment_webhook(action, data)
+        
+        elif event_type == "Issue":
+            return await self._handle_issue_webhook(action, data)
+        
+        elif event_type == "Project":
+            return await self._handle_project_webhook(action, data)
+        
+        else:
+            logger.warning(f"[Linear] Unsupported event type: {event_type}")
+            raise ValueError(f"Unsupported event type: {event_type}")
+    
+    async def _handle_comment_webhook(self, action: str, data: Dict[str, Any]) -> WebhookResponse:
+        """Handle Comment webhook from Linear"""
+        
+        # Map Linear action to standard event
+        event_map = {
+            "create": WebhookEventType.COMMENT_CREATED,
+            "update": WebhookEventType.COMMENT_UPDATED,
+            "remove": WebhookEventType.COMMENT_DELETED,
+        }
+        
+        event_type = event_map.get(action)
+        if not event_type:
+            raise ValueError(f"Unknown comment action: {action}")
+        
+        return WebhookResponse(
+            event_type=event_type,
+            action=action,
+            resource_type="comment",
+            external_id=data.get("id"),
+            external_data=data,
+            provider="linear",
+            target_id=data.get("issueId"),  # Comment belongs to issue
+            target_type="issue"
+        )
+    
+    async def _handle_issue_webhook(self, action: str, data: Dict[str, Any]) -> WebhookResponse:
+        """Handle Issue webhook from Linear"""
+        
+        event_map = {
+            "create": WebhookEventType.ISSUE_CREATED,
+            "update": WebhookEventType.ISSUE_UPDATED,
+            "remove": WebhookEventType.ISSUE_DELETED,
+        }
+        
+        event_type = event_map.get(action)
+        if not event_type:
+            raise ValueError(f"Unknown issue action: {action}")
+        
+        return WebhookResponse(
+            event_type=event_type,
+            action=action,
+            resource_type="issue",
+            external_id=data.get("id"),
+            external_data=data,
+            provider="linear",
+            target_id=data.get("projectId"),
+            target_type="project"
+        )
+    
+    async def _handle_project_webhook(self, action: str, data: Dict[str, Any]) -> WebhookResponse:
+        """Handle Project webhook from Linear"""
+        
+        event_map = {
+            "create": WebhookEventType.PROJECT_CREATED,
+            "update": WebhookEventType.PROJECT_UPDATED,
+            "remove": WebhookEventType.PROJECT_DELETED,
+        }
+        
+        event_type = event_map.get(action)
+        if not event_type:
+            raise ValueError(f"Unknown project action: {action}")
+        
+        return WebhookResponse(
+            event_type=event_type,
+            action=action,
+            resource_type="project",
+            external_id=data.get("id"),
+            external_data=data,
+            provider="linear"
+        )

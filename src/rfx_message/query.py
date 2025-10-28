@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from .state import MessageStateManager
 from .domain import RFXMessageServiceDomain
-from .types import PriorityLevel, ContentType, MessageType, RenderStrategy
+from .types import PriorityLevelEnum, ContentTypeEnum, MessageTypeEnum, RenderStrategyEnum
 from . import logger
 
 
@@ -29,7 +29,7 @@ endpoint = RFXMessageServiceQueryManager.register_endpoint
 #     resource_id: str
 
 
-@resource('message-recipients')
+@resource('message_recipients')
 class MessageQuery(DomainQueryResource):
     """ Query resource for notifications received by the current user. """
 
@@ -59,13 +59,13 @@ class MessageQuery(DomainQueryResource):
     subject: str = StringField("Subject")
     content: str = StringField("Content")
     rendered_content: str = StringField("Rendered Content")
-    content_type: ContentType = EnumField("Content Type", enum=ContentType)
+    content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
     sender_id: Optional[UUID_TYPE] = UUIDField("Sender ID")
     tags: Optional[List[str]] = ArrayField("Tags", default=[])
     expirable: bool = BooleanField("Is Expirable")
-    priority: PriorityLevel = EnumField("Priority Level", enum=PriorityLevel)
-    message_type: Optional[MessageType] = EnumField(
-        "Message Type", enum=MessageType)
+    priority: PriorityLevelEnum = EnumField("Priority Level", enum=PriorityLevelEnum)
+    message_type: Optional[MessageTypeEnum] = EnumField(
+        "Message Type", enum=MessageTypeEnum)
     # Notification-specific fields for recipients
     is_read: bool = BooleanField("Is Read", default=False)
     read_at: Optional[str] = DatetimeField("Read At")
@@ -79,7 +79,7 @@ class TemplateScope(BaseModel):
     channel: Optional[str] = None
 
 
-@resource('message-template')
+@resource('message_template')
 class TemplateQuery(DomainQueryResource):
     """Query resource for message templates."""
 
@@ -103,8 +103,8 @@ class TemplateQuery(DomainQueryResource):
         allow_meta_view = True
         allow_text_search = True
 
-        backend_model = "message-template"
-        resource = "message-template"
+        backend_model = "message_template"
+        resource = "message_template"
         policy_required = "id"
         scope_optional = TemplateScope
 
@@ -125,8 +125,8 @@ class TemplateQuery(DomainQueryResource):
     tenant_id: Optional[UUID_TYPE] = UUIDField("Tenant ID")
     app_id: Optional[str] = StringField("App ID")
     # Configuration
-    render_strategy: Optional[RenderStrategy] = EnumField(
-        "Render Strategy", enum=RenderStrategy)
+    render_strategy: Optional[RenderStrategyEnum] = EnumField(
+        "Render Strategy", enum=RenderStrategyEnum)
     variables_schema: dict = JSONField("Variables Schema")
     sample_data: dict = JSONField("Sample Data")
     # Status

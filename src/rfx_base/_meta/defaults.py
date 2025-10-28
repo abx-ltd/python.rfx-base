@@ -1,1 +1,18 @@
 DB_DSN = None
+UAPI_URL = None
+LINEAR_CONNECTION_ID = None
+DEFAULT_TEAM_ID = None
+LINEAR_API_KEY = None
+LINEAR_TEAM_ID = None
+LINEAR_WEBHOOK_SECRET = None
+
+RFX_BILLING_SCHEMA = "cpo_billing"
+RFX_CLIENT_SCHEMA = "cpo_client"
+RFX_CQRS_SCHEMA = "cpo_cqrs"
+RFX_DISCUSS_SCHEMA = "cpo_discuss"
+RFX_FORM_SCHEMA = "cpo_form"
+RFX_IDM_SCHEMA = "cpo_idm"
+RFX_MEDIA_SCHEMA = "cpo_media"
+RFX_MESSAGE_SCHEMA = "cpo_message"
+RFX_POLICY_SCHEMA = "cpo_policy"
+RFX_USER_SCHEMA = "cpo_user"
