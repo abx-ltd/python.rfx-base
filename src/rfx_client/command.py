@@ -3080,7 +3080,7 @@ class CreateComment(Command):
                         "PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set"
                     )
                 # Find resource integration (project or ticket)
-                integration_table = f"{resource_type}-integration"
+                integration_table = f"{resource_type}_integration"
                 resource_integration = await stm.find_one(
                     integration_table,
                     where=dict(
