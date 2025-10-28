@@ -3,9 +3,9 @@ from rfx_base import config as baseconf
 LOG_LEVEL = baseconf.LOG_LEVEL
 DB_DSN = baseconf.DB_DSN
 
-RFX_DISCUSSION_SCHEMA = "cpo-discussion"
-POLICY_SCHEMA = "cpo-policy"
-POLICY_TABLE = "_policy--rfx-discussion"
+RFX_DISCUSSION_SCHEMA = "cpo_discuss"
+POLICY_SCHEMA = "cpo_policy"
+POLICY_TABLE = "_policy__rfx_discussion"
 COMMENT_NESTED_LEVEL = 2
 NAMESPACE = "rfx-discuss"
 MESSAGE_NAMESPACE = "rfx-message"
@@ -16,8 +16,7 @@ DEFAULT_TEAM_ID = "a7fc113d-5b51-4f6e-8a82-18eccf73c71c"
 COMMENT_AGGROOTS = "project, ticket, comment"
 
 PROJECT_MANAGEMENT_INTEGRATION_ENABLED = True
-PROJECT_MANAGEMENT_INTEGRATION_PROVIDER = "linear" 
-
+PROJECT_MANAGEMENT_INTEGRATION_PROVIDER = "linear"
 
 
 # env for JIRA and CLICKUP integration

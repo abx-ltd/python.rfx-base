@@ -1,13 +1,13 @@
 from enum import Enum
 
 
-class RFXDiscussStatus(Enum):
+class RFXDiscussStatusEnum(Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
     PENDING = "PENDING"
 
 
-class Priority(Enum):
+class PriorityEnum(Enum):
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -15,20 +15,21 @@ class Priority(Enum):
     TRIVIAL = "TRIVIAL"
 
 
-class SyncStatus(Enum):
+class SyncStatusEnum(Enum):
     PENDING = "PENDING"
     SYNCING = "SYNCING"
     SYNCED = "SYNCED"
     FAILED = "FAILED"
 
 
-class Availability(Enum):
+class AvailabilityEnum(Enum):
     OPEN = "OPEN"
     CLOSED = "CLOSED"
 
 
-class ActivityAction(Enum):
+class ActivityActionEnum(Enum):
     """Activity actions for logging ticket and Discuss-related activities"""
+
     CREATE = "CREATE"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
