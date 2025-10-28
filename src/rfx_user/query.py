@@ -77,7 +77,7 @@ class OrganizationRoleQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('profile_role')
+@resource('profile-role')
 class ProfileRole(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
         include_all = True
