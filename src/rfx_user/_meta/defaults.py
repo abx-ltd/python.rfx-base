@@ -3,6 +3,6 @@ from rfx_base import config
 LOG_LEVEL = config.LOG_LEVEL
 DB_DSN = config.DB_DSN
 
-USER_PROFILE_SCHEMA = "rfx_user"
-POLICY_SCHEMA = "rfx_policy"
+USER_PROFILE_SCHEMA = config.RFX_USER_SCHEMA
+POLICY_SCHEMA = config.RFX_POLICY_SCHEMA
 POLICY_TABLE = "_policy__user_profile"
