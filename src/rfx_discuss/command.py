@@ -10,15 +10,16 @@ Command = RFXDiscussDomain.Command
 
 # ---------- Comment Context ----------
 
+
 class CreateComment(Command):
     """
-        Create Comment - Creates a new comment
-        API Endpoint Example:
-            - Endpoint: POST /api/v1/namespace:create-comment/<aggroot>/<aggroot_id>
-            - Sample:
-                + aggroot = project, aggroot_id = <project_id>
-                + aggroot = ticket, aggroot_id = <ticket_id>
-            - Data: resource = project/ticket, resource_id = <project_id>/<ticket_id>, content = "This is a comment", sync_linear = True/False
+    Create Comment - Creates a new comment
+    API Endpoint Example:
+        - Endpoint: POST /api/v1/namespace:create-comment/<aggroot>/<aggroot_id>
+        - Sample:
+            + aggroot = project, aggroot_id = <project_id>
+            + aggroot = ticket, aggroot_id = <ticket_id>
+        - Data: resource = project/ticket, resource_id = <project_id>/<ticket_id>, content = "This is a comment", sync_linear = True/False
 
     """
 
@@ -30,6 +31,7 @@ class CreateComment(Command):
         description = "Create a new comment"
         policy_required = False
         new_resource = True
+
     Data = datadef.CreateCommentPayload
 
     async def _process(self, agg, stm, payload):
@@ -56,7 +58,7 @@ class UpdateComment(Command):
     async def _process(self, agg, stm, payload):
         """Update comment"""
         await agg.update_comment(data=payload)
-        updated_comment = await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
+        await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
 
 
 class DeleteComment(Command):

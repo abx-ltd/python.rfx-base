@@ -1,16 +1,21 @@
-from .types import Priority, Availability, SyncStatus
 from .policy import RFXDiscussPolicyManager
 from .domain import RFXDiscussDomain
 from .state import RFXDiscussStateManager
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
-from datetime import datetime
+from fluvius.query.field import StringField, UUIDField, IntegerField, DictField
 from . import scope
 
-default_exclude_fields = ["realm", "deleted", "etag",
-                          "created", "updated", "creator", "updater"]
+default_exclude_fields = [
+    "realm",
+    "deleted",
+    "etag",
+    "created",
+    "updated",
+    "creator",
+    "updater",
+]
 
 
 class RFXDiscussQueryManager(DomainQueryManager):
@@ -34,7 +39,7 @@ class ResourceScope(BaseModel):
 # Comment Queries
 
 
-@resource('comment')
+@resource("comment")
 class CommentQuery(DomainQueryResource):
     """Comment queries"""
 
@@ -54,5 +59,5 @@ class CommentQuery(DomainQueryResource):
     content: str = StringField("Content")
     creator: dict = DictField("Creator")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
-    resource: str = StringField("Resource Type")  
+    resource: str = StringField("Resource Type")
     resource_id: UUID_TYPE = UUIDField("Resource ID")

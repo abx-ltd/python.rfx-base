@@ -1,4 +1,3 @@
-from sqlalchemy import true
 from .types import PriorityEnum, SyncStatusEnum, AvailabilityEnum
 from .policy import RFXClientPolicyManager
 from .domain import RFXClientDomain
@@ -6,15 +5,31 @@ from .state import RFXClientStateManager
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, IntegerField, FloatField, DatetimeField, ArrayField, TextSearchField
+from fluvius.query.field import (
+    StringField,
+    UUIDField,
+    BooleanField,
+    EnumField,
+    IntegerField,
+    FloatField,
+    DatetimeField,
+    ArrayField,
+)
 from . import scope
-from .types import ContactMethodEnum 
+from .types import ContactMethodEnum
 from datetime import datetime
 from typing import Optional
 
 
-default_exclude_fields = ["realm", "deleted", "etag",
-                          "created", "updated", "creator", "updater"]
+default_exclude_fields = [
+    "realm",
+    "deleted",
+    "etag",
+    "created",
+    "updated",
+    "creator",
+    "updater",
+]
 
 
 class RFXClientQueryManager(DomainQueryManager):
@@ -39,7 +54,7 @@ class ResourceScope(BaseModel):
 #     project_id: str = ""
 
 
-@resource('estimator')
+@resource("estimator")
 class ProjectDraftQuery(DomainQueryResource):
     """Project draft queries"""
 
@@ -72,7 +87,7 @@ class ProjectDraftQuery(DomainQueryResource):
 
 
 # Project Queries
-@resource('project')
+@resource("project")
 class ProjectQuery(DomainQueryResource):
     """Project queries"""
 
@@ -106,7 +121,7 @@ class ProjectQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('project-bdm-contact')
+@resource("project-bdm-contact")
 class ProjectBDMContactQuery(DomainQueryResource):
     """Project BDM contact queries"""
 
@@ -126,7 +141,7 @@ class ProjectBDMContactQuery(DomainQueryResource):
     status: str = StringField("Status")
 
 
-@resource('project-milestone')
+@resource("project-milestone")
 class ProjectMilestoneQuery(DomainQueryResource):
     """Project milestone queries"""
 
@@ -149,7 +164,7 @@ class ProjectMilestoneQuery(DomainQueryResource):
     project_id: UUID_TYPE = UUIDField("Project ID")
 
 
-@resource('project-estimate-summary')
+@resource("project-estimate-summary")
 class ProjectEstimateSummaryQuery(DomainQueryResource):
     """Project estimate summary queries"""
 
@@ -169,13 +184,12 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
     discount_value: float = FloatField("Discount Value")
     free_credits: float = FloatField("Free Credits")
     total_credits_raw: float = FloatField("Total Credits Raw")
-    total_credits_after_discount: float = FloatField(
-        "Total Credits After Discount")
+    total_credits_after_discount: float = FloatField("Total Credits After Discount")
     total_cost: float = FloatField("Total Cost")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('project-category')
+@resource("project-category")
 class RefProjectCategoryQuery(DomainQueryResource):
     """Project category reference queries"""
 
@@ -194,7 +208,7 @@ class RefProjectCategoryQuery(DomainQueryResource):
     is_active: bool = BooleanField("Is Active")
 
 
-@resource('project-role')
+@resource("project-role")
 class RefProjectRoleQuery(DomainQueryResource):
     """Project role reference queries"""
 
@@ -213,9 +227,10 @@ class RefProjectRoleQuery(DomainQueryResource):
     is_default: bool = BooleanField("Is Default")
 
 
-@resource('project-work-package')
+@resource("project-work-package")
 class ProjectWorkPackageQuery(DomainQueryResource):
     """Project work package queries"""
+
     class Meta(DomainQueryResource.Meta):
         resource = "project"
         include_all = True
@@ -233,9 +248,9 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     work_package_name: str = StringField("Work Package Name")
     work_package_description: str = StringField("Work Package Description")
     work_package_example_description: str = StringField(
-        "Work Package Example Description")
-    work_package_complexity_level: int = IntegerField(
-        "Work Package Complexity Level")
+        "Work Package Example Description"
+    )
+    work_package_complexity_level: int = IntegerField("Work Package Complexity Level")
     work_package_estimate: str = StringField("Work Package Estimate")
     work_package_is_custom: bool = BooleanField("Work Package Is Custom")
     quantity: int = IntegerField("Quantity")
@@ -250,8 +265,8 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     total_deliverables: int = IntegerField("Total Deliverables")
 
 
-@resource('project-work-item')
-class WorkItemDetailQuery(DomainQueryResource):
+@resource("project-work-item")
+class ProjectWorkItemDetailQuery(DomainQueryResource):
     """Work item detail queries"""
 
     class Meta(DomainQueryResource.Meta):
@@ -272,8 +287,8 @@ class WorkItemDetailQuery(DomainQueryResource):
     type_alias: str = StringField("Type Alias")
 
 
-@resource('project-work-item-listing')
-class WorkItemListingQuery(DomainQueryResource):
+@resource("project-work-item-listing")
+class ProjectWorkItemListingQuery(DomainQueryResource):
     """Work item listing queries"""
 
     class Meta(DomainQueryResource.Meta):
@@ -291,22 +306,20 @@ class WorkItemListingQuery(DomainQueryResource):
     project_work_item_id: UUID_TYPE = UUIDField("Project Work Item ID")
     status: str = StringField("Status")
     project_work_item_name: str = StringField("Project Work Item Name")
-    project_work_item_description: str = StringField(
-        "Project Work Item Description")
+    project_work_item_description: str = StringField("Project Work Item Description")
     price_unit: float = FloatField("Price Unit")
     credit_per_unit: float = FloatField("Credit Per Unit")
-    project_work_item_type_code: str = StringField(
-        "Project Work Item Type Code")
-    project_work_item_type_alias: str = StringField(
-        "Project Work Item Type Alias")
+    project_work_item_type_code: str = StringField("Project Work Item Type Code")
+    project_work_item_type_alias: str = StringField("Project Work Item Type Alias")
     total_credits_for_item: float = FloatField("Total Credits For Item")
     estimated_cost_for_item: float = FloatField("Estimated Cost For Item")
     estimate: str = StringField("Estimate")
 
+
 # Work Item Queries
 
 
-@resource('work-item-type')
+@resource("work-item-type")
 class WorkItemTypeQuery(DomainQueryResource):
     """Work item type queries"""
 
@@ -325,7 +338,7 @@ class WorkItemTypeQuery(DomainQueryResource):
     alias: str = StringField("Alias")
 
 
-@resource('work-item')
+@resource("work-item")
 class WorkItemDetailQuery(DomainQueryResource):
     """Work item detail queries"""
 
@@ -346,7 +359,7 @@ class WorkItemDetailQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('work-item-listing')
+@resource("work-item-listing")
 class WorkItemListingQuery(DomainQueryResource):
     """Work item listing queries"""
 
@@ -375,7 +388,7 @@ class WorkItemListingQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('work-item-deliverable')
+@resource("work-item-deliverable")
 class WorkItemDeliverableQuery(DomainQueryResource):
     """Work item deliverable queries"""
 
@@ -393,7 +406,8 @@ class WorkItemDeliverableQuery(DomainQueryResource):
 
 # Work Package Queries
 
-@resource('work-package')
+
+@resource("work-package")
 class WorkPackageQuery(DomainQueryResource):
     """work package queries"""
 
@@ -402,7 +416,7 @@ class WorkPackageQuery(DomainQueryResource):
         return {
             ".or": [
                 {"organization_id": None},
-                {"organization_id": context.organization._id}
+                {"organization_id": context.organization._id},
             ]
         }
 
@@ -431,7 +445,7 @@ class WorkPackageQuery(DomainQueryResource):
     is_custom: bool = BooleanField("Is Custom")
 
 
-@resource('promotion')
+@resource("promotion")
 class PromotionQuery(DomainQueryResource):
     """Promotion queries"""
 
@@ -450,11 +464,10 @@ class PromotionQuery(DomainQueryResource):
     current_uses: int = IntegerField("Current Uses")
     discount_value: float = FloatField("Discount Value")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
-    
-    
-    
-#======== Ticket Query===========
-@resource('inquiry')
+
+
+# ======== Ticket Query===========
+@resource("inquiry")
 class InquiryQuery(DomainQueryResource):
     """Inquiry listing queries"""
 
@@ -476,10 +489,11 @@ class InquiryQuery(DomainQueryResource):
     activity: datetime = DatetimeField("Activity")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
+
 # Ticket Queries
 
 
-@resource('ticket')
+@resource("ticket")
 class TicketQuery(DomainQueryResource):
     """Ticket queries"""
 
@@ -507,7 +521,7 @@ class TicketQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('ticket-type')
+@resource("ticket-type")
 class RefTicketTypeQuery(DomainQueryResource):
     """Ticket type reference queries"""
 
@@ -527,7 +541,7 @@ class RefTicketTypeQuery(DomainQueryResource):
 
 
 # Tag Queries
-@resource('tag')
+@resource("tag")
 class TagQuery(DomainQueryResource):
     """Tag queries"""
 
@@ -545,4 +559,3 @@ class TagQuery(DomainQueryResource):
     target_resource: str = StringField("Target Resource")
     target_resource_id: str = StringField("Target Resource ID")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
-

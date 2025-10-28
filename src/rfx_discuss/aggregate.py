@@ -1,15 +1,12 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
-from typing import Optional
-from datetime import datetime
 from rfx_discuss import logger
-from .types import Availability, SyncStatus
 from . import config
 
 
 class RFXDiscussAggregate(Aggregate):
-    """CPO Portal Aggregate Root - Handles  ticket, comment, external """
+    """CPO Portal Aggregate Root - Handles  ticket, comment, external"""
 
     # =========== Comment Context ============
     @action("comment-created", resources="comment")
@@ -19,7 +16,7 @@ class RFXDiscussAggregate(Aggregate):
             "comment",
             serialize_mapping(data),
             _id=UUID_GENR(),
-            organization_id=self.context.organization_id
+            organization_id=self.context.organization_id,
         )
         await self.statemgr.insert(record)
         return record
@@ -53,18 +50,17 @@ class RFXDiscussAggregate(Aggregate):
             logger.info(f"Max nest level reached, attaching to parent: {parent_id}")
 
         reply_data = serialize_mapping(data)
-        reply_data.update({
-            "parent_id": parent_id,
-            "depth": depth,
-            "resource": parent_comment.resource,
-            "resource_id": parent_comment.resource_id
-        })
+        reply_data.update(
+            {
+                "parent_id": parent_id,
+                "depth": depth,
+                "resource": parent_comment.resource,
+                "resource_id": parent_comment.resource_id,
+            }
+        )
 
         new_comment = self.init_resource(
-            "comment",
-            reply_data,
-            _id=UUID_GENR(),
-            organization_id=organization_id
+            "comment", reply_data, _id=UUID_GENR(), organization_id=organization_id
         )
 
         await self.statemgr.insert(new_comment)

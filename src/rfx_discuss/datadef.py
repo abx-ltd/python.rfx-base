@@ -1,11 +1,4 @@
-from typing import Optional
-
-from pydantic import Field
-from fluvius.data import DataModel, UUID_TYPE
-
-from .types import Priority, Availability
-
-
+from fluvius.data import DataModel
 
 
 # ---------- Comment Context ----------
@@ -19,13 +12,11 @@ class CreateCommentPayload(DataModel):
 
 class UpdateCommentPayload(DataModel):
     content: str
-    
-    
-class DeleteCommentPayload(DataModel):
-    pass 
 
+
+class DeleteCommentPayload(DataModel):
+    pass
 
 
 class ReplyToCommentPayload(DataModel):
     content: str
-

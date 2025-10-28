@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional
+
 
 # === Attribute & Value Helpers ===
 def safe_getattr(obj, attr, default=None):
@@ -21,6 +22,7 @@ def map_priority(priority) -> int:
         "MEDIUM": 3,
         "LOW": 4,
     }.get(value.upper(), 3)
+
 
 # === Date Normalization ===
 def parse_date(date_str: Optional[str]) -> Optional[str]:
