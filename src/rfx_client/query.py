@@ -121,7 +121,7 @@ class ProjectQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource("project_bdm_contact")
+@resource("project-bdm-contact")
 class ProjectBDMContactQuery(DomainQueryResource):
     """Project BDM contact queries"""
 
@@ -141,7 +141,7 @@ class ProjectBDMContactQuery(DomainQueryResource):
     status: str = StringField("Status")
 
 
-@resource("project_milestone")
+@resource("project-milestone")
 class ProjectMilestoneQuery(DomainQueryResource):
     """Project milestone queries"""
 
@@ -164,7 +164,7 @@ class ProjectMilestoneQuery(DomainQueryResource):
     project_id: UUID_TYPE = UUIDField("Project ID")
 
 
-@resource("project_estimate_summary")
+@resource("project-estimate-summary")
 class ProjectEstimateSummaryQuery(DomainQueryResource):
     """Project estimate summary queries"""
 
@@ -189,7 +189,7 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource("project_category")
+@resource("project-category")
 class RefProjectCategoryQuery(DomainQueryResource):
     """Project category reference queries"""
 
@@ -208,7 +208,7 @@ class RefProjectCategoryQuery(DomainQueryResource):
     is_active: bool = BooleanField("Is Active")
 
 
-@resource("project_role")
+@resource("project-role")
 class RefProjectRoleQuery(DomainQueryResource):
     """Project role reference queries"""
 
@@ -227,7 +227,7 @@ class RefProjectRoleQuery(DomainQueryResource):
     is_default: bool = BooleanField("Is Default")
 
 
-@resource("project_work_package")
+@resource("project-work-package")
 class ProjectWorkPackageQuery(DomainQueryResource):
     """Project work package queries"""
 
@@ -265,7 +265,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     total_deliverables: int = IntegerField("Total Deliverables")
 
 
-@resource("project_work_item")
+@resource("project-work-item")
 class ProjectWorkItemDetailQuery(DomainQueryResource):
     """Work item detail queries"""
 
@@ -287,7 +287,7 @@ class ProjectWorkItemDetailQuery(DomainQueryResource):
     type_alias: str = StringField("Type Alias")
 
 
-@resource("project_work_item_listing")
+@resource("project-work-item-listing")
 class ProjectWorkItemListingQuery(DomainQueryResource):
     """Work item listing queries"""
 
@@ -319,7 +319,7 @@ class ProjectWorkItemListingQuery(DomainQueryResource):
 # Work Item Queries
 
 
-@resource("work_item_type")
+@resource("work-item-type")
 class WorkItemTypeQuery(DomainQueryResource):
     """Work item type queries"""
 
@@ -338,7 +338,7 @@ class WorkItemTypeQuery(DomainQueryResource):
     alias: str = StringField("Alias")
 
 
-@resource("work_item")
+@resource("work-item")
 class WorkItemDetailQuery(DomainQueryResource):
     """Work item detail queries"""
 
@@ -359,7 +359,7 @@ class WorkItemDetailQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource("work_item_listing")
+@resource("work-item-listing")
 class WorkItemListingQuery(DomainQueryResource):
     """Work item listing queries"""
 
@@ -388,7 +388,7 @@ class WorkItemListingQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource("work_item_deliverable")
+@resource("work-item-deliverable")
 class WorkItemDeliverableQuery(DomainQueryResource):
     """Work item deliverable queries"""
 
@@ -407,7 +407,7 @@ class WorkItemDeliverableQuery(DomainQueryResource):
 # Work Package Queries
 
 
-@resource("work_package")
+@resource("work-package")
 class WorkPackageQuery(DomainQueryResource):
     """work package queries"""
 
@@ -521,7 +521,7 @@ class TicketQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource("ticket_type")
+@resource("ticket-type")
 class RefTicketTypeQuery(DomainQueryResource):
     """Ticket type reference queries"""
 
