@@ -29,7 +29,7 @@ endpoint = RFXMessageServiceQueryManager.register_endpoint
 #     resource_id: str
 
 
-@resource('message_recipients')
+@resource('message-recipients')
 class MessageQuery(DomainQueryResource):
     """ Query resource for notifications received by the current user. """
 
@@ -79,7 +79,7 @@ class TemplateScope(BaseModel):
     channel: Optional[str] = None
 
 
-@resource('message_template')
+@resource('message-template')
 class TemplateQuery(DomainQueryResource):
     """Query resource for message templates."""
 
