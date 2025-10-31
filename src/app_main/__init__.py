@@ -11,13 +11,13 @@ from rfx_idm import IDMDomain
 domains = (
     IDMDomain,
     'rfx_user.UserProfileDomain',
-    'rfx_message.MessageServiceDomain',
+    'rfx_message.RFXMessageServiceDomain',
 )
 
 queries = (
     'rfx_idm.IDMQueryManager',
     'rfx_user.UserProfileQueryManager',
-    'rfx_message.MessageQueryManager',
+    'rfx_message.RFXMessageServiceQueryManager',
 )
 
 app = create_app() \
