@@ -14,6 +14,7 @@ from fluvius.query.field import (
     FloatField,
     DatetimeField,
     ArrayField,
+    DictField,
 )
 from . import scope
 from .types import ContactMethodEnum
@@ -559,3 +560,28 @@ class TagQuery(DomainQueryResource):
     target_resource: str = StringField("Target Resource")
     target_resource_id: str = StringField("Target Resource ID")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+
+@resource("comment")
+class CommentQuery(DomainQueryResource):
+    """Comment queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "comment"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_comment"
+        scope_required = scope.CommentScopeSchema
+
+    master_id: UUID_TYPE = UUIDField("Master ID")
+    parent_id: UUID_TYPE = UUIDField("Parent ID")
+    depth: int = IntegerField("Depth")
+    content: str = StringField("Content")
+    creator: dict = DictField("Creator")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    resource: str = StringField("Resource Type")
+    resource_id: UUID_TYPE = UUIDField("Resource ID")
+    source: str = StringField("Source")

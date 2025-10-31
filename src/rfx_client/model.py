@@ -701,3 +701,4 @@ class CommentView(RFXClientBaseModel):
     organization_id = sa.Column(pg.UUID)
     resource = sa.Column(sa.String(100))
     resource_id = sa.Column(pg.UUID)
+    source = sa.Column(sa.String(100))  # e.g., 'user', 'system', 'linear'

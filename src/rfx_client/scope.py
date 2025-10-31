@@ -30,3 +30,7 @@ class ProjectWorkItemListingScopeSchema(BaseModel):
 ## Ticket Scopes
 class TicketScopeSchema(BaseModel):
     project_id: UUID_TYPE = UUIDField("Project ID")
+
+
+class CommentScopeSchema(BaseModel):
+    resource_id: UUID_TYPE = UUIDField("Resource ID")
