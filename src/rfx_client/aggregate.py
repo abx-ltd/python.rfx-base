@@ -1744,3 +1744,25 @@ class RFXClientAggregate(Aggregate):
 
         await self.statemgr.invalidate(comment_integration)
         return {"removed": True}
+
+    @action("comment-created", resources=tuple(config.COMMENT_AGGROOTS.split(",")))
+    async def create_comment_from_webhook(self, /, data):
+        """Create a new comment"""
+        payload = serialize_mapping(data)
+        if "organization_id" not in payload:
+            payload["organization_id"] = self.context.organization_id
+        final_kwargs = self.audit_created()
+        final_kwargs.update(
+            {
+                "_id": self.aggroot.identifier,
+            }
+        )
+        final_kwargs.update(payload)
+        record = self.statemgr.create(
+            "comment",
+            None,
+            **final_kwargs,
+        )
+        await self.statemgr.insert(record)
+
+        return record

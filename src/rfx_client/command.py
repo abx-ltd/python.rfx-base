@@ -3380,6 +3380,7 @@ class SyncCommentFromWebhook(Command):
 
         external_comment_id = external_data.get("id")
         body = external_data.get("body")
+        parent_id = external_data.get("parentId")
 
         existing_integ = await stm.find_one(
             "comment_integration",
@@ -3410,12 +3411,14 @@ class SyncCommentFromWebhook(Command):
 
         comment_payload = datadef.CreateCommentPayload(content=body)
         comment_result = serialize_mapping(comment_payload)
+        comment_result["parent_id"] = parent_id if parent_id else None
+        comment_result["depth"] = 1 if parent_id else 0
         comment_result["resource"] = "ticket" if target_type == "issue" else target_type
         comment_result["resource_id"] = str(local_target_id)
         comment_result["source"] = "system"
         comment_result["organization_id"] = str(ticket_target.organization_id)
 
-        new_comment = await agg.create_comment(data=comment_result)
+        new_comment = await agg.create_comment_from_webhook(data=comment_result)
         logger.info(f"agg: {agg.get_aggroot()}")
 
         integration_payload = datadef.CreateCommentIntegrationPayload(
