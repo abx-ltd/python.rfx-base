@@ -589,6 +589,7 @@ class CreateCommentIntegrationPayload(DataModel):
     external_id: str
     external_url: Optional[str] = None
     comment_id: UUID_TYPE
+    source: Optional[str] = None  # e.g., 'user', 'system', 'linear'
 
 
 class UpdateCommentIntegrationPayload(DataModel):

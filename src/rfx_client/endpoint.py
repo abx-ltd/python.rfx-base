@@ -13,12 +13,6 @@ WEBHOOK_COMMAND_MAP = {
     WebhookEventType.COMMENT_CREATED: "sync-comment-from-webhook",
     WebhookEventType.COMMENT_UPDATED: "sync-comment-from-webhook-change",
     WebhookEventType.COMMENT_DELETED: "sync-comment-from-webhook-change",
-    WebhookEventType.ISSUE_CREATED: "sync-ticket-from-webhook",
-    WebhookEventType.ISSUE_UPDATED: "sync-ticket-from-webhook-change",
-    WebhookEventType.ISSUE_DELETED: "sync-ticket-from-webhook-change",
-    WebhookEventType.PROJECT_CREATED: "sync-project-from-webhook",
-    WebhookEventType.PROJECT_UPDATED: "sync-project-from-webhook-change",
-    WebhookEventType.PROJECT_DELETED: "sync-project-from-webhook-change",
 }
 
 
@@ -36,7 +30,6 @@ async def linear_webhook(
     URL: POST /api/v1/webhook
     """
     try:
-        logger.info(f"headers: {request.headers}")
         pmservice = PMService.init_client(provider=service_name)
         logger.info(f"[Webhook] Initialized {service_name} service")
         is_valid = await pmservice.verify_webhook_signature(request)
@@ -52,7 +45,6 @@ async def linear_webhook(
 
     try:
         webhook_response = await pmservice.handle_webhook(parsed_payload)
-        logger.info(f"result: {webhook_response}")
     except Exception as e:
         logger.error(f"[Webhook] Handler error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Handler failed: {str(e)}")
@@ -86,8 +78,8 @@ async def execute_webhook_command(
 
     Similar to FastAPIDomainManager command handling but for webhooks
     """
-    logger.info(f"webhook_response: {webhook_response}")
     event_type = webhook_response.event_type
+    logger.info(f"[Webhook] Response: {webhook_response}")
 
     cmd_key = WEBHOOK_COMMAND_MAP.get(event_type)
 
@@ -114,31 +106,6 @@ async def execute_webhook_command(
         identifier = webhook_response.external_id
         if "user" in external_data and isinstance(external_data["user"], dict):
             user_id = external_data["user"].get("id")
-
-    elif "issue" in event_type.lower() or "ticket" in event_type.lower():
-        payload = datadef.SyncTicketFromWebhookPayload(
-            action=webhook_response.action,
-            provider=webhook_response.provider,
-            external_id=webhook_response.external_id,
-            external_data=webhook_response.external_data,
-            target_id=webhook_response.target_id,
-            target_type=webhook_response.target_type,
-        )
-        resource = "ticket"
-        identifier = webhook_response.external_id
-        user_id = external_data.get("creatorId")
-
-    elif "project" in event_type.lower():
-        payload = datadef.SyncProjectFromWebhookPayload(
-            action=webhook_response.action,
-            provider=webhook_response.provider,
-            external_id=webhook_response.external_id,
-            external_data=webhook_response.external_data,
-        )
-        resource = "project"
-        identifier = webhook_response.external_id
-        user_id = external_data.get("creatorId")
-
     else:
         return {"status": "error", "reason": f"Unknown resource type: {event_type}"}
 

@@ -1622,7 +1622,7 @@ class RFXClientAggregate(Aggregate):
         final_kwargs = self.audit_created()
         final_kwargs.update(
             {
-                "_id": self.aggroot.identifier,
+                "_id": UUID_GENR(),
             }
         )
         final_kwargs.update(payload)
@@ -1744,44 +1744,3 @@ class RFXClientAggregate(Aggregate):
 
         await self.statemgr.invalidate(comment_integration)
         return {"removed": True}
-
-    @action("create-project-from-webhook", resources="project")
-    async def create_project_from_webhook(self, /, data):
-        """Create a new project from webhook"""
-        try:
-            parsed_delta, duration_text, duration_interval = parse_duration_for_db(
-                data.duration
-            )
-        except Exception:
-            raise ValueError(f"Invalid duration format: {data.duration}")
-
-        project = await self.statemgr.find_one(
-            "project", where=dict(_id=self.aggroot.identifier)
-        )
-        # if project.status == "ACTIVE":
-        #     raise ValueError("Already is a project")
-
-        target_date = data.start_date + parsed_delta
-
-        data = data.set(duration=duration_interval)
-
-        project_data = serialize_mapping(data)
-
-        sync_status = SyncStatusEnum.PENDING
-        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
-            sync_status = SyncStatusEnum.SYNCED
-
-        await self.statemgr.update(
-            project,
-            **project_data,
-            status="ACTIVE",
-            target_date=target_date,
-            duration_text=duration_text,
-            sync_status=sync_status,
-        )
-
-        new_project = await self.statemgr.find_one(
-            "project", where=dict(_id=project._id)
-        )
-
-        return new_project

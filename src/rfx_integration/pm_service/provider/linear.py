@@ -500,7 +500,6 @@ class LinearProvider(PMService):
         webhook_secret = _config.LINEAR_WEBHOOK_SECRET
 
         body_bytes = await request.body()
-        logger.info(f"[Linear] Verifying webhook signature for body: {body_bytes}")
 
         x_webhook_signature = request.headers.get("x-webhook-signature")
 
