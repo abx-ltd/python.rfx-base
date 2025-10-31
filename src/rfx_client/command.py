@@ -18,7 +18,7 @@ from rfx_integration.pm_service.base import (
 from rfx_integration.pm_service.base import (
     UpdateCommentPayload as PMUpdateCommentPayload,
 )
-
+from .utils import map_linear_priority_to_enum, parse_start_date, calculate_duration
 
 processor = RFXClientDomain.command_processor
 Command = RFXClientDomain.Command
@@ -3324,61 +3324,47 @@ class ReplyToComment(Command):
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 
-class ProcessLinearWebhook(Command):
-    """
-    Xử lý các sự kiện webhook đi vào từ Linear.
-    Đây là "bộ định tuyến" trung tâm cho logic đồng bộ hóa ngược.
-    """
+class SyncCommentFromWebhook(Command):
+    """Sync Comment from Webhook - Process comment events from PM services"""
 
     class Meta:
-        key = "process-linear-webhook"
-        resources = ("project",)  # Dùng một aggregate root chung
-        tags = ["webhook", "integration", "linear"]
-        auth_required = False  # Webhook không cần user xác thực
-        internal = True  # Được gọi bởi hệ thống (endpoint)
-        description = "Xử lý một webhook từ Linear"
+        key = "sync-comment-from-webhook"
+        resources = ("comment",)
+        tags = ["webhook", "sync", "comment"]
+        auth_required = True
+        description = "Sync comment from webhook event"
+        policy_required = False
+        internal = True
+        new_resource = True
 
-    Data = datadef.ProcessLinearWebhookPayload
+    Data = datadef.SyncCommentFromWebhookPayload
 
     async def _process(self, agg, stm, payload):
-        """
-        Định tuyến payload đến đúng hàm xử lý (handler).
-        """
-        logger.info(f"[WebhookCommand] Đang xử lý event: {payload.event_type}")
+        """Process comment sync from webhook"""
 
-        event_body = payload.data.get("event", {})
-        event_type = event_body.get(
-            "type", payload.event_type
-        )  # "Comment", "Issue", v.v.
-        action = event_body.get("action")  # "create", "update", "remove"
-        data = event_body.get("data", {})  # Nội dung chính của data
+        action = payload.action
+        provider = payload.provider
+        external_id = payload.external_id
+        external_data = payload.external_data
+        target_id = payload.target_id  # Issue/Ticket ID
+        target_type = payload.target_type  # "issue"
 
-        if not all([event_type, action, data]):
-            logger.warning("[WebhookCommand] Cấu trúc payload không hợp lệ, bỏ qua.")
-            return
+        logger.info(f"[WebhookCommand] Syncing comment: {action} from {provider}")
+        logger.info(f"[WebhookCommand]   External ID: {external_id}")
+        logger.info(f"[WebhookCommand]   Target: {target_type}/{target_id}")
 
-        # --- LOGIC ĐỊNH TUYẾN CHÍNH ---
         try:
-            if event_type == "Comment":
-                if action == "create":
-                    await self.handle_comment_create(agg, stm, data)
-                # elif action == "update":
-                #     await self.handle_comment_update(agg, stm, data)
-                # elif action == "remove":
-                #     await self.handle_comment_delete(agg, stm, data)
+            if action == "create":
+                result = await self._handle_create(
+                    agg, stm, external_data, target_id, target_type, provider
+                )
+            else:
+                result = {"status": "unknown_action", "action": action}
 
-            # elif event_type == "Issue":
-            #     if action == "update":
-            #         await self.handle_issue_update(agg, stm, data)
-            #     # ...
-
-            # Trả về response để endpoint biết đã xử lý xong
-            yield agg.create_response(
-                {"status": f"processed {event_type} {action}"}, _type="webhook-response"
-            )
+            yield agg.create_response(result, _type="webhook-response")
 
         except Exception as e:
-            logger.error(f"[WebhookCommand] Lỗi khi xử lý {event_type} {action}: {e}")
+            logger.error(f"[WebhookCommand] Error: {str(e)}")
             import traceback
 
             logger.error(traceback.format_exc())
@@ -3386,67 +3372,543 @@ class ProcessLinearWebhook(Command):
                 {"status": "error", "error": str(e)}, _type="webhook-response"
             )
 
-    async def handle_comment_create(self, agg, stm, data: dict):
-        """
-        Xử lý khi có comment mới từ Linear (dựa trên log của bạn).
-        'data' là nội dung của 'event.data'.
-        """
-        external_comment_id = data.get("id")
-        external_issue_id = data.get("issueId")
-        body = data.get("body")
-        external_url = data.get("url")  # Lấy từ "event.url" trong log
-        if not external_url:
-            external_url = data.get("url")  # Hoặc từ "event.data.url"
+    async def _handle_create(
+        self, agg, stm, external_data, target_id, target_type, provider
+    ):
+        """Handle comment creation from webhook"""
 
-        logger.info(f"[WebhookCommand] Đang xử lý tạo Comment: {external_comment_id}")
+        external_comment_id = external_data.get("id")
+        body = external_data.get("body")
+        logger.info(f"external_data: {external_data}")
+        logger.info(f"body: {body}")
 
-        if not all([external_comment_id, external_issue_id, body]):
-            logger.warning("[WebhookCommand] Comment payload thiếu trường, bỏ qua.")
-            return
-
-        # 1. Kiểm tra xem comment này đã được xử lý chưa (tránh lặp)
         existing_integ = await stm.find_one(
             "comment_integration",
-            where={"external_id": external_comment_id, "provider": "linear"},
+            where={"external_id": external_comment_id, "provider": provider},
         )
+
         if existing_integ:
-            logger.info(f"Comment {external_comment_id} đã được xử lý, bỏ qua.")
-            return
+            logger.info(f"Comment {external_comment_id} already exists")
+            return {"status": "skipped", "reason": "already_exists"}
 
-        # 2. Tìm local_ticket_id từ external_issue_id
-        ticket_integ = await stm.find_one(
-            "ticket_integration",
-            where={"external_id": external_issue_id, "provider": "linear"},
+        integration_table = f"{target_type}_integration"
+        if target_type == "issue":
+            integration_table = "ticket_integration"
+
+        target_integ = await stm.find_one(
+            integration_table, where={"external_id": target_id, "provider": provider}
         )
-        if not ticket_integ:
-            logger.warning(
-                f"Không tìm thấy ticket integration cho external issue {external_issue_id}, bỏ qua."
-            )
-            return
 
-        local_ticket_id = ticket_integ.ticket_id
+        if not target_integ:
+            logger.warning(f"No {target_type} found for external ID: {target_id}")
+            return {"status": "skipped", "reason": f"no_{target_type}_mapping"}
 
-        # 3. Tạo comment cục bộ (GỌI AGGREGATE.PY)
-        # Chúng ta gọi action 'create_comment' trên aggregate
-        comment_payload = {
-            "content": body,
-            "resource": "ticket",
-            "resource_id": str(local_ticket_id),
-        }
+        local_target_id = getattr(
+            target_integ, f"{target_type}_id", target_integ.ticket_id
+        )
+        ticket_target = await stm.find_one("ticket", where={"_id": local_target_id})
+        logger.info(f"ticket_target: {ticket_target}")
 
-        # Đây là nơi gọi đến aggregate.py
-        new_comment = await agg.create_comment(data=comment_payload)
+        comment_payload = datadef.CreateCommentPayload(content=body)
+        comment_result = serialize_mapping(comment_payload)
+        comment_result["resource"] = "ticket" if target_type == "issue" else target_type
+        comment_result["resource_id"] = str(local_target_id)
+        comment_result["organization_id"] = str(ticket_target.organization_id)
 
-        # 4. Tạo liên kết integration cho comment này (GỌI AGGREGATE.PY)
-        integration_payload = {
-            "provider": "linear",
-            "external_id": external_comment_id,
-            "external_url": external_url,
-            "comment_id": new_comment._id,
-        }
-        # Đây cũng là nơi gọi đến aggregate.py
+        new_comment = await agg.create_comment(data=comment_result)
+        logger.info(f"agg: {agg.get_aggroot()}")
+
+        integration_payload = datadef.CreateCommentIntegrationPayload(
+            provider=provider,
+            external_id=external_comment_id,
+            external_url=external_data.get("issue", {}).get("url"),
+            comment_id=new_comment._id,
+        )
         await agg.create_comment_integration(data=integration_payload)
+        return {
+            "status": "created",
+            "comment_id": str(new_comment._id),
+            "external_id": external_comment_id,
+        }
 
-        logger.info(
-            f"✓ Đã tạo comment cục bộ {new_comment._id} từ webhook {external_comment_id}"
+
+class SyncCommentFromWebhookChange(Command):
+    """Sync Comment from Webhook - Process comment events from PM services"""
+
+    class Meta:
+        key = "sync-comment-from-webhook-change"
+        resources = ("comment",)
+        tags = ["webhook", "sync", "comment"]
+        auth_required = True
+        description = "Sync comment from webhook event"
+        policy_required = False
+        internal = True
+        new_resource = False
+
+    Data = datadef.SyncCommentFromWebhookPayload
+
+    async def _process(self, agg, stm, payload):
+        """Process comment sync from webhook change"""
+
+        action = payload.action
+        provider = payload.provider
+        external_id = payload.external_id
+        external_data = payload.external_data
+        target_id = payload.target_id
+        target_type = payload.target_type
+
+        logger.info(f"[WebhookCommand] Syncing comment: {action} from {provider}")
+        logger.info(f"[WebhookCommand]   External ID: {external_id}")
+        logger.info(f"[WebhookCommand]   Target: {target_type}/{target_id}")
+
+        try:
+            if action == "update":
+                result = await self._handle_update(
+                    agg, stm, external_data, external_id, provider
+                )
+            elif action == "delete" or action == "remove":
+                result = await self._handle_delete(agg, stm, external_id, provider)
+            else:
+                result = {"status": "unknown_action", "action": action}
+
+            yield agg.create_response(result, _type="webhook-response")
+        except Exception as e:
+            logger.error(f"[WebhookCommand] Error: {str(e)}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="webhook-response"
+            )
+
+    async def _handle_update(self, agg, stm, external_data, external_id, provider):
+        """Handle comment update using aggregate pattern"""
+
+        logger.info("[WebhookCommand] Updating comment")
+        logger.info(f"[WebhookCommand]   External ID: {external_id}")
+        logger.info(f"[WebhookCommand]   New content: {external_data.get('body')}")
+
+        # Find integration to get local comment_id
+        integration = await stm.find_one(
+            "comment_integration",
+            where={"external_id": external_id, "provider": provider},
         )
+
+        if not integration:
+            return {"status": "skipped", "reason": "no_comment_mapping"}
+
+        comment_id_to_update = integration.comment_id
+        logger.info(f"[WebhookCommand] Found comment to update: {comment_id_to_update}")
+
+        update_payload = datadef.UpdateCommentPayload(content=external_data.get("body"))
+        await agg.update_comment(data=update_payload)
+
+        await agg.update_comment_integration(
+            data=datadef.UpdateCommentIntegrationPayload(
+                provider=provider,
+                external_id=external_id,
+                external_url=external_data.get("issue", {}).get("url"),
+            )
+        )
+
+    async def _handle_delete(self, agg, stm, external_id, provider):
+        """Handle comment deletion using aggregate actions"""
+
+        integration = await stm.find_one(
+            "comment_integration",
+            where={"external_id": external_id, "provider": provider},
+        )
+
+        if not integration:
+            return {"status": "skipped", "reason": "no_comment_mapping"}
+
+        await agg.delete_comment()
+
+        await agg.remove_comment_integration(
+            data=datadef.RemoveCommentIntegrationPayload(
+                provider=provider,
+                external_id=external_id,
+                comment_id=integration.comment_id,
+            )
+        )
+
+
+class SyncTicketFromWebhook(Command):
+    """Process ticket events from PM services"""
+
+    class Meta:
+        key = "sync-ticket-from-webhook"
+        resources = ("ticket",)
+        tags = ["webhook", "sync", "ticket"]
+        auth_required = True
+        description = "Sync comment from webhook event"
+        policy_required = False
+        internal = True
+        new_resource = True
+
+    Data = datadef.SyncTicketFromWebhookPayload
+
+    async def _process(self, agg, stm, payload):
+        action = payload.action
+        provider = payload.provider
+        external_data = payload.external_data
+
+        try:
+            if action == "create":
+                result = await self._handle_create(agg, stm, external_data, provider)
+            else:
+                result = {"status": "unknown_action", "action": action}
+
+            yield agg.create_response(result, _type="webhook-response")
+
+        except Exception as e:
+            logger.error(f"[WebhookCommand] Error: {str(e)}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="webhook-response"
+            )
+
+    async def _handle_create(self, agg, stm, external_data, provider):
+        """Handle ticket creation from webhook"""
+
+        external_ticket_id = external_data.get("id")
+        title = external_data.get("title")
+        description = external_data.get("description")
+        project_id = external_data.get("projectId")
+        assignee = external_data.get("assigneeId")
+        parent_id = external_data.get("parentId")
+        ticket_type = external_data.get("state", {}).get("name")
+        priority = external_data.get("priorityLabel")
+        if priority not in (None, "No priority"):
+            priority = priority.upper()
+        else:
+            priority = "MEDIUM"
+
+        existing_integ = await stm.find_one(
+            "ticket_integration",
+            where={"external_id": external_ticket_id, "provider": provider},
+        )
+
+        if existing_integ:
+            logger.info(f"Ticket {external_ticket_id} already exists")
+            return {"status": "skipped", "reason": "already_exists"}
+
+        project = await stm.find_one("project", where={"_id": project_id})
+        if not project:
+            logger.warning(f"No project found for ID: {project_id}")
+            return {"status": "skipped", "reason": "no_project_mapping"}
+
+        # Here you would typically map external data to your internal ticket structure
+        ticket_payload = datadef.CreateTicketPayload(
+            title=title,
+            description=description,
+            type=ticket_type,
+            priority=priority,
+            project_id=project_id,
+            assignee=assignee,
+            parent_id=parent_id,
+        )
+        date_result = serialize_mapping(ticket_payload)
+        date_result["organization_id"] = str(project.organization_id)
+        new_ticket = await agg.create_ticket(data=date_result)
+
+        integration_payload = datadef.CreateTicketIntegrationPayload(
+            provider=provider,
+            external_id=external_ticket_id,
+            external_url=external_data.get("url"),
+            ticket_id=new_ticket._id,
+        )
+        await agg.create_ticket_integration(data=integration_payload)
+        return {
+            "status": "created",
+            "ticket_id": str(new_ticket._id),
+            "external_id": external_ticket_id,
+        }
+
+
+class SyncTicketFromWebhookChange(Command):
+    """Process ticket events from PM services"""
+
+    class Meta:
+        key = "sync-ticket-from-webhook-change"
+        resources = ("ticket",)
+        tags = ["webhook", "sync", "ticket"]
+        auth_required = True
+        description = "Sync comment from webhook event"
+        policy_required = False
+        internal = True
+        new_resource = False
+
+    Data = datadef.SyncTicketFromWebhookPayload
+
+    async def _process(self, agg, stm, payload):
+        action = payload.action
+        provider = payload.provider
+        external_data = payload.external_data
+
+        try:
+            if action == "update":
+                result = await self._handle_update(agg, stm, external_data, provider)
+            elif action == "delete" or action == "remove":
+                result = await self._handle_delete(agg, stm, external_data, provider)
+            else:
+                result = {"status": "unknown_action", "action": action}
+
+            yield agg.create_response(result, _type="webhook-response")
+
+        except Exception as e:
+            logger.error(f"[WebhookCommand] Error: {str(e)}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="webhook-response"
+            )
+
+    async def _handle_update(self, agg, stm, external_data, provider):
+        """Handle ticket update from webhook"""
+
+        external_ticket_id = external_data.get("id")
+        title = external_data.get("title")
+        description = external_data.get("description")
+        assignee = external_data.get("assigneeId")
+        ticket_type = external_data.get("state", {}).get("name")
+        priority = external_data.get("priorityLabel")
+        if priority not in (None, "No priority"):
+            priority = priority.upper()
+        else:
+            priority = "MEDIUM"
+
+        integration = await stm.find_one(
+            "ticket_integration",
+            where={"external_id": external_ticket_id, "provider": provider},
+        )
+
+        if not integration:
+            return {"status": "skipped", "reason": "no_ticket_mapping"}
+
+        update_payload = datadef.UpdateTicketPayload(
+            title=title,
+            description=description,
+            type=ticket_type,
+            priority=priority,
+            assignee=assignee,
+        )
+        await agg.update_ticket_info(data=update_payload)
+
+        await agg.update_ticket_integration(
+            data=datadef.UpdateTicketIntegrationPayload(
+                provider=provider,
+                external_id=external_ticket_id,
+                external_url=external_data.get("url"),
+            )
+        )
+
+    async def _handle_delete(self, agg, stm, external_data, provider):
+        """Handle ticket deletion from webhook"""
+
+        external_ticket_id = external_data.get("id")
+
+        integration = await stm.find_one(
+            "ticket_integration",
+            where={"external_id": external_ticket_id, "provider": provider},
+        )
+
+        if not integration:
+            return {"status": "skipped", "reason": "no_ticket_mapping"}
+
+        await agg.remove_ticket_integration(
+            data=datadef.RemoveTicketIntegrationPayload(
+                provider=provider,
+                external_id=external_ticket_id,
+                ticket_id=integration.ticket_id,
+            )
+        )
+
+        await agg.remove_ticket()
+
+
+class SyncProjectFromWebhook(Command):
+    """Process project events from PM services"""
+
+    class Meta:
+        key = "sync-project-from-webhook"
+        resources = ("project",)
+        tags = ["webhook", "sync", "project"]
+        auth_required = True
+        description = "Sync project from webhook event"
+        policy_required = False
+        internal = True
+        new_resource = True
+
+    Data = datadef.SyncProjectFromWebhookPayload
+
+    async def _process(self, agg, stm, payload):
+        action = payload.action
+        provider = payload.provider
+        external_data = payload.external_data
+
+        try:
+            if action == "create":
+                result = await self._handle_create(agg, stm, external_data, provider)
+            else:
+                result = {"status": "unknown_action", "action": action}
+
+            yield agg.create_response(result, _type="webhook-response")
+
+        except Exception as e:
+            logger.error(f"[WebhookCommand] Error: {str(e)}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="webhook-response"
+            )
+
+    async def _handle_create(self, agg, stm, external_data, provider):
+        """Handle project creation from webhook"""
+
+        external_project_id = external_data.get("id")
+        start_date_str = external_data.get("startDate")
+        target_date_str = external_data.get("targetDate")
+
+        existing_integ = await stm.find_one(
+            "project_integration",
+            where={"external_id": external_project_id, "provider": provider},
+        )
+
+        if existing_integ:
+            logger.info(f"Project {external_project_id} already exists")
+            return {"status": "skipped", "reason": "already_exists"}
+
+        estimator_payload = datadef.CreateProjectEstimatorPayload(
+            name=external_data.get("name"),
+            description=external_data.get("description"),
+            category=external_data.get("status", {}).get("name"),
+            priority=map_linear_priority_to_enum(external_data.get("priority")),
+        )
+        await agg.create_project_estimator(data=estimator_payload)
+
+        # Here you would typically map external data to your internal project structure
+        project_payload = datadef.CreateProjectPayload(
+            name=external_data.get("name"),
+            description=external_data.get("description"),
+            category=external_data.get("status", {}).get("name"),
+            priority=map_linear_priority_to_enum(external_data.get("priority")),
+            start_date=parse_start_date(start_date_str),
+            duration=calculate_duration(start_date_str, target_date_str),
+        )
+        # date_result = serialize_mapping(project_payload)
+        # date_result["organization_id"] = str(self.context.organization_id)
+        new_project = await agg.create_project_from_webhook(data=project_payload)
+
+        integration_payload = datadef.CreateProjectIntegrationPayload(
+            provider=provider,
+            external_id=external_project_id,
+            external_url=external_data.get("url"),
+            project_id=new_project._id,
+        )
+        await agg.create_project_integration(data=integration_payload)
+        return {
+            "status": "created",
+            "project_id": str(new_project._id),
+            "external_id": external_project_id,
+        }
+
+
+class SyncProjectFromWebhookChange(Command):
+    """Process project events from PM services"""
+
+    class Meta:
+        key = "sync-project-from-webhook-change"
+        resources = ("project",)
+        tags = ["webhook", "sync", "project"]
+        auth_required = True
+        description = "Sync project from webhook event"
+        policy_required = False
+        internal = True
+        new_resource = False
+
+    Data = datadef.SyncProjectFromWebhookPayload
+
+    async def _process(self, agg, stm, payload):
+        action = payload.action
+        provider = payload.provider
+        external_data = payload.external_data
+
+        try:
+            if action == "update":
+                result = await self._handle_update(agg, stm, external_data, provider)
+            elif action == "delete" or action == "remove":
+                result = await self._handle_delete(agg, stm, external_data, provider)
+            else:
+                result = {"status": "unknown_action", "action": action}
+
+            yield agg.create_response(result, _type="webhook-response")
+
+        except Exception as e:
+            logger.error(f"[WebhookCommand] Error: {str(e)}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="webhook-response"
+            )
+
+    async def _handle_update(self, agg, stm, external_data, provider):
+        """Process"""
+        external_project_id = external_data.get("id")
+
+        existing_integ = await stm.find_one(
+            "project_integration",
+            where={"external_id": external_project_id, "provider": provider},
+        )
+
+        if not existing_integ:
+            logger.info(f"Project {external_project_id} does not exist")
+            return {"status": "skipped", "reason": "not_found"}
+
+        update_payload = datadef.UpdateProjectPayload(
+            name=external_data.get("name"),
+            description=external_data.get("description"),
+            category=external_data.get("status", {}).get("name"),
+            priority=map_linear_priority_to_enum(external_data.get("priority")),
+            start_date=parse_start_date(external_data.get("startDate")),
+            duration=calculate_duration(
+                external_data.get("startDate"), external_data.get("targetDate")
+            ),
+        )
+        await agg.update_project(data=update_payload)
+
+        await agg.update_project_integration(
+            data=datadef.UpdateProjectIntegrationPayload(
+                provider=provider,
+                external_id=external_project_id,
+                external_url=external_data.get("url"),
+            )
+        )
+
+    async def _handle_delete(self, agg, stm, external_data, provider):
+        """Handle project deletion from webhook"""
+
+        external_project_id = external_data.get("id")
+
+        integration = await stm.find_one(
+            "project_integration",
+            where={"external_id": external_project_id, "provider": provider},
+        )
+
+        if not integration:
+            return {"status": "skipped", "reason": "no_project_mapping"}
+
+        await agg.remove_project_integration(
+            data=datadef.RemoveProjectIntegrationPayload(
+                provider=provider,
+                external_id=external_project_id,
+                project_id=integration.project_id,
+            )
+        )
+
+        await agg.delete_project()

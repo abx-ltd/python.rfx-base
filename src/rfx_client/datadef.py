@@ -607,9 +607,30 @@ class RemoveCommentIntegrationPayload(DataModel):
     comment_id: UUID_TYPE
 
 
-class ProcessLinearWebhookPayload(DataModel):
-    """Payload cho command xử lý webhook tập trung"""
+class SyncCommentFromWebhookPayload(DataModel):
+    """Payload for syncing comment from webhook"""
 
-    event_type: str  # Lấy từ header 'x-linear-event'
-    data: Dict[str, Any]  # Toàn bộ JSON payload từ body
-    signature: Optional[str] = None
+    action: str = Field(..., description="Action: create, update, delete")
+    provider: str = Field(..., description="Provider name: linear, jira, etc.")
+    external_id: str = Field(..., description="External comment ID")
+    external_data: Dict[str, Any] = Field(..., description="Raw webhook data")
+    target_id: Optional[str] = Field(None, description="Parent resource ID (issue_id)")
+    target_type: Optional[str] = Field(None, description="Parent resource type (issue)")
+
+
+class SyncTicketFromWebhookPayload(DataModel):
+    """Payload for syncing ticket from webhook"""
+
+    action: str = Field(..., description="Action: create, update, delete")
+    provider: str = Field(..., description="Provider name")
+    external_id: str = Field(..., description="External ticket ID")
+    external_data: Dict[str, Any] = Field(..., description="Raw webhook data")
+
+
+class SyncProjectFromWebhookPayload(DataModel):
+    """Payload for syncing project from webhook"""
+
+    action: str = Field(..., description="Action: create, update, delete")
+    provider: str = Field(..., description="Provider name")
+    external_id: str = Field(..., description="External project ID")
+    external_data: Dict[str, Any] = Field(..., description="Raw webhook data")

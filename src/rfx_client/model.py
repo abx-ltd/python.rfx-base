@@ -675,6 +675,7 @@ class Comment(RFXClientBaseModel):
     organization_id = sa.Column(pg.UUID)
     resource = sa.Column(sa.String(100))
     resource_id = sa.Column(pg.UUID)
+    source = sa.Column(sa.String(100))  # e.g., 'user', 'system', 'linear'
 
 
 class CommentIntegration(RFXClientBaseModel):
@@ -685,6 +686,7 @@ class CommentIntegration(RFXClientBaseModel):
     provider = sa.Column(sa.String(100), nullable=False)  # e.g., 'linear'
     external_id = sa.Column(sa.String(255), nullable=False)
     external_url = sa.Column(sa.String(255), nullable=False)
+    source = sa.Column(sa.String(100))  # e.g., 'user', 'system', 'linear'
 
 
 class CommentView(RFXClientBaseModel):

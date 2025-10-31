@@ -1157,9 +1157,10 @@ class RFXClientAggregate(Aggregate):
     @action("project-integration-created", resources="project")
     async def create_project_integration(self, /, data):
         """Create a project integration"""
-        project = self.rootobj
         project_integration = self.init_resource(
-            "project_integration", serialize_mapping(data), project_id=project._id
+            "project_integration",
+            serialize_mapping(data),
+            project_id=self.aggroot.identifier,
         )
         await self.statemgr.insert(project_integration)
         return project_integration
@@ -1342,16 +1343,20 @@ class RFXClientAggregate(Aggregate):
         """Create a new ticket tied to project"""
         data_result = serialize_mapping(data)
         data_result.pop("project_id", None)
+        if "organization_id" not in data_result:
+            data_result["organization_id"] = self.context.organization_id
 
-        record = self.init_resource(
-            "ticket",
-            data_result,
-            _id=self.aggroot.identifier,
-            status="NEW",
-            sync_status=SyncStatusEnum.PENDING,
-            is_inquiry=False,
-            organization_id=self.context.organization_id,
+        final_kwargs = self.audit_created()
+        final_kwargs.update(
+            {
+                "_id": self.aggroot.identifier,
+                "status": "NEW",
+                "sync_status": "PENDING",
+                "is_inquiry": False,
+            }
         )
+        final_kwargs.update(data_result)
+        record = self.statemgr.create("ticket", None, **final_kwargs)
         await self.statemgr.insert(record)
         return record
 
@@ -1611,13 +1616,23 @@ class RFXClientAggregate(Aggregate):
     @action("comment-created", resources=tuple(config.COMMENT_AGGROOTS.split(",")))
     async def create_comment(self, /, data):
         """Create a new comment"""
-        record = self.init_resource(
+        payload = serialize_mapping(data)
+        if "organization_id" not in payload:
+            payload["organization_id"] = self.context.organization_id
+        final_kwargs = self.audit_created()
+        final_kwargs.update(
+            {
+                "_id": self.aggroot.identifier,
+            }
+        )
+        final_kwargs.update(payload)
+        record = self.statemgr.create(
             "comment",
-            serialize_mapping(data),
-            _id=UUID_GENR(),
-            organization_id=self.context.organization_id,
+            None,
+            **final_kwargs,
         )
         await self.statemgr.insert(record)
+
         return record
 
     @action("comment-updated", resources="comment")
@@ -1729,3 +1744,44 @@ class RFXClientAggregate(Aggregate):
 
         await self.statemgr.invalidate(comment_integration)
         return {"removed": True}
+
+    @action("create-project-from-webhook", resources="project")
+    async def create_project_from_webhook(self, /, data):
+        """Create a new project from webhook"""
+        try:
+            parsed_delta, duration_text, duration_interval = parse_duration_for_db(
+                data.duration
+            )
+        except Exception:
+            raise ValueError(f"Invalid duration format: {data.duration}")
+
+        project = await self.statemgr.find_one(
+            "project", where=dict(_id=self.aggroot.identifier)
+        )
+        # if project.status == "ACTIVE":
+        #     raise ValueError("Already is a project")
+
+        target_date = data.start_date + parsed_delta
+
+        data = data.set(duration=duration_interval)
+
+        project_data = serialize_mapping(data)
+
+        sync_status = SyncStatusEnum.PENDING
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
+            sync_status = SyncStatusEnum.SYNCED
+
+        await self.statemgr.update(
+            project,
+            **project_data,
+            status="ACTIVE",
+            target_date=target_date,
+            duration_text=duration_text,
+            sync_status=sync_status,
+        )
+
+        new_project = await self.statemgr.find_one(
+            "project", where=dict(_id=project._id)
+        )
+
+        return new_project

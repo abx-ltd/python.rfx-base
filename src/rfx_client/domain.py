@@ -11,12 +11,13 @@ class RFXClientDomain(Domain):
     __aggregate__ = RFXClientAggregate
     __statemgr__ = RFXClientStateManager
     __logstore__ = SQLDomainLogStore
-    __policymgr__   = RFXClientPolicyManager
+    __policymgr__ = RFXClientPolicyManager
 
 
 # Specific response types for different commands
 
 # Promotion related responses
+
 
 class PromotionResponse(RFXClientDomain.Response):
     pass
@@ -72,6 +73,7 @@ class WorkPackageDeliverableResponse(RFXClientDomain.Response):
 
 # Work Item related responses
 
+
 class WorkItemResponse(RFXClientDomain.Response):
     pass
 
@@ -86,6 +88,7 @@ class WorkItemTypeResponse(RFXClientDomain.Response):
 
 # Notification related responses
 
+
 class NotificationResponse(RFXClientDomain.Response):
     pass
 
@@ -96,6 +99,7 @@ class NotificationResponse(RFXClientDomain.Response):
 
 # Integration related responses
 
+
 class SyncResultResponse(RFXClientDomain.Response):
     pass
 
@@ -103,14 +107,16 @@ class SyncResultResponse(RFXClientDomain.Response):
 class CreditUsageSummaryResponse(RFXClientDomain.Response):
     pass
 
+
 class SyncProjectToLinearResponse(RFXClientDomain.Response):
     pass
+
 
 class ProjectIntegrationResponse(RFXClientDomain.Response):
     pass
 
 
-#======= Ticket Responses ========
+# ======= Ticket Responses ========
 class TicketResponse(RFXClientDomain.Response):
     pass
 
@@ -127,3 +133,5 @@ class CommentResponse(RFXClientDomain.Response):
     pass
 
 
+class WebhookResponse(RFXClientDomain.Response):
+    pass

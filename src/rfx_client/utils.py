@@ -34,3 +34,44 @@ def parse_date(date_str: Optional[str]) -> Optional[str]:
         return datetime.fromisoformat(clean).strftime("%Y-%m-%d")
     except (ValueError, TypeError):
         return None
+
+
+def map_linear_priority_to_enum(priority_int: Optional[int]) -> Optional[str]:
+    """Ánh xạ Linear numeric priority sang PriorityEnum (dạng string)."""
+    if priority_int is None:
+        return "MEDIUM"
+
+    priority_map = {
+        1: "CRITICAL",
+        2: "HIGH",
+        3: "MEDIUM",
+        4: "LOW",
+    }
+
+    return priority_map.get(priority_int, "MEDIUM")
+
+
+def parse_start_date(start_str: Optional[str]) -> datetime:
+    """Chuyển đổi YYYY-MM-DD string sang datetime, nếu lỗi thì dùng now()."""
+    if not start_str:
+        return datetime.now()
+    try:
+        return datetime.strptime(start_str, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return datetime.now()
+
+
+def calculate_duration(start_str: Optional[str], target_str: Optional[str]) -> str:
+    """Tính toán thời lượng (duration) dạng ISO 8601 (ví dụ: P9D)."""
+    default_duration = "P9D"
+    if not start_str or not target_str:
+        return default_duration
+    try:
+        start_date = datetime.strptime(start_str, "%Y-%m-%d").date()
+        target_date = datetime.strptime(target_str, "%Y-%m-%d").date()
+        if target_date <= start_date:
+            return default_duration
+        delta = target_date - start_date
+        return f"P{delta.days}D"
+    except (ValueError, TypeError):
+        return default_duration

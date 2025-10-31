@@ -1,30 +1,25 @@
-from typing import Optional
-from fastapi import APIRouter, Request, HTTPException, Header
+from typing import Optional, Dict, Any
+from fastapi import APIRouter, Request, HTTPException, Header, Path
 from fluvius.data import logger
-import hmac
-import hashlib
 
-from . import config
+from . import config, datadef
+from rfx_integration.pm_service.base import PMService, WebhookEventType
+from .domain import RFXClientDomain
+from fluvius.domain.context import DomainTransport, DomainServiceProxy
 
+router = APIRouter(prefix="/webhook", tags=["webhooks"])
 
-router = APIRouter(prefix="/webhook/<service_name>", tags=["webhooks"])
-
-
-class WebhookHandler:
-    """Handle incoming webhooks from PM services"""
-
-    @staticmethod
-    async def verify_signature(payload: bytes, signature: str, secret: str) -> bool:
-        if not secret:
-            logger.warning("No webhook secret configured, skipping verification")
-            return True
-        expected_signature = hmac.new(
-            secret.encode(), payload, hashlib.sha256
-        ).hexdigest()
-        return hmac.compare_digest(signature, expected_signature)
-
-
-# ========== FASTAPI ROUTES ==========
+WEBHOOK_COMMAND_MAP = {
+    WebhookEventType.COMMENT_CREATED: "sync-comment-from-webhook",
+    WebhookEventType.COMMENT_UPDATED: "sync-comment-from-webhook-change",
+    WebhookEventType.COMMENT_DELETED: "sync-comment-from-webhook-change",
+    WebhookEventType.ISSUE_CREATED: "sync-ticket-from-webhook",
+    WebhookEventType.ISSUE_UPDATED: "sync-ticket-from-webhook-change",
+    WebhookEventType.ISSUE_DELETED: "sync-ticket-from-webhook-change",
+    WebhookEventType.PROJECT_CREATED: "sync-project-from-webhook",
+    WebhookEventType.PROJECT_UPDATED: "sync-project-from-webhook-change",
+    WebhookEventType.PROJECT_DELETED: "sync-project-from-webhook-change",
+}
 
 
 @router.post("/{service_name}")
@@ -32,6 +27,7 @@ async def linear_webhook(
     request: Request,
     x_linear_signature: Optional[str] = Header(None),
     x_linear_event: Optional[str] = Header(None),
+    service_name: str = Path(...),
 ):
     """
     Linear webhook endpoint
@@ -40,95 +36,152 @@ async def linear_webhook(
     URL: POST /api/v1/webhook
     """
     try:
-        # body = await request.body()
-
-        # 1. Detect Linear Payload
-        # 2. Init pm service Linear
-        # 3. Process webhook payload
-
-        # pmservice = PMService.init_client(provider=service_name)
-        # payload = pmservice.verify_signature(request)
-        # response = pmservice.handle_webhook(payload)
-
-        # if response.external_type == "comment":
-        #     response.external_id
-        #     response.action
-        #     response.external_data
-        #     process_command()
-
-        ...
-
-        # Verify signature
-        # webhook_secret = config.LINEAR_WEBHOOK_SECRET
-        # if webhook_secret and x_linear_signature:
-        #     is_valid = await WebhookHandler.verify_signature(
-        #         body,
-        #         x_linear_signature,
-        #         webhook_secret
-        #     )
-        #     if not is_valid:
-        #         logger.error("[Webhook] Invalid signature")
-        #         raise HTTPException(status_code=401, detail="Invalid signature")
-
-        # Parse payload
-        # payload = await request.json()
-        #
-
-        # command_payload = datadef.ProcessLinearWebhookPayload(
-        #     event_type=x_linear_event
-        #     or payload.get("event", {}).get("type", "Unknown"),
-        #     data=payload,
-        #     signature=x_linear_signature,
-        # )
-
-        # command_data = {
-        #     "command": "process-linear-webhook",  # Tên command trong command.py
-        #     "payload": command_payload.dict(),
-        #     "context": {"realm": "system", "source": "webhook"},
-        # }
-        # domain = RFXClientDomain()
-        # with domain.session(
-        #     authorization=getattr(request.state, "auth_context", None),
-        #     headers=dict(request.headers),
-        #     transport=DomainTransport.FASTAPI,
-        #     source=request.client.host,
-        #     service_proxy=DomainServiceProxy(app.state),
-        # ):
-        #     command = domain.create_command(
-        #         cmd_key,
-        #         payload,
-        #         aggroot=(
-        #             resource,
-        #             identifier,
-        #             scope.get("domain_sid"),
-        #             scope.get("domain_iid"),
-        #         ),
-        #     )
-
-        #     responses = await domain.process_command(command)
-        #     return {"data": responses, "status": "OK"}
-
-        # # 5. GỌI COMMAND
-        # responses = await domain.process_command(command_data)
-
-        # 6. Trả về kết quả từ command
-        # for resp in responses:
-        #     if resp.get("_type") == "webhook-response":
-        #         logger.info(f"[Webhook] Command processed: {resp.get('data')}")
-        #         return resp.get("data")
-
-        # return {"status": "ok_no_response"}
-
-    except HTTPException:
-        raise
+        logger.info(f"headers: {request.headers}")
+        pmservice = PMService.init_client(provider=service_name)
+        logger.info(f"[Webhook] Initialized {service_name} service")
+        is_valid = await pmservice.verify_webhook_signature(request)
+        if not is_valid:
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        parsed_payload = await pmservice.parse_webhook_payload(request)
+    except ValueError as e:
+        logger.error(f"[Webhook] Invalid service: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"[Webhook] Error processing webhook: {str(e)}")
+        logger.error(f"[Webhook] Payload parsing/verification error: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid payload or signature")
+
+    try:
+        webhook_response = await pmservice.handle_webhook(parsed_payload)
+        logger.info(f"result: {webhook_response}")
+    except Exception as e:
+        logger.error(f"[Webhook] Handler error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Handler failed: {str(e)}")
+
+    try:
+        await execute_webhook_command(
+            request=request,
+            webhook_response=webhook_response,
+            service_name=service_name,
+        )
+
+        logger.info("[Webhook] ✓ Command executed successfully")
+
+    except Exception as e:
+        logger.error(f"[Webhook] Command execution error: {str(e)}")
         import traceback
 
         logger.error(traceback.format_exc())
+        return {
+            "status": "error",
+            "event_type": webhook_response.event_type,
+            "error": str(e),
+        }
 
-        # Return 200 to avoid UAPI retries for application errors
-        return {"status": "error", "error": str(e)}
+
+async def execute_webhook_command(
+    request: Request, webhook_response, service_name: str
+) -> Dict[str, Any]:
+    """
+    Execute appropriate command based on webhook event type
+
+    Similar to FastAPIDomainManager command handling but for webhooks
+    """
+    logger.info(f"webhook_response: {webhook_response}")
+    event_type = webhook_response.event_type
+
+    cmd_key = WEBHOOK_COMMAND_MAP.get(event_type)
+
+    if not cmd_key:
+        logger.warning(f"[Webhook] No command mapping for event: {event_type}")
+        return {"status": "ignored", "reason": f"No command for {event_type}"}
+
+    logger.info(f"[Webhook] Mapping {event_type} → command: {cmd_key}")
+    external_data = webhook_response.external_data
+    organization_id = None
+    user_id = None
+    realm = config.REALM_NAME
+
+    if "comment" in event_type.lower():
+        payload = datadef.SyncCommentFromWebhookPayload(
+            action=webhook_response.action,
+            provider=webhook_response.provider,
+            external_id=webhook_response.external_id,
+            external_data=webhook_response.external_data,
+            target_id=webhook_response.target_id,
+            target_type=webhook_response.target_type,
+        )
+        resource = "comment"
+        identifier = webhook_response.external_id
+        if "user" in external_data and isinstance(external_data["user"], dict):
+            user_id = external_data["user"].get("id")
+
+    elif "issue" in event_type.lower() or "ticket" in event_type.lower():
+        payload = datadef.SyncTicketFromWebhookPayload(
+            action=webhook_response.action,
+            provider=webhook_response.provider,
+            external_id=webhook_response.external_id,
+            external_data=webhook_response.external_data,
+            target_id=webhook_response.target_id,
+            target_type=webhook_response.target_type,
+        )
+        resource = "ticket"
+        identifier = webhook_response.external_id
+        user_id = external_data.get("creatorId")
+
+    elif "project" in event_type.lower():
+        payload = datadef.SyncProjectFromWebhookPayload(
+            action=webhook_response.action,
+            provider=webhook_response.provider,
+            external_id=webhook_response.external_id,
+            external_data=webhook_response.external_data,
+        )
+        resource = "project"
+        identifier = webhook_response.external_id
+        user_id = external_data.get("creatorId")
+
+    else:
+        return {"status": "error", "reason": f"Unknown resource type: {event_type}"}
+
+    domain = RFXClientDomain()
+    from types import SimpleNamespace
+
+    authorization = SimpleNamespace(
+        user=SimpleNamespace(
+            _id=str(user_id) if user_id else None,
+            id=str(user_id) if user_id else None,
+        ),
+        organization=SimpleNamespace(
+            _id=str(organization_id) if organization_id else None,
+            id=str(organization_id) if organization_id else None,
+        ),
+        realm=realm,
+        profile=SimpleNamespace(
+            _id=str(user_id) if user_id else None,
+            id=str(user_id) if user_id else None,
+        ),
+        iamroles=[],
+    )
+    with domain.session(
+        authorization=authorization,
+        headers=dict(request.headers),
+        transport=DomainTransport.FASTAPI,
+        source=request.client.host,
+        service_proxy=DomainServiceProxy(request.app.state),
+    ):
+        command = domain.create_command(
+            cmd_key,
+            payload,
+            aggroot=(
+                resource,
+                identifier,
+                None,
+                None,
+            ),
+        )
+
+        await domain.process_command(command)
+
+        logger.info("[Webhook] Command processed successfully")
 
 
 @router.get("/health")
