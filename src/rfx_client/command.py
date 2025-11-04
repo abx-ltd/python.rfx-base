@@ -3548,3 +3548,32 @@ class SyncCommentFromWebhookChange(Command):
                 comment_id=integration.comment_id,
             )
         )
+
+class NotifyMessage(Command):
+    """Notify Message - Notifies a message"""
+
+    class Meta:
+        key = "notify-message"
+        resources = ("message",)
+        tags = ["message", "notify"]
+        auth_required = False
+        description = "Notify a message"
+        policy_required = False
+        new_resource = True
+
+    async def _process(self, agg, stm, payload):
+        """Notify message"""
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            # @TODO: Need to send message via msg_client from service proxy
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload=serialize_mapping(),
+                _headers={},
+                _context=dict(
+                    audit=agg.get_context(),
+                ),
+            )

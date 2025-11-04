@@ -2,65 +2,7 @@ from fluvius.data import DataModel, serialize_mapping
 from .domain import RFXClientDomain
 from . import config
 
-from cpo_portal.integration import get_worker_client
-
-
-class DiscussionMessageData(DataModel):
-    command: str = "create-ticket"
-    payload: dict = {}
-    ticket_id: str = None
-    project_id: str = None
-    context: dict = {}
-
-
-class DiscussionMessage(RFXClientDomain.Message):
-    Data = DiscussionMessageData
-
-    async def _dispatch(msg):
-        data = msg.data
-
-        if data.project_id:
-            data.payload["project_id"] = data.project_id
-
-        await get_worker_client().request(
-            f"{config.DISCUSSION_NAMESPACE}:{data.command}",
-            command=data.command,
-            resource="ticket",
-            identifier=str(data.ticket_id),
-            payload=serialize_mapping(data.payload),
-            _headers={},
-            _context=dict(
-                source="internal",
-                audit=data.context,
-            ),
-        )
-
-
-class ProjectMessageData(DataModel):
-    command: str = "add-ticket-to-project"
-    payload: dict = {}
-    project_id: str = None
-    context: dict = {}
-
-
-class ProjectMessage(RFXClientDomain.Message):
-    Data = ProjectMessageData
-
-    async def _dispatch(msg):
-        data = msg.data
-
-        await get_worker_client().send(
-            f"{config.NAMESPACE}:{data.command}",
-            command=data.command,
-            resource="project",
-            identifier=str(data.project_id),
-            payload=serialize_mapping(data.payload),
-            _headers={},
-            _context=dict(
-                source="internal",
-                audit=data.context,
-            ),
-        )
+# from cpo_portal.integration import get_worker_client
 
 
 class NotiMessageData(DataModel):
@@ -75,13 +17,13 @@ class NotiMessage(RFXClientDomain.Message):
     async def _dispatch(msg):
         data = msg.data
 
-        await get_worker_client().send(
-            f"{config.MESSAGE_NAMESPACE}:{data.command}",
-            command=data.command,
-            resource="message",
-            payload=serialize_mapping(data.payload),
-            _headers={},
-            _context=dict(
-                audit=data.context,
-            ),
-        )
+        # await get_worker_client().send(
+        #     f"{config.MESSAGE_NAMESPACE}:{data.command}",
+        #     command=data.command,
+        #     resource="message",
+        #     payload=serialize_mapping(data.payload),
+        #     _headers={},
+        #     _context=dict(
+        #         audit=data.context,
+        #     ),
+        # )
