@@ -239,10 +239,19 @@ class CreateOrganization(Command):
             telecom__email=user.telecom__email,
             telecom__phone=user.telecom__phone,
             status='ACTIVE',
-            current_profile=True
+            current_profile=False
         )
         await agg.create_profile(profile_data)
+
+        profile_role = dict(
+            profile_id=profile_id,
+            role_key='OWNER',
+            role_source='SYSTEM'
+        )
+        await agg.assign_role_to_profile(data=profile_role)
         yield agg.create_response(serialize_mapping(org), _type="user-profile-response")
+
+
 
 
 class UpdateOrganization(Command):
@@ -257,6 +266,7 @@ class UpdateOrganization(Command):
         resources = ("organization",)
         tags = ["organization", "update"]
         auth_required = True
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         await agg.update_organization(payload)
@@ -487,6 +497,21 @@ class CreateProfile(Command):
         profile = await agg.create_profile(payload)
         yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
 
+class SwitchProfile(Command):
+    """
+    Switch active organization for user profile.
+    Updates current profile's organization context for multi-tenant operations.
+    """
+
+    class Meta:
+        key = "switch-profile"
+        resources = ("profile",)
+        tags = ["profile", "switch"]
+        auth_required = True
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.switch_profile(serialize_mapping())
 
 class UpdateProfile(Command):
     """

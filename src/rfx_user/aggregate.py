@@ -168,6 +168,7 @@ class UserProfileAggregate(Aggregate):
         await self.set_org_status(record, record.status)
         return record
 
+
     @action("organization-updated", resources="organization")
     async def update_organization(self, data):
         """Update organization details and track status changes."""
@@ -312,11 +313,32 @@ class UserProfileAggregate(Aggregate):
         record = self.init_resource(
             "profile",
             serialize_mapping(data),
-            status=getattr(data, "status", "ACTIVE")
+            status=data.get("status", ProfileStatusEnum.ACTIVE),
         )
         await self.statemgr.insert(record)
         await self.set_profile_status(record, record.status)
         return record
+
+    @action("profile-switched", resources="profile")
+    async def switch_profile(self):
+        """Switch active profile in user context."""
+        profile_id = self.aggroot.identifier
+        if profile_id == self.context.profile_id:
+            return {"switched": False, "message": "Already using the specified profile."}
+
+        profiles = await self.statemgr.find_all("profile", where=dict(
+            user_id=self.context.user_id,
+            status=ProfileStatusEnum.ACTIVE
+        ))
+
+        for profile in profiles:
+            if profile._id == profile_id:
+                await self.statemgr.update(profile, current_profile=True)
+            else:
+                await self.statemgr.update(profile, current_profile=False)
+
+        return {"message": f"Switched to profile {profile_id}", "switched": True}
+
 
     @action("profile-updated", resources="profile")
     async def update_profile(self, data):
@@ -335,23 +357,26 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.update(item, status=ProfileStatusEnum.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatusEnum.DEACTIVATED)
 
-    @action("role-assigned-to-profile", resources="profile")
+    @action("role-assigned-to-profile", resources=("organization", "profile"))
     async def assign_role_to_profile(self, data):
         """Assign system role to profile. Prevents duplicate role assignments."""
-        role = await self.statemgr.fetch('ref__system_role', data.role_id)
+        role_key = data.get("role_key", "VIEWER")
+        profile_id = data.get("profile_id", self.aggroot.identifier)
+        role_source = data.get("role_source", "SYSTEM")
+        role = await self.statemgr.find_one('ref__system_role', where=dict(key=role_key))
         if await self.statemgr.find_all("profile_role", where=dict(
-            profile_id=self.aggroot.identifier,
-            role_id=data.role_id,
-            role_source=data.role_source
+            profile_id=profile_id,
+            role_key=role_key,
+            role_source=role_source,
         )):
             raise ValueError(f"{role.key} already assigned to profile!")
 
-        record = self.init_resource("profile_role",
-                                    serialize_mapping(data),
-                                    _id=UUID_GENR(),
-                                    profile_id=self.aggroot.identifier,
-                                    role_key=role.key
-                                    )
+        record = self.init_resource(
+            "profile_role",
+            serialize_mapping(data),
+            role_id=role._id,
+            _id=UUID_GENR(),
+        )
         await self.statemgr.insert(record)
         return record
 
