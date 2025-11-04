@@ -13,20 +13,6 @@ from . import datadef, logger
 processor = RFXMessageServiceDomain.command_processor
 Command = RFXMessageServiceDomain.Command
 
-
-def notify_recipients(client, recipients: list, kind: str, target: str, msg: dict, batch_id=None):
-    if not client:
-        return ValueError("Client is not available")
-    channels = []
-    for user_id in recipients:
-        msg["recipient_id"] = user_id
-        channel = client.notify(
-            user_id=user_id, kind=kind, target=target, msg=msg, batch_id=batch_id)
-        channels.append(channel)
-    client.send(batch_id)
-    return channels
-
-
 class SendMessage(Command):
     """
     Send a notification message to recipients.
@@ -43,7 +29,7 @@ class SendMessage(Command):
         auth_required = True
         policy_required = False
 
-    async def process_message(self, agg, message_id, payload, mode):
+    async def _process_message(self, agg, message_id, payload, mode):
         processed_message = await agg.process_message_content(
             message_id=message_id,
             context=extract_template_context(payload),
@@ -53,16 +39,18 @@ class SendMessage(Command):
         await agg.mark_ready_for_delivery(message_id)
         return processed_message
 
-    async def _process_async(self, agg, message_id: str, payload: dict):
-        """Process message content asynchronously."""
-        try:
-            processed_message = await self.process_message(agg, message_id, payload, "ASYNC")
-            return processed_message
+    def _notify_recipients(self, client, recipients: list, kind: str, target: str, msg: dict, mode: ProcessingModeEnum):
+        if not client:
+            return ValueError("Client is not available")
+        channels = []
+        for user_id in recipients:
+            msg["recipient_id"] = user_id
+            channel = client.notify(
+                user_id=user_id, kind=kind, target=target, msg=msg, batch_id=mode.value)
+            channels.append(channel)
+        client.send(mode.value)
+        return channels
 
-        except Exception as e:
-            logger.error(
-                f"Async message processing failed for {message_id}: {e}")
-            # TODO: Could retry or send to dead letter queue
 
     async def _process(self, agg, stm, payload):
         try:
@@ -80,34 +68,14 @@ class SendMessage(Command):
             await agg.add_recipients(data=recipients, message_id=message_id)
 
             # 3. Determine processing mode
-            message_type = MessageTypeEnum(
-                message_payload.get('message_type', 'NOTIFICATION'))
+            message_type = MessageTypeEnum(message_payload.get('message_type', 'NOTIFICATION'))
             processing_mode = await determine_processing_mode(message_type=message_type, payload=message_payload)
 
             context = agg.get_context()
             client = context.service_proxy.mqtt_client
             channels = []
-            # 4. Process content
-            if processing_mode == ProcessingModeEnum.SYNC:
-                # Process immediately (blocking)
-                message = await self.process_message(agg, message_id, message_payload, processing_mode)
-                logger.warning(f"Processed message {message} synchronously")
-                channels = notify_recipients(
-                    client, recipients, "message", message_id, message, batch_id="sync_batch")
-
-            elif processing_mode == ProcessingModeEnum.IMMEDIATE:
-                # Critical alerts - process sync but with high priority
-                message = await self.process_message(agg, message_id, message_payload, "SYNC")
-                channels = notify_recipients(
-                    client, recipients, "message", message_id, message, batch_id="immediate_batch")
-
-            else:
-                # Process in background
-                message = asyncio.create_task(
-                    self._process_async(agg, message_id, message_payload)
-                )
-                channels = notify_recipients(
-                    client, recipients, "message", message_id, message, batch_id="async_batch")
+            message = await self._process_message(agg, message_id, message_payload, processing_mode)
+            channels = self._notify_recipients(client, recipients, "message", message_id, message, processing_mode)
 
             yield agg.create_response({
                 "status": "success",
@@ -235,7 +203,7 @@ class UpdateTemplate(Command):
 class PublishTemplate(Command):
     """Publish a template to make it available."""
 
-    Data = datadef.PublishTemplatePayload
+    # Data = datadef.PublishTemplatePayload
 
     class Meta:
         key = "publish-template"
@@ -245,10 +213,7 @@ class PublishTemplate(Command):
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        result = await agg.publish_template(
-            template_id=payload.template_id,
-            published_by=self.context.user._id
-        )
+        result = await agg.publish_template()
 
         yield agg.create_response({
             "status": "success",

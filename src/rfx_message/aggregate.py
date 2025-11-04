@@ -46,13 +46,7 @@ class MessageAggregate(Aggregate):
         }
 
     @action("message-content-processed", resources="message")
-    async def process_message_content(
-        self,
-        *,
-        message_id: str,
-        context: Optional[Dict[str, Any]] = None,
-        mode: str = "sync"
-    ):
+    async def process_message_content(self, *, message_id: str, context: Optional[Dict[str, Any]] = None, mode: str = "sync"):
         """Process message content (template resolution and rendering)."""
         message = await self.statemgr.fetch("message", message_id)
         if not message:
@@ -61,11 +55,7 @@ class MessageAggregate(Aggregate):
         processing_mode = ProcessingModeEnum(mode)
 
         # Process content
-        processed_message = await self.content_processor.process_message_content(
-            message,
-            mode=processing_mode,
-            context=context or {}
-        )
+        processed_message = await self.content_processor.process_message_content(message, mode=processing_mode, context=context or {})
 
         return processed_message
 
@@ -76,8 +66,6 @@ class MessageAggregate(Aggregate):
         if not message:
             raise ValueError(f"Message not found: {message_id}")
 
-        # Check if message is rendered or ready for client rendering
-        # Compare against enum values
         if message.render_status not in [RenderStatusEnum.COMPLETED, RenderStatusEnum.CLIENT_RENDERING]:
             raise ValueError(f"Message {message_id} is not ready for delivery (status: {message.render_status})")
 
@@ -159,7 +147,7 @@ class MessageAggregate(Aggregate):
         """Create a new message template."""
         template_data = serialize_mapping(data)
 
-        old_template = self.statemgr.find_one(
+        old_template = await self.statemgr.find_one(
             "message_template",
             where=dict(
                 tenant_id=getattr(data, 'tenant_id', None),
@@ -199,13 +187,13 @@ class MessageAggregate(Aggregate):
         }
 
     @action("template-published", resources="message_template")
-    async def publish_template(self, *, template_id, published_by=None):
+    async def publish_template(self):
         """Publish a template to make it available for use."""
-        template = await self.statemgr.fetch("message_template", template_id)
+        template = await self.statemgr.fetch("message_template", self.aggroot.identifier)
         if not template:
-            raise ValueError(f"Template not found: {template_id}")
+            raise ValueError(f"Template not found: {self.aggroot.identifier}")
 
-        await self.statemgr.update(template, status="PUBLISHED", updated_by=published_by)
+        await self.statemgr.update(template, status="PUBLISHED")
 
         # Invalidate cache if using content processor
         if hasattr(self, '_content_processor') and self._content_processor:
@@ -214,7 +202,7 @@ class MessageAggregate(Aggregate):
             )
 
         return {
-            "template_id": template_id,
+            "template_id": template._id,
             "key": template.key,
             "version": template.version,
             "status": "PUBLISHED"

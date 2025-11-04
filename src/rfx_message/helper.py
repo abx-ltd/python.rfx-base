@@ -17,7 +17,7 @@ MESSAGE_RENDERING_MAP = {
 def get_render_strategy(message_type: MessageTypeEnum) -> RenderStrategyEnum:
     """
     Get the appropriate template rendering strategy for a notification type.
-    
+
     Rendering strategies:
     - SERVER: Server-side template rendering for critical/reliable content
     - CLIENT: Client-side template rendering for dynamic/interactive content
@@ -32,7 +32,7 @@ def render_on_server(strategy: RenderStrategyEnum) -> bool:
 def render_on_client(strategy: RenderStrategyEnum) -> bool:
     return strategy in (RenderStrategyEnum.CLIENT)
 
-def extract_template_context(payload: Dict[str, Any], *, default_locale: str = "en") -> Dict[str, Any]:
+def extract_template_context(payload, *, default_locale: str = "en") -> Dict[str, Any]:
     """
     Extract template context from the payload.
     """
@@ -45,39 +45,39 @@ def extract_template_context(payload: Dict[str, Any], *, default_locale: str = "
 
 async def determine_processing_mode(message_type: MessageTypeEnum, payload: dict) -> ProcessingModeEnum:
     """Determine how to process the message based on type and content."""
-    
+
     # Direct content can be processed immediately
     if payload.get('content'):
         return ProcessingModeEnum.SYNC
-    
+
     # Critical alerts are always immediate
     if message_type == MessageTypeEnum.ALERT:
         return ProcessingModeEnum.IMMEDIATE
-    
+
     # High priority messages
     if payload.get('priority') == 'high':
         return ProcessingModeEnum.SYNC
-    
+
     # Template-based messages with client rendering can be fast
     strategy = payload.get('render_strategy')
     if strategy == RenderStrategyEnum.CLIENT.value:
         return ProcessingModeEnum.SYNC
-    
+
     # Default to async for complex rendering
     return ProcessingModeEnum.ASYNC
 
 def message_to_notification_data(message):
     """
     Convert a Message model to a Notification data structure for client consumption.
-    
+
     Args:
         message: Message DataModel instance
         recipient_id: ID of the specific recipient
-    
+
     Returns:
         Notification DataModel instance
     """
-    
+
     return Notification(
         message_id=getattr(message, "_id", None),
         sender_id=getattr(message, "sender_id", None),
@@ -88,7 +88,7 @@ def message_to_notification_data(message):
         is_important=getattr(message, "is_important", False) or False,
         expiration_date=getattr(message, "expiration_date", None),
         tags=getattr(message, "tags", []) or [],
-        
+
         # Template information for client rendering
         template_key=getattr(message, "template_key", None),
         template_version=getattr(message, "template_version", None),

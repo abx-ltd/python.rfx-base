@@ -4,7 +4,8 @@ import hashlib
 import pickle
 from datetime import datetime, timedelta
 
-from fluvius.data import DataAccessManager
+from fluvius.data import DataAccessManager, serialize_mapping
+from fluvius.data.exceptions import ItemNotFoundError
 from .template import template_registry
 from .helper import get_render_strategy
 from .types import MessageTypeEnum, RenderStatusEnum, RenderStrategyEnum
@@ -59,21 +60,30 @@ class TemplateService:
 
         for loc in locales:
             for scope in scopes:
-                query = {**scope, "key": key, "locale": loc, "status": "PUBLISHED", "is_active": True}
+                query = {
+                    **scope,
+                    "key": key,
+                    "locale": loc,
+                    "status": "PUBLISHED",
+                    "is_active": True,
+                }
+                if version is not None:
+                    query["version"] = version
+                query = {k: v for k, v in query.items() if v is not None}
 
-            if version is not None:
-                query["version"] = version
+                try:
+                    template = await self.stm.find_one("message_template", where=query)
+                except ItemNotFoundError:
+                    continue
 
-            #remove None values for cleaner query
-            query = {k: v for k, v in query.items() if v is not None}
+                if template:
+                    logger.debug(f"Resolved template {key} with scope: {query}")
+                    return template
 
-            template = await self.stm.find_one("message_template", where=query, order_by=["-version"])
-            if template:
-                logger.debug(f"Resolved template {key} with scope: {query}")
-                return template
-
-            logger.warning(f"Template not found: {key} (tenant={tenant_id}, app={app_id}, locale={locale}, channel={channel})")
-            return None
+        logger.warning(
+            f"Template not found: {key} (tenant={tenant_id}, app={app_id}, locale={locale}, channel={channel})"
+        )
+        return None
 
     async def resolve_render_strategy(
         self,
@@ -96,14 +106,14 @@ class TemplateService:
         """
             Rendering template with data using appropriate engine.
         """
-        engine_name = template.get('engine', 'jinja2')
-        template_body = template['body']
+        engine_name = template.engine
+        template_body = template.context
 
-        if template.get('variables_schema'):
-            self._validate_template_data(data, template['variables_schema'])
+        if template.variables_schema:
+            self._validate_template_data(data, template.variables_schema)
 
         # Use cache for CACHED strategy
-        if use_cache and template.get('render_strategy') == RenderStrategyEnum.CACHED.value:
+        if use_cache and template.render_strategy == RenderStrategyEnum.CACHED.value:
             cache_key = self._generate_cache_key(template, data)
             cached_result = await self._get_cached_Render(cache_key)
             if cached_result:
@@ -113,14 +123,14 @@ class TemplateService:
             rendered = template_registry.render(engine_name, template_body, data)
 
             # Cache result if using CACHED strategy
-            if use_cache and template.get('render_strategy') == RenderStrategyEnum.CACHED.value:
+            if use_cache and template.render_strategy == RenderStrategyEnum.CACHED.value:
                 await self._cache_render_result(cache_key, rendered)
 
             return rendered
 
         except Exception as e:
             logger.error(f"Template rendering failed: {e}")
-            logger.error(f"Template: {template['key']}, Engine: {engine_name}")
+            logger.error(f"Template: {template.key}, Engine: {engine_name}")
             raise ValueError(f"Template rendering failed: {str(e)}")
 
     def _validate_template_data(self, data: Dict[str, Any], schema: Dict[str, Any]):
@@ -135,10 +145,10 @@ class TemplateService:
     def _generate_cache_key(self, template: Dict[str, Any], data: Dict[str, Any]) -> str:
         """Generate cache key for template + data combination."""
         key_parts = [
-            template['key'],
-            str(template['version']),
-            template.get('locale', 'en'),
-            template.get('channel', ''),
+            template.key,
+            str(template.version),
+            template.locale,
+            template.channel,
             hashlib.md5(str(sorted(data.items())).encode()).hexdigest()
         ]
         return ":".join(key_parts)
@@ -216,4 +226,3 @@ class TemplateService:
         await self.invalidate_template_cache(template['key'], template['version'])
 
         return updated
-
