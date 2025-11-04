@@ -6,7 +6,7 @@ Handles user data synchronization and authorization context setup.
 """
 
 from types import SimpleNamespace
-from fluvius.data import DataAccessManager
+from fluvius.data import DataAccessManager, UUID_GENR
 from fluvius.auth import AuthorizationContext
 from fluvius.fastapi.auth import FluviusAuthProfileProvider, KeycloakTokenPayload
 from fluvius.error import UnauthorizedError
@@ -53,14 +53,39 @@ class RFXAuthProfileProvider(
             user_data = self.format_user_data(auth_user)
             await self.upsert('user', user_data)
             user = await self.fetch('user', user_id)
- 
+
             # ---------- Proifle ----------
             q = where = dict(user_id=user_id, current_profile=True, status='ACTIVE')
             curr_profile = await self.find_one('profile', where=q)
 
             if not curr_profile:
-                profile = SimpleNamespace(_id=auth_user.sub, name="Default Profile")
-                organization = SimpleNamespace(_id=auth_user.sub, name="Default Organization")
+                org_record = self.create('organization', dict(
+                    _id=UUID_GENR(),
+                    name=f"{user.name__given}'s Organization",
+                    description=f"{user.name__given}'s Organization",
+                    business_name=f"{user.name__given}",
+                    system_entity=True,
+                    active=True,
+                    system_tag=['system'],
+                    status='SETUP',
+                ))
+                await self.insert(org_record)
+
+                profile_record = self.create('profile', dict(
+                    _id=UUID_GENR(),
+                    user_id=user_id,
+                    name__family=user.name__family,
+                    name__given=user.name__given,
+                    name__middle=user.name__middle,
+                    name__prefix=user.name__prefix,
+                    name__suffix=user.name__suffix,
+                    telecom__email=user.telecom__email,
+                    telecom__phone=user.telecom__phone,
+                    status='ACTIVE',
+                    current_profile=True,
+                    organization_id=org_record._id,
+                ))
+                await self.insert(profile_record)
             else:
                 curr_profile = curr_profile
                 profile = curr_profile

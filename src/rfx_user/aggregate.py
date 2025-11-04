@@ -25,11 +25,11 @@ class UserProfileAggregate(Aggregate):
     Main aggregate for RFX User domain operations.
     Handles business logic for users, organizations, profiles, invitations, and groups.
     """
-    
+
     # ==========================================================================
     # STATUS TRACKING HELPERS
     # ==========================================================================
-    
+
     async def set_org_status(self, org, status, note=None):
         """Track organization status changes with audit trail."""
         record = self.init_resource("organization_status",
@@ -59,7 +59,7 @@ class UserProfileAggregate(Aggregate):
                                     note=note
                                     )
         await self.statemgr.insert(record)
-        
+
     # ==========================================================================
     # USER OPERATIONS
     # ==========================================================================
@@ -153,10 +153,11 @@ class UserProfileAggregate(Aggregate):
     # ==========================================================================
     # ORGANIZATION OPERATIONS
     # ==========================================================================
-    
+
     @action("organization-created", resources="organization")
     async def create_organization(self, data):
         """Create new organization with initial SETUP status."""
+
         record = self.init_resource(
             "organization",
             serialize_mapping(data),
@@ -208,6 +209,22 @@ class UserProfileAggregate(Aggregate):
         """Remove organization role and revoke from all profiles."""
         item = await self.statemgr.fetch('organization_role', data.role_id, organization_id=self.aggroot.identifier)
         await self.statemgr.invalidate_one("organization_role", item._id)
+        return {"removed": True}
+
+    @action("org-type-created", resources="ref__organization_type")
+    async def create_org_type(self, data):
+        """Create new organization type."""
+        record = self.init_resource("ref__organization_type", serialize_mapping(data), _id=UUID_GENR())
+        await self.statemgr.insert(record)
+        return {"org_type_id": record._id}
+
+    @action("org-type-removed", resources="ref__organization_type")
+    async def remove_org_type(self, data):
+        """Remove organization type."""
+        item = await self.statemgr.fetch('ref__organization_type', self.aggroot.identifier, _creator=self.context.profile_id)
+        if item is None:
+            return {"message": "Organization type not found."}
+        await self.statemgr.invalidate_one('ref__organization_type', item._id)
         return {"removed": True}
 
     # =========== Invitation Context ============
@@ -288,7 +305,7 @@ class UserProfileAggregate(Aggregate):
     # ==========================================================================
     # PROFILE OPERATIONS
     # ==========================================================================
-    
+
     @action("profile-created", resources=("organization", "profile"))
     async def create_profile(self, data):
         """Create user profile within organization. Generates unique profile with default ACTIVE status."""
@@ -354,7 +371,7 @@ class UserProfileAggregate(Aggregate):
     # ==========================================================================
     # GROUP OPERATIONS
     # ==========================================================================
-    
+
     @action("group-assigned-to-profile", resources="profile")
     async def assign_group_to_profile(self, data):
         """Assign profile to group. Validates group exists and prevents duplicates."""

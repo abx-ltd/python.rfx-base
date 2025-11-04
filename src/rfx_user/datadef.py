@@ -117,6 +117,11 @@ class CreateOrgRolePayload(DataModel):
     name: str
     key: str
 
+class CreateOrgTypePayload(DataModel):
+    """Payload for creating organization types."""
+    key: str
+    display: Optional[str] = None
+
 class UpdateOrgRolePayload(DataModel):
     """Payload for updating organization roles."""
     role_id: UUID_TYPE
