@@ -15,7 +15,7 @@ class RFXClientConnector(SqlaDriver):
 
 class RFXClientBaseModel(RFXClientConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
 
     _realm = sa.Column(sa.String)
 
@@ -45,7 +45,7 @@ class Project(RFXClientBaseModel):
     category = sa.Column(sa.String(100))  # FK to ref__project_category
     priority = sa.Column(
         sa.Enum(
-            types.PriorityEnum, name="priorityenum", schema=config.CPO_CLIENT_SCHEMA
+            types.PriorityEnum, name="priorityenum", schema=config.RFX_CLIENT_SCHEMA
         ),
         nullable=False,
     )
@@ -57,7 +57,7 @@ class Project(RFXClientBaseModel):
     referral_code_used = sa.Column(sa.String(50))
     sync_status = sa.Column(
         sa.Enum(
-            types.SyncStatusEnum, name="syncstatusenum", schema=config.CPO_CLIENT_SCHEMA
+            types.SyncStatusEnum, name="syncstatusenum", schema=config.RFX_CLIENT_SCHEMA
         ),
         default=types.SyncStatusEnum.PENDING,
     )
@@ -74,7 +74,7 @@ class ViewProject(RFXClientBaseModel):
     category = sa.Column(sa.String(100))  # FK to ref__project_category
     priority = sa.Column(
         sa.Enum(
-            types.PriorityEnum, name="priorityenum", schema=config.CPO_CLIENT_SCHEMA
+            types.PriorityEnum, name="priorityenum", schema=config.RFX_CLIENT_SCHEMA
         ),
         nullable=False,
     )
@@ -86,7 +86,7 @@ class ViewProject(RFXClientBaseModel):
     referral_code_used = sa.Column(sa.String(50))
     sync_status = sa.Column(
         sa.Enum(
-            types.SyncStatusEnum, name="syncstatusenum", schema=config.CPO_CLIENT_SCHEMA
+            types.SyncStatusEnum, name="syncstatusenum", schema=config.RFX_CLIENT_SCHEMA
         ),
         default=types.SyncStatusEnum.PENDING,
     )
@@ -184,7 +184,7 @@ class ProjectWorkItemDeliverable(RFXClientBaseModel):
 
 class ViewProjectWorkPackage(RFXClientBaseModel):
     __tablename__ = "_project_work_package"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
     __ts_index__ = [
         "work_package_name",
         "work_package_description",
@@ -214,7 +214,7 @@ class ViewProjectWorkPackage(RFXClientBaseModel):
 
 class ViewProjectWorkItem(RFXClientBaseModel):
     __tablename__ = "_project_work_item"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
     __ts_index__ = ["name", "description"]
 
     type = sa.Column(sa.String(50), nullable=False)
@@ -228,7 +228,7 @@ class ViewProjectWorkItem(RFXClientBaseModel):
 
 class ViewProjectWorkItemListing(RFXClientBaseModel):
     __tablename__ = "_project_work_item_listing"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
     __ts_index__ = ["project_work_item_name", "project_work_item_description"]
 
     project_work_package_id = sa.Column(pg.UUID, primary_key=True)
@@ -301,7 +301,7 @@ class WorkItemDeliverable(RFXClientBaseModel):
 
 class ViewWorkItem(RFXClientBaseModel):
     __tablename__ = "_work_item"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
     __ts_index__ = ["name", "description"]
 
     type = sa.Column(sa.String(50), nullable=False)
@@ -316,7 +316,7 @@ class ViewWorkItem(RFXClientBaseModel):
 
 class ViewWorkItemListing(RFXClientBaseModel):
     __tablename__ = "_work_item_listing"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
     __ts_index__ = ["work_item_name", "work_item_description"]
 
     work_package_id = sa.Column(pg.UUID, primary_key=True)
@@ -357,7 +357,7 @@ class WorkPackageWorkItem(RFXClientBaseModel):
 
 class ViewWorkPackage(RFXClientBaseModel):
     __tablename__ = "_work_package"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
     __ts_index__ = [
         "work_package_name",
         "description",
@@ -384,7 +384,7 @@ class ViewWorkPackage(RFXClientBaseModel):
 
 # class ViewCustomWorkPackage(RFXClientBaseModel):
 #     __tablename__ = "_custom_work_package"
-#     __table_args__ = {'schema': config.CPO_CLIENT_SCHEMA}
+#     __table_args__ = {'schema': config.RFX_CLIENT_SCHEMA}
 #     __ts_index__ = ["work_package_name", "description",
 #                     "example_description", "type_list"]
 
@@ -420,7 +420,7 @@ class Integration(RFXClientBaseModel):
     external_url = sa.Column(sa.String(500))
     status = sa.Column(
         sa.Enum(
-            types.SyncStatusEnum, name="syncstatusenum", schema=config.CPO_CLIENT_SCHEMA
+            types.SyncStatusEnum, name="syncstatusenum", schema=config.RFX_CLIENT_SCHEMA
         ),
         nullable=False,
     )
@@ -431,7 +431,7 @@ class Integration(RFXClientBaseModel):
 
 class ViewCreditUsage(RFXClientBaseModel):
     __tablename__ = "_credit_usage_summary"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
 
     usage_year = sa.Column(sa.Integer, nullable=False)
     usage_month = sa.Column(sa.Integer, nullable=False)
@@ -445,7 +445,7 @@ class ViewCreditUsage(RFXClientBaseModel):
 
 class ProjectIntegration(RFXClientBaseModel):
     __tablename__ = "project_integration"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
     __ts_index__ = ["provider", "external_id", "external_url"]
 
     project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
@@ -456,7 +456,7 @@ class ProjectIntegration(RFXClientBaseModel):
 
 class ProjectMilestoneIntegration(RFXClientBaseModel):
     __tablename__ = "project_milestone_integration"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
     __ts_index__ = ["provider", "external_id"]
 
     milestone_id = sa.Column(sa.ForeignKey(ProjectMilestone._id), nullable=False)
@@ -473,7 +473,7 @@ class Ticket(RFXClientBaseModel):
     description = sa.Column(sa.Text)
     priority = sa.Column(
         sa.Enum(
-            types.PriorityEnum, name="priorityenum", schema=config.CPO_CLIENT_SCHEMA
+            types.PriorityEnum, name="priorityenum", schema=config.RFX_CLIENT_SCHEMA
         ),
         nullable=False,
     )
@@ -485,13 +485,13 @@ class Ticket(RFXClientBaseModel):
         sa.Enum(
             types.AvailabilityEnum,
             name="availabilityenum",
-            schema=config.CPO_CLIENT_SCHEMA,
+            schema=config.RFX_CLIENT_SCHEMA,
         ),
         nullable=False,
     )
     sync_status = sa.Column(
         sa.Enum(
-            types.SyncStatusEnum, name="syncstatusenum", schema=config.CPO_CLIENT_SCHEMA
+            types.SyncStatusEnum, name="syncstatusenum", schema=config.RFX_CLIENT_SCHEMA
         ),
         default=types.SyncStatusEnum.PENDING,
     )
@@ -629,7 +629,7 @@ class ViewInquiry(RFXClientBaseModel):
         sa.Enum(
             types.AvailabilityEnum,
             name="availabilityenum",
-            schema=config.CPO_CLIENT_SCHEMA,
+            schema=config.RFX_CLIENT_SCHEMA,
         ),
         nullable=False,
     )
@@ -650,13 +650,13 @@ class ViewTicket(RFXClientBaseModel):
         sa.Enum(
             types.AvailabilityEnum,
             name="availabilityenum",
-            schema=config.CPO_CLIENT_SCHEMA,
+            schema=config.RFX_CLIENT_SCHEMA,
         ),
         nullable=False,
     )
     sync_status = sa.Column(
         sa.Enum(
-            types.SyncStatusEnum, name="syncstatusenum", schema=config.CPO_CLIENT_SCHEMA
+            types.SyncStatusEnum, name="syncstatusenum", schema=config.RFX_CLIENT_SCHEMA
         ),
         default=types.SyncStatusEnum.PENDING,
     )
@@ -691,7 +691,7 @@ class CommentIntegration(RFXClientBaseModel):
 
 class CommentView(RFXClientBaseModel):
     __tablename__ = "_comment"
-    __table_args__ = {"schema": config.CPO_CLIENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
 
     master_id = sa.Column(pg.UUID)
     parent_id = sa.Column(pg.UUID)
