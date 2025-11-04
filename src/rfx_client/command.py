@@ -3201,7 +3201,7 @@ class UpdateComment(Command):
                         )
                         logger.info(f"  External ID: {comment_integration.external_id}")
 
-                        # ✅ Update integration metadata
+                        # Update integration metadata
                         await agg.update_comment_integration(
                             data=datadef.UpdateCommentIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
