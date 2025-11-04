@@ -288,10 +288,6 @@ class RFXClientAggregate(Aggregate):
             await self.statemgr.insert_many(
                 "project_work_package_work_item", *project_wp_work_items_batch
             )
-        if project_wp_work_items_batch:
-            await self.statemgr.insert_many(
-                "project_work_package_work_item", *project_wp_work_items_batch
-            )
 
         return project_work_package
 

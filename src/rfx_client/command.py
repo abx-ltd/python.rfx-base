@@ -4,7 +4,6 @@ from fluvius.domain.aggregate import AggregateRoot
 
 from .domain import RFXClientDomain
 from . import datadef, config
-from fluvius.data import UUID_GENR
 from .helper import get_project_member_user_ids
 
 
@@ -195,11 +194,15 @@ class UpdateProject(Command):
         if project.status == "DRAFT":
             message_content = f"{profile.name__given} {profile.name__family} updated an estimator {project.name}"
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": message_subject,
                     "message_type": "NOTIFICATION",
@@ -207,18 +210,19 @@ class UpdateProject(Command):
                     "content": message_content,
                     "content_type": "TEXT",
                 },
-                "context": {
-                    "user_id": str(agg.get_context().user_id),
-                    "profile_id": str(agg.get_context().profile_id),
-                    "organization_id": str(agg.get_context().organization_id),
-                    "realm": agg.get_context().realm,
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
                 },
-            },
-        )
+            )
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
-                # Find existing integration
                 integration = await stm.find_one(
                     "project_integration",
                     where=dict(
@@ -245,7 +249,6 @@ class UpdateProject(Command):
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        # Build update payload - only include changed fields
                         pm_payload = PMUpdateProjectPayload(
                             external_id=integration.external_id,
                             name=payload.name if payload.name else None,
@@ -271,7 +274,6 @@ class UpdateProject(Command):
                         logger.info(f"  External ID: {integration.external_id}")
                         logger.info(f"  Updated: {pm_response.updated}")
 
-                        # ✅ Update integration metadata
                         await agg.update_project_integration(
                             data=datadef.UpdateProjectIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -322,12 +324,14 @@ class DeleteProject(Command):
                 "deleted_by": f"{profile.name__given} {profile.name__family}",
             },
         )
-
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Project Deleted",
                     "message_type": "NOTIFICATION",
@@ -335,18 +339,19 @@ class DeleteProject(Command):
                     "content": f"{profile.name__given} {profile.name__family} deleted a project {project.name}",
                     "content_type": "TEXT",
                 },
-                "context": {
-                    "user_id": str(agg.get_context().user_id),
-                    "profile_id": str(agg.get_context().profile_id),
-                    "organization_id": str(agg.get_context().organization_id),
-                    "realm": agg.get_context().realm,
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
                 },
-            },
-        )
+            )
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
-                # Find integration
                 integration = await stm.find_one(
                     "project_integration",
                     where=dict(
@@ -366,10 +371,9 @@ class DeleteProject(Command):
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        # Delete from PM service
                         success = await pm_service.delete_project(
                             project_id=integration.external_id,
-                            permanently=True,  # or False for archive
+                            permanently=True,
                         )
 
                         if success:
@@ -381,7 +385,6 @@ class DeleteProject(Command):
                                 f"Failed to delete from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
                             )
 
-                        # ✅ Remove integration record
                         await agg.remove_project_integration(
                             data=datadef.RemoveProjectIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -437,11 +440,15 @@ class ApplyPromotion(Command):
             },
         )
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Promotion Applied",
                     "message_type": "NOTIFICATION",
@@ -449,14 +456,16 @@ class ApplyPromotion(Command):
                     "content": f"{profile.name__given} {profile.name__family} applied a promotion code {payload.promotion_code}",
                     "content_type": "TEXT",
                 },
-                "context": {
-                    "user_id": str(agg.get_context().user_id),
-                    "profile_id": str(agg.get_context().profile_id),
-                    "organization_id": str(agg.get_context().organization_id),
-                    "realm": agg.get_context().realm,
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
                 },
-            },
-        )
+            )
 
 
 # ---------- Project BDM Contact (Still  in Project Context) ----------
@@ -501,12 +510,15 @@ class CreateProjectBDMContact(Command):
         yield agg.create_response(
             serialize_mapping(result), _type="project-bdm-contact-response"
         )
-
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "BDM Contact Created",
                     "message_type": "NOTIFICATION",
@@ -514,8 +526,16 @@ class CreateProjectBDMContact(Command):
                     "content": f"{profile.name__given} {profile.name__family} created a BDM contact for project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class UpdateProjectBDMContact(Command):
@@ -551,12 +571,15 @@ class UpdateProjectBDMContact(Command):
                 "updated_by": f"{profile.name__given} {profile.name__family}",
             },
         )
-
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "BDM Contact Updated",
                     "message_type": "NOTIFICATION",
@@ -564,8 +587,16 @@ class UpdateProjectBDMContact(Command):
                     "content": f"{profile.name__given} {profile.name__family} updated a BDM contact of project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class DeleteProjectBDMContact(Command):
@@ -601,21 +632,32 @@ class DeleteProjectBDMContact(Command):
             },
         )
         await agg.delete_project_bdm_contact(data=payload)
-
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "BDM Contact Deleted",
                     "message_type": "NOTIFICATION",
                     "priority": "MEDIUM",
-                    "content": f"{profile.name__given} {profile.name__family} deleted a BDM contact",
+                    "content": f"{profile.name__given} {profile.name__family} deleted a BDM contact of project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 # ---------- Promotion Context ----------
@@ -720,11 +762,15 @@ class AddWorkPackageToProject(Command):
         else:
             project_name = f"project {project.name}"
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Work Package Added",
                     "message_type": "NOTIFICATION",
@@ -732,8 +778,16 @@ class AddWorkPackageToProject(Command):
                     "content": f"{profile.name__given} {profile.name__family} added a work package to {project_name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class RemoveWorkPackageFromProject(Command):
@@ -777,11 +831,15 @@ class RemoveWorkPackageFromProject(Command):
         else:
             project_name = f"project {project.name}"
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Work Package Removed",
                     "message_type": "NOTIFICATION",
@@ -789,8 +847,16 @@ class RemoveWorkPackageFromProject(Command):
                     "content": f"{profile.name__given} {profile.name__family} removed a work package from {project_name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class AddTicketToProject(Command):
@@ -823,73 +889,6 @@ class AddTicketToProject(Command):
         )
 
         yield agg.create_response(serialize_mapping(result), _type="project-response")
-
-
-class CreateProjectTicket(Command):
-    class Meta:
-        key = "create-project-ticket"
-        resources = ("project",)
-        tags = ["project", "ticket"]
-        auth_required = True
-        description = "Create project ticket"
-        policy_required = True
-
-    Data = datadef.CreateProjectTicketPayload
-
-    async def _process(self, agg, stm, payload):
-        aggroot = agg.get_aggroot()
-        project_id = aggroot.identifier
-        ticket_id = UUID_GENR()
-        yield agg.create_message(
-            "discussion-message",
-            data={
-                "command": "create-ticket",
-                "ticket_id": str(ticket_id),
-                "project_id": str(project_id),
-                "payload": serialize_mapping(payload),
-                "context": {
-                    "user_id": agg.get_context().user_id,
-                    "profile_id": agg.get_context().profile_id,
-                    "organization_id": agg.get_context().organization_id,
-                    "realm": agg.get_context().realm,
-                },
-            },
-        )
-        yield agg.create_message(
-            "project-message",
-            data={
-                "command": "add-ticket-to-project",
-                "project_id": str(project_id),
-                "payload": {"ticket_id": ticket_id},
-                "context": {
-                    "user_id": agg.get_context().user_id,
-                    "profile_id": agg.get_context().profile_id,
-                    "organization_id": agg.get_context().organization_id,
-                    "realm": agg.get_context().realm,
-                },
-            },
-        )
-
-        profile_id = agg.get_context().profile_id
-        profile = await stm.get_profile(profile_id)
-        user_ids, project = await get_project_member_user_ids(
-            stm, agg.get_aggroot().identifier
-        )
-
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
-                    "recipients": [str(user_id) for user_id in user_ids],
-                    "subject": "Ticket Added",
-                    "message_type": "NOTIFICATION",
-                    "priority": "MEDIUM",
-                    "content": f"{profile.name__given} {profile.name__family} added a ticket to project {project.name}",
-                    "content_type": "TEXT",
-                },
-            },
-        )
 
 
 class AddProjectMember(Command):
@@ -932,11 +931,15 @@ class AddProjectMember(Command):
         )
         member = await stm.get_profile(payload.member_id)
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Member Added",
                     "message_type": "NOTIFICATION",
@@ -944,8 +947,16 @@ class AddProjectMember(Command):
                     "content": f"{profile.name__given} {profile.name__family} added {member.name__given} {member.name__family} to project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class UpdateProjectMember(Command):
@@ -985,11 +996,15 @@ class UpdateProjectMember(Command):
 
         await agg.update_project_member(member_id=payload.member_id, role=payload.role)
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Member Role Updated",
                     "message_type": "NOTIFICATION",
@@ -997,8 +1012,16 @@ class UpdateProjectMember(Command):
                     "content": f"{profile.name__given} {profile.name__family} updated {member.name__given} {member.name__family}'s role in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class RemoveProjectMember(Command):
@@ -1037,11 +1060,15 @@ class RemoveProjectMember(Command):
 
         await agg.remove_project_member(member_id=payload.member_id)
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Member Removed",
                     "message_type": "NOTIFICATION",
@@ -1049,8 +1076,16 @@ class RemoveProjectMember(Command):
                     "content": f"{profile.name__given} {profile.name__family} removed {member.name__given} {member.name__family} from project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class CreateProjectMilestone(Command):
@@ -1093,11 +1128,14 @@ class CreateProjectMilestone(Command):
             serialize_mapping(result), _type="project-milestone-response"
         )
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Milestone Created",
                     "message_type": "NOTIFICATION",
@@ -1105,12 +1143,19 @@ class CreateProjectMilestone(Command):
                     "content": f"{profile.name__given} {profile.name__family} created a milestone '{result.name}' for project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
-                # Find project integration to get external project ID
                 project_integration = await stm.find_one(
                     "project_integration",
                     where=dict(
@@ -1136,10 +1181,9 @@ class CreateProjectMilestone(Command):
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        # Build payload
                         pm_payload = PMCreateMilestonePayload(
                             name=result.name,
-                            project_id=project_integration.external_id,  # Use external project ID
+                            project_id=project_integration.external_id,
                             description=result.description
                             if hasattr(result, "description")
                             else None,
@@ -1159,7 +1203,6 @@ class CreateProjectMilestone(Command):
                             f"✓ Synced milestone to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
                         )
 
-                        # ✅ Create integration record
                         await agg.create_project_milestone_integration(
                             data=datadef.CreateProjectMilestoneIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -1218,11 +1261,16 @@ class UpdateProjectMilestone(Command):
         user_ids, project = await get_project_member_user_ids(
             stm, agg.get_aggroot().identifier
         )
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Milestone Updated",
                     "message_type": "NOTIFICATION",
@@ -1230,12 +1278,19 @@ class UpdateProjectMilestone(Command):
                     "content": f"{profile.name__given} {profile.name__family} updated a milestone {project_milestone.name} in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
-                # Find milestone integration
                 milestone_integration = await stm.find_one(
                     "project_milestone_integration",
                     where=dict(
@@ -1260,7 +1315,6 @@ class UpdateProjectMilestone(Command):
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        # Build update payload - only include changed fields
                         pm_payload = PMUpdateMilestonePayload(
                             external_id=milestone_integration.external_id,
                             name=payload.name
@@ -1289,7 +1343,6 @@ class UpdateProjectMilestone(Command):
                         )
                         logger.info(f"  Updated: {pm_response.updated}")
 
-                        # ✅ Update integration metadata (optional)
                         await agg.update_project_milestone_integration(
                             data=datadef.UpdateProjectMilestoneIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -1347,11 +1400,15 @@ class DeleteProjectMilestone(Command):
         user_ids, project = await get_project_member_user_ids(
             stm, agg.get_aggroot().identifier
         )
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Milestone Deleted",
                     "message_type": "NOTIFICATION",
@@ -1359,12 +1416,19 @@ class DeleteProjectMilestone(Command):
                     "content": f"{profile.name__given} {profile.name__family} deleted a milestone {project_milestone.name} in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
-                # Find milestone integration
                 milestone_integration = await stm.find_one(
                     "project_milestone_integration",
                     where=dict(
@@ -1384,7 +1448,6 @@ class DeleteProjectMilestone(Command):
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        # Delete from PM service
                         success = await pm_service.delete_project_milestone(
                             external_id=milestone_integration.external_id
                         )
@@ -1398,7 +1461,6 @@ class DeleteProjectMilestone(Command):
                                 f"Failed to delete milestone from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
                             )
 
-                        # ✅ Remove integration record
                         await agg.remove_project_milestone_integration(
                             data=datadef.RemoveProjectMilestoneIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -1795,11 +1857,15 @@ class UpdateProjectWorkItem(Command):
             },
         )
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Work Item Updated",
                     "message_type": "NOTIFICATION",
@@ -1807,8 +1873,16 @@ class UpdateProjectWorkItem(Command):
                     "content": f"{profile.name__given} {profile.name__family} updated a work item {project_work_item.name} in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 # ---------- Project Work Package (Project Context) ----------
@@ -1852,11 +1926,15 @@ class UpdateProjectWorkPackage(Command):
 
         await agg.update_project_work_package(data=payload)
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Work Package Updated",
                     "message_type": "NOTIFICATION",
@@ -1864,8 +1942,16 @@ class UpdateProjectWorkPackage(Command):
                     "content": f"{profile.name__given} {profile.name__family} updated a work package {project_work_package.work_package_name} in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class UpdateProjectWorkPackageWithWorkItems(Command):
@@ -1906,11 +1992,14 @@ class UpdateProjectWorkPackageWithWorkItems(Command):
 
         await agg.update_project_work_package_with_work_items(data=payload)
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Work Package Updated with Work Items",
                     "message_type": "NOTIFICATION",
@@ -1918,8 +2007,16 @@ class UpdateProjectWorkPackageWithWorkItems(Command):
                     "content": f"{profile.name__given} {profile.name__family} updated a project work package {project_work_package.work_package_name} with work items in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 # ---------- Project Work Package Work Item (Project Context) ----------
@@ -1971,11 +2068,15 @@ class AddNewWorkItemToProjectWorkPackage(Command):
             serialize_mapping(project_work_item), _type="project-work-item-response"
         )
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Work Item Added to Project Work Package",
                     "message_type": "NOTIFICATION",
@@ -1983,8 +2084,16 @@ class AddNewWorkItemToProjectWorkPackage(Command):
                     "content": f"{profile.name__given} {profile.name__family} added a new work item {work_item.name} to a project work package {project_work_package.work_package_name} in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class RemoveWorkItemFromProjectWorkPackage(Command):
@@ -2035,20 +2144,32 @@ class RemoveWorkItemFromProjectWorkPackage(Command):
 
         await agg.remove_project_work_item_from_project_work_package(data=payload)
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
-                    "subject": "Project Work Item Removed from Project Work Package",
+                    "subject": "Work Item Removed from Project Work Package",
                     "message_type": "NOTIFICATION",
                     "priority": "MEDIUM",
                     "content": f"{profile.name__given} {profile.name__family} removed a work item {project_work_item.name} from a project work package {project_work_package.work_package_name} in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 # ---------- Project Work Item Deliverable (Project Context) ----------
@@ -2094,11 +2215,15 @@ class UpdateProjectWorkItemDeliverable(Command):
             },
         )
 
-        yield agg.create_message(
-            "noti-message",
-            data={
-                "command": "send-message",
-                "payload": {
+        if config.MESSAGE_ENABLED:
+            context = agg.get_context()
+            service_proxy = context.service_proxy
+            logger.info(f"service proxy: {service_proxy}")
+            await service_proxy.msg_client.send(
+                f"{config.MESSAGE_NAMESPACE}:send-message",
+                command="send-message",
+                resource="message",
+                payload={
                     "recipients": [str(user_id) for user_id in user_ids],
                     "subject": "Project Work Item Deliverable Updated",
                     "message_type": "NOTIFICATION",
@@ -2106,8 +2231,16 @@ class UpdateProjectWorkItemDeliverable(Command):
                     "content": f"{profile.name__given} {profile.name__family} updated a project work item deliverable {project_work_item_deliverable.name} in project {project.name}",
                     "content_type": "TEXT",
                 },
-            },
-        )
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    }
+                },
+            )
 
 
 class CreditUsageSummary(Command):
@@ -2426,7 +2559,6 @@ class UpdateTicketInfo(Command):
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
-                # Find existing integration
                 integration = await stm.find_one(
                     "ticket_integration",
                     where=dict(
@@ -2448,7 +2580,6 @@ class UpdateTicketInfo(Command):
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        # Build update payload - only include changed fields
                         pm_payload = PMUpdatePayload(
                             external_id=integration.external_id,
                             title=payload.title if payload.title else None,
@@ -2475,7 +2606,6 @@ class UpdateTicketInfo(Command):
                         logger.info(f"  External ID: {integration.external_id}")
                         logger.info(f"  Updated: {pm_response.updated}")
 
-                        # ✅ Update integration metadata
                         await agg.update_ticket_integration(
                             data=datadef.UpdateTicketIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -2532,7 +2662,6 @@ class RemoveTicket(Command):
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
-                # Find integration
                 integration = await stm.find_one(
                     "ticket_integration",
                     where=dict(
@@ -2552,10 +2681,9 @@ class RemoveTicket(Command):
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        # Delete from PM service
                         success = await pm_service.delete_ticket(
                             external_id=integration.external_id,
-                            permanently=True,  # or False for soft delete
+                            permanently=True,
                         )
 
                         if success:
@@ -3079,7 +3207,7 @@ class CreateComment(Command):
                     raise ValueError(
                         "PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set"
                     )
-                # Find resource integration (project or ticket)
+
                 integration_table = f"{resource_type}_integration"
                 resource_integration = await stm.find_one(
                     integration_table,
@@ -3119,7 +3247,6 @@ class CreateComment(Command):
                         logger.info(f"  External Comment ID: {pm_response.external_id}")
                         logger.info(f"  URL: {pm_response.url}")
 
-                        # ✅ Create comment integration record
                         await agg.create_comment_integration(
                             data=datadef.CreateCommentIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -3169,7 +3296,6 @@ class UpdateComment(Command):
                         "PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set"
                     )
 
-                # Find comment integration
                 comment_integration = await stm.find_one(
                     "comment_integration",
                     where=dict(
@@ -3201,12 +3327,10 @@ class UpdateComment(Command):
                         )
                         logger.info(f"  External ID: {comment_integration.external_id}")
 
-                        # ✅ Update integration metadata
                         await agg.update_comment_integration(
                             data=datadef.UpdateCommentIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                                 external_id=comment_integration.external_id,
-                                # comment_id=str(comment_id),
                                 external_url=pm_response.external_url
                                 if hasattr(pm_response, "external_url")
                                 else comment_integration.external_url,
@@ -3250,7 +3374,6 @@ class DeleteComment(Command):
                         "PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set"
                     )
 
-                # Find comment integration
                 comment_integration = await stm.find_one(
                     "comment_integration",
                     where=dict(
@@ -3268,7 +3391,6 @@ class DeleteComment(Command):
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        # Delete from PM service
                         success = await pm_service.delete_comment(
                             external_id=comment_integration.external_id
                         )
@@ -3282,7 +3404,6 @@ class DeleteComment(Command):
                                 f"Failed to delete comment from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
                             )
 
-                        # ✅ Remove integration record
                         await agg.remove_comment_integration(
                             data=datadef.RemoveCommentIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -3347,8 +3468,8 @@ class SyncCommentFromWebhook(Command):
         provider = payload.provider
         external_id = payload.external_id
         external_data = payload.external_data
-        target_id = payload.target_id  # Issue/Ticket ID
-        target_type = payload.target_type  # "issue"
+        target_id = payload.target_id
+        target_type = payload.target_type
 
         logger.info(f"[WebhookCommand] Syncing comment: {action} from {provider}")
         logger.info(f"[WebhookCommand]   External ID: {external_id}")
@@ -3492,7 +3613,6 @@ class SyncCommentFromWebhookChange(Command):
         logger.info(f"[WebhookCommand]   External ID: {external_id}")
         logger.info(f"[WebhookCommand]   New content: {external_data.get('body')}")
 
-        # Find integration to get local comment_id
         integration = await stm.find_one(
             "comment_integration",
             where={"external_id": external_id, "provider": provider},

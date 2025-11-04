@@ -4,7 +4,7 @@ from . import config
 
 
 class RFXClientPolicy(RFXClientConnector.__data_schema_base__, PolicySchema):
-    __table_args__ = dict(schema=config.POLICY_SCHEMA)
+    __table_args__ = dict(schema=config.RFX_POLICY_SCHEMA)
     __tablename__ = config.POLICY_TABLE
 
 

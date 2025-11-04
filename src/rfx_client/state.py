@@ -3,10 +3,10 @@ from .model import RFXClientConnector
 from pypika import Table, Schema
 from . import config
 
-user_s = Schema(config.USER_PROFILE_SCHEMA)
-client_s = Schema(config.CPO_CLIENT_SCHEMA)
-message_s = Schema(config.MESSAGE_SERVICE_SCHEMA)
-discussion_s = Schema(config.CPO_DISCUSSION_SCHEMA)
+user_s = Schema(config.RFX_USER_SCHEMA)
+client_s = Schema(config.RFX_CLIENT_SCHEMA)
+message_s = Schema(config.RFX_MESSAGE_SCHEMA)
+discussion_s = Schema(config.RFX_DISCUSS_SCHEMA)
 
 
 user_profile = Table("profile", schema=user_s)
