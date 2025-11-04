@@ -1,11 +1,11 @@
 from pipe import Pipe
-from fluvius.worker import DomainWorker, DomainWorkerClient, export_task
-from rfx_message import config
+from fluvius.worker import DomainWorkerClient
 
 
 class MessageClient(DomainWorkerClient):
     # @TODO: Need config for queue name
-    __queue_name__ = 'rfx-message'
+    __queue_name__ = "cpo_portal_worker"
+
 
 @Pipe
 def configure_message_client(app):
