@@ -102,6 +102,7 @@ class RFXAuthProfileProvider(
                     dst_state=profile_record.status
                 ))
                 await self.insert(profile_status)
+                profile = profile_record
             else:
                 curr_profile = curr_profile
                 profile = curr_profile
