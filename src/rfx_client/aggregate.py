@@ -153,12 +153,12 @@ class RFXClientAggregate(Aggregate):
         project = self.rootobj
         await self.statemgr.invalidate(project)
 
-    @action("ticket-added-to-project", resources="project")
+    @action("ticket-added-to-project", resources="ticket")
     async def add_ticket_to_project(self, /, data):
-        project_id = self.aggroot.identifier
+        ticket_id = self.aggroot.identifier
         """Add ticket to project"""
         record = self.init_resource(
-            "project_ticket", {"project_id": project_id, "ticket_id": data.ticket_id}
+            "project_ticket", {"project_id": data.project_id, "ticket_id": ticket_id}
         )
         await self.statemgr.insert(record)
         return record

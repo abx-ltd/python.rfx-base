@@ -2475,6 +2475,7 @@ class CreateTicket(Command):
     async def _process(self, agg, stm, payload):
         """Create a new ticket in project"""
         result = await agg.create_ticket(data=payload)
+        await agg.add_ticket_to_project(data=payload)
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
