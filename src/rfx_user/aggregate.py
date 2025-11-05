@@ -189,12 +189,7 @@ class UserProfileAggregate(Aggregate):
     @action("org-role-created", resources="organization")
     async def create_org_role(self, data):
         """Create custom role within organization."""
-        record = self.init_resource(
-            "organization-role",
-            serialize_mapping(data),
-            _id=UUID_GENR(),
-            organization_id=self.aggroot.identifier
-        )
+        record = self.init_resource("organization-role", data, _id=UUID_GENR(), organization_id=self.aggroot.identifier)
         await self.statemgr.insert(record)
         return {"role_id": record._id}
 
@@ -212,21 +207,23 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.invalidate_one("organization_role", item._id)
         return {"removed": True}
 
-    @action("org-type-created", resources="ref__organization_type")
+    @action("org-type-created", resources="organization")
     async def create_org_type(self, data):
         """Create new organization type."""
         record = self.init_resource("ref__organization_type", serialize_mapping(data), _id=UUID_GENR())
         await self.statemgr.insert(record)
         return {"org_type_id": record._id}
 
-    @action("org-type-removed", resources="ref__organization_type")
+    @action("org-type-removed", resources="organization")
     async def remove_org_type(self, data):
         """Remove organization type."""
-        item = await self.statemgr.fetch('ref__organization_type', self.aggroot.identifier, _creator=self.context.profile_id)
+        key = data.get("key")
+        item = await self.statemgr.find_one('ref__organization_type', where=dict(key=key))
         if item is None:
             return {"message": "Organization type not found."}
         await self.statemgr.invalidate_one('ref__organization_type', item._id)
         return {"removed": True}
+
 
     # =========== Invitation Context ============
 
@@ -310,9 +307,26 @@ class UserProfileAggregate(Aggregate):
     @action("profile-created", resources=("organization", "profile"))
     async def create_profile(self, data):
         """Create user profile within organization. Generates unique profile with default ACTIVE status."""
+        user_id = data.get("user_id", None)
+        if user_id is None or user_id == self.context.user_id:
+            return {"message": "Cannot create profile for current user."}
+        existing_profiles = await self.statemgr.find_all("profile", where=dict(
+            user_id=user_id,
+            organization_id=self.context.organization_id,
+            status=ProfileStatusEnum.ACTIVE
+        ))
+        if existing_profiles:
+            return {"message": "Active profile already exists for user in this organization."}
+
+        user = await self.statemgr.fetch('user', user_id)
+        if not user:
+            return {"message": f"User with id {user_id} not found."}
+
         record = self.init_resource(
             "profile",
-            serialize_mapping(data),
+            data,
+            _id=UUID_GENR(),
+            organization_id=self.context.organization_id,
             status=data.get("status", ProfileStatusEnum.ACTIVE),
         )
         await self.statemgr.insert(record)
@@ -348,7 +362,7 @@ class UserProfileAggregate(Aggregate):
         if getattr(data, "status", None) and item.status != data.status:
             await self.set_profile_status(item, data.status)
 
-        return item
+        return {"message": "Profile updated", "profile_id": item._id}
 
     @action("profile-deactivated", resources="profile")
     async def deactivate_profile(self, data=None):
@@ -357,33 +371,45 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.update(item, status=ProfileStatusEnum.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatusEnum.DEACTIVATED)
 
+    @action("profile-activated", resources="profile")
+    async def activate_profile(self, data=None):
+        """Activate profile to allow access."""
+        item = self.rootobj
+        await self.statemgr.update(item, status=ProfileStatusEnum.ACTIVE)
+        await self.set_profile_status(item, ProfileStatusEnum.ACTIVE)
+
     @action("role-assigned-to-profile", resources=("organization", "profile"))
     async def assign_role_to_profile(self, data):
         """Assign system role to profile. Prevents duplicate role assignments."""
         role_key = data.get("role_key", "VIEWER")
         profile_id = data.get("profile_id", self.aggroot.identifier)
-        role_source = data.get("role_source", "SYSTEM")
-        role = await self.statemgr.find_one('ref__system_role', where=dict(key=role_key))
-        if await self.statemgr.find_all("profile_role", where=dict(
-            profile_id=profile_id,
-            role_key=role_key,
-            role_source=role_source,
-        )):
-            raise ValueError(f"{role.key} already assigned to profile!")
+        profile = await self.statemgr.fetch('profile', profile_id)
 
-        record = self.init_resource(
-            "profile_role",
-            serialize_mapping(data),
-            role_id=role._id,
-            _id=UUID_GENR(),
-        )
-        await self.statemgr.insert(record)
-        return record
+        if profile.organization_id != self.context.organization_id:
+            return {"message": "Profile does not belong to current organization."}
+        role = await self.statemgr.find_one('ref__system_role', where=dict(key=role_key))
+
+        profile_role = await self.statemgr.find_one('profile_role', where=dict(
+            profile_id=profile_id,
+        ))
+        if not profile_role:
+            record = self.init_resource("profile_role", data, role_id=role._id, _id=UUID_GENR())
+            await self.statemgr.insert(record)
+            return
+
+        if profile_role.role_key == role_key:
+            return {"message": f"Role {role_key} already assigned to profile."}
+        else:
+            await self.statemgr.update(profile_role, role_key=role_key, role_id=role._id)
+            return {"message": f"Profile role updated to {role_key}."}
 
     @action("role-revoked-from-profile", resources="profile")
     async def revoke_role_from_profile(self, data):
         """Revoke specific role from profile."""
-        item = await self.statemgr.fetch('profile_role', data.profile_role_id, profile_id=self.aggroot.identifier)
+        profile_role_id = data.get("profile_role_id")
+        item = await self.statemgr.fetch('profile_role', profile_role_id, profile_id=self.aggroot.identifier)
+        if not item:
+            return {"message": f"Profile role with id {profile_role_id} not found!"}
         await self.statemgr.invalidate_one('profile_role', item._id)
 
     @action("role-cleared-from-profile", resources="profile")
