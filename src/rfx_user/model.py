@@ -313,7 +313,7 @@ class OrganizationStatus(IDMBaseModel):
 
 
 # ==========================================================================
-# PROFILE MODELS  
+# PROFILE MODELS
 # User profiles within organizational contexts with RBAC
 # ==========================================================================
 
@@ -479,7 +479,7 @@ class Invitation(IDMBaseModel):
 
     organization_id = sa.Column(pg.UUID, sa.ForeignKey(Organization._id))
     user_id = sa.Column(pg.UUID, sa.ForeignKey(UserSchema._id), nullable=True)
-    profile_id = sa.Column(pg.UUID, nullable=False)
+    # profile_id = sa.Column(pg.UUID, nullable=False)
     email = sa.Column(sa.String)
     token = sa.Column(sa.String)
     status = sa.Column(

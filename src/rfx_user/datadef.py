@@ -178,7 +178,7 @@ class SendActionPayload(DataModel):
 class SendInvitationPayload(DataModel):
     """Payload for sending organization invitations."""
     email: str
-    duration: int
+    duration: Optional[int] = Field(default=10)
     message: str | None = None
 
 class AssignRolePayload(DataModel):

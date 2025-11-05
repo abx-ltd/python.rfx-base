@@ -228,33 +228,37 @@ class UserProfileAggregate(Aggregate):
     # =========== Invitation Context ============
 
     @action("invitation-status-set", resources="invitation")
-    async def set_invitation_status(self, invitation, new_status: InvitationStatusEnum, note=None):
+    async def set_invitation_status(self, invitation, new_status: InvitationStatusEnum):
         """Track invitation status changes with audit trail."""
         status_record = self.init_resource("invitation_status",
                                            invitation_id=invitation._id,
                                            src_state=invitation.status,
                                            dst_state=new_status.value,
-                                           note=note
                                            )
         await self.statemgr.insert(status_record)
 
     @action("invitation-sent", resources="invitation")
     async def send_invitation(self, data):
-        user = self.statemgr.query('user', where=dict(
-            email=data.email, status=UserStatusEnum.ACTIVE), limit=1)
-        user_id = None if not user else user[0]._id
-
-        record = self.init_resource("invitation",
-                                    serialize_mapping(data),
-                                    organization_id=self.context.organization_id,
-                                    profile_id=UUID_GENR(),
-                                    user_id=user_id,
-                                    token=secrets.token_urlsafe(16),
-                                    status=InvitationStatusEnum.PENDING,
-                                    expires_at=datetime.utcnow() + timedelta(days=data.duration)
-                                    )
+        email = data.get("email")
+        duration = data.get("duration")
+        message = data.get("message", "")
+        user = await self.statemgr.find_one("user", where=dict(verified_email=email))
+        if not user:
+            return {"error": f"User with email {email} not found."}
+        invitation_record = dict(
+            _id=UUID_GENR(),
+            organization_id=self.context.organization_id,
+            user_id=user._id,
+            email=email,
+            token=secrets.token_urlsafe(48),
+            status=InvitationStatusEnum.PENDING,
+            expires_at=datetime.utcnow() + timedelta(days=duration),
+            message=message,
+            duration=duration
+        )
+        record = self.init_resource("invitation", invitation_record)
         await self.statemgr.insert(record)
-        await self.set_invitation_status(record, InvitationStatusEnum.PENDING, "Initial invitation sent")
+        await self.set_invitation_status(record, InvitationStatusEnum.PENDING)
         return {"_id": record._id}
 
     @action("invitation-resent", resources="invitation")
@@ -262,43 +266,21 @@ class UserProfileAggregate(Aggregate):
         """Resend invitation with new token and extended expiry."""
         invitation = self.rootobj
         updates = {
-            "token": secrets.token_urlsafe(16),
+            "token": secrets.token_urlsafe(48),
             "status": InvitationStatusEnum.PENDING,
             "expires_at": datetime.utcnow() + timedelta(days=7)
         }
         await self.statemgr.update(invitation, **updates)
-        await self.set_invitation_status(invitation, InvitationStatusEnum.PENDING, "Invitation resent")
+        await self.set_invitation_status(invitation, InvitationStatusEnum.PENDING)
         return {"_id": invitation._id, "resend": True}
 
-    @action("invitation-canceled", resources="invitation")
-    async def cancel_invitation(self):
+    @action("invitation-revoked", resources="invitation")
+    async def revoke_invitation(self):
         """Cancel pending invitation to prevent acceptance."""
         invitation = self.rootobj
-        await self.statemgr.update(invitation, status=InvitationStatusEnum.CANCELED)
-        await self.set_invitation_status(invitation, InvitationStatusEnum.CANCELED, "Invitation canceled")
-        return {"_id": invitation._id, "canceled": True}
-
-    @action("invitation-accepted", resources="invitation")
-    async def accept_invitation(self):
-        """Accept invitation and link to current user. Validates invitation is still pending."""
-        invitation = self.rootobj
-        if invitation.status != InvitationStatusEnum.PENDING:
-            raise ValueError("Only PENDING invitations can be accepted.")
-        await self.statemgr.update(invitation, status=InvitationStatusEnum.ACCEPTED, user_id=self.context.user_id)
-        await self.set_invitation_status(invitation, InvitationStatusEnum.ACCEPTED, "Invitation accepted")
-        return {"_id": invitation._id, "accepted": True}
-
-    @action("invitation-rejected", resources="invitation")
-    async def reject_invitation(self):
-        """Reject invitation and prevent future acceptance. Validates invitation is still pending."""
-        invitation = self.rootobj
-
-        if invitation.status != InvitationStatusEnum.PENDING:
-            raise ValueError("Only PENDING invitations can be rejected.")
-
-        await self.statemgr.update(invitation, status=InvitationStatusEnum.REJECTED)
-        await self.set_invitation_status(invitation, InvitationStatusEnum.REJECTED, "Invitation rejected")
-        return {"_id": invitation._id, "rejected": True}
+        await self.statemgr.update(invitation, status=InvitationStatusEnum.REVOKED)
+        await self.set_invitation_status(invitation, InvitationStatusEnum.REVOKED)
+        return {"_id": invitation._id, "revoked": True}
 
     # ==========================================================================
     # PROFILE OPERATIONS

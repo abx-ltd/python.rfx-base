@@ -395,12 +395,13 @@ class SendInvitation(Command):
         tags = ["invitation"]
         auth_required = True
         new_resource = True
+        policy_required = True
 
     Data = datadef.SendInvitationPayload
 
     async def _process(self, agg, stm, payload):
-        invitation = await agg.send_invitation(payload)
-        yield agg.create_response(serialize_mapping(invitation), _type="user-profile-response")
+        result = await agg.send_invitation(serialize_mapping(payload))
+        yield agg.create_response(result, _type="user-profile-response")
 
 
 class ResendInvitation(Command):
@@ -415,73 +416,24 @@ class ResendInvitation(Command):
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.resend_invitation()
+        result = await agg.resend_invitation()
+        yield agg.create_response(result, _type="user-profile-response")
 
 
-class CancelInvitation(Command):
+class RevokeInvitation(Command):
     """
     Cancel pending invitation to prevent acceptance.
     Invalidates invitation token while preserving audit trail.
     """
     class Meta:
-        key = "cancel-invitation"
+        key = "revoke-invitation"
         resources = ("invitation",)
         tags = ["invitation"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.cancel_invitation()
-
-
-class AcceptInvitation(Command):
-    """
-    Accept invitation and create organizational profile.
-    Validates invitation status and creates user profile within organization context.
-    Links current user to organization through profile creation.
-    """
-    class Meta:
-        key = "accept-invitation"
-        resources = ("invitation",)
-        tags = ["invitation"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        await agg.accept_invitation()
-
-        rootobj = agg.get_rootobj()
-        context = agg.get_context()
-        user = await stm.fetch("user", context.user_id)
-        profile_data = dict(
-            _id=rootobj.profile_id,
-            organization_id=rootobj.organization_id,
-            user_id=user._id,
-            name__family=user.name__family,
-            name__given=user.name__given,
-            name__middle=user.name__middle,
-            name__prefix=user.name__prefix,
-            name__suffix=user.name__suffix,
-            telecom__email=user.telecom__email,
-            telecom__phone=user.telecom__phone,
-            status='ACTIVE',
-            current_profile=True
-        )
-        await agg.create_profile(profile_data)
-
-
-class RejectInvitation(Command):
-    """
-    Reject invitation and mark as declined.
-    Updates invitation status to prevent future acceptance attempts.
-    """
-    class Meta:
-        key = "reject-invitation"
-        resources = ("invitation",)
-        tags = ["invitation"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        await agg.reject_invitation()
-
+        result = await agg.revoke_invitation()
+        yield agg.create_response(result, _type="user-profile-response")
 # ---------- Profile Context ----------
 
 
