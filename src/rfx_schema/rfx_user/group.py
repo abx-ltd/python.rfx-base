@@ -5,10 +5,10 @@ Group Aggregate ORM Mapping
 Security groups provide many-to-many associations between profiles and logical
 group containers for permission management.
 
-| Table        | Purpose                         | Key Relationships            |
-| ------------ | ------------------------------- | ---------------------------- |
-| group        | Group definition                | N ↔ N profiles via bridge    |
-| profile_group| Bridge linking profile to group | FK → group, FK → profile     |
+| Table         | Purpose                         | Key Relationships            |
+| ------------- | ------------------------------- | ---------------------------- |
+| group         | Group definition                | N ↔ N profiles via bridge    |
+| profile_group | Bridge linking profile to group | FK → group, FK → profile     |
 """
 
 from __future__ import annotations

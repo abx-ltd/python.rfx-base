@@ -6,13 +6,13 @@ Static lookup tables that support the user domain. These models simply expose
 lookup data (actions, realms, organization types, etc.) and are referenced by
 other aggregates via foreign keys.
 
-| Table                 | Purpose                                      |
-| --------------------- | -------------------------------------------- |
-| ref__action           | Valid user actions (used by user_action)     |
-| ref__organization_type| Organization classification lookup           |
-| ref__realm            | Authentication realm names                   |
-| ref__role_type        | Role type categories                         |
-| ref__system_role      | System-wide roles available to assignments   |
+| Table                  | Purpose                                      |
+| ---------------------- | -------------------------------------------- |
+| ref__action            | Valid user actions (used by user_action)     |
+| ref__organization_type | Organization classification lookup           |
+| ref__realm             | Authentication realm names                   |
+| ref__role_type         | Role type categories                         |
+| ref__system_role       | System-wide roles available to assignments   |
 """
 
 from __future__ import annotations

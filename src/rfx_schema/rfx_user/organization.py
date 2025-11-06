@@ -5,12 +5,12 @@ Organization Aggregate ORM Mapping
 The organization aggregate stores multi-tenant account data, delegated access,
 custom roles, and status history.
 
-| Table                     | Purpose                                | Key Relationships                         |
-| ------------------------- | -------------------------------------- | ----------------------------------------- |
-| organization              | Tenant root entity                     | 1 → N profiles, roles, invitations        |
-| organization_delegated_access | Cross-organization delegation     | FK → organization (owner & delegate)      |
-| organization_role         | Custom roles defined per organization  | FK → organization                         |
-| organization_status       | Status transition audit trail          | FK → organization                         |
+| Table                      | Purpose                                 | Key Relationships                       |
+| -------------------------- | --------------------------------------- | --------------------------------------- |
+| organization               | Tenant root entity                      | 1 → N profiles, roles, invitations      |
+| organization_delegated_access | Cross-organization delegation        | FK → organization (owner & delegate)    |
+| organization_role          | Custom roles defined per organization   | FK → organization                       |
+| organization_status        | Status transition audit trail           | FK → organization                       |
 """
 
 from __future__ import annotations
@@ -18,14 +18,7 @@ from __future__ import annotations
 import uuid
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import (
-    ARRAY,
-    Boolean,
-    Enum as SQLEnum,
-    ForeignKey,
-    String,
-    Text,
-)
+from sqlalchemy import ARRAY, Boolean, Enum as SQLEnum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -96,11 +89,11 @@ class OrganizationDelegatedAccess(Base):
     )
     access_scope: Mapped[Optional[str]] = mapped_column(String(255))
 
-    organization: Mapped["Organization"] = relationship(
+    organization: Mapped[Optional["Organization"]] = relationship(
         back_populates="delegated_access",
         foreign_keys=[organization_id],
     )
-    delegated_organization: Mapped["Organization"] = relationship(
+    delegated_organization: Mapped[Optional["Organization"]] = relationship(
         back_populates="delegated_to_us",
         foreign_keys=[delegated_organization_id],
     )
@@ -111,7 +104,7 @@ class OrganizationRole(Base):
 
     __tablename__ = "organization_role"
 
-    _iid: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
+    _iid: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     _txt: Mapped[Optional[str]] = mapped_column(TSVECTOR)
     active: Mapped[Optional[bool]] = mapped_column(Boolean)
     description: Mapped[Optional[str]] = mapped_column(String(1024))

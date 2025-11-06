@@ -18,15 +18,19 @@ providers, sessions, verification history, and required actions).
 
 from __future__ import annotations
 
-from datetime import datetime
 import uuid
-from typing import Dict, List, Optional, TYPE_CHECKING, Any
+from datetime import datetime
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from rfx_user.types import UserActionStatusEnum, UserSourceEnum, UserStatusEnum
+from rfx_user.types import (
+    UserActionStatusEnum,
+    UserSourceEnum,
+    UserStatusEnum,
+)
 
 from . import Base
 
@@ -64,7 +68,9 @@ class User(Base):
     )
     realm_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
     resource_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
-    last_verified_request: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_verified_request: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     identities: Mapped[List["UserIdentity"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -115,7 +121,9 @@ class UserIdentity(Base):
 
     user: Mapped["User"] = relationship(back_populates="identities")
     sessions: Mapped[List["UserSession"]] = relationship(back_populates="identity")
-    verifications: Mapped[List["UserVerification"]] = relationship(back_populates="identity")
+    verifications: Mapped[List["UserVerification"]] = relationship(
+        back_populates="identity"
+    )
     actions: Mapped[List["UserAction"]] = relationship(back_populates="identity")
 
 
@@ -137,7 +145,9 @@ class UserSession(Base):
     )
 
     user: Mapped[Optional["User"]] = relationship(back_populates="sessions")
-    identity: Mapped[Optional["UserIdentity"]] = relationship(back_populates="sessions")
+    identity: Mapped[Optional["UserIdentity"]] = relationship(
+        back_populates="sessions"
+    )
 
 
 class UserStatus(Base):
@@ -176,7 +186,9 @@ class UserVerification(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="verifications")
-    identity: Mapped[Optional["UserIdentity"]] = relationship(back_populates="verifications")
+    identity: Mapped[Optional["UserIdentity"]] = relationship(
+        back_populates="verifications"
+    )
 
 
 class UserAction(Base):
@@ -203,4 +215,6 @@ class UserAction(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="actions")
-    identity: Mapped[Optional["UserIdentity"]] = relationship(back_populates="actions")
+    identity: Mapped[Optional["UserIdentity"]] = relationship(
+        back_populates="actions"
+    )
