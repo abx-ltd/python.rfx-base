@@ -247,6 +247,7 @@ class UserProfileAggregate(Aggregate):
             return {"error": f"User with email {email} not found."}
         invitation_record = dict(
             _id=UUID_GENR(),
+            sender_id=self.context.user_id,
             organization_id=self.context.organization_id,
             user_id=user._id,
             email=email,

@@ -252,8 +252,6 @@ class CreateOrganization(Command):
         yield agg.create_response(serialize_mapping(org), _type="user-profile-response")
 
 
-
-
 class UpdateOrganization(Command):
     """
     Update organization information and settings.
@@ -319,7 +317,6 @@ class UpdateOrgRole(Command):
         resources = ("organization",)
         tags = ["organization"]
         auth_required = True
-        new_resource = True
         policy_required = True
 
     Data = datadef.UpdateOrgRolePayload
@@ -338,49 +335,48 @@ class RemoveOrgRole(Command):
         resources = ("organization",)
         tags = ["organization"]
         auth_required = True
-        new_resource = True
 
     Data = datadef.RemoveOrgRolePayload
 
     async def _process(self, agg, stm, payload):
         await agg.remove_org_role(payload)
 
-class CreateOrgType(Command):
-    """
-    Create new organization type for categorization and management.
-    Establishes organizational classifications for reporting and access control.
-    """
-    class Meta:
-        key = "create-org-type"
-        new_resource = True
-        resources = ("organization",)
-        tags = ["organization-type"]
-        auth_required = True
-        policy_required = True
+# class CreateOrgType(Command):
+#     """
+#     Create new organization type for categorization and management.
+#     Establishes organizational classifications for reporting and access control.
+#     """
+#     class Meta:
+#         key = "create-org-type"
+#         new_resource = True
+#         resources = ("organization",)
+#         tags = ["organization-type"]
+#         auth_required = True
+#         policy_required = True
 
-    Data = datadef.CreateOrgTypePayload
+#     Data = datadef.CreateOrgTypePayload
 
-    async def _process(self, agg, stm, payload):
-        result = await agg.create_org_type(serialize_mapping(payload))
-        yield agg.create_response(serialize_mapping(result), _type="user-profile-response")
+#     async def _process(self, agg, stm, payload):
+#         result = await agg.create_org_type(serialize_mapping(payload))
+#         yield agg.create_response(serialize_mapping(result), _type="user-profile-response")
 
-class RemoveOrgType(Command):
-    """
-    Remove organization type and revoke from all profiles.
-    Cascades removal to prevent orphaned role assignments.
-    """
-    class Meta:
-        key = "remove-org-type"
-        resources = ("ref__organization_type",)
-        tags = ["organization-type"]
-        auth_required = True
-        policy_required = True
+# class RemoveOrgType(Command):
+#     """
+#     Remove organization type and revoke from all profiles.
+#     Cascades removal to prevent orphaned role assignments.
+#     """
+#     class Meta:
+#         key = "remove-org-type"
+#         resources = ("organization",)
+#         tags = ["organization-type"]
+#         auth_required = True
+#         policy_required = True
 
-    Data = datadef.RemoveOrgTypePayload
+#     Data = datadef.RemoveOrgTypePayload
 
-    async def _process(self, agg, stm, payload):
-        result = await agg.remove_org_type(serialize_mapping(payload))
-        yield agg.create_response(result, _type="user-profile-response")
+#     async def _process(self, agg, stm, payload):
+#         result = await agg.remove_org_type(serialize_mapping(payload))
+#         yield agg.create_response(result, _type="user-profile-response")
 
 
 # ---------- Invitation Context -------

@@ -478,8 +478,9 @@ class Invitation(IDMBaseModel):
     __tablename__ = "invitation"
 
     organization_id = sa.Column(pg.UUID, sa.ForeignKey(Organization._id))
-    user_id = sa.Column(pg.UUID, sa.ForeignKey(UserSchema._id), nullable=True)
-    # profile_id = sa.Column(pg.UUID, nullable=False)
+    sender_id = sa.Column(pg.UUID, sa.ForeignKey(UserSchema._id), nullable=False)
+    profile_id = sa.Column(pg.UUID, sa.ForeignKey(Profile._id), nullable=True)
+    user_id = sa.Column(pg.UUID, sa.ForeignKey(UserSchema._id))
     email = sa.Column(sa.String)
     token = sa.Column(sa.String)
     status = sa.Column(
