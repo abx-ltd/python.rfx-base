@@ -21,9 +21,10 @@ from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, Integer, String, T
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from rfx_user.types import InvitationStatusEnum
+# Import from local types to avoid rfx_user module initialization
+from .types import InvitationStatusEnum
 
-from . import Base
+from . import Base, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .organization import Organization
@@ -37,16 +38,16 @@ class Invitation(Base):
     __tablename__ = "invitation"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.organization._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=False
     )
     sender_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=False
     )
     profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.profile._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id")
     )
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id")
     )
 
     email: Mapped[Optional[str]] = mapped_column(String(255))
@@ -77,7 +78,7 @@ class InvitationStatus(Base):
     __tablename__ = "invitation_status"
 
     invitation_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.invitation._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.invitation._id"), nullable=False
     )
     src_state: Mapped[InvitationStatusEnum] = mapped_column(
         SQLEnum(InvitationStatusEnum, name="invitation_status_enum"), nullable=False

@@ -1,4 +1,5 @@
 import logging
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import create_engine
@@ -6,12 +7,20 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# All schema bases inherit from NCSTelehealthConnector.__data_schema_base__
-# Import the connector and all schema modules to register their models
-from rfx_schema import config as rfx_config
-from rfx_schema import RFXConnector
+# STEP 1: Load base config (which triggers setupModule and reads from .ini files)
+from rfx_base import config as base_config
 
-# Import all schema modules to ensure their models are registered
+# STEP 2: Import schema config (it will have default values initially)
+from rfx_schema import config as schema_config
+
+# STEP 3: Override the schema names in the schema_config object
+# This happens BEFORE importing any schema modules
+schema_config.RFX_USER_SCHEMA = base_config.RFX_USER_SCHEMA
+schema_config.RFX_POLICY_SCHEMA = base_config.RFX_POLICY_SCHEMA
+schema_config.RFX_MESSAGE_SCHEMA = base_config.RFX_MESSAGE_SCHEMA
+
+# STEP 4: NOW import RFXConnector and schema modules
+from rfx_schema import RFXConnector
 from rfx_schema import _schema, _pgentity
 
 # this is the Alembic Config object, which provides
@@ -27,12 +36,29 @@ logger = logging.getLogger("alembic.env")
 
 # Use the shared base metadata for autogenerate
 target_metadata = RFXConnector.__data_schema_base__.metadata
-sync_url = rfx_config.DB_DSN.replace('+asyncpg://', '+psycopg2://')
+sync_url = schema_config.DB_DSN.replace('+asyncpg://', '+psycopg2://')
 
+# All available schemas
+ALL_SCHEMAS = {
+    'user': base_config.RFX_USER_SCHEMA,
+    'policy': base_config.RFX_POLICY_SCHEMA,
+    'message': base_config.RFX_MESSAGE_SCHEMA,
+}
 
-SCHEMAS = (
-    'rfx_user',
-)
+# Get schema filter from environment variable
+# Format: comma-separated list like "user,message" or "all" (default)
+# Set via: ALEMBIC_SCHEMA_FILTER=user,message alembic revision --autogenerate -m "message"
+# Or use the just commands: just mig-autogen "message" user,message
+schema_filter = os.getenv('ALEMBIC_SCHEMA_FILTER', 'all')
+if schema_filter and schema_filter != 'all':
+    # Filter schemas based on the provided names
+    schema_names = [s.strip() for s in schema_filter.split(',')]
+    SCHEMAS = tuple(ALL_SCHEMAS[name] for name in schema_names if name in ALL_SCHEMAS)
+    logger.info(f"🔍 Filtering migrations to schemas: {schema_names} -> {SCHEMAS}")
+else:
+    # Use all schemas
+    SCHEMAS = tuple(ALL_SCHEMAS.values())
+    logger.info(f"📋 Using all schemas: {SCHEMAS}")
 
 
 def include_server_default(inspector, table, column, column_default, metadata_default, **kw):
@@ -64,18 +90,8 @@ def include_object(object, name, type_, reflected, compare_to):
         logger.warning(f"include_object: skipping {name} because it is a view")
         return False
 
-
-    # # # Never drop tables - only allow CREATE and ALTER operations
-    # if reflected and not compare_to:
-    #     # This is an existing table in the database that doesn't exist in models
-    #     # Don't include it in autogenerate to prevent DROP TABLE
-    #     logger.debug(f"include_object: skipping {name} because it is an existing database entity")
-    #     return False
-
     # For other objects, use default behavior
     return True
-
-
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -125,7 +141,7 @@ def run_migrations_online() -> None:
             include_object=include_object,
             compare_type=True,
             include_server_default=include_server_default,
-            version_table='rfx_schema_alembic'
+            version_table='rfx_schema_version'
         )
 
         with context.begin_transaction():

@@ -22,7 +22,7 @@ from typing import Optional
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import Base
+from . import Base, SCHEMA
 
 
 class RefAction(Base):
@@ -66,5 +66,5 @@ class RefSystemRole(Base):
     official_role: Mapped[Optional[bool]] = mapped_column(Boolean)
     priority: Mapped[Optional[int]] = mapped_column(Integer)
     role_type: Mapped[Optional[str]] = mapped_column(
-        String(255), ForeignKey("rfx_user.ref__role_type.key")
+        String(255), ForeignKey(f"{SCHEMA}.ref__role_type.key")
     )

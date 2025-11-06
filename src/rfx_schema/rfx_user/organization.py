@@ -22,9 +22,10 @@ from sqlalchemy import ARRAY, Boolean, Enum as SQLEnum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from rfx_user.types import OrganizationStatusEnum
+# Import from local types to avoid rfx_user module initialization
+from .types import OrganizationStatusEnum
 
-from . import Base
+from . import Base, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .profile import Profile
@@ -52,7 +53,7 @@ class Organization(Base):
     )
     invitation_code: Mapped[Optional[str]] = mapped_column(String(10))
     type_key: Mapped[Optional[str]] = mapped_column(
-        "type", ForeignKey("rfx_user.ref__organization_type.key")
+        "type", ForeignKey(f"{SCHEMA}.ref__organization_type.key")
     )
 
     profiles: Mapped[List["Profile"]] = relationship(
@@ -82,10 +83,10 @@ class OrganizationDelegatedAccess(Base):
     __tablename__ = "organization_delegated_access"
 
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.organization._id"), nullable=True
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=True
     )
     delegated_organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.organization._id"), nullable=True
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=True
     )
     access_scope: Mapped[Optional[str]] = mapped_column(String(255))
 
@@ -112,7 +113,7 @@ class OrganizationRole(Base):
     key: Mapped[Optional[str]] = mapped_column(String(255))
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.organization._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=False
     )
 
     organization: Mapped["Organization"] = relationship(back_populates="roles")
@@ -124,7 +125,7 @@ class OrganizationStatus(Base):
     __tablename__ = "organization_status"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.organization._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=False
     )
     src_state: Mapped[OrganizationStatusEnum] = mapped_column(
         SQLEnum(OrganizationStatusEnum, name="organization_status_enum"), nullable=False

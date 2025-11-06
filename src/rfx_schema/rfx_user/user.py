@@ -26,13 +26,14 @@ from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, String, t
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from rfx_user.types import (
+# Import from local types to avoid rfx_user module initialization
+from .types import (
     UserActionStatusEnum,
     UserSourceEnum,
     UserStatusEnum,
 )
 
-from . import Base
+from . import Base, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .profile import Profile
@@ -116,7 +117,7 @@ class UserIdentity(Base):
     telecom__phone: Mapped[Optional[str]] = mapped_column(String(255))
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=False
     )
 
     user: Mapped["User"] = relationship(back_populates="identities")
@@ -138,10 +139,10 @@ class UserSession(Base):
     telecom__email: Mapped[Optional[str]] = mapped_column(String(255))
 
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id")
     )
     user_identity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user_identity._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user_identity._id")
     )
 
     user: Mapped[Optional["User"]] = relationship(back_populates="sessions")
@@ -164,7 +165,7 @@ class UserStatus(Base):
     note: Mapped[Optional[str]] = mapped_column(String(1024))
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=False
     )
 
     user: Mapped["User"] = relationship(back_populates="status_history")
@@ -179,10 +180,10 @@ class UserVerification(Base):
     last_sent_email: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=False
     )
     user_identity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user_identity._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user_identity._id")
     )
 
     user: Mapped["User"] = relationship(back_populates="verifications")
@@ -198,7 +199,7 @@ class UserAction(Base):
 
     _iid: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     action: Mapped[Optional[str]] = mapped_column(
-        String(255), ForeignKey("rfx_user.ref__action.key")
+        String(255), ForeignKey(f"{SCHEMA}.ref__action.key")
     )
     name: Mapped[Optional[str]] = mapped_column(String(1024))
     status: Mapped[UserActionStatusEnum] = mapped_column(
@@ -208,10 +209,10 @@ class UserAction(Base):
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=False
     )
     user_identity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user_identity._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user_identity._id")
     )
 
     user: Mapped["User"] = relationship(back_populates="actions")

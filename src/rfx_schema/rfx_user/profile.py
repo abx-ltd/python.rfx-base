@@ -23,9 +23,10 @@ from sqlalchemy import ARRAY, Boolean, DateTime, Enum as SQLEnum, ForeignKey, St
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from rfx_user.types import ProfileStatusEnum
+# Import from local types to avoid rfx_user module initialization
+from .types import ProfileStatusEnum
 
-from . import Base
+from . import Base, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .user import User
@@ -96,13 +97,13 @@ class Profile(Base):
     default_theme: Mapped[Optional[str]] = mapped_column(String(255))
 
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.user._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id")
     )
     current_profile: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.organization._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id")
     )
 
     user: Mapped[Optional["User"]] = relationship(back_populates="profiles")
@@ -131,7 +132,7 @@ class ProfileLocation(Base):
 
     _iid: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     profile_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.profile._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id"), nullable=False
     )
     app_name: Mapped[Optional[str]] = mapped_column(String(255))
     app_version: Mapped[Optional[str]] = mapped_column(String(15))
@@ -150,7 +151,7 @@ class ProfileStatus(Base):
     __tablename__ = "profile_status"
 
     profile_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.profile._id"), nullable=False
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id"), nullable=False
     )
     src_state: Mapped[ProfileStatusEnum] = mapped_column(
         SQLEnum(ProfileStatusEnum, name="profile_status_enum"), nullable=False
@@ -169,7 +170,7 @@ class ProfileRole(Base):
     __tablename__ = "profile_role"
 
     profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.profile._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id")
     )
     role_key: Mapped[Optional[str]] = mapped_column(String(255))
     role_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))

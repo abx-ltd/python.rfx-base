@@ -20,7 +20,7 @@ from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from . import Base
+from . import Base, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .profile import Profile
@@ -48,10 +48,10 @@ class ProfileGroup(Base):
     __tablename__ = "profile_group"
 
     group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.group._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.group._id")
     )
     profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("rfx_user.profile._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id")
     )
 
     group: Mapped[Optional["Group"]] = relationship(back_populates="profiles")
