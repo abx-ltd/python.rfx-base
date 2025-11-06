@@ -7,7 +7,7 @@ aggregates with Keycloak integration for identity management.
 
 Command Categories:
 - User Commands: User lifecycle management, Keycloak synchronization, action tracking
-- Organization Commands: Multi-tenant organization CRUD and custom role management  
+- Organization Commands: Multi-tenant organization CRUD and custom role management
 - Invitation Commands: Secure organization invitation workflow with token validation
 - Profile Commands: User profile management within organizational contexts
 - Group Commands: Security group operations and profile associations
@@ -27,7 +27,7 @@ from fluvius.data import serialize_mapping, DataModel, UUID_GENR
 
 from .domain import UserProfileDomain
 from .integration import kc_admin
-from . import datadef, config
+from . import datadef, config, logger
 
 processor = UserProfileDomain.command_processor
 Command = UserProfileDomain.Command
@@ -217,6 +217,7 @@ class CreateOrganization(Command):
         resources = ("organization",)
         tags = ["organization", "create"]
         auth_required = True
+        policy_required = False
 
     async def _process(self, agg, stm, payload):
         profile_id = UUID_GENR()
@@ -238,10 +239,19 @@ class CreateOrganization(Command):
             telecom__email=user.telecom__email,
             telecom__phone=user.telecom__phone,
             status='ACTIVE',
-            current_profile=True
+            current_profile=False
         )
         await agg.create_profile(profile_data)
+
+        profile_role = dict(
+            profile_id=profile_id,
+            role_key='OWNER',
+            role_source='SYSTEM'
+        )
+        await agg.assign_role_to_profile(data=profile_role)
         yield agg.create_response(serialize_mapping(org), _type="user-profile-response")
+
+
 
 
 class UpdateOrganization(Command):
@@ -256,6 +266,7 @@ class UpdateOrganization(Command):
         resources = ("organization",)
         tags = ["organization", "update"]
         auth_required = True
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         await agg.update_organization(payload)
@@ -314,7 +325,6 @@ class UpdateOrgRole(Command):
     async def _process(self, agg, stm, payload):
         await agg.update_org_role(payload)
 
-
 class RemoveOrgRole(Command):
     """
     Remove organization role and revoke from all profiles.
@@ -331,6 +341,40 @@ class RemoveOrgRole(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.remove_org_role(payload)
+
+class CreateOrgType(Command):
+    """
+    Create new organization type for categorization and management.
+    Establishes organizational classifications for reporting and access control.
+    """
+    class Meta:
+        key = "create-org-type"
+        new_resource = True
+        resources = ("ref__organization_type",)
+        tags = ["organization-type"]
+        auth_required = True
+        policy_required = False
+
+    Data = datadef.CreateOrgTypePayload
+
+    async def _process(self, agg, stm, payload):
+        org_type = await agg.create_org_type(payload)
+        yield agg.create_response(serialize_mapping(org_type), _type="user-profile-response")
+
+class RemoveOrgType(Command):
+    """
+    Remove organization type and revoke from all profiles.
+    Cascades removal to prevent orphaned role assignments.
+    """
+    class Meta:
+        key = "remove-org-type"
+        resources = ("ref__organization_type",)
+        tags = ["organization-type"]
+        auth_required = True
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        await agg.remove_org_type(payload)
 
 
 # ---------- Invitation Context -------
@@ -450,9 +494,24 @@ class CreateProfile(Command):
     Data = datadef.CreateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        profile = yield agg.create_profile(payload)
+        profile = await agg.create_profile(payload)
         yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
 
+class SwitchProfile(Command):
+    """
+    Switch active organization for user profile.
+    Updates current profile's organization context for multi-tenant operations.
+    """
+
+    class Meta:
+        key = "switch-profile"
+        resources = ("profile",)
+        tags = ["profile", "switch"]
+        auth_required = True
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.switch_profile(serialize_mapping())
 
 class UpdateProfile(Command):
     """

@@ -27,7 +27,21 @@ class CreateOrganizationPayload(DataModel):
     invitation_code: Optional[str] = Field(max_length=10, default=None)
     type: Optional[str] = None # FK to RefOrganizationType.key
 
-UpdateOrganizationPayload = CreateOrganizationPayload
+
+class UpdateOrganizationPayload(DataModel):
+    description: Optional[str]
+    name: Optional[str] = Field(max_length=255, default=None)
+    tax_id: Optional[str] = Field(max_length=9, default=None)
+    business_name: Optional[str] = None
+    system_entity: Optional[bool] = False
+    active: Optional[bool] = True
+    system_tag: Optional[List[str]] = []
+    user_tag: Optional[List[str]] = []
+    status: OrganizationStatusEnum = 'ACTIVE'
+    organization_code: Optional[str] = Field(max_length=255, default=None)
+    invitation_code: Optional[str] = Field(max_length=10, default=None)
+    type: Optional[str] = None # FK to RefOrganizationType.key
+
 
 class CreateProfilePayload(DataModel):
     """Payload for creating user profiles within organizations."""
@@ -103,7 +117,8 @@ class SendInvitationPayload(DataModel):
 
 class AssignRolePayload(DataModel):
     """Payload for assigning roles to profiles."""
-    role_id: UUID_TYPE
+    profile_id: Optional[UUID_TYPE] = None
+    role_key: str = 'VIEWER'
     role_source: str = 'SYSTEM'
 
 class RevokeRolePayload(DataModel):
@@ -116,6 +131,11 @@ class CreateOrgRolePayload(DataModel):
     description: Optional[str]
     name: str
     key: str
+
+class CreateOrgTypePayload(DataModel):
+    """Payload for creating organization types."""
+    key: str
+    display: Optional[str] = None
 
 class UpdateOrgRolePayload(DataModel):
     """Payload for updating organization roles."""

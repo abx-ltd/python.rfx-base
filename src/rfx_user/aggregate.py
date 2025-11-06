@@ -25,11 +25,11 @@ class UserProfileAggregate(Aggregate):
     Main aggregate for RFX User domain operations.
     Handles business logic for users, organizations, profiles, invitations, and groups.
     """
-    
+
     # ==========================================================================
     # STATUS TRACKING HELPERS
     # ==========================================================================
-    
+
     async def set_org_status(self, org, status, note=None):
         """Track organization status changes with audit trail."""
         record = self.init_resource("organization_status",
@@ -59,7 +59,7 @@ class UserProfileAggregate(Aggregate):
                                     note=note
                                     )
         await self.statemgr.insert(record)
-        
+
     # ==========================================================================
     # USER OPERATIONS
     # ==========================================================================
@@ -153,10 +153,11 @@ class UserProfileAggregate(Aggregate):
     # ==========================================================================
     # ORGANIZATION OPERATIONS
     # ==========================================================================
-    
+
     @action("organization-created", resources="organization")
     async def create_organization(self, data):
         """Create new organization with initial SETUP status."""
+
         record = self.init_resource(
             "organization",
             serialize_mapping(data),
@@ -166,6 +167,7 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.insert(record)
         await self.set_org_status(record, record.status)
         return record
+
 
     @action("organization-updated", resources="organization")
     async def update_organization(self, data):
@@ -208,6 +210,22 @@ class UserProfileAggregate(Aggregate):
         """Remove organization role and revoke from all profiles."""
         item = await self.statemgr.fetch('organization_role', data.role_id, organization_id=self.aggroot.identifier)
         await self.statemgr.invalidate_one("organization_role", item._id)
+        return {"removed": True}
+
+    @action("org-type-created", resources="ref__organization_type")
+    async def create_org_type(self, data):
+        """Create new organization type."""
+        record = self.init_resource("ref__organization_type", serialize_mapping(data), _id=UUID_GENR())
+        await self.statemgr.insert(record)
+        return {"org_type_id": record._id}
+
+    @action("org-type-removed", resources="ref__organization_type")
+    async def remove_org_type(self, data):
+        """Remove organization type."""
+        item = await self.statemgr.fetch('ref__organization_type', self.aggroot.identifier, _creator=self.context.profile_id)
+        if item is None:
+            return {"message": "Organization type not found."}
+        await self.statemgr.invalidate_one('ref__organization_type', item._id)
         return {"removed": True}
 
     # =========== Invitation Context ============
@@ -288,18 +306,39 @@ class UserProfileAggregate(Aggregate):
     # ==========================================================================
     # PROFILE OPERATIONS
     # ==========================================================================
-    
+
     @action("profile-created", resources=("organization", "profile"))
     async def create_profile(self, data):
         """Create user profile within organization. Generates unique profile with default ACTIVE status."""
         record = self.init_resource(
             "profile",
             serialize_mapping(data),
-            status=getattr(data, "status", "ACTIVE")
+            status=data.get("status", ProfileStatusEnum.ACTIVE),
         )
         await self.statemgr.insert(record)
         await self.set_profile_status(record, record.status)
         return record
+
+    @action("profile-switched", resources="profile")
+    async def switch_profile(self):
+        """Switch active profile in user context."""
+        profile_id = self.aggroot.identifier
+        if profile_id == self.context.profile_id:
+            return {"switched": False, "message": "Already using the specified profile."}
+
+        profiles = await self.statemgr.find_all("profile", where=dict(
+            user_id=self.context.user_id,
+            status=ProfileStatusEnum.ACTIVE
+        ))
+
+        for profile in profiles:
+            if profile._id == profile_id:
+                await self.statemgr.update(profile, current_profile=True)
+            else:
+                await self.statemgr.update(profile, current_profile=False)
+
+        return {"message": f"Switched to profile {profile_id}", "switched": True}
+
 
     @action("profile-updated", resources="profile")
     async def update_profile(self, data):
@@ -318,23 +357,26 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.update(item, status=ProfileStatusEnum.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatusEnum.DEACTIVATED)
 
-    @action("role-assigned-to-profile", resources="profile")
+    @action("role-assigned-to-profile", resources=("organization", "profile"))
     async def assign_role_to_profile(self, data):
         """Assign system role to profile. Prevents duplicate role assignments."""
-        role = await self.statemgr.fetch('ref__system_role', data.role_id)
+        role_key = data.get("role_key", "VIEWER")
+        profile_id = data.get("profile_id", self.aggroot.identifier)
+        role_source = data.get("role_source", "SYSTEM")
+        role = await self.statemgr.find_one('ref__system_role', where=dict(key=role_key))
         if await self.statemgr.find_all("profile_role", where=dict(
-            profile_id=self.aggroot.identifier,
-            role_id=data.role_id,
-            role_source=data.role_source
+            profile_id=profile_id,
+            role_key=role_key,
+            role_source=role_source,
         )):
             raise ValueError(f"{role.key} already assigned to profile!")
 
-        record = self.init_resource("profile_role",
-                                    serialize_mapping(data),
-                                    _id=UUID_GENR(),
-                                    profile_id=self.aggroot.identifier,
-                                    role_key=role.key
-                                    )
+        record = self.init_resource(
+            "profile_role",
+            serialize_mapping(data),
+            role_id=role._id,
+            _id=UUID_GENR(),
+        )
         await self.statemgr.insert(record)
         return record
 
@@ -354,7 +396,7 @@ class UserProfileAggregate(Aggregate):
     # ==========================================================================
     # GROUP OPERATIONS
     # ==========================================================================
-    
+
     @action("group-assigned-to-profile", resources="profile")
     async def assign_group_to_profile(self, data):
         """Assign profile to group. Validates group exists and prevents duplicates."""
