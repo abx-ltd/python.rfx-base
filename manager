@@ -1,0 +1,13 @@
+#!/bin/sh
+export PYTHONPATH="./src:./lib"
+
+if [ "$TARGET_ENV" != "" ]; then
+    export FLUVIUS_CONFIG_FILE="env/${TARGET_ENV}/cfg/base.ini|env/${TARGET_ENV}/cfg/config.ini"
+fi
+
+if [ "$ENABLE_PROFILE" = "true" ] || [ "$ENABLE_PROFILE" = "1" ]; then
+    echo "Profiling enabled: output will be saved to logs/manager.prof"
+    python -m cProfile -o logs/manager.prof -m rfx_manager -- "$@"
+else
+    python -m rfx_manager -- "$@"
+fi
