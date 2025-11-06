@@ -5,12 +5,12 @@ Profile Aggregate ORM Mapping
 Profiles capture user context inside an organization along with status and role
 assignments, device locations, and related audit trails.
 
-| Table           | Purpose                               | Key Relationships                           |
-| --------------- | ------------------------------------- | ------------------------------------------- |
-| profile         | User representation within org scope  | FK → user, organization; 1 → N roles/groups |
-| profile_status  | Status history for a profile          | FK → profile                                |
-| profile_role    | Assigned roles for the profile        | FK → profile                                |
-| profile_location| Device/activity tracking              | FK → profile                                |
+| Table            | Purpose                               | Key Relationships                           |
+| ---------------- | ------------------------------------- | ------------------------------------------- |
+| profile          | User representation within org scope  | FK → user, organization; 1 → N roles/groups |
+| profile_status   | Status history for a profile          | FK → profile                                |
+| profile_role     | Assigned roles for the profile        | FK → profile                                |
+| profile_location | Device/activity tracking              | FK → profile                                |
 """
 
 from __future__ import annotations
@@ -129,7 +129,7 @@ class ProfileLocation(Base):
 
     __tablename__ = "profile_location"
 
-    _iid: Mapped[Optional[uuid.UUID]] = mapped_column()
+    _iid: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     profile_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("rfx_user.profile._id"), nullable=False
     )

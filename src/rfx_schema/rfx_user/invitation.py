@@ -5,10 +5,10 @@ Invitation Aggregate ORM Mapping
 Handles invitations issued from organizations to users or profiles along with
 status change history.
 
-| Table            | Purpose                                 | Key Relationships                      |
-| ---------------- | --------------------------------------- | -------------------------------------- |
-| invitation       | Invitation record linking sender/target | FK → organization, user, profile       |
-| invitation_status| Audit log of invitation transitions     | FK → invitation                        |
+| Table             | Purpose                                 | Key Relationships                      |
+| ----------------- | --------------------------------------- | -------------------------------------- |
+| invitation        | Invitation record linking sender/target | FK → organization, user, profile       |
+| invitation_status | Audit log of invitation transitions     | FK → invitation                        |
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
