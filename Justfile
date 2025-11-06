@@ -29,7 +29,7 @@ init-db:
 @create-schema:
     ./manager db create-schema rfx_schema._schema.RFXConnector --force
 
-@drop-schema: print-vars && _drop_schema-confirmed
+@drop-schema: print-vars && _drop-schema-confirmed
 
 [confirm("This will drop the database schema for environment (see: {{TARGET_ENV}}). Are you sure?")]
 @_drop-schema-confirmed:
