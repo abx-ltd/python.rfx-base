@@ -1553,7 +1553,7 @@ class CreateWorkPackage(Command):
         new_resource = True
         auth_required = True
         description = "Create new work package"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.CreateWorkPackagePayload
 
@@ -2427,7 +2427,7 @@ class CreateInquiry(Command):
         auth_required = True
         description = "Create a new inquiry"
         new_resource = True
-        policy_required = False
+        policy_required = True
 
     Data = datadef.CreateInquiryPayload
 

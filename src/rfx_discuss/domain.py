@@ -14,8 +14,21 @@ class RFXDiscussDomain(Domain):
     __policymgr__ = RFXDiscussPolicyManager
 
 
-
-
 class CommentResponse(RFXDiscussDomain.Response):
     pass
 
+
+class PresignedUrlResponse(RFXDiscussDomain.Response):
+    pass
+
+
+class CommentAttachResponse(RFXDiscussDomain.Response):
+    pass
+
+
+class CommentReactionResponse(RFXDiscussDomain.Response):
+    pass
+
+
+class FlagResponse(RFXDiscussDomain.Response):
+    pass

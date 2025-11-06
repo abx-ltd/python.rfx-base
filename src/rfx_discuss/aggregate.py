@@ -65,3 +65,124 @@ class RFXDiscussAggregate(Aggregate):
 
         await self.statemgr.insert(new_comment)
         return new_comment
+
+    @action("attach-file", resources="comment")
+    async def attach_file_to_comment(self, /, data):
+        """Attach file to comment"""
+        comment = self.rootobj
+        attachment_data = serialize_mapping(data)
+        attachment_data["comment_id"] = comment._id
+        attachment = self.init_resource(
+            "comment_attachment",
+            attachment_data,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(attachment)
+        return attachment
+
+    @action("update-attachment", resources="comment")
+    async def update_attachment(self, /, data):
+        """Update attachment metadata"""
+        attachment = self.statemgr.find_one(
+            "comment_attachment", where={"attachment_id": data.attachment_id}
+        )
+        if not attachment:
+            raise ValueError(f"Attachment not found: {data.attachment_id}")
+        data_result = serialize_mapping(data)
+        await self.statemgr.update(attachment, **data_result)
+
+    @action("delete-attachment", resources="comment")
+    async def delete_attachment(self, /, data):
+        """Delete attachment from comment"""
+        attachment = self.statemgr.find_one(
+            "comment_attachment", where={"attachment_id": data.attachment_id}
+        )
+        if not attachment:
+            raise ValueError(f"Attachment not found: {data.attachment_id}")
+        await self.statemgr.invalidate(attachment)
+
+    @action("add-reaction", resources="comment")
+    async def add_reaction(self, /, data):
+        """Add reaction to comment"""
+        comment = self.rootobj
+        user_id = self.context.profile_id
+        reaction_data = serialize_mapping(data)
+        reaction_data["comment_id"] = comment._id
+        reaction_data["user_id"] = user_id
+        check_existing = await self.statemgr.find_one(
+            "comment_reaction",
+            where={
+                "comment_id": comment._id,
+                "user_id": user_id,
+            },
+        )
+        if check_existing:
+            raise ValueError(
+                f"Reaction already exists for user {user_id} on comment {comment._id}"
+            )
+        reaction = self.init_resource(
+            "comment_reaction",
+            reaction_data,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(reaction)
+        return reaction
+
+    @action("remove-reaction", resources="comment")
+    async def remove_reaction(self, /):
+        """Remove reaction from comment"""
+        user_id = self.context.profile_id
+        reaction = await self.statemgr.find_one(
+            "comment_reaction",
+            where={
+                "comment_id": self.rootobj._id,
+                "user_id": user_id,
+            },
+        )
+        if not reaction:
+            raise ValueError(
+                f"Reaction not found for user {user_id} on comment {self.rootobj._id}"
+            )
+        await self.statemgr.invalidate(reaction)
+
+    @action("flag-comment", resources="comment")
+    async def flag_comment(self, /, data):
+        """Flag comment"""
+        comment = self.rootobj
+        flag_data = serialize_mapping(data)
+        flag_data["comment_id"] = comment._id
+        flag_data["reported_by_user_id"] = self.context.profile_id
+        flag = self.init_resource(
+            "comment_flag",
+            flag_data,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(flag)
+        return flag
+
+    @action("resolve-flag", resources="comment")
+    async def resolve_flag(self, /, data):
+        """Resolve flag"""
+        comment = self.rootobj
+        if not comment:
+            raise ValueError(f"Comment not found: {self.rootobj._id}")
+        flag = await self.statemgr.find_one("comment_flag", where={"_id": data.flag_id})
+        if not flag:
+            raise ValueError(f"Flag not found: {data.flag_id}")
+
+        resolution = self.init_resource(
+            "comment_flag_resolution",
+            {
+                "flag_id": flag._id,
+                "resolved_by_user_id": self.context.profile_id,
+                "resolution_action": data.resolution_action,
+                "resolution_note": data.resolution_note,
+            },
+            _id=UUID_GENR(),
+        )
+        update_status = {}
+        update_status["status"] = "resolved"
+        await self.statemgr.update(flag, **update_status)
+
+        await self.statemgr.insert(resolution)
+        return resolution
