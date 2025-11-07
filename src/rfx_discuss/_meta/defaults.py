@@ -3,11 +3,20 @@ from rfx_base import config
 LOG_LEVEL = config.LOG_LEVEL
 DB_DSN = config.DB_DSN
 
-RFX_DISCUSSION_SCHEMA = config.RFX_DISCUSS_SCHEMA
+RFX_DISCUSS_SCHEMA = config.RFX_DISCUSS_SCHEMA
 POLICY_SCHEMA = config.RFX_POLICY_SCHEMA
+RFX_USER_SCHEMA = config.RFX_USER_SCHEMA
+MESSAGE_NAMESPACE = "rfx-message"
 
 POLICY_TABLE = "_policy__rfx_discussion"
 COMMENT_NESTED_LEVEL = 2
 
 NAMESPACE = "rfx-discuss"
 MESSAGE_NAMESPACE = "rfx-message"
+
+MESSAGE_ENABLED = True
+
+S3_BUCKET = None
+S3_REGION = None
+S3_ACCESS_KEY = None
+S3_SECRET_KEY = None

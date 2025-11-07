@@ -113,7 +113,6 @@ class CreateProject(Command):
                         description=new_project.description
                         if hasattr(new_project, "description")
                         else None,
-                        team_id=config.LINEAR_TEAM_ID,
                         lead_id=str(profile_id) if profile_id else None,
                         state=new_project.status
                         if hasattr(new_project, "status")
@@ -1553,7 +1552,7 @@ class CreateWorkPackage(Command):
         new_resource = True
         auth_required = True
         description = "Create new work package"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.CreateWorkPackagePayload
 
@@ -2427,7 +2426,7 @@ class CreateInquiry(Command):
         auth_required = True
         description = "Create a new inquiry"
         new_resource = True
-        policy_required = False
+        policy_required = True
 
     Data = datadef.CreateInquiryPayload
 
@@ -2503,7 +2502,6 @@ class CreateTicket(Command):
                         assignee_id=str(payload.assignee),
                         priority=payload.priority,
                         project_id=str(payload.project_id),
-                        team_id=str(config.LINEAR_TEAM_ID),
                     )
 
                     pm_response = await pm_service.create_ticket(pm_payload)
