@@ -110,7 +110,7 @@ class UpdateComment(Command):
                     command="send-message",
                     resource="message",
                     payload={
-                        "recipients": [str(user_id["id"] for user_id in users_info)],
+                        "recipients": [str(user_id["id"]) for user_id in users_info],
                         "subject": message_subject,
                         "message_type": "NOTIFICATION",
                         "priority": "MEDIUM",
@@ -179,7 +179,7 @@ class ReplyToComment(Command):
                     command="send-message",
                     resource="message",
                     payload={
-                        "recipients": [str(user_id["id"] for user_id in users_info)],
+                        "recipients": [str(user_id["id"]) for user_id in users_info],
                         "subject": message_subject,
                         "message_type": "NOTIFICATION",
                         "priority": "MEDIUM",

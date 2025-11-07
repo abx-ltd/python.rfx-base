@@ -585,3 +585,70 @@ class CommentQuery(DomainQueryResource):
     resource: str = StringField("Resource Type")
     resource_id: UUID_TYPE = UUIDField("Resource ID")
     source: str = StringField("Source")
+
+
+@resource("comment-attachment")
+class CommentAttachmentQuery(DomainQueryResource):
+    """Comment attachment queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "commment_attachment"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_comment_attachment"
+        scope_required = scope.CommentAttachmentScopeSchema
+
+    comment_id: UUID_TYPE = UUIDField("Comment ID", filterable=True)
+    file_url: str = StringField("File URL")
+    file_name: str = StringField("File Name", filterable=True, searchable=True)
+    file_type: str = StringField("File Type", filterable=True)
+    file_size: int = IntegerField("File Size")
+    file_extension: str = StringField("File Extension", filterable=True)
+    is_image: bool = BooleanField("Is Image", filterable=True)
+    image_width: int = IntegerField("Image Width")
+    image_height: int = IntegerField("Image Height")
+    thumbnail_url: str = StringField("Thumbnail URL")
+    upload_status: str = StringField("Upload Status", filterable=True)
+    uploader: dict = DictField("Uploader")
+
+
+@resource("comment-reaction")
+class CommentReactionQuery(DomainQueryResource):
+    """Comment reaction queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "comment_reaction"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_comment_reaction"
+        scope_required = scope.CommentReactionScopeSchema
+
+    comment_id: UUID_TYPE = UUIDField("Comment ID", filterable=True)
+    user_id: UUID_TYPE = UUIDField("User ID", filterable=True)
+    reaction_type: str = StringField("Reaction Type", filterable=True)
+
+
+@resource("comment-reaction-summary")
+class CommentReactionSummaryQuery(DomainQueryResource):
+    """Comment Reaction Summary queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "comment-reaction-summary"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_comment_reaction_summary"
+        scope_required = scope.CommentReactionScopeSchema
+
+    comment_id: UUID_TYPE = UUIDField("Comment ID", filterable=True)
+    reaction_type: str = StringField("Reaction Type", filterable=True)
+    reaction_count: int = IntegerField("Reaction Count")
+    users: dict = DictField("Users")

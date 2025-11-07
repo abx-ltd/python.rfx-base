@@ -83,19 +83,29 @@ class RFXDiscussAggregate(Aggregate):
     @action("update-attachment", resources="comment")
     async def update_attachment(self, /, data):
         """Update attachment metadata"""
-        attachment = self.statemgr.find_one(
-            "comment_attachment", where={"attachment_id": data.attachment_id}
+        comment = self.rootobj
+        if not comment:
+            raise ValueError("Comment not found")
+
+        attachment = await self.statemgr.find_one(
+            "comment_attachment",
+            where={"_id": data.attachment_id, "comment_id": comment._id},
         )
         if not attachment:
             raise ValueError(f"Attachment not found: {data.attachment_id}")
         data_result = serialize_mapping(data)
+        data_result.pop("attachment_id", None)
         await self.statemgr.update(attachment, **data_result)
 
     @action("delete-attachment", resources="comment")
     async def delete_attachment(self, /, data):
         """Delete attachment from comment"""
-        attachment = self.statemgr.find_one(
-            "comment_attachment", where={"attachment_id": data.attachment_id}
+        comment = self.rootobj
+        if not comment:
+            raise ValueError("Comment not found")
+        attachment = await self.statemgr.find_one(
+            "comment_attachment",
+            where={"_id": data.attachment_id, "comment_id": comment._id},
         )
         if not attachment:
             raise ValueError(f"Attachment not found: {data.attachment_id}")

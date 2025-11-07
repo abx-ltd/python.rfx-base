@@ -3,20 +3,22 @@ from fluvius.domain.activity import ActivityType
 from fluvius.domain.aggregate import AggregateRoot
 
 from .domain import RFXClientDomain
-from . import datadef, config
+from . import datadef, config, utils
 from .helper import get_project_member_user_ids
 
 
 from rfx_integration.pm_service import PMService
-from rfx_integration.pm_service.base import CreateTicketPayload
-from rfx_integration.pm_service.base import UpdateTicketPayload as PMUpdatePayload
-from rfx_integration.pm_service.base import CreateProjectPayload as PMProjectPayload
 from rfx_integration.pm_service.base import (
+    CreateTicketPayload,
+    UpdateTicketPayload as PMUpdatePayload,
+    CreateProjectPayload as PMProjectPayload,
     CreateCommentPayload as PMCreateCommentPayload,
-)
-from rfx_integration.pm_service.base import (
     UpdateCommentPayload as PMUpdateCommentPayload,
+    UpdateProjectPayload as PMUpdateProjectPayload,
+    CreateProjectMilestonePayload as PMCreateMilestonePayload,
+    UpdateProjectMilestonePayload as PMUpdateMilestonePayload,
 )
+
 
 processor = RFXClientDomain.command_processor
 Command = RFXClientDomain.Command
@@ -101,40 +103,21 @@ class CreateProject(Command):
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
-                logger.info(
-                    f"Starting sync project to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                )
-
                 async with PMService.init_client(
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                 ) as pm_service:
                     pm_payload = PMProjectPayload(
                         name=new_project.name,
-                        description=new_project.description
-                        if hasattr(new_project, "description")
-                        else None,
+                        description=getattr(new_project, "description", None),
                         lead_id=str(profile_id) if profile_id else None,
-                        state=new_project.status
-                        if hasattr(new_project, "status")
-                        else "PLANNED",
-                        start_date=new_project.start_date.isoformat()
-                        if hasattr(new_project, "start_date") and new_project.start_date
-                        else None,
-                        target_date=new_project.target_date.isoformat()
-                        if hasattr(new_project, "target_date")
-                        and new_project.target_date
-                        else None,
+                        state=getattr(new_project, "status", "PLANNED"),
+                        start_date=getattr(new_project, "start_date", None).isoformat(),
+                        target_date=getattr(
+                            new_project, "target_date", None
+                        ).isoformat(),
                         project_id=str(new_project._id),
                     )
-
                     pm_response = await pm_service.create_project(pm_payload)
-
-                    logger.info(
-                        f"✓ Synced project to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"  External ID: {pm_response.external_id}")
-                    logger.info(f"  URL: {pm_response.url}")
-
                     await agg.create_project_integration(
                         data=datadef.CreateProjectIntegrationPayload(
                             provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -142,12 +125,8 @@ class CreateProject(Command):
                             external_url=pm_response.url,
                         )
                     )
-
             except Exception as e:
                 logger.error(f"✗ Failed to sync project: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
 
 
 class UpdateProject(Command):
@@ -229,50 +208,21 @@ class UpdateProject(Command):
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                     ),
                 )
-
-                if not integration:
-                    logger.warning(
-                        "No integration found for this project, skipping sync"
-                    )
-                else:
-                    from rfx_integration.pm_service import PMService
-                    from rfx_integration.pm_service.base import (
-                        UpdateProjectPayload as PMUpdateProjectPayload,
-                    )
-
-                    logger.info(
-                        f"Syncing update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"External ID: {integration.external_id}")
-
+                if integration:
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
                         pm_payload = PMUpdateProjectPayload(
                             external_id=integration.external_id,
                             name=payload.name if payload.name else None,
-                            description=payload.description
-                            if payload.description
-                            else None,
-                            state=payload.status
-                            if hasattr(payload, "status") and payload.status
-                            else None,
-                            lead_id=str(payload.lead_id)
-                            if hasattr(payload, "lead_id") and payload.lead_id
-                            else None,
-                            target_date=payload.target_date.isoformat()
-                            if hasattr(payload, "target_date") and payload.target_date
-                            else None,
+                            description=payload.description,
+                            state=getattr(payload, "status", None),
+                            lead_id=str(getattr(payload, "lead_id", None)),
+                            target_date=getattr(
+                                payload, "target_date", None
+                            ).isoformat(),
                         )
-
                         pm_response = await pm_service.update_project(pm_payload)
-
-                        logger.info(
-                            f"✓ Updated in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                        )
-                        logger.info(f"  External ID: {integration.external_id}")
-                        logger.info(f"  Updated: {pm_response.updated}")
-
                         await agg.update_project_integration(
                             data=datadef.UpdateProjectIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -280,14 +230,8 @@ class UpdateProject(Command):
                                 external_url=pm_response.external_url,
                             )
                         )
-
-                        logger.info("✓ Updated integration metadata")
-
             except Exception as e:
                 logger.error(f"✗ Failed to sync update to PM service: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
 
 
 class DeleteProject(Command):
@@ -348,7 +292,6 @@ class DeleteProject(Command):
                     }
                 },
             )
-
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 integration = await stm.find_one(
@@ -358,49 +301,22 @@ class DeleteProject(Command):
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                     ),
                 )
-
                 if integration:
-                    from rfx_integration.pm_service import PMService
-
-                    logger.info(
-                        f"Removing project from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"External ID: {integration.external_id}")
-
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        success = await pm_service.delete_project(
+                        await pm_service.delete_project(
                             project_id=integration.external_id,
                             permanently=True,
                         )
-
-                        if success:
-                            logger.info(
-                                f"✓ Deleted from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                            )
-                        else:
-                            logger.warning(
-                                f"Failed to delete from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                            )
-
                         await agg.remove_project_integration(
                             data=datadef.RemoveProjectIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                                 external_id=integration.external_id,
                             )
                         )
-
-                        logger.info("✓ Removed integration record")
-                else:
-                    logger.info("No integration found, skipping PM service deletion")
-
             except Exception as e:
                 logger.error(f"✗ Failed to remove from PM service: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
-
         await agg.delete_project()
 
 
@@ -1162,46 +1078,20 @@ class CreateProjectMilestone(Command):
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                     ),
                 )
-
-                if not project_integration:
-                    logger.warning(
-                        "No project integration found, cannot sync milestone"
-                    )
-                else:
-                    from rfx_integration.pm_service import PMService
-                    from rfx_integration.pm_service.base import (
-                        CreateProjectMilestonePayload as PMCreateMilestonePayload,
-                    )
-
-                    logger.info(
-                        f"Syncing milestone to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-
+                if project_integration:
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
                         pm_payload = PMCreateMilestonePayload(
                             name=result.name,
                             project_id=project_integration.external_id,
-                            description=result.description
-                            if hasattr(result, "description")
-                            else None,
-                            target_date=result.target_date.isoformat()
-                            if hasattr(result, "target_date") and result.target_date
-                            else None,
-                            sort_order=result.sort_order
-                            if hasattr(result, "sort_order")
-                            else None,
+                            description=getattr(result, "description", None),
+                            target_date=getattr(result, "target_date", None),
+                            sort_order=getattr(result, "sort_order", None),
                         )
-
                         pm_response = await pm_service.create_project_milestone(
                             pm_payload
                         )
-
-                        logger.info(
-                            f"✓ Synced milestone to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                        )
-
                         await agg.create_project_milestone_integration(
                             data=datadef.CreateProjectMilestoneIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -1211,14 +1101,8 @@ class CreateProjectMilestone(Command):
                                 external_url=pm_response.external_url,
                             )
                         )
-
-                        logger.info("✓ Created milestone integration record")
-
             except Exception as e:
                 logger.error(f"✗ Failed to sync milestone: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
 
 
 class UpdateProjectMilestone(Command):
@@ -1243,6 +1127,10 @@ class UpdateProjectMilestone(Command):
         project_milestone = await stm.find_one(
             "project_milestone", where={"_id": payload.milestone_id}
         )
+        if not project_milestone:
+            raise ValueError(
+                f"Project milestone with ID {payload.milestone_id} not found."
+            )
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -1297,51 +1185,20 @@ class UpdateProjectMilestone(Command):
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                     ),
                 )
-
-                if not milestone_integration:
-                    logger.warning("No milestone integration found, skipping sync")
-                else:
-                    from rfx_integration.pm_service import PMService
-                    from rfx_integration.pm_service.base import (
-                        UpdateProjectMilestonePayload as PMUpdateMilestonePayload,
-                    )
-
-                    logger.info(
-                        f"Syncing milestone update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"External ID: {milestone_integration.external_id}")
-
+                if milestone_integration:
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
                         pm_payload = PMUpdateMilestonePayload(
                             external_id=milestone_integration.external_id,
-                            name=payload.name
-                            if hasattr(payload, "name") and payload.name
-                            else None,
-                            description=payload.description
-                            if hasattr(payload, "description") and payload.description
-                            else None,
-                            target_date=payload.target_date.isoformat()
-                            if hasattr(payload, "target_date") and payload.target_date
-                            else None,
-                            sort_order=payload.sort_order
-                            if hasattr(payload, "sort_order")
-                            else None,
+                            name=getattr(payload, "name", None),
+                            description=getattr(payload, "description", None),
+                            target_date=getattr(payload, "target_date", None),
+                            sort_order=getattr(payload, "sort_order", None),
                         )
-
                         pm_response = await pm_service.update_project_milestone(
                             pm_payload
                         )
-
-                        logger.info(
-                            f"✓ Updated milestone in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                        )
-                        logger.info(
-                            f"  External ID: {milestone_integration.external_id}"
-                        )
-                        logger.info(f"  Updated: {pm_response.updated}")
-
                         await agg.update_project_milestone_integration(
                             data=datadef.UpdateProjectMilestoneIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -1352,13 +1209,8 @@ class UpdateProjectMilestone(Command):
                             )
                         )
 
-                        logger.info("✓ Updated milestone integration metadata")
-
             except Exception as e:
                 logger.error(f"✗ Failed to sync milestone update: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
 
 
 class DeleteProjectMilestone(Command):
@@ -1437,29 +1289,12 @@ class DeleteProjectMilestone(Command):
                 )
 
                 if milestone_integration:
-                    from rfx_integration.pm_service import PMService
-
-                    logger.info(
-                        f"Deleting milestone from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"External ID: {milestone_integration.external_id}")
-
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        success = await pm_service.delete_project_milestone(
+                        await pm_service.delete_project_milestone(
                             external_id=milestone_integration.external_id
                         )
-
-                        if success:
-                            logger.info(
-                                f"✓ Deleted milestone from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                            )
-                        else:
-                            logger.warning(
-                                f"Failed to delete milestone from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                            )
-
                         await agg.remove_project_milestone_integration(
                             data=datadef.RemoveProjectMilestoneIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -1469,17 +1304,8 @@ class DeleteProjectMilestone(Command):
                             )
                         )
 
-                        logger.info("✓ Removed milestone integration record")
-                else:
-                    logger.info(
-                        "No milestone integration found, skipping PM service deletion"
-                    )
-
             except Exception as e:
                 logger.error(f"✗ Failed to delete milestone from PM service: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
 
 
 class CreateProjectCategory(Command):
@@ -2503,11 +2329,7 @@ class CreateTicket(Command):
                         priority=payload.priority,
                         project_id=str(payload.project_id),
                     )
-
                     pm_response = await pm_service.create_ticket(pm_payload)
-
-                    logger.info(f"pm_responese {pm_response}")
-
                     await agg.create_ticket_integration(
                         data=datadef.CreateTicketIntegrationPayload(
                             provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -2566,45 +2388,19 @@ class UpdateTicketInfo(Command):
                     ),
                 )
 
-                if not integration:
-                    logger.warning(
-                        "No integration found for this ticket, skipping sync"
-                    )
-                else:
-                    logger.info(
-                        f"Syncing update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"External ID: {integration.external_id}")
-
+                if integration:
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
                         pm_payload = PMUpdatePayload(
                             external_id=integration.external_id,
-                            title=payload.title if payload.title else None,
-                            description=payload.description
-                            if payload.description
-                            else None,
-                            status_id=str(payload.status)
-                            if hasattr(payload, "status") and payload.status
-                            else None,
-                            assignee_id=str(payload.assignee)
-                            if hasattr(payload, "assignee") and payload.assignee
-                            else None,
-                            priority=payload.priority
-                            if hasattr(payload, "priority") and payload.priority
-                            else None,
+                            title=getattr(payload, "title", None),
+                            description=getattr(payload, "description", None),
+                            status_id=str(getattr(payload, "status", None)),
+                            assignee_id=str(getattr(payload, "assignee", None)),
+                            priority=getattr(payload, "priority", None),
                         )
-
                         pm_response = await pm_service.update_ticket(pm_payload)
-                        logger.info(f"PM Response: {pm_response}")
-
-                        logger.info(
-                            f"✓ Updated in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                        )
-                        logger.info(f"  External ID: {integration.external_id}")
-                        logger.info(f"  Updated: {pm_response.updated}")
-
                         await agg.update_ticket_integration(
                             data=datadef.UpdateTicketIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -2612,14 +2408,8 @@ class UpdateTicketInfo(Command):
                                 external_url=pm_response.external_url,
                             )
                         )
-
-                        logger.info("✓ Updated integration metadata")
-
             except Exception as e:
                 logger.error(f"✗ Failed to sync update to PM service: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
 
         ticket_update = await stm.find_one(
             "ticket", where=dict(_id=agg.get_aggroot().identifier)
@@ -2670,29 +2460,13 @@ class RemoveTicket(Command):
                 )
 
                 if integration:
-                    from rfx_integration.pm_service import PMService
-
-                    logger.info(
-                        f"Removing ticket from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"External ID: {integration.external_id}")
-
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        success = await pm_service.delete_ticket(
+                        await pm_service.delete_ticket(
                             external_id=integration.external_id,
                             permanently=True,
                         )
-
-                        if success:
-                            logger.info(
-                                f"✓ Deleted from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                            )
-                        else:
-                            logger.warning(
-                                f"Failed to delete from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                            )
 
                         await agg.remove_ticket_integration(
                             data=datadef.RemoveTicketIntegrationPayload(
@@ -2701,15 +2475,8 @@ class RemoveTicket(Command):
                             )
                         )
 
-                        logger.info("✓ Removed integration record")
-                else:
-                    logger.info("No integration found, skipping PM service deletion")
-
             except Exception as e:
                 logger.error(f"✗ Failed to remove from PM service: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
 
         await agg.remove_ticket()
 
@@ -3200,13 +2967,47 @@ class CreateComment(Command):
 
         result = await agg.create_comment(data=payload_dict)
 
+        mentions = utils.extract_mentions(payload.content)
+        if mentions:
+            unique_users_id = {mention["user_id"] for mention in mentions}
+            users_info = await utils.get_mentioned_users(stm, list(unique_users_id))
+            profile_id = agg.get_context().profile_id
+            profile = await stm.get_profile(profile_id)
+            message_content = f"{profile.name__given} {profile.name__family} mentioned you in a commnet"
+            message_subject = "Mention In Comment"
+
+            if config.MESSAGE_ENABLED:
+                context = agg.get_context()
+                service_proxy = context.service_proxy
+                await service_proxy.msg_client.send(
+                    f"{config.MESSAGE_NAMESPACE}:send-message",
+                    command="send-message",
+                    resource="message",
+                    payload={
+                        "recipients": [str(user_id["id"]) for user_id in users_info],
+                        "subject": message_subject,
+                        "message_type": "NOTIFICATION",
+                        "priority": "MEDIUM",
+                        "content": message_content,
+                        "content_type": "TEXT",
+                    },
+                    _headers={},
+                    _context={
+                        "audit": {
+                            "user_id": str(context.profile_id),
+                            "profile_id": str(context.profile_id),
+                            "organization_id": str(context.organization_id),
+                            "realm": context.realm,
+                        }
+                    },
+                )
+
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and resource_type != "project":
             try:
                 if not config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER:
                     raise ValueError(
                         "PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set"
                     )
-
                 integration_table = f"{resource_type}_integration"
                 resource_integration = await stm.find_one(
                     integration_table,
@@ -3215,18 +3016,7 @@ class CreateComment(Command):
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                     ),
                 )
-
-                if not resource_integration:
-                    logger.warning(
-                        f"No {resource_type} integration found, cannot sync comment"
-                    )
-                else:
-                    logger.info(
-                        f"Syncing comment to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"  Resource: {resource_type}/{resource_id}")
-                    logger.info(f"  External ID: {resource_integration.external_id}")
-
+                if resource_integration:
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
@@ -3237,15 +3027,7 @@ class CreateComment(Command):
                             parent_id=None,
                             resource_type=resource_type,
                         )
-
                         pm_response = await pm_service.create_comment(pm_payload)
-
-                        logger.info(
-                            f"✓ Synced comment to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                        )
-                        logger.info(f"  External Comment ID: {pm_response.external_id}")
-                        logger.info(f"  URL: {pm_response.url}")
-
                         await agg.create_comment_integration(
                             data=datadef.CreateCommentIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -3255,15 +3037,8 @@ class CreateComment(Command):
                                 source="user",
                             )
                         )
-
-                        logger.info("✓ Created comment integration record")
-
             except Exception as e:
                 logger.error(f"✗ Failed to sync comment: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
-
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 
@@ -3283,6 +3058,40 @@ class UpdateComment(Command):
     async def _process(self, agg, stm, payload):
         """Update comment"""
         await agg.update_comment(data=payload)
+        mentions = utils.extract_mentions(payload.content)
+        if mentions:
+            unique_users_id = {mentions["user_id"] for mentions in mentions}
+            users_info = await utils.get_mentioned_users(stm, list(unique_users_id))
+            profile_id = agg.get_context().profile_id
+            profile = await stm.get_profile(profile_id)
+            message_content = f"{profile.name__given} {profile.name__family} mentioned you in a commnet"
+            message_subject = "Mention In Comment"
+            if config.MESSAGE_ENABLED:
+                context = agg.get_context()
+                service_proxy = context.service_proxy
+                await service_proxy.msg_client.send(
+                    f"{config.MESSAGE_NAMESPACE}:send-message",
+                    command="send-message",
+                    resource="message",
+                    payload={
+                        "recipients": [str(user_id["id"]) for user_id in users_info],
+                        "subject": message_subject,
+                        "message_type": "NOTIFICATION",
+                        "priority": "MEDIUM",
+                        "content": message_content,
+                        "content_type": "TEXT",
+                    },
+                    _headers={},
+                    _context={
+                        "audit": {
+                            "user_id": str(context.profile_id),
+                            "profile_id": str(context.profile_id),
+                            "organization_id": str(context.organization_id),
+                            "realm": context.realm,
+                        }
+                    },
+                )
+
         updated_comment = await stm.find_one(
             "comment", where=dict(_id=agg.get_aggroot().identifier)
         )
@@ -3302,15 +3111,7 @@ class UpdateComment(Command):
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                     ),
                 )
-
-                if not comment_integration:
-                    logger.warning("No comment integration found, skipping sync")
-                else:
-                    logger.info(
-                        f"Syncing comment update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"  External ID: {comment_integration.external_id}")
-
+                if comment_integration:
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
@@ -3318,14 +3119,7 @@ class UpdateComment(Command):
                             external_id=comment_integration.external_id,
                             body=updated_comment.content,
                         )
-
                         pm_response = await pm_service.update_comment(pm_payload)
-
-                        logger.info(
-                            f"✓ Updated comment in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                        )
-                        logger.info(f"  External ID: {comment_integration.external_id}")
-
                         await agg.update_comment_integration(
                             data=datadef.UpdateCommentIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -3335,15 +3129,8 @@ class UpdateComment(Command):
                                 else comment_integration.external_url,
                             )
                         )
-
-                        logger.info("✓ Updated comment integration metadata")
-
             except Exception as e:
                 logger.error(f"✗ Failed to sync comment update: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
-
         yield agg.create_response(
             serialize_mapping(updated_comment), _type="comment-response"
         )
@@ -3372,7 +3159,6 @@ class DeleteComment(Command):
                     raise ValueError(
                         "PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set"
                     )
-
                 comment_integration = await stm.find_one(
                     "comment_integration",
                     where=dict(
@@ -3380,29 +3166,13 @@ class DeleteComment(Command):
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                     ),
                 )
-
                 if comment_integration:
-                    logger.info(
-                        f"Deleting comment from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                    )
-                    logger.info(f"  External ID: {comment_integration.external_id}")
-
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        success = await pm_service.delete_comment(
+                        await pm_service.delete_comment(
                             external_id=comment_integration.external_id
                         )
-
-                        if success:
-                            logger.info(
-                                f"✓ Deleted comment from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                            )
-                        else:
-                            logger.warning(
-                                f"Failed to delete comment from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
-                            )
-
                         await agg.remove_comment_integration(
                             data=datadef.RemoveCommentIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
@@ -3410,19 +3180,8 @@ class DeleteComment(Command):
                                 comment_id=comment_id,
                             )
                         )
-
-                        logger.info("✓ Removed comment integration record")
-                else:
-                    logger.info(
-                        "No comment integration found, skipping PM service deletion"
-                    )
-
             except Exception as e:
                 logger.error(f"✗ Failed to delete from PM service: {str(e)}")
-                import traceback
-
-                logger.error(traceback.format_exc())
-
         await agg.delete_comment()
 
 
@@ -3441,8 +3200,232 @@ class ReplyToComment(Command):
 
     async def _process(self, agg, stm, payload):
         """Reply to comment"""
+        comment_parent_id = agg.get_aggroot().identifier
+        comment_parent = await stm.find_one(
+            "comment", where=dict(_id=comment_parent_id)
+        )
+        resource_type = comment_parent.resource
+        resource_id = comment_parent.resource_id
+
+        payload_dict = serialize_mapping(payload)
+        payload_dict["resource"] = resource_type
+        payload_dict["resource_id"] = str(resource_id)
+        payload_dict["source"] = "user"
+
         result = await agg.reply_to_comment(data=payload)
+
+        mentions = utils.extract_mentions(payload.content)
+        if mentions:
+            unique_users_id = {mention["user_id"] for mention in mentions}
+            users_info = await utils.get_mentioned_users(stm, list(unique_users_id))
+            profile_id = agg.get_context().profile_id
+            profile = await stm.get_profile(profile_id)
+            message_content = f"{profile.name__given} {profile.name__family} mentioned you in a commnet"
+            message_subject = "Mention In Comment"
+            if config.MESSAGE_ENABLED:
+                context = agg.get_context()
+                service_proxy = context.service_proxy
+                await service_proxy.msg_client.send(
+                    f"{config.MESSAGE_NAMESPACE}:send-message",
+                    command="send-message",
+                    resource="message",
+                    payload={
+                        "recipients": [str(user_id["id"]) for user_id in users_info],
+                        "subject": message_subject,
+                        "message_type": "notification",
+                        "priority": "MEDIUM",
+                        "content": message_content,
+                        "content_type": "TEXT",
+                    },
+                )
+
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and resource_type != "project":
+            try:
+                if not config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER:
+                    raise ValueError(
+                        "PROJECT_MANAGEMENT_INTEGRATION_PROVIDER is not set"
+                    )
+                integration_table = f"{resource_type}_integration"
+                resource_integration = await stm.find_one(
+                    integration_table,
+                    where=dict(
+                        **{f"{resource_type}_id": resource_id},
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                    ),
+                )
+                if resource_integration:
+                    async with PMService.init_client(
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
+                    ) as pm_service:
+                        pm_payload = PMCreateCommentPayload(
+                            body=result.content,
+                            target_id=resource_integration.external_id,
+                            comment_id=str(result._id),
+                            parent_id=str(comment_parent._id),
+                            resource_type=resource_type,
+                        )
+                        pm_response = await pm_service.create_comment(pm_payload)
+                        await agg.create_comment_integration(
+                            data=datadef.CreateCommentIntegrationPayload(
+                                provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                                external_id=pm_response.external_id,
+                                external_url=pm_response.url,
+                                comment_id=result._id,
+                                source="user",
+                            )
+                        )
+
+            except Exception as e:
+                logger.error(f"✗ Failed to sync comment reply: {str(e)}")
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
+
+class RequestAttachmentUpload(Command):
+    """Request Attachment Upload - Requests an upload URL for comment attachment"""
+
+    class Meta:
+        key = "request-attachment-upload"
+        resource = ("comment",)
+        tags = ["comment", "attachment", "upload"]
+        auth_required = True
+        description = "Request presign URL for file attachment upload"
+        policy_required = False
+
+    Data = datadef.AttachmentUploadPayload
+
+    async def _process(self, agg, stm, payload):
+        """Request attachment upload"""
+        from .utils import generate_presigned_upload_url
+
+        comment_id = agg.get_aggroot().identifier
+
+        presigned_data = await generate_presigned_upload_url(
+            file_name=payload.file_name,
+            file_type=payload.file_type,
+            file_size=payload.file_size,
+            comment_id=str(comment_id),
+        )
+        yield agg.create_response(
+            {
+                "presigned_url": presigned_data["url"],
+                "file_key": presigned_data["key"],
+                "expires_in": presigned_data["expires_in"],
+                "upload_fields": presigned_data.get("fields", {}),
+            },
+            _type="presigned-url-response",
+        )
+
+
+class AttachFileToComment(Command):
+    """Attach File to Comment - Attaches a file to a comment after upload"""
+
+    class Meta:
+        key = "attach-file"
+        resources = ("comment",)
+        tags = ["comment", "attachment"]
+        auth_required = True
+        description = "Attach file to comment after upload"
+        policy_required = False
+
+    Data = datadef.AttachFileToCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Attach file to comment"""
+        result = await agg.attach_file_to_comment(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result), _type="comment-attach-response"
+        )
+
+
+class UpdateAttachment(Command):
+    """Update Attachment - Updates attachment metadata"""
+
+    class Meta:
+        key = "update-attachment"
+        resources = ("comment",)
+        tags = ["comment", "attachment", "update"]
+        auth_required = True
+        description = "Update attachment metadata"
+        policy_required = False
+
+    Data = datadef.UpdateAttachmentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update attachment"""
+        comment = agg.get_aggroot()
+        if not comment:
+            raise ValueError(f"Comment not found: {agg.get_aggroot().identifier}")
+        await agg.update_attachment(data=payload)
+        yield agg.create_response(
+            {"status": "success"}, _type="comment-attach-response"
+        )
+
+
+class DeleteAttachment(Command):
+    """Delete Attachment - Deletes an attachment from a comment"""
+
+    class Meta:
+        key = "delete-attachment"
+        resources = ("comment",)
+        tags = ["comment", "attachment", "delete"]
+        auth_required = True
+        description = "Delete attachment from comment"
+        policy_required = False
+
+    Data = datadef.DeleteAttachmentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Delete attachment"""
+
+        comment = agg.get_aggroot()
+        if not comment:
+            raise ValueError(f"Comment not found: {agg.get_aggroot().identifier}")
+
+        await agg.delete_attachment(data=payload)
+        yield agg.create_response(
+            {"status": "success"}, _type="comment-attach-response"
+        )
+
+
+class CreateReactionComment(Command):
+    """Add Reaction for comment"""
+
+    class Meta:
+        key = "create-reaction-comment"
+        resource = ("comment",)
+        tags = ["comment", "reaction"]
+        auth_required = True
+        description = "Add reaction for comment"
+        policy_required = False
+
+    Data = datadef.CreateReactionCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add reaction for comment"""
+
+        result = await agg.create_reaction_comment(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result), _type="comment-reaction-response"
+        )
+
+
+class RemoveReactionComment(Command):
+    """Remove Reaction for comment"""
+
+    class Meta:
+        key = "remove-reaction-comment"
+        resource = ("comment",)
+        tags = ["comment", "reaction"]
+        auth_required = True
+        description = "Remove reaction for comment"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Remove reaction for comment"""
+        await agg.remove_reaction()
+        yield agg.create_response(
+            {"status": "success"}, _type="comment-reaction-response"
+        )
 
 
 class SyncCommentFromWebhook(Command):

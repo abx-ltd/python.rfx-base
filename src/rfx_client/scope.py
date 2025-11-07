@@ -34,3 +34,11 @@ class TicketScopeSchema(BaseModel):
 
 class CommentScopeSchema(BaseModel):
     resource_id: UUID_TYPE = UUIDField("Resource ID")
+
+
+class CommentAttachmentScopeSchema(BaseModel):
+    comment_id: UUID_TYPE = UUIDField("Comment ID")
+
+
+class CommentReactionScopeSchema(BaseModel):
+    comment_id: UUID_TYPE = UUIDField("Comment ID")
