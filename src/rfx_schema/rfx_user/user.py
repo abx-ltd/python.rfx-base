@@ -33,14 +33,14 @@ from .types import (
     UserStatusEnum,
 )
 
-from . import Base, SCHEMA
+from . import TableBase, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .profile import Profile
     from .invitation import Invitation
 
 
-class User(Base):
+class User(TableBase):
     """Primary user account stored in the `rfx_user.user` table."""
 
     __tablename__ = "user"
@@ -65,7 +65,7 @@ class User(Base):
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     status: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="user_status_enum"), nullable=False
+        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
     )
     realm_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
     resource_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
@@ -105,7 +105,7 @@ class User(Base):
     )
 
 
-class UserIdentity(Base):
+class UserIdentity(TableBase):
     """External identity providers linked to a user."""
 
     __tablename__ = "user_identity"
@@ -128,13 +128,13 @@ class UserIdentity(Base):
     actions: Mapped[List["UserAction"]] = relationship(back_populates="identity")
 
 
-class UserSession(Base):
+class UserSession(TableBase):
     """Authentication sessions tied to a user."""
 
     __tablename__ = "user_session"
 
     source: Mapped[Optional[UserSourceEnum]] = mapped_column(
-        SQLEnum(UserSourceEnum, name="user_source_enum"), nullable=True
+        SQLEnum(UserSourceEnum, name="usersourceenum"), nullable=True
     )
     telecom__email: Mapped[Optional[str]] = mapped_column(String(255))
 
@@ -151,16 +151,16 @@ class UserSession(Base):
     )
 
 
-class UserStatus(Base):
+class UserStatus(TableBase):
     """Audit log of user status transitions."""
 
     __tablename__ = "user_status"
 
     src_state: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="user_status_enum"), nullable=False
+        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
     )
     dst_state: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="user_status_enum"), nullable=False
+        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
     )
     note: Mapped[Optional[str]] = mapped_column(String(1024))
 
@@ -171,7 +171,7 @@ class UserStatus(Base):
     user: Mapped["User"] = relationship(back_populates="status_history")
 
 
-class UserVerification(Base):
+class UserVerification(TableBase):
     """Email and phone verification tracking for a user."""
 
     __tablename__ = "user_verification"
@@ -192,7 +192,7 @@ class UserVerification(Base):
     )
 
 
-class UserAction(Base):
+class UserAction(TableBase):
     """Required actions associated with a user (e.g. reset password)."""
 
     __tablename__ = "user_action"
@@ -203,7 +203,7 @@ class UserAction(Base):
     )
     name: Mapped[Optional[str]] = mapped_column(String(1024))
     status: Mapped[UserActionStatusEnum] = mapped_column(
-        SQLEnum(UserActionStatusEnum, name="user_action_status_enum"),
+        SQLEnum(UserActionStatusEnum, name="useractionstatusenum"),
         nullable=False,
         server_default=text(f"'{UserActionStatusEnum.PENDING.value}'"),
     )

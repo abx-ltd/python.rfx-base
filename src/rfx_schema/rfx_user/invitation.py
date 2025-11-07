@@ -24,7 +24,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 # Import from local types to avoid rfx_user module initialization
 from .types import InvitationStatusEnum
 
-from . import Base, SCHEMA
+from . import TableBase, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .organization import Organization
@@ -32,7 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .profile import Profile
 
 
-class Invitation(Base):
+class Invitation(TableBase):
     """Organization invitation workflow entry."""
 
     __tablename__ = "invitation"
@@ -53,7 +53,7 @@ class Invitation(Base):
     email: Mapped[Optional[str]] = mapped_column(String(255))
     token: Mapped[Optional[str]] = mapped_column(String(255))
     status: Mapped[InvitationStatusEnum] = mapped_column(
-        SQLEnum(InvitationStatusEnum, name="invitation_status_enum"), nullable=False
+        SQLEnum(InvitationStatusEnum, name="invitationstatusenum"), nullable=False
     )
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     message: Mapped[Optional[str]] = mapped_column(Text)
@@ -72,7 +72,7 @@ class Invitation(Base):
     )
 
 
-class InvitationStatus(Base):
+class InvitationStatus(TableBase):
     """Status transitions for an invitation."""
 
     __tablename__ = "invitation_status"
@@ -81,10 +81,10 @@ class InvitationStatus(Base):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.invitation._id"), nullable=False
     )
     src_state: Mapped[InvitationStatusEnum] = mapped_column(
-        SQLEnum(InvitationStatusEnum, name="invitation_status_enum"), nullable=False
+        SQLEnum(InvitationStatusEnum, name="invitationstatusenum"), nullable=False
     )
     dst_state: Mapped[InvitationStatusEnum] = mapped_column(
-        SQLEnum(InvitationStatusEnum, name="invitation_status_enum"), nullable=False
+        SQLEnum(InvitationStatusEnum, name="invitationstatusenum"), nullable=False
     )
     note: Mapped[Optional[str]] = mapped_column(Text)
 

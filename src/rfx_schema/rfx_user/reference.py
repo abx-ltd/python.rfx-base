@@ -13,6 +13,7 @@ other aggregates via foreign keys.
 | ref__realm             | Authentication realm names                   |
 | ref__role_type         | Role type categories                         |
 | ref__system_role       | System-wide roles available to assignments   |
+| ref__provider          | OAuth / IdP provider catalog                 |
 """
 
 from __future__ import annotations
@@ -20,40 +21,41 @@ from __future__ import annotations
 from typing import Optional
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import Base, SCHEMA
+from . import TableBase, SCHEMA
 
 
-class RefAction(Base):
+class RefAction(TableBase):
     __tablename__ = "ref__action"
 
     key: Mapped[str] = mapped_column(String(1024), unique=True, nullable=False)
     display: Mapped[Optional[str]] = mapped_column(String(1024))
 
 
-class RefOrganizationType(Base):
+class RefOrganizationType(TableBase):
     __tablename__ = "ref__organization_type"
 
     key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display: Mapped[Optional[str]] = mapped_column(String(1024))
 
 
-class RefRealm(Base):
+class RefRealm(TableBase):
     __tablename__ = "ref__realm"
 
     key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display: Mapped[Optional[str]] = mapped_column(String(1024))
 
 
-class RefRoleType(Base):
+class RefRoleType(TableBase):
     __tablename__ = "ref__role_type"
 
     key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display: Mapped[Optional[str]] = mapped_column(String(1024))
 
 
-class RefSystemRole(Base):
+class RefSystemRole(TableBase):
     __tablename__ = "ref__system_role"
 
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -68,3 +70,12 @@ class RefSystemRole(Base):
     role_type: Mapped[Optional[str]] = mapped_column(
         String(255), ForeignKey(f"{SCHEMA}.ref__role_type.key")
     )
+
+
+class RefProvider(TableBase):
+    __tablename__ = "ref__provider"
+
+    _iid: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
+    key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    display: Mapped[Optional[str]] = mapped_column(String(1024))
+    description: Mapped[Optional[str]] = mapped_column(Text)

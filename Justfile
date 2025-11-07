@@ -62,28 +62,28 @@ init-db:
 [no-cd]
 mig-autogen MESSAGE SCHEMA="all":
     @echo "🔍 Generating migration for schema(s): {{SCHEMA}}"
-    ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision --autogenerate -m "{{MESSAGE}}"
+    REGISTER_PG_ENTITIES=1 ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision --autogenerate -m "{{MESSAGE}}"
 
 # Apply all pending migrations (optionally filter by schema)
 # Usage: just mig-upgrade [revision] [schema]
 [no-cd]
 mig-upgrade REVISION="head" SCHEMA="all":
     @echo "⬆️  Upgrading migrations for schema(s): {{SCHEMA}}"
-    ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini upgrade {{REVISION}}
+    REGISTER_PG_ENTITIES=1 ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini upgrade {{REVISION}}
 
 # Rollback migrations (optionally filter by schema)
 # Usage: just mig-downgrade [revision] [schema]
 [no-cd]
 mig-downgrade REVISION="-1" SCHEMA="all":
     @echo "⬇️  Downgrading migrations for schema(s): {{SCHEMA}}"
-    ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini downgrade {{REVISION}}
+    REGISTER_PG_ENTITIES=1 ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini downgrade {{REVISION}}
 
 # Create new empty migration (optionally for specific schema)
 # Usage: just mig-revision "message" [schema]
 [no-cd]
 mig-revision MESSAGE SCHEMA="all":
     @echo "📝 Creating revision for schema(s): {{SCHEMA}}"
-    ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision -m "{{MESSAGE}}"
+    REGISTER_PG_ENTITIES=1 ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision -m "{{MESSAGE}}"
 
 # Check current migration version
 [no-cd]
@@ -100,4 +100,4 @@ mig-history:
 [no-cd]
 mig-check SCHEMA="all":
     @echo "🔍 Checking schema(s): {{SCHEMA}}"
-    ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini check
+    REGISTER_PG_ENTITIES=1 ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini check

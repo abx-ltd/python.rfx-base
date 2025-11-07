@@ -20,13 +20,13 @@ from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from . import Base, SCHEMA
+from . import TableBase, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .profile import Profile
 
 
-class Group(Base):
+class Group(TableBase):
     """Security group definition."""
 
     __tablename__ = "group"
@@ -42,7 +42,7 @@ class Group(Base):
     )
 
 
-class ProfileGroup(Base):
+class ProfileGroup(TableBase):
     """Bridge table linking profiles to groups."""
 
     __tablename__ = "profile_group"

@@ -25,14 +25,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 # Import from local types to avoid rfx_user module initialization
 from .types import OrganizationStatusEnum
 
-from . import Base, SCHEMA
+from . import TableBase, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .profile import Profile
     from .invitation import Invitation
 
 
-class Organization(Base):
+class Organization(TableBase):
     """Tenant record for the `rfx_user.organization` table."""
 
     __tablename__ = "organization"
@@ -48,7 +48,7 @@ class Organization(Base):
     organization_code: Mapped[Optional[str]] = mapped_column(String(255))
 
     status: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organization_status_enum"),
+        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"),
         nullable=False,
     )
     invitation_code: Mapped[Optional[str]] = mapped_column(String(10))
@@ -77,7 +77,7 @@ class Organization(Base):
     )
 
 
-class OrganizationDelegatedAccess(Base):
+class OrganizationDelegatedAccess(TableBase):
     """Cross organization delegation records."""
 
     __tablename__ = "organization_delegated_access"
@@ -100,7 +100,7 @@ class OrganizationDelegatedAccess(Base):
     )
 
 
-class OrganizationRole(Base):
+class OrganizationRole(TableBase):
     """Custom role definitions created within an organization."""
 
     __tablename__ = "organization_role"
@@ -119,7 +119,7 @@ class OrganizationRole(Base):
     organization: Mapped["Organization"] = relationship(back_populates="roles")
 
 
-class OrganizationStatus(Base):
+class OrganizationStatus(TableBase):
     """History of organization status transitions."""
 
     __tablename__ = "organization_status"
@@ -128,10 +128,10 @@ class OrganizationStatus(Base):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=False
     )
     src_state: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organization_status_enum"), nullable=False
+        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"), nullable=False
     )
     dst_state: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organization_status_enum"), nullable=False
+        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"), nullable=False
     )
     note: Mapped[Optional[str]] = mapped_column(Text)
 

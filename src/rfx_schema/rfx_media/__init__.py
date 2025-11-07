@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .. import create_base_model, logger
 from rfx_base import config
 
-Base = create_base_model(config.RFX_USER_SCHEMA)
+Base = create_base_model(config.RFX_MEDIA_SCHEMA)
 
 
 class TableBase(Base):
@@ -14,4 +14,4 @@ class TableBase(Base):
     _realm: Mapped[Optional[str]] = mapped_column(String(255))
 
 
-SCHEMA = config.RFX_USER_SCHEMA
+SCHEMA = config.RFX_MEDIA_SCHEMA

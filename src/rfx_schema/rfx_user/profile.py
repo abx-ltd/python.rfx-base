@@ -26,7 +26,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 # Import from local types to avoid rfx_user module initialization
 from .types import ProfileStatusEnum
 
-from . import Base, SCHEMA
+from . import TableBase, SCHEMA
 
 if TYPE_CHECKING:  # pragma: no cover
     from .user import User
@@ -35,7 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .group import ProfileGroup
 
 
-class Profile(Base):
+class Profile(TableBase):
     """User profile definition within an organization."""
 
     __tablename__ = "profile"
@@ -91,7 +91,7 @@ class Profile(Base):
     is_super_admin: Mapped[Optional[bool]] = mapped_column(Boolean)
     system_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     status: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profile_status_enum"), nullable=False
+        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
     )
     preferred_name: Mapped[Optional[str]] = mapped_column(String(255))
     default_theme: Mapped[Optional[str]] = mapped_column(String(255))
@@ -125,7 +125,7 @@ class Profile(Base):
     group_links: Mapped[List["ProfileGroup"]] = relationship(back_populates="profile")
 
 
-class ProfileLocation(Base):
+class ProfileLocation(TableBase):
     """Stores device / geo information for a profile."""
 
     __tablename__ = "profile_location"
@@ -145,7 +145,7 @@ class ProfileLocation(Base):
     profile: Mapped["Profile"] = relationship(back_populates="locations")
 
 
-class ProfileStatus(Base):
+class ProfileStatus(TableBase):
     """Audit log of profile status transitions."""
 
     __tablename__ = "profile_status"
@@ -154,17 +154,17 @@ class ProfileStatus(Base):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id"), nullable=False
     )
     src_state: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profile_status_enum"), nullable=False
+        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
     )
     dst_state: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profile_status_enum"), nullable=False
+        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
     )
     note: Mapped[Optional[str]] = mapped_column(String(1024))
 
     profile: Mapped["Profile"] = relationship(back_populates="status_history")
 
 
-class ProfileRole(Base):
+class ProfileRole(TableBase):
     """Role assignments for a profile."""
 
     __tablename__ = "profile_role"

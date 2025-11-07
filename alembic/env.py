@@ -10,17 +10,8 @@ from alembic import context
 # STEP 1: Load base config (which triggers setupModule and reads from .ini files)
 from rfx_base import config as base_config
 
-# STEP 2: Import schema config (it will have default values initially)
-from rfx_schema import config as schema_config
-
-# STEP 3: Override the schema names in the schema_config object
-# This happens BEFORE importing any schema modules
-schema_config.RFX_USER_SCHEMA = base_config.RFX_USER_SCHEMA
-schema_config.RFX_POLICY_SCHEMA = base_config.RFX_POLICY_SCHEMA
-schema_config.RFX_MESSAGE_SCHEMA = base_config.RFX_MESSAGE_SCHEMA
-
-# STEP 4: NOW import RFXConnector and schema modules
-from rfx_schema import RFXConnector
+# STEP 2: Import RFXConnector and schema modules (they will use rfx_base.config directly)
+from rfx_schema import RFXConnector, config as schema_config
 from rfx_schema import _schema, _pgentity
 
 # this is the Alembic Config object, which provides
@@ -43,6 +34,7 @@ ALL_SCHEMAS = {
     'user': base_config.RFX_USER_SCHEMA,
     'policy': base_config.RFX_POLICY_SCHEMA,
     'message': base_config.RFX_MESSAGE_SCHEMA,
+    'media': base_config.RFX_MEDIA_SCHEMA,
 }
 
 # Get schema filter from environment variable
