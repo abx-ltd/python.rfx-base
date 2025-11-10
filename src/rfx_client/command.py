@@ -113,7 +113,6 @@ class CreateProject(Command):
                         description=new_project.description
                         if hasattr(new_project, "description")
                         else None,
-                        team_id=config.LINEAR_TEAM_ID,
                         lead_id=str(profile_id) if profile_id else None,
                         state=new_project.status
                         if hasattr(new_project, "status")
@@ -2475,6 +2474,7 @@ class CreateTicket(Command):
     async def _process(self, agg, stm, payload):
         """Create a new ticket in project"""
         result = await agg.create_ticket(data=payload)
+        await agg.add_ticket_to_project(data=payload)
 
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
@@ -2502,7 +2502,6 @@ class CreateTicket(Command):
                         assignee_id=str(payload.assignee),
                         priority=payload.priority,
                         project_id=str(payload.project_id),
-                        team_id=str(config.LINEAR_TEAM_ID),
                     )
 
                     pm_response = await pm_service.create_ticket(pm_payload)

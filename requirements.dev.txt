@@ -24,3 +24,4 @@ gmqtt
 jinja2
 markdown
 markupsafe
+alembic_utils

@@ -252,8 +252,6 @@ class CreateOrganization(Command):
         yield agg.create_response(serialize_mapping(org), _type="user-profile-response")
 
 
-
-
 class UpdateOrganization(Command):
     """
     Update organization information and settings.
@@ -300,12 +298,13 @@ class CreateOrgRole(Command):
         tags = ["organization"]
         auth_required = True
         new_resource = True
+        policy_required = True
 
     Data = datadef.CreateOrgRolePayload
 
     async def _process(self, agg, stm, payload):
-        role = await agg.create_org_role(payload)
-        yield agg.create_response(serialize_mapping(role), _type="user-profile-response")
+        result = await agg.create_org_role(serialize_mapping(payload))
+        yield agg.create_response(result, _type="user-profile-response")
 
 
 class UpdateOrgRole(Command):
@@ -318,12 +317,13 @@ class UpdateOrgRole(Command):
         resources = ("organization",)
         tags = ["organization"]
         auth_required = True
-        new_resource = True
+        policy_required = True
 
     Data = datadef.UpdateOrgRolePayload
 
     async def _process(self, agg, stm, payload):
-        await agg.update_org_role(payload)
+        result = await agg.update_org_role(serialize_mapping(payload))
+        return agg.create_response(result, _type="user-profile-response")
 
 class RemoveOrgRole(Command):
     """
@@ -335,46 +335,48 @@ class RemoveOrgRole(Command):
         resources = ("organization",)
         tags = ["organization"]
         auth_required = True
-        new_resource = True
 
     Data = datadef.RemoveOrgRolePayload
 
     async def _process(self, agg, stm, payload):
         await agg.remove_org_role(payload)
 
-class CreateOrgType(Command):
-    """
-    Create new organization type for categorization and management.
-    Establishes organizational classifications for reporting and access control.
-    """
-    class Meta:
-        key = "create-org-type"
-        new_resource = True
-        resources = ("ref__organization_type",)
-        tags = ["organization-type"]
-        auth_required = True
-        policy_required = False
+# class CreateOrgType(Command):
+#     """
+#     Create new organization type for categorization and management.
+#     Establishes organizational classifications for reporting and access control.
+#     """
+#     class Meta:
+#         key = "create-org-type"
+#         new_resource = True
+#         resources = ("organization",)
+#         tags = ["organization-type"]
+#         auth_required = True
+#         policy_required = True
 
-    Data = datadef.CreateOrgTypePayload
+#     Data = datadef.CreateOrgTypePayload
 
-    async def _process(self, agg, stm, payload):
-        org_type = await agg.create_org_type(payload)
-        yield agg.create_response(serialize_mapping(org_type), _type="user-profile-response")
+#     async def _process(self, agg, stm, payload):
+#         result = await agg.create_org_type(serialize_mapping(payload))
+#         yield agg.create_response(serialize_mapping(result), _type="user-profile-response")
 
-class RemoveOrgType(Command):
-    """
-    Remove organization type and revoke from all profiles.
-    Cascades removal to prevent orphaned role assignments.
-    """
-    class Meta:
-        key = "remove-org-type"
-        resources = ("ref__organization_type",)
-        tags = ["organization-type"]
-        auth_required = True
-        policy_required = False
+# class RemoveOrgType(Command):
+#     """
+#     Remove organization type and revoke from all profiles.
+#     Cascades removal to prevent orphaned role assignments.
+#     """
+#     class Meta:
+#         key = "remove-org-type"
+#         resources = ("organization",)
+#         tags = ["organization-type"]
+#         auth_required = True
+#         policy_required = True
 
-    async def _process(self, agg, stm, payload):
-        await agg.remove_org_type(payload)
+#     Data = datadef.RemoveOrgTypePayload
+
+#     async def _process(self, agg, stm, payload):
+#         result = await agg.remove_org_type(serialize_mapping(payload))
+#         yield agg.create_response(result, _type="user-profile-response")
 
 
 # ---------- Invitation Context -------
@@ -389,12 +391,13 @@ class SendInvitation(Command):
         tags = ["invitation"]
         auth_required = True
         new_resource = True
+        policy_required = True
 
     Data = datadef.SendInvitationPayload
 
     async def _process(self, agg, stm, payload):
-        invitation = await agg.send_invitation(payload)
-        yield agg.create_response(serialize_mapping(invitation), _type="user-profile-response")
+        result = await agg.send_invitation(serialize_mapping(payload))
+        yield agg.create_response(result, _type="user-profile-response")
 
 
 class ResendInvitation(Command):
@@ -409,73 +412,24 @@ class ResendInvitation(Command):
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.resend_invitation()
+        result = await agg.resend_invitation()
+        yield agg.create_response(result, _type="user-profile-response")
 
 
-class CancelInvitation(Command):
+class RevokeInvitation(Command):
     """
     Cancel pending invitation to prevent acceptance.
     Invalidates invitation token while preserving audit trail.
     """
     class Meta:
-        key = "cancel-invitation"
+        key = "revoke-invitation"
         resources = ("invitation",)
         tags = ["invitation"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.cancel_invitation()
-
-
-class AcceptInvitation(Command):
-    """
-    Accept invitation and create organizational profile.
-    Validates invitation status and creates user profile within organization context.
-    Links current user to organization through profile creation.
-    """
-    class Meta:
-        key = "accept-invitation"
-        resources = ("invitation",)
-        tags = ["invitation"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        await agg.accept_invitation()
-
-        rootobj = agg.get_rootobj()
-        context = agg.get_context()
-        user = await stm.fetch("user", context.user_id)
-        profile_data = dict(
-            _id=rootobj.profile_id,
-            organization_id=rootobj.organization_id,
-            user_id=user._id,
-            name__family=user.name__family,
-            name__given=user.name__given,
-            name__middle=user.name__middle,
-            name__prefix=user.name__prefix,
-            name__suffix=user.name__suffix,
-            telecom__email=user.telecom__email,
-            telecom__phone=user.telecom__phone,
-            status='ACTIVE',
-            current_profile=True
-        )
-        await agg.create_profile(profile_data)
-
-
-class RejectInvitation(Command):
-    """
-    Reject invitation and mark as declined.
-    Updates invitation status to prevent future acceptance attempts.
-    """
-    class Meta:
-        key = "reject-invitation"
-        resources = ("invitation",)
-        tags = ["invitation"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        await agg.reject_invitation()
-
+        result = await agg.revoke_invitation()
+        yield agg.create_response(result, _type="user-profile-response")
 # ---------- Profile Context ----------
 
 
@@ -490,11 +444,18 @@ class CreateProfile(Command):
         tags = ["profile"]
         auth_required = True
         new_resource = True
+        policy_required = True
 
     Data = datadef.CreateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        profile = await agg.create_profile(payload)
+        profile = await agg.create_profile(serialize_mapping(payload))
+        profile_role = dict(
+            profile_id=profile._id,
+            role_key='VIEWER',
+            role_source='SYSTEM'
+        )
+        await agg.assign_role_to_profile(profile_role)
         yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
 
 class SwitchProfile(Command):
@@ -511,7 +472,7 @@ class SwitchProfile(Command):
         policy_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.switch_profile(serialize_mapping())
+        await agg.switch_profile()
 
 class UpdateProfile(Command):
     """
@@ -523,11 +484,12 @@ class UpdateProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        policy_required = True
 
     Data = datadef.UpdateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        yield agg.update_profile(payload)
+        await agg.update_profile(payload)
 
 
 class DeactivateProfile(Command):
@@ -540,12 +502,28 @@ class DeactivateProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
-        yield agg.deactivate_profile()
+        await agg.deactivate_profile()
+
+class ActivateProfile(Command):
+    """
+    Reactivate previously deactivated profile.
+    Restores profile access within organizational context.
+    """
+    class Meta:
+        key = "activate-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.activate_profile()
+
 
 # ---------- Profile Role ----------
-
 
 class AssignRoleToProfile(Command):
     """
@@ -557,12 +535,13 @@ class AssignRoleToProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        policy_required = True
 
     Data = datadef.AssignRolePayload
 
     async def _process(self, agg, stm, payload):
-        role = await agg.assign_role_to_profile(payload)
-        yield agg.create_response(serialize_mapping(role), _type="user-profile-response")
+        role = await agg.assign_role_to_profile(serialize_mapping(payload))
+        agg.create_response(role, _type="user-profile-response")
 
 
 class RevokeRoleFromProfile(Command):
@@ -579,7 +558,7 @@ class RevokeRoleFromProfile(Command):
     Data = datadef.RevokeRolePayload
 
     async def _process(self, agg, stm, payload):
-        await agg.revoke_role_from_profile(payload)
+        await agg.revoke_role_from_profile(serialize_mapping(payload))
 
 
 class ClearAllRoleFromProfile(Command):
@@ -592,6 +571,7 @@ class ClearAllRoleFromProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        internal = True
 
     async def _process(self, agg, stm, payload):
         await agg.clear_all_role_from_profile()
@@ -607,6 +587,7 @@ class AddGroupToProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        internal = True
 
     Data = datadef.AddGroupToProfilePayload
 
@@ -624,6 +605,7 @@ class RemoveGroupFromProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        internal = True
 
     Data = datadef.RemoveGroupFromProfilePayload
 
@@ -643,6 +625,7 @@ class AssignGroupToProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        internal = True
 
     Data = datadef.AddGroupToProfilePayload
 
@@ -661,6 +644,7 @@ class RevokeGroupFromProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        internal = True
 
     Data = datadef.RemoveGroupFromProfilePayload
 
@@ -679,6 +663,7 @@ class ClearAllGroupFromProfile(Command):
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
+        internal = True
 
     async def _process(self, agg, stm, payload):
         await agg.clear_all_group_from_profile()
@@ -697,6 +682,7 @@ class CreateGroup(Command):
         tags = ["group"]
         auth_required = True
         description = "Create a new group"
+        internal = True
 
     Data = datadef.CreateGroupPayload
 
@@ -716,6 +702,7 @@ class UpdateGroup(Command):
         tags = ["group"]
         auth_required = True
         description = "Update an existing group"
+        internal = True
 
     Data = datadef.UpdateGroupPayload
 
@@ -735,6 +722,7 @@ class DeleteGroup(Command):
         tags = ["group"]
         auth_required = True
         description = "Delete (soft) a group and remove all profile associations"
+        internal = True
 
     async def _process(self, agg, stm, payload):
         await agg.delete_group()

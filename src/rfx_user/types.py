@@ -50,6 +50,7 @@ class InvitationStatusEnum(Enum):
     ACCEPTED = "ACCEPTED" # Invitation accepted by user
     EXPIRED  = "EXPIRED"  # Invitation expired before acceptance
     REVOKED  = "REVOKED"  # Invitation cancelled by sender
+    REJECTED = "REJECTED" # Invitation declined by user
 
 
 class UserActionStatusEnum(str, Enum):

@@ -189,12 +189,7 @@ class UserProfileAggregate(Aggregate):
     @action("org-role-created", resources="organization")
     async def create_org_role(self, data):
         """Create custom role within organization."""
-        record = self.init_resource(
-            "organization-role",
-            serialize_mapping(data),
-            _id=UUID_GENR(),
-            organization_id=self.aggroot.identifier
-        )
+        record = self.init_resource("organization-role", data, _id=UUID_GENR(), organization_id=self.aggroot.identifier)
         await self.statemgr.insert(record)
         return {"role_id": record._id}
 
@@ -212,52 +207,59 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.invalidate_one("organization_role", item._id)
         return {"removed": True}
 
-    @action("org-type-created", resources="ref__organization_type")
+    @action("org-type-created", resources="organization")
     async def create_org_type(self, data):
         """Create new organization type."""
         record = self.init_resource("ref__organization_type", serialize_mapping(data), _id=UUID_GENR())
         await self.statemgr.insert(record)
         return {"org_type_id": record._id}
 
-    @action("org-type-removed", resources="ref__organization_type")
+    @action("org-type-removed", resources="organization")
     async def remove_org_type(self, data):
         """Remove organization type."""
-        item = await self.statemgr.fetch('ref__organization_type', self.aggroot.identifier, _creator=self.context.profile_id)
+        key = data.get("key")
+        item = await self.statemgr.find_one('ref__organization_type', where=dict(key=key))
         if item is None:
             return {"message": "Organization type not found."}
         await self.statemgr.invalidate_one('ref__organization_type', item._id)
         return {"removed": True}
 
+
     # =========== Invitation Context ============
 
     @action("invitation-status-set", resources="invitation")
-    async def set_invitation_status(self, invitation, new_status: InvitationStatusEnum, note=None):
+    async def set_invitation_status(self, invitation, new_status: InvitationStatusEnum):
         """Track invitation status changes with audit trail."""
         status_record = self.init_resource("invitation_status",
                                            invitation_id=invitation._id,
                                            src_state=invitation.status,
                                            dst_state=new_status.value,
-                                           note=note
                                            )
         await self.statemgr.insert(status_record)
 
     @action("invitation-sent", resources="invitation")
     async def send_invitation(self, data):
-        user = self.statemgr.query('user', where=dict(
-            email=data.email, status=UserStatusEnum.ACTIVE), limit=1)
-        user_id = None if not user else user[0]._id
-
-        record = self.init_resource("invitation",
-                                    serialize_mapping(data),
-                                    organization_id=self.context.organization_id,
-                                    profile_id=UUID_GENR(),
-                                    user_id=user_id,
-                                    token=secrets.token_urlsafe(16),
-                                    status=InvitationStatusEnum.PENDING,
-                                    expires_at=datetime.utcnow() + timedelta(days=data.duration)
-                                    )
+        email = data.get("email")
+        duration = data.get("duration")
+        message = data.get("message", "")
+        user = await self.statemgr.find_one("user", where=dict(verified_email=email))
+        if not user:
+            return {"error": f"User with email {email} not found."}
+        invitation_record = dict(
+            _id=UUID_GENR(),
+            sender_id=self.context.user_id,
+            organization_id=self.context.organization_id,
+            user_id=user._id,
+            email=email,
+            token=secrets.token_urlsafe(48),
+            status=InvitationStatusEnum.PENDING,
+            expires_at=datetime.utcnow() + timedelta(days=duration),
+            message=message,
+            duration=duration
+        )
+        record = self.init_resource("invitation", invitation_record)
         await self.statemgr.insert(record)
-        await self.set_invitation_status(record, InvitationStatusEnum.PENDING, "Initial invitation sent")
+        await self.set_invitation_status(record, InvitationStatusEnum.PENDING)
         return {"_id": record._id}
 
     @action("invitation-resent", resources="invitation")
@@ -265,43 +267,21 @@ class UserProfileAggregate(Aggregate):
         """Resend invitation with new token and extended expiry."""
         invitation = self.rootobj
         updates = {
-            "token": secrets.token_urlsafe(16),
+            "token": secrets.token_urlsafe(48),
             "status": InvitationStatusEnum.PENDING,
             "expires_at": datetime.utcnow() + timedelta(days=7)
         }
         await self.statemgr.update(invitation, **updates)
-        await self.set_invitation_status(invitation, InvitationStatusEnum.PENDING, "Invitation resent")
+        await self.set_invitation_status(invitation, InvitationStatusEnum.PENDING)
         return {"_id": invitation._id, "resend": True}
 
-    @action("invitation-canceled", resources="invitation")
-    async def cancel_invitation(self):
+    @action("invitation-revoked", resources="invitation")
+    async def revoke_invitation(self):
         """Cancel pending invitation to prevent acceptance."""
         invitation = self.rootobj
-        await self.statemgr.update(invitation, status=InvitationStatusEnum.CANCELED)
-        await self.set_invitation_status(invitation, InvitationStatusEnum.CANCELED, "Invitation canceled")
-        return {"_id": invitation._id, "canceled": True}
-
-    @action("invitation-accepted", resources="invitation")
-    async def accept_invitation(self):
-        """Accept invitation and link to current user. Validates invitation is still pending."""
-        invitation = self.rootobj
-        if invitation.status != InvitationStatusEnum.PENDING:
-            raise ValueError("Only PENDING invitations can be accepted.")
-        await self.statemgr.update(invitation, status=InvitationStatusEnum.ACCEPTED, user_id=self.context.user_id)
-        await self.set_invitation_status(invitation, InvitationStatusEnum.ACCEPTED, "Invitation accepted")
-        return {"_id": invitation._id, "accepted": True}
-
-    @action("invitation-rejected", resources="invitation")
-    async def reject_invitation(self):
-        """Reject invitation and prevent future acceptance. Validates invitation is still pending."""
-        invitation = self.rootobj
-
-        if invitation.status != InvitationStatusEnum.PENDING:
-            raise ValueError("Only PENDING invitations can be rejected.")
-
-        await self.statemgr.update(invitation, status=InvitationStatusEnum.REJECTED)
-        await self.set_invitation_status(invitation, InvitationStatusEnum.REJECTED, "Invitation rejected")
-        return {"_id": invitation._id, "rejected": True}
+        await self.statemgr.update(invitation, status=InvitationStatusEnum.REVOKED)
+        await self.set_invitation_status(invitation, InvitationStatusEnum.REVOKED)
+        return {"_id": invitation._id, "revoked": True}
 
     # ==========================================================================
     # PROFILE OPERATIONS
@@ -310,9 +290,26 @@ class UserProfileAggregate(Aggregate):
     @action("profile-created", resources=("organization", "profile"))
     async def create_profile(self, data):
         """Create user profile within organization. Generates unique profile with default ACTIVE status."""
+        user_id = data.get("user_id", None)
+        if user_id is None or user_id == self.context.user_id:
+            return {"message": "Cannot create profile for current user."}
+        existing_profiles = await self.statemgr.find_all("profile", where=dict(
+            user_id=user_id,
+            organization_id=self.context.organization_id,
+            status=ProfileStatusEnum.ACTIVE
+        ))
+        if existing_profiles:
+            return {"message": "Active profile already exists for user in this organization."}
+
+        user = await self.statemgr.fetch('user', user_id)
+        if not user:
+            return {"message": f"User with id {user_id} not found."}
+
         record = self.init_resource(
             "profile",
-            serialize_mapping(data),
+            data,
+            _id=UUID_GENR(),
+            organization_id=self.context.organization_id,
             status=data.get("status", ProfileStatusEnum.ACTIVE),
         )
         await self.statemgr.insert(record)
@@ -348,7 +345,7 @@ class UserProfileAggregate(Aggregate):
         if getattr(data, "status", None) and item.status != data.status:
             await self.set_profile_status(item, data.status)
 
-        return item
+        return {"message": "Profile updated", "profile_id": item._id}
 
     @action("profile-deactivated", resources="profile")
     async def deactivate_profile(self, data=None):
@@ -357,33 +354,45 @@ class UserProfileAggregate(Aggregate):
         await self.statemgr.update(item, status=ProfileStatusEnum.DEACTIVATED)
         await self.set_profile_status(item, ProfileStatusEnum.DEACTIVATED)
 
+    @action("profile-activated", resources="profile")
+    async def activate_profile(self, data=None):
+        """Activate profile to allow access."""
+        item = self.rootobj
+        await self.statemgr.update(item, status=ProfileStatusEnum.ACTIVE)
+        await self.set_profile_status(item, ProfileStatusEnum.ACTIVE)
+
     @action("role-assigned-to-profile", resources=("organization", "profile"))
     async def assign_role_to_profile(self, data):
         """Assign system role to profile. Prevents duplicate role assignments."""
         role_key = data.get("role_key", "VIEWER")
         profile_id = data.get("profile_id", self.aggroot.identifier)
-        role_source = data.get("role_source", "SYSTEM")
-        role = await self.statemgr.find_one('ref__system_role', where=dict(key=role_key))
-        if await self.statemgr.find_all("profile_role", where=dict(
-            profile_id=profile_id,
-            role_key=role_key,
-            role_source=role_source,
-        )):
-            raise ValueError(f"{role.key} already assigned to profile!")
+        profile = await self.statemgr.fetch('profile', profile_id)
 
-        record = self.init_resource(
-            "profile_role",
-            serialize_mapping(data),
-            role_id=role._id,
-            _id=UUID_GENR(),
-        )
-        await self.statemgr.insert(record)
-        return record
+        if profile.organization_id != self.context.organization_id:
+            return {"message": "Profile does not belong to current organization."}
+        role = await self.statemgr.find_one('ref__system_role', where=dict(key=role_key))
+
+        profile_role = await self.statemgr.find_one('profile_role', where=dict(
+            profile_id=profile_id,
+        ))
+        if not profile_role:
+            record = self.init_resource("profile_role", data, role_id=role._id, _id=UUID_GENR())
+            await self.statemgr.insert(record)
+            return
+
+        if profile_role.role_key == role_key:
+            return {"message": f"Role {role_key} already assigned to profile."}
+        else:
+            await self.statemgr.update(profile_role, role_key=role_key, role_id=role._id)
+            return {"message": f"Profile role updated to {role_key}."}
 
     @action("role-revoked-from-profile", resources="profile")
     async def revoke_role_from_profile(self, data):
         """Revoke specific role from profile."""
-        item = await self.statemgr.fetch('profile_role', data.profile_role_id, profile_id=self.aggroot.identifier)
+        profile_role_id = data.get("profile_role_id")
+        item = await self.statemgr.fetch('profile_role', profile_role_id, profile_id=self.aggroot.identifier)
+        if not item:
+            return {"message": f"Profile role with id {profile_role_id} not found!"}
         await self.statemgr.invalidate_one('profile_role', item._id)
 
     @action("role-cleared-from-profile", resources="profile")

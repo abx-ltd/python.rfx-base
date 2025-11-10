@@ -98,11 +98,12 @@ class RFXAuthProfileProvider(
                 profile_status = self.create('profile_status', dict(
                     _id=UUID_GENR(),
                     profile_id=profile_record._id,
-                    status='ACTIVE',
                     src_state=profile_record.status,
                     dst_state=profile_record.status
                 ))
                 await self.insert(profile_status)
+                profile = profile_record
+                organization = org_record
             else:
                 curr_profile = curr_profile
                 profile = curr_profile
