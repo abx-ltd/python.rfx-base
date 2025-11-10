@@ -3,8 +3,8 @@ from fluvius.domain.activity import ActivityType
 from fluvius.domain.aggregate import AggregateRoot
 
 from .domain import RFXClientDomain
-from . import datadef, config, utils
-from .helper import get_project_member_user_ids
+from . import datadef, config
+from .helper import get_project_member_user_ids, _handle_mentions
 
 
 from rfx_integration.pm_service import PMService
@@ -2966,41 +2966,7 @@ class CreateComment(Command):
         payload_dict["source"] = "user"
 
         result = await agg.create_comment(data=payload_dict)
-
-        mentions = utils.extract_mentions(payload.content)
-        if mentions:
-            unique_users_id = {mention["user_id"] for mention in mentions}
-            users_info = await utils.get_mentioned_users(stm, list(unique_users_id))
-            profile_id = agg.get_context().profile_id
-            profile = await stm.get_profile(profile_id)
-            message_content = f"{profile.name__given} {profile.name__family} mentioned you in a commnet"
-            message_subject = "Mention In Comment"
-
-            if config.MESSAGE_ENABLED:
-                context = agg.get_context()
-                service_proxy = context.service_proxy
-                await service_proxy.msg_client.send(
-                    f"{config.MESSAGE_NAMESPACE}:send-message",
-                    command="send-message",
-                    resource="message",
-                    payload={
-                        "recipients": [str(user_id["id"]) for user_id in users_info],
-                        "subject": message_subject,
-                        "message_type": "NOTIFICATION",
-                        "priority": "MEDIUM",
-                        "content": message_content,
-                        "content_type": "TEXT",
-                    },
-                    _headers={},
-                    _context={
-                        "audit": {
-                            "user_id": str(context.profile_id),
-                            "profile_id": str(context.profile_id),
-                            "organization_id": str(context.organization_id),
-                            "realm": context.realm,
-                        }
-                    },
-                )
+        await _handle_mentions(agg, stm, payload.content)
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and resource_type != "project":
             try:
@@ -3058,39 +3024,7 @@ class UpdateComment(Command):
     async def _process(self, agg, stm, payload):
         """Update comment"""
         await agg.update_comment(data=payload)
-        mentions = utils.extract_mentions(payload.content)
-        if mentions:
-            unique_users_id = {mentions["user_id"] for mentions in mentions}
-            users_info = await utils.get_mentioned_users(stm, list(unique_users_id))
-            profile_id = agg.get_context().profile_id
-            profile = await stm.get_profile(profile_id)
-            message_content = f"{profile.name__given} {profile.name__family} mentioned you in a commnet"
-            message_subject = "Mention In Comment"
-            if config.MESSAGE_ENABLED:
-                context = agg.get_context()
-                service_proxy = context.service_proxy
-                await service_proxy.msg_client.send(
-                    f"{config.MESSAGE_NAMESPACE}:send-message",
-                    command="send-message",
-                    resource="message",
-                    payload={
-                        "recipients": [str(user_id["id"]) for user_id in users_info],
-                        "subject": message_subject,
-                        "message_type": "NOTIFICATION",
-                        "priority": "MEDIUM",
-                        "content": message_content,
-                        "content_type": "TEXT",
-                    },
-                    _headers={},
-                    _context={
-                        "audit": {
-                            "user_id": str(context.profile_id),
-                            "profile_id": str(context.profile_id),
-                            "organization_id": str(context.organization_id),
-                            "realm": context.realm,
-                        }
-                    },
-                )
+        await _handle_mentions(agg, stm, payload.content)
 
         updated_comment = await stm.find_one(
             "comment", where=dict(_id=agg.get_aggroot().identifier)
@@ -3214,30 +3148,7 @@ class ReplyToComment(Command):
 
         result = await agg.reply_to_comment(data=payload)
 
-        mentions = utils.extract_mentions(payload.content)
-        if mentions:
-            unique_users_id = {mention["user_id"] for mention in mentions}
-            users_info = await utils.get_mentioned_users(stm, list(unique_users_id))
-            profile_id = agg.get_context().profile_id
-            profile = await stm.get_profile(profile_id)
-            message_content = f"{profile.name__given} {profile.name__family} mentioned you in a commnet"
-            message_subject = "Mention In Comment"
-            if config.MESSAGE_ENABLED:
-                context = agg.get_context()
-                service_proxy = context.service_proxy
-                await service_proxy.msg_client.send(
-                    f"{config.MESSAGE_NAMESPACE}:send-message",
-                    command="send-message",
-                    resource="message",
-                    payload={
-                        "recipients": [str(user_id["id"]) for user_id in users_info],
-                        "subject": message_subject,
-                        "message_type": "notification",
-                        "priority": "MEDIUM",
-                        "content": message_content,
-                        "content_type": "TEXT",
-                    },
-                )
+        await _handle_mentions(agg, stm, payload.content)
 
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and resource_type != "project":
             try:
