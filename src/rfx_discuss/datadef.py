@@ -21,30 +21,18 @@ class ReplyToCommentPayload(DataModel):
     content: str
 
 
-class AttachmentUploadPayload(DataModel):
-    file_name: str
-    file_type: str
-    file_size: str
-
-
 class AttachFileToCommentPayload(DataModel):
-    file_url: str
-    file_name: str
-    file_type: str
-    file_size: int
-    file_extension: Optional[str] = None
-
-    is_image: Optional[bool] = False
-    image_width: Optional[int] = None
-    image_height: Optional[int] = None
-    thumbnail_url: Optional[str] = None
+    media_entry_id: UUID_TYPE
+    attachment_type: Optional[str] = None  # 'document', 'image', 'video', 'audio'
+    caption: Optional[str] = None
+    is_primary: Optional[bool] = False
 
 
 class UpdateAttachmentPayload(DataModel):
-    attachment_id: UUID_TYPE
-    file_url: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    upload_status: Optional[str] = None
+    caption: Optional[str] = None
+    attachment_type: Optional[str] = None
+    is_primary: Optional[bool] = None
+    display_order: Optional[int] = None
 
 
 class DeleteAttachmentPayload(DataModel):

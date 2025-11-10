@@ -201,42 +201,6 @@ class ReplyToComment(Command):
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 
-class RequestAttachmentUpload(Command):
-    """Request Attachment Upload - Requests an upload URL for comment attachment"""
-
-    class Meta:
-        key = "request-attachment-upload"
-        resource = ("comment",)
-        tags = ["comment", "attachment", "upload"]
-        auth_required = True
-        description = "Request presign URL for file attachment upload"
-        policy_required = False
-
-    Data = datadef.AttachmentUploadPayload
-
-    async def _process(self, agg, stm, payload):
-        """Request attachment upload"""
-        from .utils import generate_presigned_upload_url
-
-        comment_id = agg.get_aggroot().identifier
-
-        presigned_data = await generate_presigned_upload_url(
-            file_name=payload.file_name,
-            file_type=payload.file_type,
-            file_size=payload.file_size,
-            comment_id=str(comment_id),
-        )
-        yield agg.create_response(
-            {
-                "presigned_url": presigned_data["url"],
-                "file_key": presigned_data["key"],
-                "expires_in": presigned_data["expires_in"],
-                "upload_fields": presigned_data.get("fields", {}),
-            },
-            _type="presigned-url-response",
-        )
-
-
 class AttachFileToComment(Command):
     """Attach File to Comment - Attaches a file to a comment after upload"""
 

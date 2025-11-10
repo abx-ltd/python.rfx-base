@@ -708,35 +708,38 @@ class CommentAttachment(RFXClientBaseModel):
     __tablename__ = "comment_attachment"
 
     comment_id = sa.Column(pg.UUID, nullable=False)
-    file_url = sa.Column(sa.String(1024), nullable=False)
-    file_name = sa.Column(sa.String(255), nullable=False)
-    file_type = sa.Column(sa.String(100))
-    file_size = sa.Column(sa.Integer)
-    file_extension = sa.Column(sa.String(20))
 
-    # Image-specific fields
-    is_image = sa.Column(sa.Boolean, default=False)
-    image_width = sa.Column(sa.Integer)
-    image_height = sa.Column(sa.Integer)
-    thumbnail_url = sa.Column(sa.String(1024))
-    # Upload status
-    upload_status = sa.Column(sa.String(20), default="completed")
+    media_entry_id = sa.Column(pg.UUID, nullable=False)
+
+    attachment_type = sa.Column(sa.String(50))
+    caption = sa.Column(sa.Text)
+    display_order = sa.Column(sa.Integer, default=0)
+    is_primary = sa.Column(sa.Boolean, default=False)
 
 
 class CommentAttachmentView(RFXClientBaseModel):
     __tablename__ = "_comment_attachment"
 
     comment_id = sa.Column(pg.UUID)
-    file_url = sa.Column(sa.String(1024))
-    file_name = sa.Column(sa.String(255))
-    file_type = sa.Column(sa.String(100))
-    file_size = sa.Column(sa.Integer)
-    file_extension = sa.Column(sa.String(20))
-    is_image = sa.Column(sa.Boolean)
-    image_width = sa.Column(sa.Integer)
-    image_height = sa.Column(sa.Integer)
-    thumbnail_url = sa.Column(sa.String(1024))
-    upload_status = sa.Column(sa.String(20))
+    media_entry_id = sa.Column(pg.UUID)
+
+    attachment_type = sa.Column(sa.String(50))
+    caption = sa.Column(sa.Text)
+    display_order = sa.Column(sa.Integer)
+    is_primary = sa.Column(sa.Boolean)
+
+    filename = sa.Column(sa.String(1024))
+    filehash = sa.Column(sa.String(64))
+    filemime = sa.Column(sa.String(256))
+    length = sa.Column(sa.BigInteger)
+    fspath = sa.Column(sa.String(1024))
+    fskey = sa.Column(sa.String(24))
+    compress = sa.Column(sa.String(50))
+    cdn_url = sa.Column(sa.String(1024))
+
+    resource = sa.Column(sa.String(24))
+    resource__id = sa.Column(pg.UUID)
+
     uploader = sa.Column(pg.JSONB)
 
 
