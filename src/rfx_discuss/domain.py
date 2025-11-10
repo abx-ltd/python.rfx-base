@@ -32,3 +32,7 @@ class CommentReactionResponse(RFXDiscussDomain.Response):
 
 class FlagResponse(RFXDiscussDomain.Response):
     pass
+
+
+class CommentSubscribeResponse(RFXDiscussDomain.Response):
+    pass

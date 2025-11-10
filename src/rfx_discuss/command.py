@@ -2,7 +2,7 @@ from fluvius.data import serialize_mapping
 
 from .domain import RFXDiscussDomain
 from . import datadef
-from .helper import _handle_mentions
+from .helper import _handle_mentions, _notify_subscribers
 
 processor = RFXDiscussDomain.command_processor
 Command = RFXDiscussDomain.Command
@@ -98,6 +98,7 @@ class ReplyToComment(Command):
 
         result = await agg.reply_to_comment(data=payload)
         await _handle_mentions(agg, stm, payload.content)
+        await _notify_subscribers(agg, stm, agg.get_aggroot().identifier)
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 
@@ -251,3 +252,41 @@ class ResolveFlag(Command):
         """Resolve flag"""
         result = await agg.resolve_flag(data=payload)
         yield agg.create_response(serialize_mapping(result), _type="flag-response")
+
+
+class SubscribeComment(Command):
+    """Subscribe to Comment - Subscribes the user to comment notifications"""
+
+    class Meta:
+        key = "subscribe-comment"
+        resources = ("comment",)
+        tags = ["comment", "subscribe"]
+        auth_required = True
+        description = "Subscribe to comment notifications"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Subscribe to comment"""
+        await agg.subscribe_to_comment()
+        yield agg.create_response(
+            {"status": "success"}, _type="comment-subscribe-response"
+        )
+
+
+class UnSubscribeComment(Command):
+    """Unsubscribe from Comment - Unsubscribes the user from comment notifications"""
+
+    class Meta:
+        key = "unsubscribe-comment"
+        resources = ("comment",)
+        tags = ["comment", "unsubscribe"]
+        auth_required = True
+        description = "Unsubscribe from comment notifications"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Unsubscribe from comment"""
+        await agg.unsubscribe_from_comment()
+        yield agg.create_response(
+            {"status": "success"}, _type="comment-subscribe-response"
+        )

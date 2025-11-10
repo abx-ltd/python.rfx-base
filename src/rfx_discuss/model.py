@@ -175,3 +175,24 @@ class CommentFlagSummary(RFXDiscussBaseModel):
     rejected_flags = sa.Column(sa.Integer)
     flag_reasons = sa.Column(pg.JSONB)  # [{reason: count}]
     latest_flag_at = sa.Column(sa.DateTime(timezone=True))
+
+
+class CommentSubscription(RFXDiscussBaseModel):
+    __tablename__ = "comment_subscription"
+
+    comment_id = sa.Column(pg.UUID, nullable=True)
+    user_id = sa.Column(pg.UUID, nullable=True)
+    is_active = sa.Column(sa.Boolean, default=True)
+
+
+class CommentSubscriptionView(RFXDiscussBaseModel):
+    __tablename__ = "_comment_subscription"
+
+    comment_id = sa.Column(pg.UUID)
+    user_id = sa.Column(pg.UUID)
+    is_active = sa.Column(sa.Boolean)
+
+    comment_content = sa.Column(sa.Text)
+    comment_creator_id = sa.Column(pg.UUID)
+
+    subscriber = sa.Column(pg.JSONB)

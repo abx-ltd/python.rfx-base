@@ -42,3 +42,46 @@ async def _handle_mentions(agg, stm, content: str):
                 }
             },
         )
+
+
+async def _notify_subscribers(agg, stm, comment_id: str):
+    subscribers = await stm.find_all(
+        "comment_subscription",
+        where={"comment_id": comment_id, "is_active": True},
+    )
+    logger.info(f"Found subscribers: {subscribers}")
+    if not subscribers:
+        return
+    context = agg.get_context()
+    profile_id = context.profile_id
+    profile = await stm.get_profile(profile_id)
+
+    recipients = []
+    for sub in subscribers:
+        recipients.append(str(sub.user_id))
+    if config.MESSAGE_ENABLED and recipients:
+        message_contet = f"{profile.name__given} replied to a comment you subscribed to"
+        message_subject = "Comment Notification Subscription"
+        service_proxy = context.service_proxy
+        await service_proxy.msg_client.send(
+            f"{config.MESSAGE_NAMESPACE}:send-message",
+            command="send-message",
+            resource="message",
+            payload={
+                "recipients": recipients,
+                "subject": message_subject,
+                "message_type": "NOTIFICATION",
+                "priority": "MEDIUM",
+                "content": message_contet,
+                "content_type": "TEXT",
+            },
+            _headers={},
+            _context={
+                "audit": {
+                    "user_id": str(context.profile_id),
+                    "profile_id": str(context.profile_id),
+                    "organization_id": str(context.organization_id),
+                    "realm": context.realm,
+                }
+            },
+        )
