@@ -29,7 +29,7 @@ class CreateComment(Command):
         tags = ["comment"]
         auth_required = True
         description = "Create a new comment"
-        policy_required = False
+        policy_required = True
         new_resource = True
 
     Data = datadef.CreateCommentPayload
@@ -52,7 +52,7 @@ class UpdateComment(Command):
         tags = ["comment", "update"]
         auth_required = True
         description = "Update a comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.UpdateCommentPayload
 
@@ -73,7 +73,7 @@ class DeleteComment(Command):
         tags = ["comment", "delete"]
         auth_required = True
         description = "Delete a comment"
-        policy_required = False
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         """Delete comment"""
@@ -89,7 +89,7 @@ class ReplyToComment(Command):
         tags = ["comment", "reply"]
         auth_required = True
         description = "Reply to a comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.ReplyToCommentPayload
 

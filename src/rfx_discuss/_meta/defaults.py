@@ -8,7 +8,7 @@ POLICY_SCHEMA = config.RFX_POLICY_SCHEMA
 RFX_USER_SCHEMA = config.RFX_USER_SCHEMA
 MESSAGE_NAMESPACE = "rfx-message"
 
-POLICY_TABLE = "_policy__rfx_discussion"
+POLICY_TABLE = "_policy__rfx_discuss"
 COMMENT_NESTED_LEVEL = 2
 
 NAMESPACE = "rfx-discuss"
