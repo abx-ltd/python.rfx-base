@@ -3,9 +3,9 @@ Base notification provider interface
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from datetime import datetime
 
 from ..types import NotificationStatusEnum
+from .. import config
 
 
 class NotificationProviderBase(ABC):
@@ -14,16 +14,11 @@ class NotificationProviderBase(ABC):
     All provider implementations must inherit from this class.
     """
 
-    def __init__(self, provider_config: Dict[str, Any]):
+    def __init__(self):
         """
-        Initialize the provider with configuration.
-
-        Args:
-            provider_config: Provider-specific configuration dictionary
+        Base providers pull their configuration directly from rfx_notify config.
         """
-        self.config = provider_config
-        self.credentials = provider_config.get('credentials', {})
-        self.settings = provider_config.get('settings', {})
+        super().__init__()
 
     @abstractmethod
     async def send(
@@ -91,7 +86,7 @@ class NotificationProviderBase(ABC):
             Dictionary with rate limit information
         """
         return {
-            'per_minute': self.config.get('rate_limit_per_minute', 60),
-            'per_hour': self.config.get('rate_limit_per_hour', 1000),
-            'per_day': self.config.get('rate_limit_per_day', 10000),
+            'per_minute': config.NOTIFY_RATE_LIMIT_PER_MINUTE,
+            'per_hour': config.NOTIFY_RATE_LIMIT_PER_HOUR,
+            'per_day': config.NOTIFY_RATE_LIMIT_PER_DAY,
         }

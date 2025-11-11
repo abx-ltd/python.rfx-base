@@ -1,8 +1,8 @@
 """notify
 
-Revision ID: 610ac391d01a
-Revises: 87f6449c1938
-Create Date: 2025-11-11 10:40:42.693836
+Revision ID: 61dfe8b82bcb
+Revises: 
+Create Date: 2025-11-11 14:37:24.721873
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '610ac391d01a'
-down_revision: Union[str, Sequence[str], None] = '87f6449c1938'
+revision: str = '61dfe8b82bcb'
+down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -24,14 +24,14 @@ def upgrade() -> None:
     op.create_table('notification',
     sa.Column('recipient_id', sa.UUID(), nullable=True),
     sa.Column('sender_id', sa.UUID(), nullable=True),
-    sa.Column('channel', sa.Enum('EMAIL', 'SMS', 'PUSH', 'WEBHOOK', 'INAPP', name='notificationchannelenum', schema='rfx_notify_test'), nullable=False),
+    sa.Column('channel', sa.Enum('EMAIL', 'SMS', 'PUSH', 'WEBHOOK', 'INAPP', name='notificationchannelenum', schema='ttp_notify'), nullable=False),
     sa.Column('provider_id', sa.UUID(), nullable=True),
     sa.Column('subject', sa.String(length=512), nullable=True),
     sa.Column('body', sa.Text(), nullable=True),
-    sa.Column('content_type', sa.Enum('TEXT', 'HTML', 'MARKDOWN', 'JSON', name='contenttypeenum', schema='rfx_notify_test'), nullable=True),
+    sa.Column('content_type', sa.Enum('TEXT', 'HTML', 'MARKDOWN', 'JSON', name='contenttypeenum', schema='ttp_notify'), nullable=True),
     sa.Column('recipient_address', sa.String(length=512), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'SENT', 'DELIVERED', 'FAILED', 'REJECTED', 'BOUNCED', name='notificationstatusenum', schema='rfx_notify_test'), nullable=False),
-    sa.Column('priority', sa.Enum('LOW', 'NORMAL', 'HIGH', 'URGENT', name='notificationpriorityenum', schema='rfx_notify_test'), nullable=True),
+    sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'SENT', 'DELIVERED', 'FAILED', 'REJECTED', 'BOUNCED', name='notificationstatusenum', schema='ttp_notify'), nullable=False),
+    sa.Column('priority', sa.Enum('LOW', 'NORMAL', 'HIGH', 'URGENT', name='notificationpriorityenum', schema='ttp_notify'), nullable=True),
     sa.Column('scheduled_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('sent_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('delivered_at', sa.DateTime(timezone=True), nullable=True),
@@ -56,11 +56,11 @@ def upgrade() -> None:
     sa.Column('_deleted', sa.DateTime(timezone=True), nullable=True),
     sa.Column('_etag', sa.String(length=64), server_default=sa.text('uuid_generate_v4()::varchar'), nullable=True),
     sa.PrimaryKeyConstraint('_id'),
-    schema='rfx_notify_test'
+    schema='ttp_notify'
     )
     op.create_table('notification_preference',
     sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('channel', sa.Enum('EMAIL', 'SMS', 'PUSH', 'WEBHOOK', 'INAPP', name='notificationchannelenum', schema='rfx_notify_test'), nullable=False),
+    sa.Column('channel', sa.Enum('EMAIL', 'SMS', 'PUSH', 'WEBHOOK', 'INAPP', name='notificationchannelenum', schema='ttp_notify'), nullable=False),
     sa.Column('enabled', sa.Boolean(), nullable=False),
     sa.Column('email_address', sa.String(length=255), nullable=True),
     sa.Column('phone_number', sa.String(length=20), nullable=True),
@@ -81,21 +81,21 @@ def upgrade() -> None:
     sa.Column('_etag', sa.String(length=64), server_default=sa.text('uuid_generate_v4()::varchar'), nullable=True),
     sa.PrimaryKeyConstraint('_id'),
     sa.UniqueConstraint('user_id', 'channel', name='uq_user_channel_preference'),
-    schema='rfx_notify_test'
+    schema='ttp_notify'
     )
     op.create_table('notification_provider',
     sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('provider_type', sa.Enum('SMTP', 'SENDGRID', 'SES', 'TWILIO', 'SNS', 'FIREBASE', 'MQTT', 'CUSTOM', name='providertypeenum', schema='rfx_notify_test'), nullable=False),
-    sa.Column('channel', sa.Enum('EMAIL', 'SMS', 'PUSH', 'WEBHOOK', 'INAPP', name='notificationchannelenum', schema='rfx_notify_test'), nullable=False),
+    sa.Column('provider_type', sa.Enum('SMTP', 'SENDGRID', 'SES', 'TWILIO', 'SNS', 'FIREBASE', 'MQTT', 'CUSTOM', name='providertypeenum', schema='ttp_notify'), nullable=False),
+    sa.Column('channel', sa.Enum('EMAIL', 'SMS', 'PUSH', 'WEBHOOK', 'INAPP', name='notificationchannelenum', schema='ttp_notify'), nullable=False),
     sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('credentials', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.Column('status', sa.Enum('ACTIVE', 'INACTIVE', 'DISABLED', 'ERROR', name='providerstatusenum', schema='rfx_notify_test'), nullable=True),
+    sa.Column('status', sa.Enum('ACTIVE', 'INACTIVE', 'DISABLED', 'ERROR', name='providerstatusenum', schema='ttp_notify'), nullable=True),
     sa.Column('priority', sa.Integer(), nullable=False),
     sa.Column('is_default', sa.Boolean(), nullable=False),
     sa.Column('rate_limit_per_minute', sa.Integer(), nullable=True),
     sa.Column('rate_limit_per_hour', sa.Integer(), nullable=True),
     sa.Column('rate_limit_per_day', sa.Integer(), nullable=True),
-    sa.Column('retry_strategy', sa.Enum('NONE', 'LINEAR', 'EXPONENTIAL', 'FIBONACCI', name='retrystrategyenum', schema='rfx_notify_test'), nullable=True),
+    sa.Column('retry_strategy', sa.Enum('NONE', 'LINEAR', 'EXPONENTIAL', 'FIBONACCI', name='retrystrategyenum', schema='ttp_notify'), nullable=True),
     sa.Column('retry_delays', sa.ARRAY(sa.Integer()), nullable=True),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('meta', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
@@ -110,18 +110,18 @@ def upgrade() -> None:
     sa.Column('_deleted', sa.DateTime(timezone=True), nullable=True),
     sa.Column('_etag', sa.String(length=64), server_default=sa.text('uuid_generate_v4()::varchar'), nullable=True),
     sa.PrimaryKeyConstraint('_id'),
-    schema='rfx_notify_test'
+    schema='ttp_notify'
     )
     op.create_table('notification_template',
     sa.Column('key', sa.String(length=255), nullable=False),
     sa.Column('version', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('channel', sa.Enum('EMAIL', 'SMS', 'PUSH', 'WEBHOOK', 'INAPP', name='notificationchannelenum', schema='rfx_notify_test'), nullable=False),
+    sa.Column('channel', sa.Enum('EMAIL', 'SMS', 'PUSH', 'WEBHOOK', 'INAPP', name='notificationchannelenum', schema='ttp_notify'), nullable=False),
     sa.Column('locale', sa.String(length=10), nullable=False),
     sa.Column('subject_template', sa.String(length=512), nullable=True),
     sa.Column('body_template', sa.Text(), nullable=False),
-    sa.Column('content_type', sa.Enum('TEXT', 'HTML', 'MARKDOWN', 'JSON', name='contenttypeenum', schema='rfx_notify_test'), nullable=True),
+    sa.Column('content_type', sa.Enum('TEXT', 'HTML', 'MARKDOWN', 'JSON', name='contenttypeenum', schema='ttp_notify'), nullable=True),
     sa.Column('engine', sa.String(length=32), nullable=False),
     sa.Column('variables_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -137,14 +137,14 @@ def upgrade() -> None:
     sa.Column('_etag', sa.String(length=64), server_default=sa.text('uuid_generate_v4()::varchar'), nullable=True),
     sa.PrimaryKeyConstraint('_id'),
     sa.UniqueConstraint('tenant_id', 'app_id', 'key', 'version', 'channel', 'locale', name='uq_notify_template_scope'),
-    schema='rfx_notify_test'
+    schema='ttp_notify'
     )
     op.create_table('notification_delivery_log',
     sa.Column('notification_id', sa.UUID(), nullable=False),
     sa.Column('provider_id', sa.UUID(), nullable=True),
     sa.Column('attempt_number', sa.Integer(), nullable=False),
     sa.Column('attempted_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'SENT', 'DELIVERED', 'FAILED', 'REJECTED', 'BOUNCED', name='notificationstatusenum', schema='rfx_notify_test'), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'SENT', 'DELIVERED', 'FAILED', 'REJECTED', 'BOUNCED', name='notificationstatusenum', schema='ttp_notify'), nullable=False),
     sa.Column('status_code', sa.String(length=64), nullable=True),
     sa.Column('response', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('error_message', sa.Text(), nullable=True),
@@ -157,10 +157,10 @@ def upgrade() -> None:
     sa.Column('_updater', sa.UUID(), nullable=True),
     sa.Column('_deleted', sa.DateTime(timezone=True), nullable=True),
     sa.Column('_etag', sa.String(length=64), server_default=sa.text('uuid_generate_v4()::varchar'), nullable=True),
-    sa.ForeignKeyConstraint(['notification_id'], ['rfx_notify_test.notification._id'], ),
-    sa.ForeignKeyConstraint(['provider_id'], ['rfx_notify_test.notification_provider._id'], ),
+    sa.ForeignKeyConstraint(['notification_id'], ['ttp_notify.notification._id'], ),
+    sa.ForeignKeyConstraint(['provider_id'], ['ttp_notify.notification_provider._id'], ),
     sa.PrimaryKeyConstraint('_id'),
-    schema='rfx_notify_test'
+    schema='ttp_notify'
     )
     # ### end Alembic commands ###
 
@@ -168,9 +168,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table('notification_delivery_log', schema='rfx_notify_test')
-    op.drop_table('notification_template', schema='rfx_notify_test')
-    op.drop_table('notification_provider', schema='rfx_notify_test')
-    op.drop_table('notification_preference', schema='rfx_notify_test')
-    op.drop_table('notification', schema='rfx_notify_test')
+    op.drop_table('notification_delivery_log', schema='ttp_notify')
+    op.drop_table('notification_template', schema='ttp_notify')
+    op.drop_table('notification_provider', schema='ttp_notify')
+    op.drop_table('notification_preference', schema='ttp_notify')
+    op.drop_table('notification', schema='ttp_notify')
     # ### end Alembic commands ###

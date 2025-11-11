@@ -13,21 +13,21 @@ from datetime import datetime
 from sqlalchemy.dialects import postgresql as pg
 from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
 
-from ._meta import config
+from . import config as notify_config
 from . import types
 
 
 class NotifyConnector(SqlaDriver):
     """Database connector for the notification service."""
-    assert config.DB_DSN, "[rfx_notify.DB_DSN] not set."
+    assert notify_config.DB_DSN, "[rfx_notify.DB_DSN] not set."
 
-    __db_dsn__ = config.DB_DSN
+    __db_dsn__ = notify_config.DB_DSN
 
 
 class NotifyBaseModel(NotifyConnector.__data_schema_base__, DomainSchema):
     """Base model class for all notification service models."""
     __abstract__ = True
-    __table_args__ = {'schema': config.NOTIFY_SERVICE_SCHEMA}
+    __table_args__ = {'schema': notify_config.NOTIFY_SERVICE_SCHEMA}
 
     _realm = sa.Column(sa.String)
 
@@ -47,7 +47,7 @@ class Notification(NotifyBaseModel):
     # Channel and provider
     channel = sa.Column(
         sa.Enum(types.NotificationChannelEnum, name="notificationchannelenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         nullable=False
     )
     provider_id = sa.Column(pg.UUID, nullable=True)  # Reference to provider
@@ -57,7 +57,7 @@ class Notification(NotifyBaseModel):
     body = sa.Column(sa.Text)
     content_type = sa.Column(
         sa.Enum(types.ContentTypeEnum, name="contenttypeenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         default=types.ContentTypeEnum.TEXT
     )
 
@@ -67,13 +67,13 @@ class Notification(NotifyBaseModel):
     # Status and tracking
     status = sa.Column(
         sa.Enum(types.NotificationStatusEnum, name="notificationstatusenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         default=types.NotificationStatusEnum.PENDING,
         nullable=False
     )
     priority = sa.Column(
         sa.Enum(types.NotificationPriorityEnum, name="notificationpriorityenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         default=types.NotificationPriorityEnum.NORMAL
     )
 
@@ -115,12 +115,12 @@ class NotificationProvider(NotifyBaseModel):
     name = sa.Column(sa.String(255), nullable=False)
     provider_type = sa.Column(
         sa.Enum(types.ProviderTypeEnum, name="providertypeenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         nullable=False
     )
     channel = sa.Column(
         sa.Enum(types.NotificationChannelEnum, name="notificationchannelenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         nullable=False
     )
 
@@ -131,7 +131,7 @@ class NotificationProvider(NotifyBaseModel):
     # Status and priority
     status = sa.Column(
         sa.Enum(types.ProviderStatusEnum, name="providerstatusenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         default=types.ProviderStatusEnum.ACTIVE
     )
     priority = sa.Column(sa.Integer, default=100)  # Lower number = higher priority
@@ -145,7 +145,7 @@ class NotificationProvider(NotifyBaseModel):
     # Retry configuration
     retry_strategy = sa.Column(
         sa.Enum(types.RetryStrategyEnum, name="retrystrategyenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         default=types.RetryStrategyEnum.EXPONENTIAL
     )
     retry_delays = sa.Column(pg.ARRAY(sa.Integer), default=[60, 300, 900])  # Delays in seconds
@@ -178,7 +178,7 @@ class NotificationDeliveryLog(NotifyBaseModel):
     # Result
     status = sa.Column(
         sa.Enum(types.NotificationStatusEnum, name="notificationstatusenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         nullable=False
     )
     status_code = sa.Column(sa.String(64))  # HTTP status, SMTP code, etc.
@@ -208,7 +208,7 @@ class NotificationTemplate(NotifyBaseModel):
     # Channel and locale
     channel = sa.Column(
         sa.Enum(types.NotificationChannelEnum, name="notificationchannelenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         nullable=False
     )
     locale = sa.Column(sa.String(10), default="en")
@@ -218,7 +218,7 @@ class NotificationTemplate(NotifyBaseModel):
     body_template = sa.Column(sa.Text, nullable=False)
     content_type = sa.Column(
         sa.Enum(types.ContentTypeEnum, name="contenttypeenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         default=types.ContentTypeEnum.TEXT
     )
 
@@ -236,7 +236,7 @@ class NotificationTemplate(NotifyBaseModel):
     __table_args__ = (
         sa.UniqueConstraint('tenant_id', 'app_id', 'key', 'version',
                             'channel', 'locale', name='uq_notify_template_scope'),
-        {'schema': config.NOTIFY_SERVICE_SCHEMA}
+        {'schema': notify_config.NOTIFY_SERVICE_SCHEMA}
     )
 
 
@@ -254,7 +254,7 @@ class NotificationPreference(NotifyBaseModel):
     # Channel preferences
     channel = sa.Column(
         sa.Enum(types.NotificationChannelEnum, name="notificationchannelenum",
-                schema=config.NOTIFY_SERVICE_SCHEMA),
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         nullable=False
     )
     enabled = sa.Column(sa.Boolean, default=True)
@@ -276,5 +276,5 @@ class NotificationPreference(NotifyBaseModel):
 
     __table_args__ = (
         sa.UniqueConstraint('user_id', 'channel', name='uq_user_channel_preference'),
-        {'schema': config.NOTIFY_SERVICE_SCHEMA}
+        {'schema': notify_config.NOTIFY_SERVICE_SCHEMA}
     )

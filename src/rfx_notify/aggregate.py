@@ -29,7 +29,7 @@ class NotifyAggregate(Aggregate):
     def notification_service(self) -> NotificationService:
         """Lazy-loaded notification service."""
         if self._notification_service is None:
-            self._notification_service = NotificationService(self.statemgr)
+            self._notification_service = NotificationService()
         return self._notification_service
 
     @property
@@ -73,7 +73,7 @@ class NotifyAggregate(Aggregate):
         if not notification:
             raise ValueError(f"Notification not found: {notification_id}")
 
-        if notification.status != NotificationStatusEnum.PENDING.value:
+        if notification.status != NotificationStatusEnum.PENDING:
             raise ValueError(f"Notification {notification_id} is not in PENDING state")
 
         # Update status to processing
@@ -217,51 +217,6 @@ class NotifyAggregate(Aggregate):
 
         log_record = self.init_resource("notification_delivery_log", log_data)
         await self.statemgr.insert(log_record)
-
-    # ========================================================================
-    # PROVIDER OPERATIONS
-    # ========================================================================
-
-    @action("provider-created", resources="notification_provider")
-    async def create_provider(self, *, data):
-        """Create a new notification provider."""
-        provider_data = serialize_mapping(data)
-        provider = self.init_resource("notification_provider", provider_data, _id=self.aggroot.identifier)
-        await self.statemgr.insert(provider)
-
-        return {
-            "provider_id": provider._id,
-            "name": provider.name,
-            "provider_type": provider.provider_type
-        }
-
-    @action("provider-updated", resources="notification_provider")
-    async def update_provider(self, *, data):
-        """Update an existing provider."""
-        provider = await self.statemgr.fetch("notification_provider", self.aggroot.identifier)
-        if not provider:
-            raise ValueError(f"Provider not found: {self.aggroot.identifier}")
-
-        await self.statemgr.update(provider, **data)
-
-        return {
-            "provider_id": provider._id,
-            "name": provider.name
-        }
-
-    @action("provider-status-changed", resources="notification_provider")
-    async def change_provider_status(self, *, status: str):
-        """Change provider status (activate, deactivate, etc.)."""
-        provider = await self.statemgr.fetch("notification_provider", self.aggroot.identifier)
-        if not provider:
-            raise ValueError(f"Provider not found: {self.aggroot.identifier}")
-
-        await self.statemgr.update(provider, status=status)
-
-        return {
-            "provider_id": provider._id,
-            "status": status
-        }
 
     # ========================================================================
     # PREFERENCE OPERATIONS

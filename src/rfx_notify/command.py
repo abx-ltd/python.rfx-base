@@ -7,6 +7,8 @@ from typing import Optional, List
 from .domain import NotifyServiceDomain
 from . import logger
 
+from . import datadef
+
 processor = NotifyServiceDomain.command_processor
 Command = NotifyServiceDomain.Command
 
@@ -26,6 +28,10 @@ class SendNotification(Command):
         tags = ["notification", "send"]
         auth_required = True
         policy_required = False
+
+
+
+    Data = datadef.SendNotificationPayload
 
     async def _process(self, agg, stm, payload):
         try:
@@ -99,6 +105,8 @@ class UpdateNotificationStatus(Command):
         auth_required = False  # Webhooks may not have user auth
         policy_required = False
 
+    Data = datadef.NotificationStatusUpdatePayload
+
     async def _process(self, agg, stm, payload):
         try:
             notification_id = self.aggroot.identifier
@@ -141,6 +149,8 @@ class CreateProvider(Command):
         auth_required = True
         policy_required = True  # Admins only
 
+    Data = datadef.NotificationProviderPayload
+
     async def _process(self, agg, stm, payload):
         try:
             result = await agg.create_provider(data=serialize_mapping(payload))
@@ -171,6 +181,8 @@ class UpdateProvider(Command):
         auth_required = True
         policy_required = True  # Admins only
 
+    Data = datadef.NotificationProviderUpdatePayload
+
     async def _process(self, agg, stm, payload):
         try:
             result = await agg.update_provider(data=serialize_mapping(payload))
@@ -199,6 +211,8 @@ class ChangeProviderStatus(Command):
         tags = ["provider", "status"]
         auth_required = True
         policy_required = True  # Admins only
+
+    Data = datadef.ChangeProviderStatusPayload
 
     async def _process(self, agg, stm, payload):
         try:
@@ -237,6 +251,8 @@ class UpdateNotificationPreference(Command):
         auth_required = True
         policy_required = False
 
+    Data = datadef.NotificationPreferencePayload
+
     async def _process(self, agg, stm, payload):
         try:
             result = await agg.update_user_preference(data=serialize_mapping(payload))
@@ -270,6 +286,8 @@ class CreateNotificationTemplate(Command):
         tags = ["template", "create"]
         auth_required = True
         policy_required = True  # Admins only
+
+    Data = datadef.NotificationTemplatePayload
 
     async def _process(self, agg, stm, payload):
         try:
