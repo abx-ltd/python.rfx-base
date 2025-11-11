@@ -52,7 +52,6 @@ class ContentTypeEnum(Enum):
     JSON = "JSON"
 
 
-class RetryStrategyEnumRemoved(Enum):
     NONE = "NONE"
     LINEAR = "LINEAR"
     EXPONENTIAL = "EXPONENTIAL"
