@@ -9,9 +9,24 @@ from typing import Dict, Any, Optional
 from .base import NotificationProviderBase
 from ..types import NotificationStatusEnum, ContentTypeEnum, ProviderTypeEnum
 from .. import config, logger
+from pydantic import BaseModel
+
+
+class SMTPEmailProviderConfig(BaseModel):
+    smtp_host: str
+    smtp_port: int
+    smtp_use_tls: bool
+    smtp_use_ssl: bool
+    smtp_username: str
+    smtp_password: str
+    smtp_from_email: str
+    smtp_timeout: int
 
 
 class SMTPEmailProvider(NotificationProviderBase):
+    name = "smtp"
+
+    __CONFIG_CLS__ = SMTPEmailProviderConfig
     """
     SMTP email provider for sending emails through self-hosted SMTP server.
     The SMTP server (Postfix, Haraka, etc.) runs on the worker machine.

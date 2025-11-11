@@ -13,12 +13,31 @@ class NotificationProviderBase(ABC):
     Abstract base class for all notification providers.
     All provider implementations must inherit from this class.
     """
+    __REGISTRY__ = {}
+    __CONFIG_CLS__ = None
 
     def __init__(self):
         """
         Base providers pull their configuration directly from rfx_notify config.
         """
         super().__init__()
+        self.config = self.validate_config()
+
+    def __init_subclass__(cls):
+        if cls.name in cls.__REGISTRY__:
+            raise ValueError("")
+
+        cls.__REGISTRY__[cls.name] = cls
+
+    def validate_config(self, **kwargs):
+        return self.__CONFIG_CLS__(**kwargs)
+
+    @classmethod
+    def init_provider(cls, name, **params):
+        if name not in cls.__REGISTRY__:
+            raise ValueError("Not Found")
+
+        return cls.__REGISTRY__[name](**params)
 
     async def send_and_update(
         self,
