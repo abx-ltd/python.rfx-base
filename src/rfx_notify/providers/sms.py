@@ -1,24 +1,30 @@
 """
-SMS notification providers
+SMS notification providers - Self-hosted Kannel gateway
 """
 import httpx
 from typing import Dict, Any, Optional
-from urllib.parse import urlencode
-import base64
 
 from .base import NotificationProviderBase
-from ..types import NotificationStatusEnum
+from ..types import NotificationStatusEnum, ProviderTypeEnum
 from .. import config, logger
 
 
-class TwilioSMSProvider(NotificationProviderBase):
+class KannelSMSProvider(NotificationProviderBase):
     """
-    Twilio SMS provider for sending text messages.
+    Kannel SMS gateway provider for self-hosted SMS infrastructure.
+    Kannel should be running on the same machine as the worker.
     """
 
     def __init__(self):
         super().__init__()
-        self.api_base = 'https://api.twilio.com/2010-04-01'
+        self.kannel_host = config.KANNEL_HOST
+        self.kannel_port = config.KANNEL_PORT
+        self.kannel_username = config.KANNEL_USERNAME
+        self.kannel_password = config.KANNEL_PASSWORD
+        self.kannel_send_url = config.KANNEL_SEND_URL
+        self.kannel_dlr_mask = config.KANNEL_DLR_MASK
+        self.kannel_timeout = config.KANNEL_TIMEOUT
+        self.from_number = config.KANNEL_FROM_NUMBER
 
     async def send(
         self,
@@ -28,84 +34,109 @@ class TwilioSMSProvider(NotificationProviderBase):
         **kwargs
     ) -> Dict[str, Any]:
         """
-        Send an SMS via Twilio API.
+        Send SMS via self-hosted Kannel gateway.
 
         Args:
             recipient: Phone number in E.164 format (e.g., +1234567890)
             subject: Not used for SMS
-            body: SMS message body (max 1600 characters for Twilio)
-            **kwargs: Additional parameters (from_number, media_url for MMS)
+            body: SMS message body
+            **kwargs: Additional parameters (from_number, dlr_url for delivery reports)
         """
         try:
-            account_sid = config.TWILIO_ACCOUNT_SID
-            auth_token = config.TWILIO_AUTH_TOKEN
-            if not account_sid or not auth_token:
-                raise ValueError("Twilio account credentials are not configured")
+            # Build Kannel sendsms URL
+            url = f"http://{self.kannel_host}:{self.kannel_port}{self.kannel_send_url}"
 
-            from_number = kwargs.get('from_number') or config.TWILIO_FROM_NUMBER
-
-            if not from_number:
-                raise ValueError("from_number is required for Twilio SMS")
-
-            # Prepare payload
-            payload = {
-                'To': recipient,
-                'From': from_number,
-                'Body': body
+            # Prepare parameters
+            params = {
+                'username': self.kannel_username,
+                'password': self.kannel_password,
+                'to': recipient,
+                'text': body,
             }
 
-            # Add media URL for MMS if provided
-            if 'media_url' in kwargs:
-                payload['MediaUrl'] = kwargs['media_url']
+            # Add from number if configured
+            from_number = kwargs.get('from_number') or self.from_number
+            if from_number:
+                params['from'] = from_number
 
-            # Prepare auth header
-            auth_string = f"{account_sid}:{auth_token}"
-            auth_bytes = base64.b64encode(auth_string.encode('utf-8'))
-            auth_header = f"Basic {auth_bytes.decode('utf-8')}"
+            # Add DLR (Delivery Report) configuration if webhook URL provided
+            dlr_url = kwargs.get('dlr_url')
+            if dlr_url:
+                params['dlr-url'] = dlr_url
+                params['dlr-mask'] = self.kannel_dlr_mask
 
-            headers = {
-                'Authorization': auth_header,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
+            logger.info(
+                f"Sending SMS to {recipient} via Kannel at {self.kannel_host}:{self.kannel_port}"
+            )
 
-            # Send request
-            api_url = f'{self.api_base}/Accounts/{account_sid}/Messages.json'
+            async with httpx.AsyncClient(timeout=self.kannel_timeout) as client:
+                response = await client.get(url, params=params)
 
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    api_url,
-                    data=urlencode(payload),
-                    headers=headers
-                )
+                # Kannel returns different status codes and messages
+                # Successful: "0: Accepted for delivery" or similar
+                # Error: "3: Temporarily failed" or error message
+                response_text = response.text.strip()
 
-                response_data = response.json()
+                if response.status_code == 200:
+                    # Check response text for success indicators
+                    if any(indicator in response_text for indicator in ['Sent', 'Queued', 'Accepted']):
+                        # Extract message ID from response (format: "0: Accepted for delivery")
+                        try:
+                            message_id = response_text.split(':')[0].strip()
+                        except:
+                            message_id = None
 
-                if response.status_code == 201:
-                    message_sid = response_data.get('sid')
-                    logger.info(f"SMS sent via Twilio to {recipient}, SID: {message_sid}")
+                        logger.info(
+                            f"SMS sent to {recipient} via Kannel, message_id: {message_id}"
+                        )
 
-                    return {
-                        'status': NotificationStatusEnum.SENT,
-                        'provider_message_id': message_sid,
-                        'response': response_data,
-                        'error': None
-                    }
+                        return {
+                            'status': NotificationStatusEnum.SENT,
+                            'provider_type': self.provider_type,
+                            'provider_message_id': message_id,
+                            'response': {
+                                'kannel_response': response_text,
+                                'recipient': recipient,
+                                'kannel_host': self.kannel_host,
+                            },
+                            'error': None
+                        }
+                    else:
+                        # Response indicates error
+                        logger.error(f"Kannel error: {response_text}")
+                        return {
+                            'status': NotificationStatusEnum.FAILED,
+                            'provider_type': self.provider_type,
+                            'provider_message_id': None,
+                            'response': {'kannel_response': response_text},
+                            'error': f"Kannel error: {response_text}"
+                        }
                 else:
-                    error_msg = response_data.get('message', 'Unknown error')
-                    error_code = response_data.get('code')
-                    logger.error(f"Twilio API error: {error_code} - {error_msg}")
-
+                    logger.error(
+                        f"Kannel HTTP error {response.status_code}: {response.text}"
+                    )
                     return {
                         'status': NotificationStatusEnum.FAILED,
+                        'provider_type': self.provider_type,
                         'provider_message_id': None,
-                        'response': response_data,
-                        'error': f"{error_code}: {error_msg}"
+                        'response': {},
+                        'error': f"HTTP {response.status_code}: {response.text}"
                     }
 
-        except Exception as e:
-            logger.error(f"Failed to send SMS via Twilio: {str(e)}")
+        except httpx.TimeoutException:
+            logger.error(f"Timeout connecting to Kannel for {recipient}")
             return {
                 'status': NotificationStatusEnum.FAILED,
+                'provider_type': self.provider_type,
+                'provider_message_id': None,
+                'response': {},
+                'error': "Timeout connecting to Kannel gateway"
+            }
+        except Exception as e:
+            logger.error(f"Error sending SMS to {recipient} via Kannel: {str(e)}")
+            return {
+                'status': NotificationStatusEnum.FAILED,
+                'provider_type': self.provider_type,
                 'provider_message_id': None,
                 'response': {},
                 'error': str(e)
@@ -113,96 +144,66 @@ class TwilioSMSProvider(NotificationProviderBase):
 
     async def check_status(self, provider_message_id: str) -> Dict[str, Any]:
         """
-        Check SMS delivery status via Twilio API.
-
-        Args:
-            provider_message_id: Twilio message SID
+        Check SMS delivery status via Kannel DLR.
+        Requires DLR to be configured in Kannel and webhook integration.
         """
         try:
-            account_sid = config.TWILIO_ACCOUNT_SID
-            auth_token = config.TWILIO_AUTH_TOKEN
-            if not account_sid or not auth_token:
-                raise ValueError("Twilio account credentials are not configured")
-
-            status_url = f'{self.api_base}/Accounts/{account_sid}/Messages/{provider_message_id}.json'
-
-            # Prepare auth header
-            auth_string = f"{account_sid}:{auth_token}"
-            auth_bytes = base64.b64encode(auth_string.encode('utf-8'))
-            auth_header = f"Basic {auth_bytes.decode('utf-8')}"
-
-            headers = {
-                'Authorization': auth_header
+            # Kannel status checking is typically done via DLR webhooks
+            # This is a placeholder for status page checking
+            url = f"http://{self.kannel_host}:{self.kannel_port}/status"
+            params = {
+                'username': self.kannel_username,
+                'password': self.kannel_password,
             }
 
-            async with httpx.AsyncClient() as client:
-                response = await client.get(status_url, headers=headers)
-                response_data = response.json()
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
 
                 if response.status_code == 200:
-                    twilio_status = response_data.get('status')
-
-                    # Map Twilio status to our status
-                    status_map = {
-                        'queued': NotificationStatusEnum.PROCESSING,
-                        'sending': NotificationStatusEnum.PROCESSING,
-                        'sent': NotificationStatusEnum.SENT,
-                        'delivered': NotificationStatusEnum.DELIVERED,
-                        'undelivered': NotificationStatusEnum.FAILED,
-                        'failed': NotificationStatusEnum.FAILED,
-                    }
-
-                    status = status_map.get(twilio_status, NotificationStatusEnum.PENDING)
-
                     return {
-                        'status': status,
-                        'twilio_status': twilio_status,
-                        'error_code': response_data.get('error_code'),
-                        'error_message': response_data.get('error_message'),
-                        'date_sent': response_data.get('date_sent'),
-                        'date_updated': response_data.get('date_updated')
+                        'status': 'unknown',
+                        'message': 'Check Kannel DLR logs for detailed delivery status'
                     }
                 else:
                     return {
-                        'status': NotificationStatusEnum.PENDING,
-                        'error': 'Failed to fetch status from Twilio'
+                        'status': 'error',
+                        'message': f'Kannel status page returned {response.status_code}'
                     }
-
         except Exception as e:
-            logger.error(f"Failed to check Twilio SMS status: {str(e)}")
             return {
-                'status': NotificationStatusEnum.PENDING,
-                'error': str(e)
+                'status': 'error',
+                'message': str(e)
             }
 
     async def validate_config(self) -> bool:
         """
-        Validate Twilio configuration by checking account details.
+        Validate Kannel configuration by checking status page.
         """
         try:
-            account_sid = config.TWILIO_ACCOUNT_SID
-            auth_token = config.TWILIO_AUTH_TOKEN
-            if not account_sid or not auth_token:
-                raise ValueError("Twilio account credentials are not configured")
-
-            account_url = f'{self.api_base}/Accounts/{account_sid}.json'
-
-            # Prepare auth header
-            auth_string = f"{account_sid}:{auth_token}"
-            auth_bytes = base64.b64encode(auth_string.encode('utf-8'))
-            auth_header = f"Basic {auth_bytes.decode('utf-8')}"
-
-            headers = {
-                'Authorization': auth_header
+            url = f"http://{self.kannel_host}:{self.kannel_port}/status"
+            params = {
+                'username': self.kannel_username,
+                'password': self.kannel_password,
             }
 
-            async with httpx.AsyncClient() as client:
-                response = await client.get(account_url, headers=headers)
-                return response.status_code == 200
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url, params=params)
+                is_valid = response.status_code == 200
 
+                if is_valid:
+                    logger.info(f"Kannel configuration validated successfully")
+                else:
+                    logger.error(f"Kannel validation failed with status {response.status_code}")
+
+                return is_valid
         except Exception as e:
-            logger.error(f"Twilio configuration validation failed: {str(e)}")
+            logger.error(f"Kannel configuration validation failed: {str(e)}")
             return False
 
+    @property
+    def provider_type(self):
+        return ProviderTypeEnum.SMS
+
     def supports_delivery_confirmation(self) -> bool:
-        return True  # Twilio supports delivery confirmation
+        return True  # Kannel supports DLR (Delivery Reports)
+

@@ -3,14 +3,11 @@ RFX Notify Domain Aggregate - Business Logic and State Management
 """
 from fluvius.domain.aggregate import Aggregate, action
 from fluvius.data import serialize_mapping, timestamp
-from typing import Optional, Dict, Any
-from datetime import datetime
 
-from .service import NotificationService
 from .processor import NotificationContentProcessor
 from .template import NotificationTemplateService
-from .types import NotificationStatusEnum, NotificationChannelEnum, ProviderTypeEnum
-from .queue import get_queue_service
+from .types import NotificationStatusEnum, ProviderTypeEnum
+from .service import NotificationService
 from . import logger
 
 
@@ -22,16 +19,9 @@ class NotifyAggregate(Aggregate):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._notification_service = None
         self._content_processor = None
         self._template_service = None
-
-    @property
-    def notification_service(self) -> NotificationService:
-        """Lazy-loaded notification service."""
-        if self._notification_service is None:
-            self._notification_service = NotificationService()
-        return self._notification_service
+        self._notification_service = None
 
     @property
     def content_processor(self) -> NotificationContentProcessor:
@@ -46,6 +36,13 @@ class NotifyAggregate(Aggregate):
         if self._template_service is None:
             self._template_service = NotificationTemplateService(self.statemgr)
         return self._template_service
+
+    @property
+    def notification_service(self) -> NotificationService:
+        """Lazy-loaded notification service."""
+        if self._notification_service is None:
+            self._notification_service = NotificationService()
+        return self._notification_service
 
     # ========================================================================
     # NOTIFICATION OPERATIONS
@@ -68,32 +65,28 @@ class NotifyAggregate(Aggregate):
     @action("notification-sent", resources="notification")
     async def send_notification(self, *, notification_id: str):
         """
-        Queue notification for worker to send.
-        Worker will handle fetching, sending, updating, and logging.
+        Send notification through provider.
+        Service handles the full flow: send, update status, log delivery.
         """
         notification = await self.statemgr.fetch("notification", notification_id)
         if not notification:
             raise ValueError(f"Notification not found: {notification_id}")
 
-        if notification.status != NotificationStatusEnum.PENDING:
+        if notification.status != NotificationStatusEnum.PENDING.value:
             raise ValueError(f"Notification {notification_id} is not in PENDING state")
 
-        # Use injected queue service (no direct worker import!)
-        queue_service = get_queue_service()
-        task_id = await queue_service.queue_send_notification(notification_id)
+        logger.info(f"Sending notification {notification_id}")
 
-        logger.info(f"Notification {notification_id} queued for sending (task: {task_id})")
-
-        return {
-            "notification_id": notification_id,
-            "status": "queued",
-            "task_id": task_id
-        }
+        # Delegate to service - it handles send, update, and logging
+        return await self.notification_service.send_and_update_notification(
+            notification,
+            self.statemgr
+        )
 
     @action("notification-retried", resources="notification")
     async def retry_notification(self, *, notification_id: str):
         """
-        Queue notification retry for worker.
+        Retry a failed notification.
         """
         notification = await self.statemgr.fetch("notification", notification_id)
         if not notification:
@@ -105,21 +98,25 @@ class NotifyAggregate(Aggregate):
         if notification.retry_count >= notification.max_retries:
             raise ValueError(f"Notification {notification_id} has exceeded max retries")
 
-        # Use injected queue service
-        queue_service = get_queue_service()
-        task_id = await queue_service.queue_retry_notification(notification_id)
-
         logger.info(
-            f"Notification {notification_id} queued for retry "
-            f"(attempt {notification.retry_count + 1}, task: {task_id})"
+            f"Retrying notification {notification_id} "
+            f"(attempt {notification.retry_count + 1}/{notification.max_retries})"
         )
 
-        return {
-            "notification_id": notification_id,
-            "status": "queued_for_retry",
-            "task_id": task_id,
-            "retry_attempt": notification.retry_count + 1
-        }
+        # Increment retry count
+        await self.statemgr.update(notification, retry_count=notification.retry_count + 1)
+
+        # Refetch to get updated retry_count
+        notification = await self.statemgr.fetch("notification", notification_id)
+
+        # Delegate to service - it handles send, update, and logging
+        result = await self.notification_service.send_and_update_notification(
+            notification,
+            self.statemgr
+        )
+
+        result['attempt'] = notification.retry_count
+        return result
 
     @action("notification-status-updated", resources="notification")
     async def update_notification_status(self, *, notification_id: str, status: str, **kwargs):
@@ -232,3 +229,5 @@ class NotifyAggregate(Aggregate):
             "template_id": template._id,
             "is_active": template.is_active
         }
+
+

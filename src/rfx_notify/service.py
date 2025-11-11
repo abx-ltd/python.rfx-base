@@ -2,8 +2,9 @@
 Notification Service - Provider Management and Notification Delivery
 """
 from typing import Dict, Any, Optional
+from fluvius.data import timestamp
 
-from .providers import NotificationProviderBase, SMTPEmailProvider, SendGridProvider, TwilioSMSProvider
+from .providers import NotificationProviderBase, SMTPEmailProvider, KannelSMSProvider
 from .types import (
     NotificationChannelEnum,
     ProviderTypeEnum,
@@ -20,13 +21,38 @@ class NotificationService:
     # Provider class registry
     PROVIDER_CLASSES = {
         ProviderTypeEnum.SMTP: SMTPEmailProvider,
-        ProviderTypeEnum.SENDGRID: SendGridProvider,
-        ProviderTypeEnum.TWILIO: TwilioSMSProvider,
-        # Add more providers as needed
+        ProviderTypeEnum.KANNEL: KannelSMSProvider,
     }
 
     def __init__(self):
         self._provider_cache: Dict[ProviderTypeEnum, NotificationProviderBase] = {}
+
+    async def send_and_update_notification(self, notification: Any, statemgr: Any) -> Dict[str, Any]:
+        """
+        Send notification through provider.
+        Provider handles the complete flow: update status, send, update result, log delivery.
+
+        Args:
+            notification: Notification model instance
+            statemgr: State manager for database operations
+
+        Returns:
+            Dictionary containing notification_id, status, provider info
+        """
+        channel = NotificationChannelEnum(notification.channel)
+
+        try:
+            provider_type = self._determine_provider_type(notification, channel)
+        except ValueError as exc:
+            logger.error(str(exc))
+            raise
+
+        provider_instance = self._get_provider_instance(provider_type)
+        if not provider_instance:
+            raise ValueError(f'No provider implementation available for {provider_type.value}')
+
+        # Delegate to provider - it handles everything
+        return await provider_instance.send_and_update(notification, statemgr)
 
     async def send_notification(self, notification: Any) -> Dict[str, Any]:
         """
@@ -94,7 +120,7 @@ class NotificationService:
         Check delivery status of a notification from the provider.
 
         Args:
-            provider_key: Provider type key (e.g., SENDGRID)
+            provider_key: Provider type key (e.g., SMTP, KANNEL)
             provider_message_id: Provider's message ID
 
         Returns:
@@ -146,13 +172,11 @@ class NotificationService:
             return ProviderTypeEnum(meta_type if isinstance(meta_type, str) else meta_type)
 
         if channel == NotificationChannelEnum.EMAIL:
-            if config.SENDGRID_API_KEY:
-                return ProviderTypeEnum.SENDGRID
             if config.SMTP_HOST:
                 return ProviderTypeEnum.SMTP
         elif channel == NotificationChannelEnum.SMS:
-            if config.TWILIO_ACCOUNT_SID and config.TWILIO_AUTH_TOKEN:
-                return ProviderTypeEnum.TWILIO
+            if config.KANNEL_HOST:
+                return ProviderTypeEnum.KANNEL
 
         raise ValueError(f"No provider configured for channel {channel.value}")
 
@@ -211,7 +235,7 @@ class NotificationService:
         Validate a provider's configuration.
 
         Args:
-            provider_key: Provider type key (e.g., SENDGRID)
+            provider_key: Provider type key (e.g., SMTP, KANNEL)
 
         Returns:
             True if valid, False otherwise

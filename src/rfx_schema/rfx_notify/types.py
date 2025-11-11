@@ -51,8 +51,3 @@ class ContentTypeEnum(Enum):
     MARKDOWN = "MARKDOWN"
     JSON = "JSON"
 
-
-    NONE = "NONE"
-    LINEAR = "LINEAR"
-    EXPONENTIAL = "EXPONENTIAL"
-    FIBONACCI = "FIBONACCI"

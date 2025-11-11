@@ -22,12 +22,12 @@ class NotificationChannelEnum(Enum):
 
 class ProviderTypeEnum(Enum):
     """
-    Provider types for external notification services.
+    Provider types for notification services.
+    Using self-hosted infrastructure for email and SMS.
     """
-    SMTP = "SMTP"             # SMTP email provider
-    SENDGRID = "SENDGRID"     # SendGrid email service
+    SMTP = "SMTP"             # Self-hosted SMTP server (Postfix/Haraka)
+    KANNEL = "KANNEL"         # Self-hosted Kannel SMS gateway
     SES = "SES"               # AWS SES
-    TWILIO = "TWILIO"         # Twilio SMS service
     SNS = "SNS"               # AWS SNS
     FIREBASE = "FIREBASE"     # Firebase Cloud Messaging
     MQTT = "MQTT"             # MQTT broker
@@ -66,12 +66,3 @@ class ContentTypeEnum(Enum):
     MARKDOWN = "MARKDOWN"     # Markdown content
     JSON = "JSON"             # JSON payload
 
-
-class RetryStrategyEnum(Enum):
-    """
-    Retry strategies for failed notifications.
-    """
-    NONE = "NONE"                     # No retry
-    LINEAR = "LINEAR"                 # Fixed interval retry
-    EXPONENTIAL = "EXPONENTIAL"       # Exponential backoff
-    FIBONACCI = "FIBONACCI"           # Fibonacci backoff

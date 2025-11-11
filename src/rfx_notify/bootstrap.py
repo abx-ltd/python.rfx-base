@@ -1,31 +1,50 @@
 """
 Bootstrap helpers for the rfx_notify provider runtime.
+
+This module initializes self-hosted notification providers (SMTP and Kannel).
 """
-from .providers import SMTPEmailProvider, SendGridProvider, TwilioSMSProvider
+from .providers.email import SMTPEmailProvider
+from .providers.sms import KannelSMSProvider
 from . import config, logger
 
 
 def bootstrap_providers():
     """
     Instantiate available provider clients based on notify config.
+
+    Uses self-hosted infrastructure:
+    - SMTP for email (connects to local SMTP server like Postfix/Haraka)
+    - Kannel for SMS (connects to local Kannel SMS gateway)
     """
     providers = {}
 
-    if config.SENDGRID_API_KEY:
-        providers["sendgrid"] = SendGridProvider()
-    else:
-        logger.warning("SendGrid provider disabled: SENDGRID_API_KEY not set")
-
-    if config.SMTP_HOST and config.SMTP_USERNAME and config.SMTP_PASSWORD:
+    # ========================================================================
+    # SELF-HOSTED EMAIL PROVIDER
+    # ========================================================================
+    if config.SMTP_HOST:
         providers["smtp"] = SMTPEmailProvider()
+        logger.info(
+            f"Self-hosted SMTP provider enabled: {config.SMTP_HOST}:{config.SMTP_PORT or 25}"
+        )
     else:
-        logger.warning("SMTP provider disabled: missing SMTP credentials/host")
+        logger.warning("SMTP provider disabled: SMTP_HOST not configured")
 
-    if config.TWILIO_ACCOUNT_SID and config.TWILIO_AUTH_TOKEN and config.TWILIO_FROM_NUMBER:
-        providers["twilio"] = TwilioSMSProvider()
+    # ========================================================================
+    # SELF-HOSTED SMS PROVIDER
+    # ========================================================================
+    if config.KANNEL_HOST:
+        providers["kannel"] = KannelSMSProvider()
+        logger.info(
+            f"Self-hosted Kannel SMS provider enabled: {config.KANNEL_HOST}:{config.KANNEL_PORT or 13013}"
+        )
     else:
-        logger.warning("Twilio provider disabled: missing SID/auth token/from_number")
+        logger.warning("Kannel provider disabled: KANNEL_HOST not configured")
 
-    enabled = ", ".join(providers.keys()) if providers else "none"
-    logger.info("Notify providers bootstrapped: %s", enabled)
+    # Log summary
+    if providers:
+        enabled = ", ".join(providers.keys())
+        logger.info(f"Notification providers bootstrapped: {enabled}")
+    else:
+        logger.error("No notification providers enabled! Check configuration.")
+
     return providers
