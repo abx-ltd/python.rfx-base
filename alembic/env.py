@@ -35,6 +35,7 @@ ALL_SCHEMAS = {
     'policy': base_config.RFX_POLICY_SCHEMA,
     'message': base_config.RFX_MESSAGE_SCHEMA,
     'media': base_config.RFX_MEDIA_SCHEMA,
+    'notify': base_config.RFX_NOTIFY_SCHEMA,
 }
 
 # Get schema filter from environment variable
