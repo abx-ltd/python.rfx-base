@@ -69,34 +69,6 @@ class SendNotificationPayload(DataModel):
         3, description="Maximum number of retry attempts allowed if delivery fails."
     )
 
-    @validator("channel", pre=True)
-    def normalize_channel(cls, value):
-        if isinstance(value, str):
-            value = value.upper()
-            return NotificationChannelEnum(value)
-        return value
-
-    @validator("content_type", pre=True)
-    def normalize_content_type(cls, value):
-        if isinstance(value, str):
-            value = value.upper()
-            return ContentTypeEnum(value)
-        return value
-
-    @validator("priority", pre=True)
-    def normalize_priority(cls, value):
-        if isinstance(value, str):
-            value = value.upper()
-            return NotificationPriorityEnum(value)
-        return value
-
-    @validator("provider_type", pre=True)
-    def normalize_provider_type(cls, value):
-        if value is None or isinstance(value, ProviderTypeEnum):
-            return value
-        return ProviderTypeEnum(value.upper())
-
-
 class NotificationStatusUpdatePayload(DataModel):
     """Payload for updating notification delivery status."""
 

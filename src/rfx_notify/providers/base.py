@@ -255,6 +255,6 @@ class NotificationProviderBase(ABC):
         }
 
         try:
-            await statemgr.insert_raw('notification_delivery_log', log_data)
+            await statemgr.add_notification_log(**log_data)
         except Exception as e:
             logger.error(f"Failed to log delivery attempt for {notification_id}: {str(e)}")

@@ -52,7 +52,7 @@ class NotifyAggregate(Aggregate):
     async def create_notification(self, *, data):
         """Create a new notification record."""
         notification_data = data
-        notification_data['status'] = NotificationStatusEnum.PENDING.value
+        notification_data['status'] = NotificationStatusEnum.PENDING
 
         notification = self.init_resource("notification", notification_data, _id=self.aggroot.identifier)
         await self.statemgr.insert(notification)
@@ -72,7 +72,7 @@ class NotifyAggregate(Aggregate):
         if not notification:
             raise ValueError(f"Notification not found: {notification_id}")
 
-        if notification.status != NotificationStatusEnum.PENDING.value:
+        if notification.status != NotificationStatusEnum.PENDING:
             raise ValueError(f"Notification {notification_id} is not in PENDING state")
 
         logger.info(f"Sending notification {notification_id}")
@@ -92,7 +92,7 @@ class NotifyAggregate(Aggregate):
         if not notification:
             raise ValueError(f"Notification not found: {notification_id}")
 
-        if notification.status not in [NotificationStatusEnum.FAILED.value, NotificationStatusEnum.REJECTED.value]:
+        if notification.status not in [NotificationStatusEnum.FAILED, NotificationStatusEnum.REJECTED]:
             raise ValueError(f"Notification {notification_id} is not in a retriable state")
 
         if notification.retry_count >= notification.max_retries:
@@ -129,9 +129,9 @@ class NotifyAggregate(Aggregate):
 
         update_data = {'status': status}
 
-        if status == NotificationStatusEnum.DELIVERED.value:
+        if status == NotificationStatusEnum.DELIVERED:
             update_data['delivered_at'] = timestamp()
-        elif status == NotificationStatusEnum.FAILED.value:
+        elif status == NotificationStatusEnum.FAILED:
             update_data['failed_at'] = timestamp()
 
         if 'error_message' in kwargs:

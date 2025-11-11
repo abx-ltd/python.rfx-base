@@ -151,7 +151,7 @@ class SMTPEmailProvider(NotificationProviderBase):
 
     @property
     def provider_type(self):
-        return ProviderTypeEnum.EMAIL
+        return ProviderTypeEnum.SMTP
 
     def supports_delivery_confirmation(self) -> bool:
         return False  # Basic SMTP doesn't support this
