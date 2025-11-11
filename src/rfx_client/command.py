@@ -2949,7 +2949,7 @@ class CreateComment(Command):
         tags = ["comment"]
         auth_required = True
         description = "Create a new comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.CreateCommentPayload
 
@@ -3017,7 +3017,7 @@ class UpdateComment(Command):
         tags = ["comment", "update"]
         auth_required = True
         description = "Update a comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.UpdateCommentPayload
 
@@ -3079,7 +3079,7 @@ class DeleteComment(Command):
         tags = ["comment", "delete"]
         auth_required = True
         description = "Delete a comment"
-        policy_required = False
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         """Delete comment"""
@@ -3119,16 +3119,16 @@ class DeleteComment(Command):
         await agg.delete_comment()
 
 
-class ReplyToComment(Command):
+class ReplyComment(Command):
     """Reply to Comment - Replies to a comment"""
 
     class Meta:
-        key = "reply-to-comment"
+        key = "reply-comment"
         resources = ("comment",)
         tags = ["comment", "reply"]
         auth_required = True
         description = "Reply to a comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.ReplyToCommentPayload
 
@@ -3146,7 +3146,7 @@ class ReplyToComment(Command):
         payload_dict["resource_id"] = str(resource_id)
         payload_dict["source"] = "user"
 
-        result = await agg.reply_to_comment(data=payload)
+        result = await agg.reply_to_comment(data=payload_dict)
 
         await _handle_mentions(agg, stm, payload.content)
 
