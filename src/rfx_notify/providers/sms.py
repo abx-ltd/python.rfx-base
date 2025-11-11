@@ -7,8 +7,8 @@ from urllib.parse import urlencode
 import base64
 
 from .base import NotificationProviderBase
-from ..types import NotificationStatusEnum
-from .. import logger
+from types import NotificationStatusEnum
+from . import config, logger
 
 
 class TwilioSMSProvider(NotificationProviderBase):
@@ -16,12 +16,9 @@ class TwilioSMSProvider(NotificationProviderBase):
     Twilio SMS provider for sending text messages.
     """
 
-    def __init__(self, provider_config: Dict[str, Any]):
-        super().__init__(provider_config)
-        self.account_sid = self.credentials.get('account_sid')
-        self.auth_token = self.credentials.get('auth_token')
-        self.from_number = self.config.get('from_number')
-        self.api_url = f'https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json'
+    def __init__(self):
+        super().__init__()
+        self.api_base = 'https://api.twilio.com/2010-04-01'
 
     async def send(
         self,
@@ -40,7 +37,12 @@ class TwilioSMSProvider(NotificationProviderBase):
             **kwargs: Additional parameters (from_number, media_url for MMS)
         """
         try:
-            from_number = kwargs.get('from_number', self.from_number)
+            account_sid = config.TWILIO_ACCOUNT_SID
+            auth_token = config.TWILIO_AUTH_TOKEN
+            if not account_sid or not auth_token:
+                raise ValueError("Twilio account credentials are not configured")
+
+            from_number = kwargs.get('from_number') or config.TWILIO_FROM_NUMBER
 
             if not from_number:
                 raise ValueError("from_number is required for Twilio SMS")
@@ -57,7 +59,7 @@ class TwilioSMSProvider(NotificationProviderBase):
                 payload['MediaUrl'] = kwargs['media_url']
 
             # Prepare auth header
-            auth_string = f"{self.account_sid}:{self.auth_token}"
+            auth_string = f"{account_sid}:{auth_token}"
             auth_bytes = base64.b64encode(auth_string.encode('utf-8'))
             auth_header = f"Basic {auth_bytes.decode('utf-8')}"
 
@@ -67,9 +69,11 @@ class TwilioSMSProvider(NotificationProviderBase):
             }
 
             # Send request
+            api_url = f'{self.api_base}/Accounts/{account_sid}/Messages.json'
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    self.api_url,
+                    api_url,
                     data=urlencode(payload),
                     headers=headers
                 )
@@ -115,10 +119,15 @@ class TwilioSMSProvider(NotificationProviderBase):
             provider_message_id: Twilio message SID
         """
         try:
-            status_url = f'https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages/{provider_message_id}.json'
+            account_sid = config.TWILIO_ACCOUNT_SID
+            auth_token = config.TWILIO_AUTH_TOKEN
+            if not account_sid or not auth_token:
+                raise ValueError("Twilio account credentials are not configured")
+
+            status_url = f'{self.api_base}/Accounts/{account_sid}/Messages/{provider_message_id}.json'
 
             # Prepare auth header
-            auth_string = f"{self.account_sid}:{self.auth_token}"
+            auth_string = f"{account_sid}:{auth_token}"
             auth_bytes = base64.b64encode(auth_string.encode('utf-8'))
             auth_header = f"Basic {auth_bytes.decode('utf-8')}"
 
@@ -171,10 +180,15 @@ class TwilioSMSProvider(NotificationProviderBase):
         Validate Twilio configuration by checking account details.
         """
         try:
-            account_url = f'https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}.json'
+            account_sid = config.TWILIO_ACCOUNT_SID
+            auth_token = config.TWILIO_AUTH_TOKEN
+            if not account_sid or not auth_token:
+                raise ValueError("Twilio account credentials are not configured")
+
+            account_url = f'{self.api_base}/Accounts/{account_sid}.json'
 
             # Prepare auth header
-            auth_string = f"{self.account_sid}:{self.auth_token}"
+            auth_string = f"{account_sid}:{auth_token}"
             auth_bytes = base64.b64encode(auth_string.encode('utf-8'))
             auth_header = f"Basic {auth_bytes.decode('utf-8')}"
 

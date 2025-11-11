@@ -136,14 +136,8 @@ class NotificationService:
 
     async def _find_best_provider(self, channel: NotificationChannelEnum) -> Optional[Any]:
         """
-        Find the best available provider for a given channel.
-        Considers priority and status.
-
-        Args:
-            channel: Notification channel
-
-        Returns:
-            Provider model instance or None
+        Dispatcher to locate the best provider for a given channel.
+        Currently uses database-backed providers only.
         """
         providers = await self.stm.find_all(
             "notification_provider",
@@ -158,6 +152,9 @@ class NotificationService:
         return providers[0] if providers else None
 
     async def _get_provider(self, provider_id: str) -> Optional[Any]:
+        return await self._get_provider_from_db(provider_id)
+
+    async def _get_provider_from_db(self, provider_id: str) -> Optional[Any]:
         """
         Get a provider by ID.
 
@@ -191,15 +188,8 @@ class NotificationService:
                 logger.error(f"No provider class found for type: {provider_type}")
                 return None
 
-            # Prepare config
-            config = {
-                'credentials': provider.credentials or {},
-                'settings': provider.config or {},
-                **provider.config or {}
-            }
-
             # Create and return provider instance
-            return provider_class(config)
+            return provider_class()
 
         except Exception as e:
             logger.error(f"Failed to initialize provider instance: {str(e)}")

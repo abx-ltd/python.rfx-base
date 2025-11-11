@@ -12,8 +12,6 @@ from .types import (
     NotificationChannelEnum,
     NotificationStatusEnum,
     NotificationPriorityEnum,
-    ProviderTypeEnum,
-    ProviderStatusEnum,
     ContentTypeEnum
 )
 from . import logger
@@ -89,54 +87,6 @@ class NotificationQuery(DomainQueryResource):
 
     provider_message_id: Optional[str] = StringField("Provider Message ID")
     provider_response: dict = JSONField("Provider Response")
-
-
-@resource('notification-providers')
-class NotificationProviderQuery(DomainQueryResource):
-    """Query resource for notification providers."""
-
-    @classmethod
-    def base_query(cls, context, scope):
-        # Providers are usually scoped by tenant/app
-        filters = {}
-
-        if hasattr(context, 'tenant_id') and context.tenant_id:
-            filters['tenant_id'] = context.tenant_id
-
-        return filters
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-
-        backend_model = "notification_provider"
-        policy_required = True  # Admins only
-
-        default_order = ("priority", "name")
-
-    # Fields
-    name: str = StringField("Name")
-    provider_type: ProviderTypeEnum = EnumField("Provider Type", enum=ProviderTypeEnum)
-    channel: NotificationChannelEnum = EnumField("Channel", enum=NotificationChannelEnum)
-
-    config: dict = JSONField("Configuration")
-    # Note: credentials are typically not exposed in queries for security
-
-    status: ProviderStatusEnum = EnumField("Status", enum=ProviderStatusEnum)
-    priority: int = IntegerField("Priority")
-    is_default: bool = BooleanField("Is Default", default=False)
-
-    rate_limit_per_minute: Optional[int] = IntegerField("Rate Limit Per Minute")
-    rate_limit_per_hour: Optional[int] = IntegerField("Rate Limit Per Hour")
-    rate_limit_per_day: Optional[int] = IntegerField("Rate Limit Per Day")
-
-    description: Optional[str] = StringField("Description")
-    meta: dict = JSONField("Metadata")
-
-    tenant_id: Optional[UUID_TYPE] = UUIDField("Tenant ID")
-    app_id: Optional[str] = StringField("App ID")
 
 
 @resource('notification-delivery-logs')

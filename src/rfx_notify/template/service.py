@@ -6,7 +6,7 @@ from fluvius.data import DataAccessManager
 from fluvius.data.exceptions import ItemNotFoundError
 
 from .engine import template_registry
-from .. import logger
+from . import logger
 
 
 class NotificationTemplateService:

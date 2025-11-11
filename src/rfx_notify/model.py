@@ -13,7 +13,7 @@ from datetime import datetime
 from sqlalchemy.dialects import postgresql as pg
 from fluvius.data import DomainSchema, SqlaDriver, UUID_GENR
 
-from ._meta import config
+from . import config
 from . import types
 
 

@@ -8,8 +8,8 @@ from typing import Dict, Any, Optional
 import httpx
 
 from .base import NotificationProviderBase
-from ..types import NotificationStatusEnum, ContentTypeEnum
-from .. import logger
+from types import NotificationStatusEnum, ContentTypeEnum
+from . import config, logger
 
 
 class SMTPEmailProvider(NotificationProviderBase):
@@ -35,12 +35,13 @@ class SMTPEmailProvider(NotificationProviderBase):
         """
         try:
             # Extract SMTP configuration
-            smtp_host = self.config.get('host', 'localhost')
-            smtp_port = self.config.get('port', 587)
-            use_tls = self.config.get('use_tls', True)
-            username = self.credentials.get('username')
-            password = self.credentials.get('password')
-            from_email = kwargs.get('from_email') or self.config.get('from_email', username)
+            smtp_host = config.SMTP_HOST or 'localhost'
+            smtp_port = self._coerce_port(config.SMTP_PORT, 587)
+            use_tls = self._coerce_bool(config.SMTP_USE_TLS, True)
+            username = config.SMTP_USERNAME
+            password = config.SMTP_PASSWORD
+            default_from = config.SMTP_FROM_EMAIL or username
+            from_email = kwargs.get('from_email') or default_from
 
             # Create message
             content_type = kwargs.get('content_type', ContentTypeEnum.HTML)
@@ -103,9 +104,9 @@ class SMTPEmailProvider(NotificationProviderBase):
         Validate SMTP configuration by attempting to connect.
         """
         try:
-            smtp_host = self.config.get('host', 'localhost')
-            smtp_port = self.config.get('port', 587)
-            use_tls = self.config.get('use_tls', True)
+            smtp_host = config.SMTP_HOST or 'localhost'
+            smtp_port = self._coerce_port(config.SMTP_PORT, 587)
+            use_tls = self._coerce_bool(config.SMTP_USE_TLS, True)
 
             smtp_client = aiosmtplib.SMTP(hostname=smtp_host, port=smtp_port, use_tls=use_tls)
             await smtp_client.connect()
@@ -116,14 +117,31 @@ class SMTPEmailProvider(NotificationProviderBase):
             return False
 
 
+    @staticmethod
+    def _coerce_port(value, default):
+        try:
+            return int(value if value is not None else default)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _coerce_bool(value, default):
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in ('1', 'true', 'yes', 'on')
+        return bool(value)
+
+
 class SendGridProvider(NotificationProviderBase):
     """
     SendGrid email provider using SendGrid API v3.
     """
 
-    def __init__(self, provider_config: Dict[str, Any]):
-        super().__init__(provider_config)
-        self.api_key = self.credentials.get('api_key')
+    def __init__(self):
+        super().__init__()
         self.api_url = 'https://api.sendgrid.com/v3/mail/send'
 
     async def send(
@@ -137,7 +155,11 @@ class SendGridProvider(NotificationProviderBase):
         Send an email via SendGrid API.
         """
         try:
-            from_email = kwargs.get('from_email') or self.config.get('from_email')
+            api_key = config.SENDGRID_API_KEY
+            if not api_key:
+                raise ValueError("SENDGRID_API_KEY is not configured")
+
+            from_email = kwargs.get('from_email') or config.SENDGRID_FROM_EMAIL
             content_type = kwargs.get('content_type', ContentTypeEnum.HTML)
 
             # Prepare SendGrid payload
@@ -161,7 +183,7 @@ class SendGridProvider(NotificationProviderBase):
 
             # Send request
             headers = {
-                'Authorization': f'Bearer {self.api_key}',
+                'Authorization': f'Bearer {api_key}',
                 'Content-Type': 'application/json'
             }
 

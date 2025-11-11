@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from jinja2 import Environment, StrictUndefined, select_autoescape
 
-from .. import logger
+from . import logger
 
 
 class TemplateEngine(ABC):

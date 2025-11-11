@@ -219,51 +219,6 @@ class NotifyAggregate(Aggregate):
         await self.statemgr.insert(log_record)
 
     # ========================================================================
-    # PROVIDER OPERATIONS
-    # ========================================================================
-
-    @action("provider-created", resources="notification_provider")
-    async def create_provider(self, *, data):
-        """Create a new notification provider."""
-        provider_data = serialize_mapping(data)
-        provider = self.init_resource("notification_provider", provider_data, _id=self.aggroot.identifier)
-        await self.statemgr.insert(provider)
-
-        return {
-            "provider_id": provider._id,
-            "name": provider.name,
-            "provider_type": provider.provider_type
-        }
-
-    @action("provider-updated", resources="notification_provider")
-    async def update_provider(self, *, data):
-        """Update an existing provider."""
-        provider = await self.statemgr.fetch("notification_provider", self.aggroot.identifier)
-        if not provider:
-            raise ValueError(f"Provider not found: {self.aggroot.identifier}")
-
-        await self.statemgr.update(provider, **data)
-
-        return {
-            "provider_id": provider._id,
-            "name": provider.name
-        }
-
-    @action("provider-status-changed", resources="notification_provider")
-    async def change_provider_status(self, *, status: str):
-        """Change provider status (activate, deactivate, etc.)."""
-        provider = await self.statemgr.fetch("notification_provider", self.aggroot.identifier)
-        if not provider:
-            raise ValueError(f"Provider not found: {self.aggroot.identifier}")
-
-        await self.statemgr.update(provider, status=status)
-
-        return {
-            "provider_id": provider._id,
-            "status": status
-        }
-
-    # ========================================================================
     # PREFERENCE OPERATIONS
     # ========================================================================
 
