@@ -7,8 +7,8 @@ from urllib.parse import urlencode
 import base64
 
 from .base import NotificationProviderBase
-from types import NotificationStatusEnum
-from . import config, logger
+from ..types import NotificationStatusEnum
+from .. import config, logger
 
 
 class TwilioSMSProvider(NotificationProviderBase):

@@ -4,8 +4,8 @@ Base notification provider interface
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
-from types import NotificationStatusEnum
-from . import config
+from ..types import NotificationStatusEnum
+from .. import config
 
 
 class NotificationProviderBase(ABC):

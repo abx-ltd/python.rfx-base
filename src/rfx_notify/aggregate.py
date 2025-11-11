@@ -29,7 +29,7 @@ class NotifyAggregate(Aggregate):
     def notification_service(self) -> NotificationService:
         """Lazy-loaded notification service."""
         if self._notification_service is None:
-            self._notification_service = NotificationService(self.statemgr)
+            self._notification_service = NotificationService()
         return self._notification_service
 
     @property
@@ -73,7 +73,7 @@ class NotifyAggregate(Aggregate):
         if not notification:
             raise ValueError(f"Notification not found: {notification_id}")
 
-        if notification.status != NotificationStatusEnum.PENDING.value:
+        if notification.status != NotificationStatusEnum.PENDING:
             raise ValueError(f"Notification {notification_id} is not in PENDING state")
 
         # Update status to processing

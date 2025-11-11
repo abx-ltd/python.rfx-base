@@ -8,8 +8,8 @@ from typing import Dict, Any, Optional
 import httpx
 
 from .base import NotificationProviderBase
-from types import NotificationStatusEnum, ContentTypeEnum
-from . import config, logger
+from ..types import NotificationStatusEnum, ContentTypeEnum
+from .. import config, logger
 
 
 class SMTPEmailProvider(NotificationProviderBase):
