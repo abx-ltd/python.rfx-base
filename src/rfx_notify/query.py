@@ -7,7 +7,7 @@ from fluvius.query.field import (
 from typing import Optional, List
 
 from .state import NotifyStateManager
-from .domain import RFXNotifyServiceDomain
+from .domain import NotifyServiceDomain
 from .types import (
     NotificationChannelEnum,
     NotificationStatusEnum,
@@ -19,16 +19,16 @@ from .types import (
 from . import logger
 
 
-class RFXNotifyServiceQueryManager(DomainQueryManager):
+class NotifyServiceQueryManager(DomainQueryManager):
     __data_manager__ = NotifyStateManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXNotifyServiceDomain.Meta.prefix
-        tags = RFXNotifyServiceDomain.Meta.tags
+        prefix = NotifyServiceDomain.Meta.prefix
+        tags = NotifyServiceDomain.Meta.tags
 
 
-resource = RFXNotifyServiceQueryManager.register_resource
-endpoint = RFXNotifyServiceQueryManager.register_endpoint
+resource = NotifyServiceQueryManager.register_resource
+endpoint = NotifyServiceQueryManager.register_endpoint
 
 
 @resource('notifications')

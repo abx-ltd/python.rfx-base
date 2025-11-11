@@ -4,11 +4,11 @@ Commands for the RFX notification domain.
 from fluvius.data import serialize_mapping
 from typing import Optional, List
 
-from .domain import RFXNotifyServiceDomain
+from .domain import NotifyServiceDomain
 from . import logger
 
-processor = RFXNotifyServiceDomain.command_processor
-Command = RFXNotifyServiceDomain.Command
+processor = NotifyServiceDomain.command_processor
+Command = NotifyServiceDomain.Command
 
 
 class SendNotification(Command):

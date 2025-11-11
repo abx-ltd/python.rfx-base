@@ -5,7 +5,7 @@ from .aggregate import NotifyAggregate
 from ._meta import config
 
 
-class RFXNotifyServiceDomain(Domain):
+class NotifyServiceDomain(Domain):
     """Domain for the notification service, encapsulating notification-related operations."""
 
     __namespace__ = config.NAMESPACE
@@ -14,11 +14,11 @@ class RFXNotifyServiceDomain(Domain):
     __logstore__ = SQLDomainLogStore
 
 
-class NotifyServiceResponse(RFXNotifyServiceDomain.Response):
+class NotifyServiceResponse(NotifyServiceDomain.Response):
     """Response class for notification service operations."""
     pass
 
 
-class NotifyServiceMessage(RFXNotifyServiceDomain.Message):
+class NotifyServiceMessage(NotifyServiceDomain.Message):
     """Message class for notification service operations."""
     pass

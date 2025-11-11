@@ -1,13 +1,13 @@
 """ Notification domain """
 from ._meta import config, logger
 
-from .domain import RFXNotifyServiceDomain
-from .query import RFXNotifyServiceQueryManager
+from .domain import NotifyServiceDomain
+from .query import NotifyServiceQueryManager
 from . import command
 
 __all__ = [
-    'RFXNotifyServiceDomain',
-    'RFXNotifyServiceQueryManager',
+    'NotifyServiceDomain',
+    'NotifyServiceQueryManager',
     'command',
     'config',
     'logger',
