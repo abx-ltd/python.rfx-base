@@ -83,19 +83,29 @@ class RFXDiscussAggregate(Aggregate):
     @action("update-attachment", resources="comment")
     async def update_attachment(self, /, data):
         """Update attachment metadata"""
-        attachment = self.statemgr.find_one(
-            "comment_attachment", where={"attachment_id": data.attachment_id}
+        comment = self.rootobj
+        if not comment:
+            raise ValueError("Comment not found")
+
+        attachment = await self.statemgr.find_one(
+            "comment_attachment",
+            where={"_id": data.attachment_id, "comment_id": comment._id},
         )
         if not attachment:
             raise ValueError(f"Attachment not found: {data.attachment_id}")
         data_result = serialize_mapping(data)
+        data_result.pop("attachment_id", None)
         await self.statemgr.update(attachment, **data_result)
 
     @action("delete-attachment", resources="comment")
     async def delete_attachment(self, /, data):
         """Delete attachment from comment"""
-        attachment = self.statemgr.find_one(
-            "comment_attachment", where={"attachment_id": data.attachment_id}
+        comment = self.rootobj
+        if not comment:
+            raise ValueError("Comment not found")
+        attachment = await self.statemgr.find_one(
+            "comment_attachment",
+            where={"_id": data.attachment_id, "comment_id": comment._id},
         )
         if not attachment:
             raise ValueError(f"Attachment not found: {data.attachment_id}")
@@ -186,3 +196,50 @@ class RFXDiscussAggregate(Aggregate):
 
         await self.statemgr.insert(resolution)
         return resolution
+
+    @action("subscribe-comment", resources="comment")
+    async def subscribe_to_comment(self, /):
+        """Subscribe to comment"""
+        comment = self.rootobj
+        subscription_data = {
+            "comment_id": comment._id,
+            "user_id": self.context.profile_id,
+        }
+        existing_subscription = await self.statemgr.find_one(
+            "comment_subscription",
+            where={
+                "comment_id": comment._id,
+                "user_id": self.context.profile_id,
+            },
+        )
+        if not existing_subscription:
+            subscription = self.init_resource(
+                "comment_subscription",
+                subscription_data,
+                _id=UUID_GENR(),
+            )
+            await self.statemgr.insert(subscription)
+        elif not existing_subscription.is_active:
+            await self.statemgr.update(existing_subscription, is_active=True)
+        elif existing_subscription.is_active:
+            raise ValueError(
+                f"Already subscribed to comment {comment._id} by user {self.context.profile_id}"
+            )
+
+    @action("unsubscribe-comment", resources="comment")
+    async def unsubscribe_from_comment(self, /):
+        """Unsubscribe from comment"""
+        comment = self.rootobj
+        subscription = await self.statemgr.find_one(
+            "comment_subscription",
+            where={
+                "comment_id": comment._id,
+                "user_id": self.context.profile_id,
+                "is_active": True,
+            },
+        )
+        if not subscription:
+            raise ValueError(
+                f"No active subscription found for comment {comment._id} by user {self.context.profile_id}"
+            )
+        await self.statemgr.update(subscription, is_active=False)

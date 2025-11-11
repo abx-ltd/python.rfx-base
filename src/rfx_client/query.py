@@ -585,3 +585,64 @@ class CommentQuery(DomainQueryResource):
     resource: str = StringField("Resource Type")
     resource_id: UUID_TYPE = UUIDField("Resource ID")
     source: str = StringField("Source")
+
+
+@resource("comment-attachment")
+class CommentAttachmentQuery(DomainQueryResource):
+    """Comment attachment queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "commment_attachment"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_comment_attachment"
+        scope_required = scope.CommentAttachmentScopeSchema
+
+    comment_id: UUID_TYPE = UUIDField("Comment ID", filterable=True)
+    media_entry_id: UUID_TYPE = UUIDField("Media Entry ID", filterable=True)
+    attachment_type: str = StringField("Attachment Type", filterable=True)
+    caption: str = StringField("Caption")
+    display_order: int = IntegerField("Display Order")
+    is_primary: bool = BooleanField("Is Primary")
+
+
+@resource("comment-reaction")
+class CommentReactionQuery(DomainQueryResource):
+    """Comment reaction queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "comment_reaction"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_comment_reaction"
+        scope_required = scope.CommentReactionScopeSchema
+
+    comment_id: UUID_TYPE = UUIDField("Comment ID", filterable=True)
+    user_id: UUID_TYPE = UUIDField("User ID", filterable=True)
+    reaction_type: str = StringField("Reaction Type", filterable=True)
+
+
+@resource("comment-reaction-summary")
+class CommentReactionSummaryQuery(DomainQueryResource):
+    """Comment Reaction Summary queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "comment-reaction-summary"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_comment_reaction_summary"
+        scope_required = scope.CommentReactionScopeSchema
+
+    comment_id: UUID_TYPE = UUIDField("Comment ID", filterable=True)
+    reaction_type: str = StringField("Reaction Type", filterable=True)
+    reaction_count: int = IntegerField("Reaction Count")
+    users: dict = DictField("Users")

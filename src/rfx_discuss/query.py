@@ -88,17 +88,11 @@ class CommentAttachmentQuery(DomainQueryResource):
         scope_required = scope.CommentAttachmentScopeSchema
 
     comment_id: UUID_TYPE = UUIDField("Comment ID", filterable=True)
-    file_url: str = StringField("File URL")
-    file_name: str = StringField("File Name", filterable=True, searchable=True)
-    file_type: str = StringField("File Type", filterable=True)
-    file_size: int = IntegerField("File Size")
-    file_extension: str = StringField("File Extension", filterable=True)
-    is_image: bool = BooleanField("Is Image", filterable=True)
-    image_width: int = IntegerField("Image Width")
-    image_height: int = IntegerField("Image Height")
-    thumbnail_url: str = StringField("Thumbnail URL")
-    upload_status: str = StringField("Upload Status", filterable=True)
-    uploader: dict = DictField("Uploader")
+    media_entry_id: UUID_TYPE = UUIDField("Media Entry ID", filterable=True)
+    attachment_type: str = StringField("Attachment Type", filterable=True)
+    caption: str = StringField("Caption")
+    display_order: int = IntegerField("Display Order")
+    is_primary: bool = BooleanField("Is Primary")
 
 
 @resource("comment-reaction")

@@ -702,3 +702,71 @@ class CommentView(RFXClientBaseModel):
     resource = sa.Column(sa.String(100))
     resource_id = sa.Column(pg.UUID)
     source = sa.Column(sa.String(100))  # e.g., 'user', 'system', 'linear'
+
+
+class CommentAttachment(RFXClientBaseModel):
+    __tablename__ = "comment_attachment"
+
+    comment_id = sa.Column(pg.UUID, nullable=False)
+
+    media_entry_id = sa.Column(pg.UUID, nullable=False)
+
+    attachment_type = sa.Column(sa.String(50))
+    caption = sa.Column(sa.Text)
+    display_order = sa.Column(sa.Integer, default=0)
+    is_primary = sa.Column(sa.Boolean, default=False)
+
+
+class CommentAttachmentView(RFXClientBaseModel):
+    __tablename__ = "_comment_attachment"
+
+    comment_id = sa.Column(pg.UUID)
+    media_entry_id = sa.Column(pg.UUID)
+
+    attachment_type = sa.Column(sa.String(50))
+    caption = sa.Column(sa.Text)
+    display_order = sa.Column(sa.Integer)
+    is_primary = sa.Column(sa.Boolean)
+
+    filename = sa.Column(sa.String(1024))
+    filehash = sa.Column(sa.String(64))
+    filemime = sa.Column(sa.String(256))
+    length = sa.Column(sa.BigInteger)
+    fspath = sa.Column(sa.String(1024))
+    fskey = sa.Column(sa.String(24))
+    compress = sa.Column(sa.String(50))
+    cdn_url = sa.Column(sa.String(1024))
+
+    resource = sa.Column(sa.String(24))
+    resource__id = sa.Column(pg.UUID)
+
+    uploader = sa.Column(pg.JSONB)
+
+
+class CommentReaction(RFXClientBaseModel):
+    __tablename__ = "comment_reaction"
+
+    comment_id = sa.Column(pg.UUID, nullable=False)
+    user_id = sa.Column(pg.UUID, nullable=False)
+    reaction_type = sa.Column(sa.String(50), nullable=False)
+
+
+class CommentReactionView(RFXClientBaseModel):
+    __tablename__ = "_comment_reaction"
+
+    comment_id = sa.Column(pg.UUID)
+    user_id = sa.Column(pg.UUID)
+    reaction_type = sa.Column(sa.String(50))
+    reactor = sa.Column(pg.JSONB)
+
+
+class CommentReactionSummary(RFXClientBaseModel):
+    """Aggregated reaction counts per comment and type"""
+
+    __tablename__ = "_comment_reaction_summary"
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
+
+    comment_id = sa.Column(pg.UUID)
+    reaction_type = sa.Column(sa.String(50))
+    reaction_count = sa.Column(sa.Integer)
+    users = sa.Column(pg.JSONB)

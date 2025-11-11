@@ -1,11 +1,7 @@
 from datetime import datetime
 from typing import Optional, Any
-from . import config, logger
 
-S3_BUCKET = config.S3_BUCKET
-S3_REGION = config.S3_REGION
-S3_ACCESS_KEY = config.S3_ACCESS_KEY
-S3_SECRET_KEY = config.S3_SECRET_KEY
+
 MAX_FILE_SIZE_MB = 100
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
@@ -38,60 +34,6 @@ def parse_date(date_str: Optional[str]) -> Optional[str]:
         return datetime.fromisoformat(clean).strftime("%Y-%m-%d")
     except (ValueError, TypeError):
         return None
-
-
-async def generate_presigned_upload_url(
-    file_name: str,
-    file_type: str,
-    file_size: int,
-    comment_id: str,
-    expires_in: int = 3600,
-) -> dict:
-    """Generate a presigned URL for uploading a file to S3."""
-    import boto3
-    from uuid import uuid4
-    import os
-    from botocore.exceptions import ClientError
-    import asyncio
-
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    unique_id = str(uuid4())[:8]
-    extension = os.path.splitext(file_name)[1]
-
-    s3_key = f"comments/{comment_id}/{timestamp}_{unique_id}{extension}"
-
-    s3_client = boto3.client(
-        "s3",
-        region_name=S3_REGION,
-        aws_access_key_id=S3_ACCESS_KEY,
-        aws_secret_access_key=S3_SECRET_KEY,
-    )
-    conditions = [
-        ["starts-with", "$Content-Type", ""],
-        ["content-length-range", 1, MAX_FILE_SIZE_BYTES],
-    ]
-    fields = {}
-
-    try:
-        response = await asyncio.to_thread(
-            s3_client.generate_presigned_post,
-            Bucket=S3_BUCKET,
-            Key=s3_key,
-            Fields=fields,
-            Conditions=conditions,
-            ExpiresIn=expires_in,
-        )
-        file_url = f"{response['url']}{s3_key}"
-        return {
-            "url": response["url"],
-            "fields": response["fields"],
-            "key": s3_key,
-            "file_url": file_url,
-            "expires_in": expires_in,
-        }
-    except ClientError as e:
-        logger.error(f"Error generating presigned URL: {e}")
-        raise
 
 
 def extract_mentions(content: str) -> list:

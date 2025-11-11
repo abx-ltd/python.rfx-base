@@ -135,3 +135,15 @@ class CommentResponse(RFXClientDomain.Response):
 
 class WebhookResponse(RFXClientDomain.Response):
     pass
+
+
+class PresignedURLResponse(RFXClientDomain.Response):
+    pass
+
+
+class CommentAttachResponse(RFXClientDomain.Response):
+    pass
+
+
+class CommentReactionResponse(RFXClientDomain.Response):
+    pass

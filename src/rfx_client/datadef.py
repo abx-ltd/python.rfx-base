@@ -635,3 +635,25 @@ class SyncProjectFromWebhookPayload(DataModel):
     provider: str = Field(..., description="Provider name")
     external_id: str = Field(..., description="External project ID")
     external_data: Dict[str, Any] = Field(..., description="Raw webhook data")
+
+
+class AttachFileToCommentPayload(DataModel):
+    media_entry_id: UUID_TYPE
+    attachment_type: Optional[str] = None  # 'document', 'image', 'video', 'audio'
+    caption: Optional[str] = None
+    is_primary: Optional[bool] = False
+
+
+class UpdateAttachmentPayload(DataModel):
+    caption: Optional[str] = None
+    attachment_type: Optional[str] = None
+    is_primary: Optional[bool] = None
+    display_order: Optional[int] = None
+
+
+class DeleteAttachmentPayload(DataModel):
+    attachment_id: UUID_TYPE
+
+
+class CreateReactionCommentPayload(DataModel):
+    reaction_type: str  # e.g., like, helpful, insightful, funny
