@@ -50,7 +50,11 @@ class Notification(NotifyBaseModel):
                 schema=notify_config.NOTIFY_SERVICE_SCHEMA),
         nullable=False
     )
-    provider_id = sa.Column(pg.UUID, nullable=True)  # Reference to provider
+    provider_type = sa.Column(
+        sa.Enum(types.ProviderTypeEnum, name="providertypeenum",
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
+        nullable=True
+    )
 
     # Content
     subject = sa.Column(sa.String(512))
@@ -103,62 +107,6 @@ class Notification(NotifyBaseModel):
     provider_response = sa.Column(pg.JSONB, default=dict)
 
 
-class NotificationProvider(NotifyBaseModel):
-    """
-    Provider configuration for external notification services.
-    Supports multiple providers per channel with priority and fallback.
-    """
-
-    __tablename__ = "notification_provider"
-
-    # Provider identity
-    name = sa.Column(sa.String(255), nullable=False)
-    provider_type = sa.Column(
-        sa.Enum(types.ProviderTypeEnum, name="providertypeenum",
-                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
-        nullable=False
-    )
-    channel = sa.Column(
-        sa.Enum(types.NotificationChannelEnum, name="notificationchannelenum",
-                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
-        nullable=False
-    )
-
-    # Configuration
-    config = sa.Column(pg.JSONB, default=dict)  # Provider-specific config (API keys, endpoints, etc.)
-    credentials = sa.Column(pg.JSONB, default=dict)  # Encrypted credentials
-
-    # Status and priority
-    status = sa.Column(
-        sa.Enum(types.ProviderStatusEnum, name="providerstatusenum",
-                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
-        default=types.ProviderStatusEnum.ACTIVE
-    )
-    priority = sa.Column(sa.Integer, default=100)  # Lower number = higher priority
-    is_default = sa.Column(sa.Boolean, default=False)
-
-    # Rate limiting
-    rate_limit_per_minute = sa.Column(sa.Integer)
-    rate_limit_per_hour = sa.Column(sa.Integer)
-    rate_limit_per_day = sa.Column(sa.Integer)
-
-    # Retry configuration
-    retry_strategy = sa.Column(
-        sa.Enum(types.RetryStrategyEnum, name="retrystrategyenum",
-                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
-        default=types.RetryStrategyEnum.EXPONENTIAL
-    )
-    retry_delays = sa.Column(pg.ARRAY(sa.Integer), default=[60, 300, 900])  # Delays in seconds
-
-    # Metadata
-    description = sa.Column(sa.Text)
-    meta = sa.Column(pg.JSONB, default=dict)
-
-    # Tenant/scope (for multi-tenancy)
-    tenant_id = sa.Column(pg.UUID)
-    app_id = sa.Column(sa.String(64))
-
-
 class NotificationDeliveryLog(NotifyBaseModel):
     """
     Detailed delivery attempt logs for notifications.
@@ -169,7 +117,11 @@ class NotificationDeliveryLog(NotifyBaseModel):
 
     # References
     notification_id = sa.Column(pg.UUID, sa.ForeignKey(Notification._id), nullable=False)
-    provider_id = sa.Column(pg.UUID, sa.ForeignKey(NotificationProvider._id))
+    provider_type = sa.Column(
+        sa.Enum(types.ProviderTypeEnum, name="providertypeenum",
+                schema=notify_config.NOTIFY_SERVICE_SCHEMA),
+        nullable=True
+    )
 
     # Attempt information
     attempt_number = sa.Column(sa.Integer, nullable=False)

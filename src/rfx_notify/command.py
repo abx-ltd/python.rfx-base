@@ -2,12 +2,9 @@
 Commands for the RFX notification domain.
 """
 from fluvius.data import serialize_mapping
-from typing import Optional, List
 
 from .domain import NotifyServiceDomain
-from . import logger
-
-from . import datadef
+from . import datadef, logger
 
 processor = NotifyServiceDomain.command_processor
 Command = NotifyServiceDomain.Command
@@ -129,108 +126,6 @@ class UpdateNotificationStatus(Command):
 
         except Exception as e:
             logger.error(f"UpdateNotificationStatus failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
-            raise
-
-
-# Provider Management Commands
-
-class CreateProvider(Command):
-    """Create a new notification provider."""
-
-    class Meta:
-        key = "create-provider"
-        new_resource = True
-        resources = ("notification_provider",)
-        tags = ["provider", "create"]
-        auth_required = True
-        policy_required = True  # Admins only
-
-    Data = datadef.NotificationProviderPayload
-
-    async def _process(self, agg, stm, payload):
-        try:
-            result = await agg.create_provider(data=serialize_mapping(payload))
-
-            yield agg.create_response({
-                "status": "success",
-                "provider_id": result["provider_id"],
-                "name": result["name"],
-                "provider_type": result["provider_type"]
-            }, _type="notify-service-response")
-
-        except Exception as e:
-            logger.error(f"CreateProvider failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
-            raise
-
-
-class UpdateProvider(Command):
-    """Update an existing notification provider."""
-
-    class Meta:
-        key = "update-provider"
-        resources = ("notification_provider",)
-        tags = ["provider", "update"]
-        auth_required = True
-        policy_required = True  # Admins only
-
-    Data = datadef.NotificationProviderUpdatePayload
-
-    async def _process(self, agg, stm, payload):
-        try:
-            result = await agg.update_provider(data=serialize_mapping(payload))
-
-            yield agg.create_response({
-                "status": "success",
-                "provider_id": result["provider_id"],
-                "name": result["name"]
-            }, _type="notify-service-response")
-
-        except Exception as e:
-            logger.error(f"UpdateProvider failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
-            raise
-
-
-class ChangeProviderStatus(Command):
-    """Change provider status (activate/deactivate)."""
-
-    class Meta:
-        key = "change-provider-status"
-        resources = ("notification_provider",)
-        tags = ["provider", "status"]
-        auth_required = True
-        policy_required = True  # Admins only
-
-    Data = datadef.ChangeProviderStatusPayload
-
-    async def _process(self, agg, stm, payload):
-        try:
-            status = payload.get('status')
-
-            if not status:
-                raise ValueError("Status is required")
-
-            result = await agg.change_provider_status(status=status)
-
-            yield agg.create_response({
-                "status": "success",
-                "provider_id": result["provider_id"],
-                "new_status": result["status"]
-            }, _type="notify-service-response")
-
-        except Exception as e:
-            logger.error(f"ChangeProviderStatus failed: {e}")
             yield agg.create_response({
                 "status": "error",
                 "error": str(e)

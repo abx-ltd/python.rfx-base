@@ -45,13 +45,6 @@ class NotificationPriorityEnum(Enum):
     URGENT = "URGENT"
 
 
-class ProviderStatusEnum(Enum):
-    ACTIVE = "ACTIVE"
-    INACTIVE = "INACTIVE"
-    DISABLED = "DISABLED"
-    ERROR = "ERROR"
-
-
 class ContentTypeEnum(Enum):
     TEXT = "TEXT"
     HTML = "HTML"
@@ -59,7 +52,7 @@ class ContentTypeEnum(Enum):
     JSON = "JSON"
 
 
-class RetryStrategyEnum(Enum):
+class RetryStrategyEnumRemoved(Enum):
     NONE = "NONE"
     LINEAR = "LINEAR"
     EXPONENTIAL = "EXPONENTIAL"

@@ -9,7 +9,8 @@ from datetime import datetime
 from .service import NotificationService
 from .processor import NotificationContentProcessor
 from .template import NotificationTemplateService
-from .types import NotificationStatusEnum, NotificationChannelEnum
+from .types import NotificationStatusEnum, NotificationChannelEnum, ProviderTypeEnum
+from .queue import get_queue_service
 from . import logger
 
 
@@ -67,7 +68,8 @@ class NotifyAggregate(Aggregate):
     @action("notification-sent", resources="notification")
     async def send_notification(self, *, notification_id: str):
         """
-        Send a notification through the appropriate provider.
+        Queue notification for worker to send.
+        Worker will handle fetching, sending, updating, and logging.
         """
         notification = await self.statemgr.fetch("notification", notification_id)
         if not notification:
@@ -76,50 +78,22 @@ class NotifyAggregate(Aggregate):
         if notification.status != NotificationStatusEnum.PENDING:
             raise ValueError(f"Notification {notification_id} is not in PENDING state")
 
-        # Update status to processing
-        await self.statemgr.update(notification, status=NotificationStatusEnum.PROCESSING.value)
+        # Use injected queue service (no direct worker import!)
+        queue_service = get_queue_service()
+        task_id = await queue_service.queue_send_notification(notification_id)
 
-        try:
-            # Send through notification service
-            result = await self.notification_service.send_notification(notification)
+        logger.info(f"Notification {notification_id} queued for sending (task: {task_id})")
 
-            # Update notification with result
-            update_data = {
-                'status': result['status'].value,
-                'sent_at': timestamp() if result['status'] == NotificationStatusEnum.SENT else None,
-                'provider_message_id': result.get('provider_message_id'),
-                'provider_response': result.get('response', {}),
-            }
-
-            if result.get('error'):
-                update_data['error_message'] = result['error']
-                update_data['failed_at'] = timestamp()
-
-            await self.statemgr.update(notification, **update_data)
-
-            # Log delivery attempt
-            await self._log_delivery_attempt(notification_id, result, 1)
-
-            return {
-                "notification_id": notification_id,
-                "status": result['status'].value,
-                "provider_message_id": result.get('provider_message_id')
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to send notification {notification_id}: {str(e)}")
-            await self.statemgr.update(
-                notification,
-                status=NotificationStatusEnum.FAILED.value,
-                error_message=str(e),
-                failed_at=timestamp()
-            )
-            raise
+        return {
+            "notification_id": notification_id,
+            "status": "queued",
+            "task_id": task_id
+        }
 
     @action("notification-retried", resources="notification")
     async def retry_notification(self, *, notification_id: str):
         """
-        Retry sending a failed notification.
+        Queue notification retry for worker.
         """
         notification = await self.statemgr.fetch("notification", notification_id)
         if not notification:
@@ -131,49 +105,21 @@ class NotifyAggregate(Aggregate):
         if notification.retry_count >= notification.max_retries:
             raise ValueError(f"Notification {notification_id} has exceeded max retries")
 
-        # Increment retry count
-        await self.statemgr.update(
-            notification,
-            retry_count=notification.retry_count + 1,
-            status=NotificationStatusEnum.PROCESSING.value
+        # Use injected queue service
+        queue_service = get_queue_service()
+        task_id = await queue_service.queue_retry_notification(notification_id)
+
+        logger.info(
+            f"Notification {notification_id} queued for retry "
+            f"(attempt {notification.retry_count + 1}, task: {task_id})"
         )
 
-        try:
-            # Send through notification service
-            result = await self.notification_service.send_notification(notification)
-
-            # Update notification with result
-            update_data = {
-                'status': result['status'].value,
-                'sent_at': timestamp() if result['status'] == NotificationStatusEnum.SENT else None,
-                'provider_message_id': result.get('provider_message_id'),
-                'provider_response': result.get('response', {}),
-            }
-
-            if result.get('error'):
-                update_data['error_message'] = result['error']
-                update_data['failed_at'] = timestamp()
-
-            await self.statemgr.update(notification, **update_data)
-
-            # Log delivery attempt
-            await self._log_delivery_attempt(notification_id, result, notification.retry_count)
-
-            return {
-                "notification_id": notification_id,
-                "status": result['status'].value,
-                "attempt": notification.retry_count
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to retry notification {notification_id}: {str(e)}")
-            await self.statemgr.update(
-                notification,
-                status=NotificationStatusEnum.FAILED.value,
-                error_message=str(e),
-                failed_at=timestamp()
-            )
-            raise
+        return {
+            "notification_id": notification_id,
+            "status": "queued_for_retry",
+            "task_id": task_id,
+            "retry_attempt": notification.retry_count + 1
+        }
 
     @action("notification-status-updated", resources="notification")
     async def update_notification_status(self, *, notification_id: str, status: str, **kwargs):
@@ -200,23 +146,6 @@ class NotifyAggregate(Aggregate):
             "notification_id": notification_id,
             "status": status
         }
-
-    async def _log_delivery_attempt(self, notification_id: str, result: Dict[str, Any], attempt_number: int):
-        """
-        Log a delivery attempt to the delivery log table.
-        """
-        log_data = {
-            'notification_id': notification_id,
-            'provider_id': result.get('provider_id'),
-            'attempt_number': attempt_number,
-            'attempted_at': timestamp(),
-            'status': result['status'].value,
-            'response': result.get('response', {}),
-            'error_message': result.get('error'),
-        }
-
-        log_record = self.init_resource("notification_delivery_log", log_data)
-        await self.statemgr.insert(log_record)
 
     # ========================================================================
     # PREFERENCE OPERATIONS

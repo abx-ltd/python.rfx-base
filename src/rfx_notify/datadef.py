@@ -12,16 +12,16 @@ from .types import (
     NotificationChannelEnum,
     NotificationPriorityEnum,
     NotificationStatusEnum,
-    ProviderStatusEnum,
     ProviderTypeEnum,
-    RetryStrategyEnum,
 )
 
 
 class SendNotificationPayload(DataModel):
     """Payload for creating and sending a notification."""
 
-    channel: NotificationChannelEnum = Field( ..., description="Channel to deliver the notification (EMAIL, SMS, etc.)")
+    channel: NotificationChannelEnum = Field(
+        ..., description="Channel to deliver the notification (EMAIL, SMS, etc.)"
+    )
     recipient_address: str = Field(
         ..., description="Destination address such as email, phone number, or device token."
     )
@@ -40,8 +40,8 @@ class SendNotificationPayload(DataModel):
     sender_id: Optional[UUID_TYPE] = Field(
         None, description="Sender entity identifier."
     )
-    provider_id: Optional[UUID_TYPE] = Field(
-        None, description="Specific provider to force for delivery."
+    provider_type: Optional[ProviderTypeEnum] = Field(
+        None, description="Specific provider type to force for delivery."
     )
     priority: NotificationPriorityEnum = Field(
         NotificationPriorityEnum.NORMAL, description="Delivery priority."
@@ -90,6 +90,12 @@ class SendNotificationPayload(DataModel):
             return NotificationPriorityEnum(value)
         return value
 
+    @validator("provider_type", pre=True)
+    def normalize_provider_type(cls, value):
+        if value is None or isinstance(value, ProviderTypeEnum):
+            return value
+        return ProviderTypeEnum(value.upper())
+
 
 class NotificationStatusUpdatePayload(DataModel):
     """Payload for updating notification delivery status."""
@@ -106,117 +112,6 @@ class NotificationStatusUpdatePayload(DataModel):
     provider_response: Dict[str, Any] = Field(
         default_factory=dict,
         description="Raw payload or metadata received from the provider.",
-    )
-
-
-class NotificationProviderPayload(DataModel):
-    """Payload for creating a notification provider definition."""
-
-    name: str = Field(..., description="Display name for the provider.")
-    provider_type: ProviderTypeEnum = Field(
-        ..., description="Provider implementation type (SMTP, SENDGRID, TWILIO, etc.)."
-    )
-    channel: NotificationChannelEnum = Field(
-        ..., description="Channel served by this provider."
-    )
-    status: ProviderStatusEnum = Field(
-        ProviderStatusEnum.ACTIVE, description="Initial provider status."
-    )
-    priority: int = Field(
-        100, description="Lower numbers represent higher priority when selecting providers."
-    )
-    is_default: bool = Field(
-        False, description="Whether this provider should be selected by default for the channel."
-    )
-    config: Dict[str, Any] = Field(
-        default_factory=dict, description="Provider configuration block (endpoints, options, etc.)."
-    )
-    credentials: Dict[str, Any] = Field(
-        default_factory=dict, description="Credential payload (API keys, secrets, etc.)."
-    )
-    rate_limit_per_minute: Optional[int] = Field(
-        None, description="Optional provider-specific per-minute rate limit."
-    )
-    rate_limit_per_hour: Optional[int] = Field(
-        None, description="Optional provider-specific per-hour rate limit."
-    )
-    rate_limit_per_day: Optional[int] = Field(
-        None, description="Optional provider-specific per-day rate limit."
-    )
-    retry_strategy: RetryStrategyEnum = Field(
-        RetryStrategyEnum.EXPONENTIAL, description="Retry strategy to apply on failure."
-    )
-    retry_delays: List[int] = Field(
-        default_factory=lambda: [60, 300, 900],
-        description="Retry delay schedule in seconds.",
-    )
-    description: Optional[str] = Field(
-        None, description="Human friendly description of the provider."
-    )
-    meta: Dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata stored with the provider."
-    )
-    tenant_id: Optional[UUID_TYPE] = Field(
-        None, description="Tenant identifier for multi-tenant scoping."
-    )
-    app_id: Optional[str] = Field(
-        None, description="Application identifier for multi-app scoping."
-    )
-
-
-class NotificationProviderUpdatePayload(DataModel):
-    """Payload for updating an existing notification provider."""
-
-    name: Optional[str] = Field(None, description="Updated provider display name.")
-    status: Optional[ProviderStatusEnum] = Field(
-        None, description="Updated provider status."
-    )
-    priority: Optional[int] = Field(
-        None, description="Updated priority for provider selection."
-    )
-    is_default: Optional[bool] = Field(
-        None, description="Whether the provider should become the default."
-    )
-    config: Optional[Dict[str, Any]] = Field(
-        None, description="Replacement configuration block."
-    )
-    credentials: Optional[Dict[str, Any]] = Field(
-        None, description="Replacement credential payload."
-    )
-    rate_limit_per_minute: Optional[int] = Field(
-        None, description="Updated per-minute rate limit."
-    )
-    rate_limit_per_hour: Optional[int] = Field(
-        None, description="Updated per-hour rate limit."
-    )
-    rate_limit_per_day: Optional[int] = Field(
-        None, description="Updated per-day rate limit."
-    )
-    retry_strategy: Optional[RetryStrategyEnum] = Field(
-        None, description="Updated retry strategy."
-    )
-    retry_delays: Optional[List[int]] = Field(
-        None, description="Updated retry delay schedule in seconds."
-    )
-    description: Optional[str] = Field(
-        None, description="Updated description of the provider."
-    )
-    meta: Optional[Dict[str, Any]] = Field(
-        None, description="Updated metadata block."
-    )
-    tenant_id: Optional[UUID_TYPE] = Field(
-        None, description="Updated tenant identifier."
-    )
-    app_id: Optional[str] = Field(
-        None, description="Updated application identifier."
-    )
-
-
-class ChangeProviderStatusPayload(DataModel):
-    """Payload for toggling provider status."""
-
-    status: ProviderStatusEnum = Field(
-        ..., description="New status value (ACTIVE, INACTIVE, DISABLED, etc.)."
     )
 
 
@@ -283,3 +178,11 @@ class NotificationTemplatePayload(DataModel):
     variables_schema: Dict[str, Any] = Field(
         default_factory=dict, description="Optional schema describing required variables."
     )
+
+
+__all__ = [
+    "SendNotificationPayload",
+    "NotificationStatusUpdatePayload",
+    "NotificationPreferencePayload",
+    "NotificationTemplatePayload",
+]

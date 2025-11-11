@@ -57,16 +57,6 @@ class NotificationPriorityEnum(Enum):
     URGENT = "URGENT"         # Urgent, bypass rate limits if possible
 
 
-class ProviderStatusEnum(Enum):
-    """
-    Provider availability status.
-    """
-    ACTIVE = "ACTIVE"         # Provider is active and available
-    INACTIVE = "INACTIVE"     # Provider is inactive
-    DISABLED = "DISABLED"     # Provider is disabled
-    ERROR = "ERROR"           # Provider has errors
-
-
 class ContentTypeEnum(Enum):
     """
     Content type for notification body.

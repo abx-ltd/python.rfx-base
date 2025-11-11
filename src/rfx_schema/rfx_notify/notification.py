@@ -24,9 +24,7 @@ from .types import (
     NotificationStatusEnum,
     ProviderTypeEnum,
     NotificationPriorityEnum,
-    ProviderStatusEnum,
     ContentTypeEnum,
-    RetryStrategyEnum,
 )
 
 class Notification(TableBase):
@@ -41,7 +39,9 @@ class Notification(TableBase):
         SQLEnum(NotificationChannelEnum, name="notificationchannelenum", schema=SCHEMA),
         nullable=False
     )
-    provider_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    provider_type: Mapped[Optional[ProviderTypeEnum]] = mapped_column(
+        SQLEnum(ProviderTypeEnum, name="providertypeenum", schema=SCHEMA)
+    )
 
     subject: Mapped[Optional[str]] = mapped_column(String(512))
     body: Mapped[Optional[str]] = mapped_column(Text)
@@ -84,50 +84,6 @@ class Notification(TableBase):
     )
 
 
-class NotificationProvider(TableBase):
-    """Provider configuration for external notification services."""
-
-    __tablename__ = "notification_provider"
-
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    provider_type: Mapped[ProviderTypeEnum] = mapped_column(
-        SQLEnum(ProviderTypeEnum, name="providertypeenum", schema=SCHEMA),
-        nullable=False
-    )
-    channel: Mapped[NotificationChannelEnum] = mapped_column(
-        SQLEnum(NotificationChannelEnum, name="notificationchannelenum", schema=SCHEMA),
-        nullable=False
-    )
-
-    config: Mapped[dict] = mapped_column(JSONB, default=dict)
-    credentials: Mapped[dict] = mapped_column(JSONB, default=dict)
-
-    status: Mapped[Optional[ProviderStatusEnum]] = mapped_column(
-        SQLEnum(ProviderStatusEnum, name="providerstatusenum", schema=SCHEMA)
-    )
-    priority: Mapped[int] = mapped_column(Integer, default=100)
-    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    rate_limit_per_minute: Mapped[Optional[int]] = mapped_column(Integer)
-    rate_limit_per_hour: Mapped[Optional[int]] = mapped_column(Integer)
-    rate_limit_per_day: Mapped[Optional[int]] = mapped_column(Integer)
-
-    retry_strategy: Mapped[Optional[RetryStrategyEnum]] = mapped_column(
-        SQLEnum(RetryStrategyEnum, name="retrystrategyenum", schema=SCHEMA)
-    )
-    retry_delays: Mapped[Optional[List[int]]] = mapped_column(ARRAY(Integer))
-
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    meta: Mapped[dict] = mapped_column(JSONB, default=dict)
-
-    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    app_id: Mapped[Optional[str]] = mapped_column(String(64))
-
-    delivery_logs: Mapped[List["NotificationDeliveryLog"]] = relationship(
-        back_populates="provider"
-    )
-
-
 class NotificationDeliveryLog(TableBase):
     """Detailed delivery attempt logs for notifications."""
 
@@ -136,8 +92,8 @@ class NotificationDeliveryLog(TableBase):
     notification_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.notification._id"), nullable=False
     )
-    provider_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.notification_provider._id")
+    provider_type: Mapped[Optional[ProviderTypeEnum]] = mapped_column(
+        SQLEnum(ProviderTypeEnum, name="providertypeenum", schema=SCHEMA)
     )
 
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -157,9 +113,6 @@ class NotificationDeliveryLog(TableBase):
     duration_ms: Mapped[Optional[int]] = mapped_column(Integer)
 
     notification: Mapped["Notification"] = relationship(back_populates="delivery_logs")
-    provider: Mapped[Optional["NotificationProvider"]] = relationship(
-        back_populates="delivery_logs"
-    )
 
 
 class NotificationTemplate(TableBase):

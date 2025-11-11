@@ -94,7 +94,7 @@ class NotificationService:
         Check delivery status of a notification from the provider.
 
         Args:
-            provider_id: ID of the provider
+            provider_key: Provider type key (e.g., SENDGRID)
             provider_message_id: Provider's message ID
 
         Returns:
@@ -211,7 +211,7 @@ class NotificationService:
         Validate a provider's configuration.
 
         Args:
-            provider_id: Provider ID
+            provider_key: Provider type key (e.g., SENDGRID)
 
         Returns:
             True if valid, False otherwise
