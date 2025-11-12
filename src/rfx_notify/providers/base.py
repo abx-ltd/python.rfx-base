@@ -3,9 +3,10 @@ Base notification provider interface
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
+from fluvius.data import timestamp
 
-from ..types import NotificationStatusEnum
-from .. import config
+from ..types import NotificationStatusEnum, ProviderTypeEnum
+from .. import config, logger
 
 
 class NotificationProviderBase(ABC):
@@ -21,7 +22,7 @@ class NotificationProviderBase(ABC):
         Base providers pull their configuration directly from rfx_notify config.
         """
         super().__init__()
-        self.config = self.validate_config()
+        self.config = self._load_config_model()
 
     def __init_subclass__(cls):
         if cls.name in cls.__REGISTRY__:
@@ -29,8 +30,16 @@ class NotificationProviderBase(ABC):
 
         cls.__REGISTRY__[cls.name] = cls
 
-    def validate_config(self, **kwargs):
-        return self.__CONFIG_CLS__(**kwargs)
+    def _load_config_model(self):
+        if not self.__CONFIG_CLS__:
+            return None
+
+        if not hasattr(config, "model"):
+            raise AttributeError(
+                f"Config object does not support typed models for [{self.__class__.__name__}]"
+            )
+
+        return config.model(self.__CONFIG_CLS__)
 
     @classmethod
     def init_provider(cls, name, **params):
@@ -55,7 +64,6 @@ class NotificationProviderBase(ABC):
         Returns:
             Dictionary with notification_id, status, provider info
         """
-        from fluvius.data import timestamp
 
         notification_id = notification._id
         attempt_number = notification.retry_count + 1
@@ -250,9 +258,7 @@ class NotificationProviderBase(ABC):
             result: Result from provider send
             attempt_number: Attempt number
         """
-        from fluvius.data import timestamp
-        from .. import logger
-        from ..types import ProviderTypeEnum
+
 
         provider_type = result.get('provider_type')
         if provider_type and not isinstance(provider_type, ProviderTypeEnum):

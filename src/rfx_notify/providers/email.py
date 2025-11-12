@@ -6,21 +6,22 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, Optional
 
+from fluvius.data.data_model import DataModel
+
 from .base import NotificationProviderBase
 from ..types import NotificationStatusEnum, ContentTypeEnum, ProviderTypeEnum
-from .. import config, logger
-from pydantic import BaseModel
+from .. import logger
 
 
-class SMTPEmailProviderConfig(BaseModel):
+class SMTPEmailProviderConfig(DataModel):
     smtp_host: str
-    smtp_port: int
-    smtp_use_tls: bool
-    smtp_use_ssl: bool
-    smtp_username: str
-    smtp_password: str
-    smtp_from_email: str
-    smtp_timeout: int
+    smtp_port: int = 25
+    smtp_use_tls: bool = False
+    smtp_use_ssl: bool = False
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from_email: Optional[str] = None
+    smtp_timeout: int = 30
 
 
 class SMTPEmailProvider(NotificationProviderBase):
@@ -34,14 +35,6 @@ class SMTPEmailProvider(NotificationProviderBase):
 
     def __init__(self):
         super().__init__()
-        self.smtp_host = config.SMTP_HOST
-        self.smtp_port = config.SMTP_PORT
-        self.smtp_use_tls = config.SMTP_USE_TLS
-        self.smtp_use_ssl = config.SMTP_USE_SSL
-        self.smtp_username = config.SMTP_USERNAME
-        self.smtp_password = config.SMTP_PASSWORD
-        self.smtp_from_email = config.SMTP_FROM_EMAIL
-        self.smtp_timeout = config.SMTP_TIMEOUT
 
     async def send(
         self,
@@ -60,7 +53,7 @@ class SMTPEmailProvider(NotificationProviderBase):
             **kwargs: Additional parameters (from_email, content_type, cc, bcc)
         """
         try:
-            from_email = kwargs.get('from_email') or self.smtp_from_email
+            from_email = kwargs.get('from_email') or self.config.smtp_from_email
 
             if not from_email:
                 raise ValueError("SMTP_FROM_EMAIL is not configured")
@@ -85,19 +78,20 @@ class SMTPEmailProvider(NotificationProviderBase):
                 message['Bcc'] = kwargs['bcc']
 
             logger.info(
-                f"Connecting to self-hosted SMTP server at {self.smtp_host}:{self.smtp_port}"
+                f"Connecting to self-hosted SMTP server at {self.config.smtp_host}:{self.config.smtp_port}"
             )
 
             # Connect to self-hosted SMTP server
+            use_tls = self.config.smtp_use_ssl or self.config.smtp_use_tls
             async with aiosmtplib.SMTP(
-                hostname=self.smtp_host,
-                port=self.smtp_port,
-                use_tls=self.smtp_use_tls,
-                timeout=self.smtp_timeout,
+                hostname=self.config.smtp_host,
+                port=self.config.smtp_port,
+                use_tls=use_tls,
+                timeout=self.config.smtp_timeout,
             ) as smtp:
                 # Authenticate if credentials are provided
-                if self.smtp_username and self.smtp_password:
-                    await smtp.login(self.smtp_username, self.smtp_password)
+                if self.config.smtp_username and self.config.smtp_password:
+                    await smtp.login(self.config.smtp_username, self.config.smtp_password)
 
                 # Send message
                 send_result = await smtp.send_message(message)
@@ -111,7 +105,7 @@ class SMTPEmailProvider(NotificationProviderBase):
                     'response': {
                         'smtp_response': str(send_result),
                         'recipient': recipient,
-                        'smtp_host': self.smtp_host,
+                        'smtp_host': self.config.smtp_host,
                     },
                     'error': None
                 }
@@ -150,14 +144,15 @@ class SMTPEmailProvider(NotificationProviderBase):
         Validate SMTP configuration by attempting connection to self-hosted server.
         """
         try:
+            use_tls = self.config.smtp_use_ssl or self.config.smtp_use_tls
             async with aiosmtplib.SMTP(
-                hostname=self.smtp_host,
-                port=self.smtp_port,
-                use_tls=self.smtp_use_tls,
-                timeout=5,
+                hostname=self.config.smtp_host,
+                port=self.config.smtp_port,
+                use_tls=use_tls,
+                timeout=self.config.smtp_timeout,
             ) as smtp:
-                if self.smtp_username and self.smtp_password:
-                    await smtp.login(self.smtp_username, self.smtp_password)
+                if self.config.smtp_username and self.config.smtp_password:
+                    await smtp.login(self.config.smtp_username, self.config.smtp_password)
                 logger.info(f"SMTP configuration validated successfully")
                 return True
         except Exception as e:
