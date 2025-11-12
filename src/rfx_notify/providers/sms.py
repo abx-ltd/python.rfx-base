@@ -28,6 +28,7 @@ class KannelSMSProvider(NotificationProviderBase):
     Kannel should be running on the same machine as the worker.
     """
 
+    name = "kannel"
     __CONFIG_CLS__ = KannelSMSProviderConfig
 
     def __init__(self):

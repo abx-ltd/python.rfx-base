@@ -16,6 +16,7 @@ class NotificationProviderBase(ABC):
     """
     __REGISTRY__ = {}
     __CONFIG_CLS__ = None
+    name = None
 
     def __init__(self):
         """
@@ -25,8 +26,11 @@ class NotificationProviderBase(ABC):
         self.config = self._load_config_model()
 
     def __init_subclass__(cls):
+        if not getattr(cls, "name", None):
+            raise ValueError(f"Provider subclass [{cls.__name__}] must define a unique `name`.")
+
         if cls.name in cls.__REGISTRY__:
-            raise ValueError("")
+            raise ValueError(f"Provider [{cls.name}] already registered.")
 
         cls.__REGISTRY__[cls.name] = cls
 
