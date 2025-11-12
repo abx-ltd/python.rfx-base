@@ -42,3 +42,7 @@ class CommentAttachmentScopeSchema(BaseModel):
 
 class CommentReactionScopeSchema(BaseModel):
     comment_id: UUID_TYPE = UUIDField("Comment ID")
+
+
+class OrganizationScopeSchema(BaseModel):
+    organization_id: UUID_TYPE = UUIDField("Organization ID")

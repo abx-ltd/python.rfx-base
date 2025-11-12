@@ -12,15 +12,15 @@ discussion_s = Schema(config.RFX_DISCUSS_SCHEMA)
 user_profile = Table("profile", schema=user_s)
 message_table = Table("message", schema=message_s)
 
-credit_usage_table = Table("_credit-usage", schema=client_s)
-work_package_table = Table("work-package", schema=client_s)
-project_integration_table = Table("project-integration", schema=client_s)
-project_ticket_table = Table("project-ticket", schema=client_s)
+credit_usage_table = Table("_credit_usage", schema=client_s)
+work_package_table = Table("work_package", schema=client_s)
+project_integration_table = Table("project_integration", schema=client_s)
+project_ticket_table = Table("project_ticket", schema=client_s)
 
 ticket_table = Table("ticket", schema=discussion_s)
 status_table = Table("status", schema=discussion_s)
-status_key_table = Table("status-key", schema=discussion_s)
-status_transition_table = Table("status-transition", schema=discussion_s)
+status_key_table = Table("status_key", schema=discussion_s)
+status_transition_table = Table("status_transition", schema=discussion_s)
 
 
 class RFXClientStateManager(DataAccessManager):
