@@ -2,9 +2,8 @@
 Notification Service - Provider Management and Notification Delivery
 """
 from typing import Dict, Any, Optional
-from fluvius.data import timestamp
 
-from .providers import NotificationProviderBase, SMTPEmailProvider, KannelSMSProvider
+from .providers import NotificationProviderBase
 from .types import (
     NotificationChannelEnum,
     ProviderTypeEnum,
@@ -18,10 +17,10 @@ class NotificationService:
     Service for managing notification providers and sending notifications.
     """
 
-    # Provider class registry
-    PROVIDER_CLASSES = {
-        ProviderTypeEnum.SMTP: SMTPEmailProvider,
-        ProviderTypeEnum.KANNEL: KannelSMSProvider,
+    # Provider registry mapping between ProviderTypeEnum and provider registry names
+    PROVIDER_NAMES = {
+        ProviderTypeEnum.SMTP: "smtp",
+        ProviderTypeEnum.KANNEL: "kannel",
     }
 
     def __init__(self):
@@ -193,12 +192,17 @@ class NotificationService:
         if provider_type in self._provider_cache:
             return self._provider_cache[provider_type]
 
-        provider_class = self.PROVIDER_CLASSES.get(provider_type)
-        if not provider_class:
-            logger.error(f"No provider class found for type: {provider_type}")
+        provider_name = self.PROVIDER_NAMES.get(provider_type)
+        if not provider_name:
+            logger.error(f"No provider registered for type: {provider_type}")
             return None
 
-        provider_instance = provider_class()
+        try:
+            provider_instance = NotificationProviderBase.init_provider(provider_name)
+        except ValueError:
+            logger.error(f"Provider [{provider_name}] is not registered.")
+            return None
+
         self._provider_cache[provider_type] = provider_instance
         return provider_instance
 

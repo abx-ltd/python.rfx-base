@@ -64,7 +64,7 @@ user_profile_view = PGView(
     profile.default_theme,
     profile._realm,
     profile.status
-    FROM {config.RFX_USER_SCHEMA}.profile;
+    FROM "{config.RFX_USER_SCHEMA}".profile;
     """
 )
 

@@ -4,9 +4,22 @@ SMS notification providers - Self-hosted Kannel gateway
 import httpx
 from typing import Dict, Any, Optional
 
+from fluvius.data.data_model import DataModel
+
 from .base import NotificationProviderBase
 from ..types import NotificationStatusEnum, ProviderTypeEnum
-from .. import config, logger
+from .. import logger
+
+
+class KannelSMSProviderConfig(DataModel):
+    kannel_host: str
+    kannel_port: int = 13013
+    kannel_username: Optional[str] = None
+    kannel_password: Optional[str] = None
+    kannel_send_url: str = "/cgi-bin/sendsms"
+    kannel_dlr_mask: int = 31
+    kannel_timeout: int = 30
+    kannel_from_number: Optional[str] = None
 
 
 class KannelSMSProvider(NotificationProviderBase):
@@ -15,16 +28,11 @@ class KannelSMSProvider(NotificationProviderBase):
     Kannel should be running on the same machine as the worker.
     """
 
+    name = "kannel"
+    __CONFIG_CLS__ = KannelSMSProviderConfig
+
     def __init__(self):
         super().__init__()
-        self.kannel_host = config.KANNEL_HOST
-        self.kannel_port = config.KANNEL_PORT
-        self.kannel_username = config.KANNEL_USERNAME
-        self.kannel_password = config.KANNEL_PASSWORD
-        self.kannel_send_url = config.KANNEL_SEND_URL
-        self.kannel_dlr_mask = config.KANNEL_DLR_MASK
-        self.kannel_timeout = config.KANNEL_TIMEOUT
-        self.from_number = config.KANNEL_FROM_NUMBER
 
     async def send(
         self,
@@ -44,18 +52,18 @@ class KannelSMSProvider(NotificationProviderBase):
         """
         try:
             # Build Kannel sendsms URL
-            url = f"http://{self.kannel_host}:{self.kannel_port}{self.kannel_send_url}"
+            url = f"http://{self.config.kannel_host}:{self.config.kannel_port}{self.config.kannel_send_url}"
 
             # Prepare parameters
             params = {
-                'username': self.kannel_username,
-                'password': self.kannel_password,
+                'username': self.config.kannel_username,
+                'password': self.config.kannel_password,
                 'to': recipient,
                 'text': body,
             }
 
             # Add from number if configured
-            from_number = kwargs.get('from_number') or self.from_number
+            from_number = kwargs.get('from_number') or self.config.kannel_from_number
             if from_number:
                 params['from'] = from_number
 
@@ -63,13 +71,13 @@ class KannelSMSProvider(NotificationProviderBase):
             dlr_url = kwargs.get('dlr_url')
             if dlr_url:
                 params['dlr-url'] = dlr_url
-                params['dlr-mask'] = self.kannel_dlr_mask
+                params['dlr-mask'] = self.config.kannel_dlr_mask
 
             logger.info(
-                f"Sending SMS to {recipient} via Kannel at {self.kannel_host}:{self.kannel_port}"
+                f"Sending SMS to {recipient} via Kannel at {self.config.kannel_host}:{self.config.kannel_port}"
             )
 
-            async with httpx.AsyncClient(timeout=self.kannel_timeout) as client:
+            async with httpx.AsyncClient(timeout=self.config.kannel_timeout) as client:
                 response = await client.get(url, params=params)
 
                 # Kannel returns different status codes and messages
@@ -97,7 +105,7 @@ class KannelSMSProvider(NotificationProviderBase):
                             'response': {
                                 'kannel_response': response_text,
                                 'recipient': recipient,
-                                'kannel_host': self.kannel_host,
+                                'kannel_host': self.config.kannel_host,
                             },
                             'error': None
                         }
@@ -150,10 +158,10 @@ class KannelSMSProvider(NotificationProviderBase):
         try:
             # Kannel status checking is typically done via DLR webhooks
             # This is a placeholder for status page checking
-            url = f"http://{self.kannel_host}:{self.kannel_port}/status"
+            url = f"http://{self.config.kannel_host}:{self.config.kannel_port}/status"
             params = {
-                'username': self.kannel_username,
-                'password': self.kannel_password,
+                'username': self.config.kannel_username,
+                'password': self.config.kannel_password,
             }
 
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -180,10 +188,10 @@ class KannelSMSProvider(NotificationProviderBase):
         Validate Kannel configuration by checking status page.
         """
         try:
-            url = f"http://{self.kannel_host}:{self.kannel_port}/status"
+            url = f"http://{self.config.kannel_host}:{self.config.kannel_port}/status"
             params = {
-                'username': self.kannel_username,
-                'password': self.kannel_password,
+                'username': self.config.kannel_username,
+                'password': self.config.kannel_password,
             }
 
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -206,4 +214,3 @@ class KannelSMSProvider(NotificationProviderBase):
 
     def supports_delivery_confirmation(self) -> bool:
         return True  # Kannel supports DLR (Delivery Reports)
-
