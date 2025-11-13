@@ -65,7 +65,14 @@ class User(TableBase):
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     status: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
+        SQLEnum(
+            UserStatusEnum,
+            name="userstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
+        default=UserStatusEnum.PENDING,
+        server_default=text(f"'{UserStatusEnum.PENDING.value}'"),
     )
     realm_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
     resource_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
@@ -134,7 +141,12 @@ class UserSession(TableBase):
     __tablename__ = "user_session"
 
     source: Mapped[Optional[UserSourceEnum]] = mapped_column(
-        SQLEnum(UserSourceEnum, name="usersourceenum"), nullable=True
+        SQLEnum(
+            UserSourceEnum,
+            name="usersourceenum",
+            schema=SCHEMA,
+        ),
+        nullable=True,
     )
     telecom__email: Mapped[Optional[str]] = mapped_column(String(255))
 
@@ -157,10 +169,20 @@ class UserStatus(TableBase):
     __tablename__ = "user_status"
 
     src_state: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
+        SQLEnum(
+            UserStatusEnum,
+            name="userstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     dst_state: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
+        SQLEnum(
+            UserStatusEnum,
+            name="userstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     note: Mapped[Optional[str]] = mapped_column(String(1024))
 
@@ -203,7 +225,11 @@ class UserAction(TableBase):
     )
     name: Mapped[Optional[str]] = mapped_column(String(1024))
     status: Mapped[UserActionStatusEnum] = mapped_column(
-        SQLEnum(UserActionStatusEnum, name="useractionstatusenum"),
+        SQLEnum(
+            UserActionStatusEnum,
+            name="useractionstatusenum",
+            schema=SCHEMA,
+        ),
         nullable=False,
         server_default=text(f"'{UserActionStatusEnum.PENDING.value}'"),
     )

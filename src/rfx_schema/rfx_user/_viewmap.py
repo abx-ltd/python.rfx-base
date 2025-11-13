@@ -84,7 +84,12 @@ class UserProfileView(Base):
 
     _realm: Mapped[Optional[str]] = mapped_column(String)
     status: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
 
     def __repr__(self) -> str:

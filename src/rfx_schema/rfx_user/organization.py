@@ -48,7 +48,11 @@ class Organization(TableBase):
     organization_code: Mapped[Optional[str]] = mapped_column(String(255))
 
     status: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"),
+        SQLEnum(
+            OrganizationStatusEnum,
+            name="organizationstatusenum",
+            schema=SCHEMA,
+        ),
         nullable=False,
     )
     invitation_code: Mapped[Optional[str]] = mapped_column(String(10))
@@ -128,10 +132,20 @@ class OrganizationStatus(TableBase):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=False
     )
     src_state: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"), nullable=False
+        SQLEnum(
+            OrganizationStatusEnum,
+            name="organizationstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     dst_state: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"), nullable=False
+        SQLEnum(
+            OrganizationStatusEnum,
+            name="organizationstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     note: Mapped[Optional[str]] = mapped_column(Text)
 

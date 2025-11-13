@@ -91,7 +91,12 @@ class Profile(TableBase):
     is_super_admin: Mapped[Optional[bool]] = mapped_column(Boolean)
     system_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     status: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     preferred_name: Mapped[Optional[str]] = mapped_column(String(255))
     default_theme: Mapped[Optional[str]] = mapped_column(String(255))
@@ -154,10 +159,20 @@ class ProfileStatus(TableBase):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id"), nullable=False
     )
     src_state: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     dst_state: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     note: Mapped[Optional[str]] = mapped_column(String(1024))
 

@@ -4,6 +4,7 @@ sandbox/
 tests/logs/
 .DS_Store
 mlruns/
+alembic/versions/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
