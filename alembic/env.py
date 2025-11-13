@@ -36,6 +36,8 @@ ALL_SCHEMAS = {
     'message': base_config.RFX_MESSAGE_SCHEMA,
     'media': base_config.RFX_MEDIA_SCHEMA,
     'notify': base_config.RFX_NOTIFY_SCHEMA,
+    'client': base_config.RFX_CLIENT_SCHEMA,
+    'discuss': base_config.RFX_DISCUSS_SCHEMA,
 }
 
 # Get schema filter from environment variable
