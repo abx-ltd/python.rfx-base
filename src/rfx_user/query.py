@@ -142,6 +142,12 @@ async def reject_invitation(query_manager: UserProfileQueryManager, request: Req
 @resource('profile')
 class ProfileQuery(DomainQueryResource):
     """ List current profile's user """
+    @classmethod
+    def base_query(cls, context):
+        return {
+            'organization': context.profile.organization_id
+        }
+
     class Meta(DomainQueryResource.Meta):
         allow_item_view = True
         allow_list_view = True
