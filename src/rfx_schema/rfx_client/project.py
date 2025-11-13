@@ -23,7 +23,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA
 from .types import PriorityEnum, SyncStatusEnum, ContactMethodEnum
-from .work_package import ProjectWorkPackage, ProjectWorkItem
 
 
 class Project(TableBase):
@@ -59,10 +58,10 @@ class Project(TableBase):
     members: Mapped[List["ProjectMember"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    work_packages: Mapped[List["ProjectWorkPackage"]] = relationship(
+    work_packages: Mapped[List["ProjectWorkPackage"]] = relationship(  # noqa: F821
         back_populates="project", cascade="all, delete-orphan"
     )
-    work_items: Mapped[List["ProjectWorkItem"]] = relationship(
+    work_items: Mapped[List["ProjectWorkItem"]] = relationship(  # noqa: F821
         back_populates="project", cascade="all, delete-orphan"
     )
     milestones: Mapped[List["ProjectMilestone"]] = relationship(

@@ -9,7 +9,8 @@ from typing import List, Optional
 import uuid
 
 from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID, Boolean
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA

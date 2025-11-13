@@ -16,7 +16,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA
 from .types import PriorityEnum, AvailabilityEnum, SyncStatusEnum
-from .template_client import Tag
 
 
 class Ticket(TableBase):
@@ -138,7 +137,7 @@ class TicketTag(TableBase):
 
     # Relationships
     ticket: Mapped["Ticket"] = relationship(back_populates="tags")
-    tag: Mapped["Tag"] = relationship()
+    tag: Mapped["Tag"] = relationship()  # noqa: F821
 
 
 class TicketStatus(TableBase):

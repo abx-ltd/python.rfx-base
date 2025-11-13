@@ -3,10 +3,9 @@ from . import (
     credit,
     project,
     project_work,
-    tag,
     ticket,
-    work_item,
     work_package,
+    referency,
 )
 
 __all__ = [
@@ -14,8 +13,7 @@ __all__ = [
     "credit",
     "project",
     "project_work",
-    "tag",
     "ticket",
-    "work_item",
     "work_package",
+    "referency",
 ]
