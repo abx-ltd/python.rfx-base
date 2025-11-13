@@ -143,7 +143,7 @@ async def reject_invitation(query_manager: UserProfileQueryManager, request: Req
 class ProfileQuery(DomainQueryResource):
     """ List current profile's user """
     @classmethod
-    def base_query(cls, context):
+    def base_query(cls, context, scope):
         return {
             'organization_id': context.profile.organization_id
         }
