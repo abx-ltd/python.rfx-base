@@ -138,9 +138,24 @@ async def reject_invitation(query_manager: UserProfileQueryManager, request: Req
         return {"success": True}
 
 
-
 @resource('profile')
 class ProfileQuery(DomainQueryResource):
+    """ List current profile's user """
+    class Meta(DomainQueryResource.Meta):
+        allow_item_view = True
+        allow_list_view = True
+
+    @classmethod
+    def base_query(cls, context, scope):
+      return {'organization_id': context.organization._id}
+
+    name__family: str = StringField("Family Name")
+    name__given: str = StringField("Given Name")
+    telecom__email: str = StringField("Email")
+    status: str = StringField("Status")
+
+@resource('profile-v2')
+class ProfileQueryV2(DomainQueryResource):
     """ List current profile's user """
     @classmethod
     def base_query(cls, context, scope):
@@ -214,9 +229,28 @@ class ProfileRole(DomainQueryResource):
     role_id: str = UUIDField("Role ID")
     role_source: str = StringField("Role Source")
 
+class OrganizationRoleQuery(DomainQueryResource):
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
 
-@resource('organization')
-class OrganizationQuery(DomainQueryResource):
+        resource = "organization"
+        policy_required = "organization_id"
+
+    user_id: UUID_TYPE = UUIDField("User ID")
+    address__city: str = StringField("City")
+    address__country: str = StringField("Country")
+    address__line1: str = StringField("Address Line 1")
+    address__line2: str = StringField("Address Line 2")
+    address__postal: str = StringField("Postal Code")
+    address__state: str = StringField("State/Province")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+
+@resource('organization-v2')
+class OrganizationQueryV2(DomainQueryResource):
     """ Query organization details """
 
     class Meta(DomainQueryResource.Meta):
