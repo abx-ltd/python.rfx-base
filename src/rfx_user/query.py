@@ -145,7 +145,7 @@ class ProfileQuery(DomainQueryResource):
     @classmethod
     def base_query(cls, context):
         return {
-            'organization': context.profile.organization_id
+            'organization_id': context.profile.organization_id
         }
 
     class Meta(DomainQueryResource.Meta):
