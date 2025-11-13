@@ -10,23 +10,32 @@ message_recipients_view = PGView(
     schema=config.RFX_MESSAGE_SCHEMA,
     signature="_message_recipients",
     definition=f"""
-    SELECT message._id AS message_id,
-    r.recipient_id,
-    message.subject,
-    message.content,
-    message.content_type,
-    message.sender_id,
-    message.tags,
-    message.expirable,
-    message.priority,
-    message.message_type,
-    r.read AS is_read,
-    r.mark_as_read AS read_at,
-    r._id AS record_id,
-    r.archived
-   FROM {config.RFX_MESSAGE_SCHEMA}.message
-     JOIN {config.RFX_MESSAGE_SCHEMA}.message_recipient r ON message._id = r.message_id;
-     """
+    SELECT
+        message._id        AS message_id,
+        r.recipient_id,
+        message.subject,
+        message.content,
+        message.content_type,
+        message.sender_id,
+        message.tags,
+        message.expirable,
+        message.priority,
+        message.message_type,
+        r.read              AS is_read,
+        r.mark_as_read      AS read_at,
+        r._id               AS record_id,
+        r.archived,
+        message._realm,
+        message._created,
+        message._updated,
+        message._creator,
+        message._updater,
+        message._deleted,
+        message._etag
+    FROM {config.RFX_MESSAGE_SCHEMA}.message
+    JOIN {config.RFX_MESSAGE_SCHEMA}.message_recipient r
+         ON message._id = r.message_id;
+    """
 )
 
 
