@@ -73,3 +73,10 @@ class ActivityActionEnum(Enum):
     VIEW = "VIEW"
     DOWNLOAD = "DOWNLOAD"
     UPLOAD = "UPLOAD"
+
+class InquiryStatusEnum(Enum):
+    """ Inquiry status enum """
+    DRAFT = "DRAFT"
+    OPEN = "OPEN"
+    DISCUSSION = "DISCUSSION"
+    CLOSED = "CLOSED"

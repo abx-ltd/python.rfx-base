@@ -635,6 +635,8 @@ class ViewInquiry(RFXClientBaseModel):
         nullable=False,
     )
     organization_id = sa.Column(pg.UUID)
+    status = sa.Column(sa.String(100), nullable=False)
+    description = sa.Column(sa.Text)
 
 
 class ViewTicket(RFXClientBaseModel):

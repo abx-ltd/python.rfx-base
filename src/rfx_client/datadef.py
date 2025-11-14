@@ -401,7 +401,7 @@ class RemoveProjectMilestoneIntegrationPayload(DataModel):
 
 # ---------- Inquiry (Ticket Context) ----------
 class CreateInquiryPayload(DataModel):
-    title: str = Field(max_length=255)
+    title: str = Field(max_length=255) 
     description: Optional[str] = None
     type: str
     priority: Optional[PriorityEnum] = PriorityEnum.MEDIUM

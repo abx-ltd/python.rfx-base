@@ -3,7 +3,7 @@ from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR, logger
 from datetime import datetime, timezone
 from .helper import parse_duration_for_db
-from .types import SyncStatusEnum
+from .types import SyncStatusEnum, InquiryStatusEnum
 from . import config
 
 
@@ -1326,12 +1326,56 @@ class RFXClientAggregate(Aggregate):
         record = self.init_resource(
             "ticket",
             serialize_mapping(data),
-            status="NEW",
+            status=InquiryStatusEnum.OPEN.value,
             organization_id=self.context.organization_id,
             _id=UUID_GENR(),
         )
         await self.statemgr.insert(record)
         return record
+
+    @action("inquiry-draft-created", resources="ticket")
+    async def create_inquiry_draft(self, /, data):
+        """Create a new inquiry draft"""
+
+        record = self.init_resource(
+            "ticket",
+            serialize_mapping(data),
+            status=InquiryStatusEnum.DRAFT.value,
+            organization_id=self.context.organization_id,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("close-inquiry", resources="ticket")
+    async def close_inquiry(self, /):
+        """close inquiry ticket"""
+        inquiry = self.rootobj
+        if not inquiry:
+            raise ValueError("Inquiry not found")
+        if inquiry.status == InquiryStatusEnum.CLOSED.value:
+            raise ValueError("Inquiry is already closed")
+        if inquiry.status == InquiryStatusEnum.DRAFT.value:
+            raise ValueError("Draft inquiry cannot be closed")
+        result = await self.statemgr.update(
+            inquiry, status=InquiryStatusEnum.CLOSED.value
+        )
+        return result
+
+    @action("submit-inquiry-draft", resources="ticket")
+    async def submit_inquiry_draft(self, /):
+        """submit inquiry draft ticket"""
+        inquiry = self.rootobj
+        if not inquiry:
+            raise ValueError("Inquiry not found")
+        if inquiry.status != InquiryStatusEnum.DRAFT.value:
+            raise ValueError("Only draft inquiry can be submitted")
+        await self.statemgr.update(inquiry, status=InquiryStatusEnum.OPEN.value)
+        result = await self.statemgr.find_one(
+            "ticket",
+            where=dict(_id=inquiry._id),
+        )
+        return result
 
     # =========== Ticket (Ticket Context) ============
     @action("ticket-created", resources="ticket")
@@ -1612,6 +1656,18 @@ class RFXClientAggregate(Aggregate):
     @action("comment-created", resources=tuple(config.COMMENT_AGGROOTS.split(",")))
     async def create_comment(self, /, data):
         """Create a new comment"""
+        if self.aggroot.resource == "ticket":
+            ticket = self.rootobj
+            if not ticket:
+                raise ValueError("Ticket not found")
+            if (
+                ticket.is_inquiry and ticket.status == InquiryStatusEnum.OPEN.value
+                # and self.get_context().profile_id != ticket._creator
+            ):
+                await self.statemgr.update(
+                    ticket, status=InquiryStatusEnum.DISCUSSION.value
+                )
+
         payload = serialize_mapping(data)
         if "organization_id" not in payload:
             payload["organization_id"] = self.context.organization_id

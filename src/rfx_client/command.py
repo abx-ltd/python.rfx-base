@@ -2281,6 +2281,92 @@ class CreateInquiry(Command):
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
 
+class CreateInquiryDraft(Command):
+    """save inquiry as draft (status = draft)"""
+
+    class Meta:
+        key = "create-inquiry-draft"
+        resources = ("ticket",)
+        tags = ["ticket", "inquiry", "draft"]
+        auth_required = True
+        description = "Create a new inquiry draft"
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.CreateInquiryPayload
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        result = await agg.create_inquiry_draft(data=payload)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} created a ticket {result.title}",
+            msglabel="create ticket",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "ticket_id": agg.get_aggroot().identifier,
+                "created_by": f"{profile.name__given} {profile.name__family}",
+            },
+        )
+        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
+
+
+class CloseInquiry(Command):
+    """Close Inquiry - BDM closes inquiry(OPEN/DISCUSSSION -> CLOSED)"""
+
+    class Meta:
+        key = "close-inquiry"
+        resources = ("ticket",)
+        tags = ["ticket", "inquiry", "close"]
+        auth_required = True
+        description = "Close an inquiry"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        result = await agg.close_inquiry()
+
+        yield agg.create_activity(
+            logroot=AggregateRoot(
+                resource="ticket",
+                identifier=result._id,
+                domain_sid=agg.get_aggroot().domain_sid,
+                domain_iid=agg.get_aggroot().domain_iid,
+            ),
+            message=f"{profile.name__given} {profile.name__family} closed inquiry {result.title}",
+            msglabel="close inquiry",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "ticket_id": result._id,
+                "ticket_title": result.title,
+                "closed_by": f"{profile.name__given} {profile.name__family}",
+            },
+        )
+        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
+
+
+class SubmitInquiryDraft(Command):
+    """submit inquiry draft - change status from DRAFT to OPEN"""
+
+    class Meta:
+        key = "submit-inquiry-draft"
+        resources = ("ticket",)
+        tags = ["ticket", "inquiry", "submit", "draft"]
+        auth_required = True
+        description = "Submit an inquiry draft"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.submit_inquiry_draft()
+
+        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
+
+
 # ---------- Ticket (Ticket Context) ----------
 class CreateTicket(Command):
     """Create Ticket - Creates a new ticket tied to a project"""
@@ -3525,7 +3611,6 @@ class SyncCommentFromWebhookChange(Command):
                 comment_id=integration.comment_id,
             )
         )
-
 
 
 ### ========= Command for credit system ========== ###

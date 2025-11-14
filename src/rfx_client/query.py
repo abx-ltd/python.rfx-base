@@ -491,6 +491,8 @@ class InquiryQuery(DomainQueryResource):
     availability: AvailabilityEnum = EnumField("Availability")
     activity: datetime = DatetimeField("Activity")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+    status: str = StringField("Status")
+    description: str = StringField("Description")
 
 
 # Ticket Queries
