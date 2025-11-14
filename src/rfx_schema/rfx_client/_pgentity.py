@@ -79,7 +79,7 @@ comment_attachment_view = PGView(
         me.resource__id,
         jsonb_build_object('id', p._id, 'name', COALESCE(p.preferred_name, ((p.name__given::text || ' '::text) || p.name__family::text)::character varying), 'avatar', p.picture_id) AS uploader
        FROM {config.RFX_CLIENT_SCHEMA}.comment_attachment ca
-         JOIN {config.RFX_MEDIA_SCHEMA}."media-entry" me ON me._id = ca.media_entry_id
+         JOIN "{config.RFX_MEDIA_SCHEMA}"."media-entry" me ON me._id = ca.media_entry_id
          LEFT JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = ca._creator
       WHERE ca._deleted IS NULL;
     """,
@@ -221,7 +221,7 @@ credit_usage_view = PGView(
         COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) AS total_credits
        FROM {config.RFX_CLIENT_SCHEMA}.project p
          JOIN LATERAL ( SELECT al._created
-               FROM {config.RFX_AUDIT_SCHEMA}."activity-log" al
+               FROM "{config.RFX_AUDIT_SCHEMA}"."activity-log" al
               WHERE al.identifier = p._id 
                 AND al.resource::text = 'project'::text 
                 AND al.msglabel::text = 'create-project'::text
