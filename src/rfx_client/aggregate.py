@@ -1357,8 +1357,10 @@ class RFXClientAggregate(Aggregate):
             raise ValueError("Inquiry is already closed")
         if inquiry.status == InquiryStatusEnum.DRAFT.value:
             raise ValueError("Draft inquiry cannot be closed")
-        result = await self.statemgr.update(
-            inquiry, status=InquiryStatusEnum.CLOSED.value
+        await self.statemgr.update(inquiry, status=InquiryStatusEnum.CLOSED.value)
+        result = await self.statemgr.find_one(
+            "ticket",
+            where=dict(_id=inquiry._id),
         )
         return result
 
