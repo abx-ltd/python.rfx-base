@@ -6,6 +6,7 @@ truncate the target table (unless disabled) then bulk insert rows.
 """
 
 import csv
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -21,8 +22,21 @@ def _read_csv_rows(csv_path: Path) -> list[dict]:
         reader = csv.DictReader(csv_file)
         rows = []
         for row in reader:
-            cleaned = {key: (value if value != "" else None) for key, value in row.items()}
+            cleaned: dict[str, object] = {}
+            for key, value in row.items():
+                if value == "":
+                    cleaned[key] = None
+                    continue
+
+                # Convert common literal bool strings to actual booleans for correct DB binding.
+                if isinstance(value, str) and value.lower() in {"true", "false"}:
+                    cleaned[key] = value.lower() == "true"
+                else:
+                    cleaned[key] = value
             cleaned.setdefault("_realm", None)
+            # Ensure mandatory audit fields are populated when missing in the snapshot.
+            if cleaned.get("_created") is None:
+                cleaned["_created"] = datetime.utcnow()
             rows.append(cleaned)
     return rows
 
@@ -100,10 +114,10 @@ async def seed_policy_data():
 async def seed_system_roles(csv_path: Optional[Path] = None):
     """
     Seed ref__system_role in the user schema. If no path is provided, use the
-    default snapshot path under mig/policy.
+    default snapshot path under mig/ref_system_role.
     """
     if csv_path is None:
-        csv_path = Path(__file__).resolve().parent / "policy" / "ref__system_role.csv"
+        csv_path = Path(__file__).resolve().parent / "ref_system_role" / "ref__system_role.csv"
 
     await import_csv(
         config.RFX_USER_SCHEMA,
