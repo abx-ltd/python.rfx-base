@@ -5,6 +5,7 @@ tests/logs/
 .DS_Store
 mlruns/
 alembic/versions/*
+env/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
