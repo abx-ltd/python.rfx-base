@@ -1,0 +1,17 @@
+"_id","_created","_updated","_deleted","_etag","_creator","_updater","policy_key","role_key"
+a1917916-b768-4aa7-a227-18ea64aa8c13,,,,,,,user-profile.organization.manage,OWNER
+"8989ef92-c763-4d09-a597-15b12f5648a4",,,,,,,user-profile.group.manage,OWNER
+bd228846-7c48-4b9a-9543-74931c2d4244,,,,,,,user-profile.group.query,OWNER
+"5dc65452-ddad-4b2f-95af-afd76531dbff",,,,,,,user-profile.invitation.manage,OWNER
+a7d523bb-6d70-4c8a-a6d0-c76c5ce9c7e1,,,,,,,user-profile.invitation.query,OWNER
+"83bdf50f-f5c7-41ec-b802-cf362fef221e",,,,,,,user-profile.organization.query,OWNER
+c300829d-2511-43ca-a98c-73bbaafaed18,,,,,,,user-profile.user.manage,OWNER
+"76229791-7eac-4806-ac39-77f15e6b1acd",,,,,,,user-profile.user.query,OWNER
+"1775651e-ad7c-4cd6-8da6-6bf489a6aabc",,,,,,,user-profile.organization.manage,ADMIN
+"4a80a90c-cf3d-40e8-99c6-78494f8cd3be",,,,,,,user-profile.organization.query,ADMIN
+"6a1244ac-a6c1-44d2-ab87-1e9d8ab869c0",,,,,,,user-profile.user.self-access,self-access
+e3439423-75f3-4726-8009-fc9654a7fd56,,,,,,,system.full-access,sys-admin
+"336b2000-b682-465e-b0cc-f1d550eeff92",,,,,,,user-profile.profile.query.user_mode,self-access
+c2350bec-c7c2-459c-9aaa-f82d7832ed7a,,,,,,,user-profile.profile.query,OWNER
+"3d18a4c1-815b-411d-9903-688ca68c2d85",,,,,,,user-profile.profile.manage,OWNER
+c0bd8380-d6da-4562-b539-cf92f7d24096,,,,,,,user-profile.profile.switch,self-access

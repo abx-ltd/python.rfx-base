@@ -7,6 +7,8 @@ from sqlalchemy.dialects import postgresql as pg
 from . import types, config
 
 class PolicyConnector(SqlaDriver):
+    assert config.DB_DSN is not None, "DB_DSN must be set in config"
+
     __db_dsn__ = config.DB_DSN
 
 class PolicyBaseModel(PolicyConnector.__data_schema_base__, DomainSchema):
@@ -44,7 +46,7 @@ class PolicyCQRSEnum(sa.Enum):
 
 class Policy(PolicyBaseModel):
     __tablename__ = 'policy'
-    
+
     key = sa.Column(sa.String)
     display = sa.Column(sa.String)
     description = sa.Column(sa.String)

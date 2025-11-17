@@ -25,6 +25,9 @@ echo-config:
 init-db:
     python -m mig.init_db
 
+populate:
+    python -m mig.populate
+
 
 @create-schema:
     ./manager db create-schema rfx_schema._schema.RFXConnector --force

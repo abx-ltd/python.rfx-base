@@ -1,0 +1,6 @@
+"_id","description","name","key","active","is_owner","is_default_signer","_etag","_deleted","_updated","_updater","_created","_creator","default_role","official_role","priority","role_type","_realm"
+"8094a542-cfea-4511-9fe2-9d57ff613189",Owner of an organization with full control over teams and resources.,Owner,OWNER,true,,,,,,,,,,,,,
+bc2176fe-7450-4de0-9e89-a7f185057deb,"Full system access to manage users, orgs, and settings.",Administrator,ADMIN,true,,,,,,,,,,,,,
+"8e26210d-db35-419e-99bb-cac1d8b845c4",Manage teams and resources within the assigned organization.,Manager,MANAGER,true,,,,,,,,,,,,,
+e9b86bc9-d228-428a-9f53-51e952e4674f,Read-only access to view organization data and reports.,Viewer,VIEWER,true,,,,,,,,,,,,,
+"4f6f872d-83ad-48b7-918c-e5be6038758b",Support role with access to help manage user issues and tickets.,Support,SUPPORT,true,,,,,,,,,,,,,
