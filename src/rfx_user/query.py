@@ -15,7 +15,7 @@ from . import scope
 
 class UserProfileQueryManager(DomainQueryManager):
     __data_manager__ = IDMStateManager
-    # __policymgr__ = UserProfilePolicyManager
+    __policymgr__ = UserProfilePolicyManager
 
     class Meta(DomainQueryManager.Meta):
         prefix = UserProfileDomain.Meta.prefix
@@ -24,26 +24,6 @@ class UserProfileQueryManager(DomainQueryManager):
 
 resource = UserProfileQueryManager.register_resource
 endpoint = UserProfileQueryManager.register_endpoint
-
-
-# @resource('user')
-# class UserQuery(QueryResource):
-#     """ List current user accounts """
-
-#     class Meta(QueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = False
-#         allow_meta_view = False
-
-#     _id = UUIDField("User ID", identifier=True)
-#     name__given = StringField("Given Name")
-#     name__family = StringField("Family Name")
-
-
-# @endpoint('~active-profile/{profile_id}')
-# async def my_profile(query: UserProfileQueryManager, request: Request, profile_id: str):
-#     return f"ENDPOINT: {request} {query} {profile_id}"
 
 @endpoint('.accept-invitation/{invitation_id}')
 async def accept_invitation(query_manager: UserProfileQueryManager, request: Request, invitation_id: str):
@@ -154,14 +134,10 @@ class ProfileQuery(DomainQueryResource):
     telecom__email: str = StringField("Email")
     status: str = StringField("Status")
 
-@resource('profile-v2')
-class ProfileQueryV2(DomainQueryResource):
+
+@resource('profile-detail')
+class ProfileDetailQuery(DomainQueryResource):
     """ List current profile's user """
-    @classmethod
-    def base_query(cls, context, scope):
-        return {
-            'organization_id': context.profile.organization_id
-        }
 
     class Meta(DomainQueryResource.Meta):
         allow_item_view = True
@@ -209,6 +185,7 @@ class ProfileQueryV2(DomainQueryResource):
     default_theme: Optional[str] = StringField("Default Theme")
     status: str = StringField("Profile Status")
 
+
 @resource('profile-role')
 class ProfileRole(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
@@ -228,6 +205,7 @@ class ProfileRole(DomainQueryResource):
     role_key: str = StringField("Role Key")
     role_id: str = UUIDField("Role ID")
     role_source: str = StringField("Role Source")
+
 
 class OrganizationRoleQuery(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
@@ -249,8 +227,8 @@ class OrganizationRoleQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('organization-v2')
-class OrganizationQueryV2(DomainQueryResource):
+@resource('organization-detail')
+class OrganizationDetailQuery(DomainQueryResource):
     """ Query organization details """
 
     class Meta(DomainQueryResource.Meta):

@@ -3,6 +3,7 @@ DB_DSN = None
 RFX_BILLING_SCHEMA = "rfx_billing"
 RFX_CLIENT_SCHEMA = "rfx_client"
 RFX_CQRS_SCHEMA = "rfx_cqrs"
+RFX_AUDIT_SCHEMA = "domain_audit"
 RFX_DISCUSS_SCHEMA = "rfx_discuss"
 RFX_FORM_SCHEMA = "rfx_form"
 RFX_IDM_SCHEMA = "rfx_idm"
