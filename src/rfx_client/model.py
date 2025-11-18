@@ -1216,3 +1216,61 @@ class ViewProjectDetail(RFXClientBaseModel):
     duration_text = sa.Column(sa.String(255))
     total_credit = sa.Column(sa.Float(), nullable=False)
     used_credit = sa.Column(sa.Float(), nullable=False)
+
+
+# --------- Project Documentation Context ---------#
+class ProjectDocument(RFXClientBaseModel):
+    __tablename__ = "project_document"
+
+    project_id = sa.Column(sa.ForeignKey(Project._id), nullable=False)
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+
+    media_entry_id = sa.Column(pg.UUID, nullable=False)
+
+    doc_type = sa.Column(sa.String(50))
+    file_size = sa.Column(sa.BigInteger)
+
+    status = sa.Column(
+        sa.String(50), nullable=False, default="IN_PROGRESS"
+    )  # e.g., 'IN_PROGRESS', 'COMPLETED'
+    organization_id = sa.Column(pg.UUID, nullable=False)
+
+
+class ProjectDocumentParticipant(RFXClientBaseModel):
+    __tablename__ = "project_document_participant"
+
+    document_id = sa.Column(sa.ForeignKey(ProjectDocument._id), nullable=False)
+    participant_id = sa.Column(pg.UUID, nullable=False)  # FK to profile(_id)
+    role = sa.Column(sa.String(100), nullable=False)  # e.g., 'viewer', 'editor'
+
+
+class ProjectDocumentView(RFXClientBaseModel):
+    __tablename__ = "_project_document"
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
+
+    document_name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    doc_type = sa.Column(sa.String(50))
+    file_size = sa.Column(sa.BigInteger)
+    status = sa.Column(sa.String(50), nullable=False)
+
+    project_id = sa.Column(pg.UUID, nullable=False)
+    project_name = sa.Column(sa.String(255), nullable=False)
+    project_status = sa.Column(sa.String(100), nullable=False)
+
+    organization_id = sa.Column(pg.UUID, nullable=False)
+
+    media_entry_id = sa.Column(pg.UUID, nullable=False)
+    filename = sa.Column(sa.String(1024))
+    filemime = sa.Column(sa.String(256))
+    fspath = sa.Column(sa.String(1024))
+    cdn_url = sa.Column(sa.String(1024))
+    file_length = sa.Column(sa.BigInteger)
+
+    created_by = sa.Column(pg.JSONB)
+
+    participants = sa.Column(pg.JSONB)
+    participant_count = sa.Column(sa.Integer)
+
+    activity = sa.Column(sa.DateTime)

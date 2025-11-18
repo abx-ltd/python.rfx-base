@@ -17,9 +17,11 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    BigInteger,
 )
 from sqlalchemy.dialects.postgresql import INTERVAL, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Index
 
 from . import TableBase, SCHEMA
 from .types import PriorityEnum, SyncStatusEnum, ContactMethodEnum
@@ -77,7 +79,14 @@ class ProjectMember(TableBase):
 
     __tablename__ = "project_member"
     __table_args__ = (
-        UniqueConstraint("project_id", "member_id", name="uq_project_member_active"),
+        # UniqueConstraint("project_id", "member_id", name="uq_project_member_active"),
+        Index(
+            "uq_project_member_active",
+            "project_id",
+            "member_id",
+            unique=True,
+            postgresql_where="(_deleted IS NULL)",  # <-- Điều kiện quan trọng
+        ),
         {"schema": SCHEMA},
     )
 
@@ -116,7 +125,6 @@ class ProjectBDMContact(TableBase):
     """BDM contact requests stored in ``rfx_client.project_bdm_contact``."""
 
     __tablename__ = "project_bdm_contact"
-
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.project._id"), nullable=False
     )
@@ -131,3 +139,84 @@ class ProjectBDMContact(TableBase):
 
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="bdm_contacts")
+
+
+class ProjectDocument(TableBase):
+    """Project documents stored in ``rfx_client.project_document``."""
+
+    __tablename__ = "project_document"
+    __table_args__ = {"schema": SCHEMA}
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.project._id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Media reference
+    media_entry_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, comment="FK to cpo-media.media-entry._id"
+    )
+
+    # File metadata
+    doc_type: Mapped[Optional[str]] = mapped_column(
+        String(50), comment="Document type: PDF, DOCX, XLSX, PPTX, PNG, etc."
+    )
+    file_size: Mapped[Optional[int]] = mapped_column(
+        BigInteger, comment="File size in bytes"
+    )
+
+    # Status
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="IN_PROGRESS",
+        comment="Document status: DRAFT, IN_PROGRESS, APPROVED, REJECTED",
+    )
+
+    # Organization
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+
+    # Relationships
+    project: Mapped["Project"] = relationship(back_populates="documents")
+    participants: Mapped[List["ProjectDocumentParticipant"]] = relationship(  # noqa: F821
+        back_populates="document", cascade="all, delete-orphan"
+    )
+
+
+class ProjectDocumentParticipant(TableBase):
+    """Participants of project documents stored in ``rfx_client.project_document_participant``."""
+
+    __tablename__ = "project_document_participant"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id", "participant_id", name="uq_document_participant_active"
+        ),
+        {"schema": SCHEMA},
+    )
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.project_document._id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    participant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, comment="FK to cpo_user.profile._id"
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        comment="Participant role: VIEWER, REVIEWER, APPROVER, EDITOR",
+    )
+
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    # Relationships
+    document: Mapped["ProjectDocument"] = relationship(back_populates="participants")

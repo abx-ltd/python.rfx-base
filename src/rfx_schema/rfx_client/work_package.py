@@ -18,6 +18,7 @@ class WorkPackage(TableBase):
     """Work package templates stored in ``rfx_client.work_package``."""
 
     __tablename__ = "work_package"
+    __table_args__ = {"schema": SCHEMA}
 
     work_package_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -47,6 +48,7 @@ class WorkItem(TableBase):
     """Work item templates stored in ``rfx_client.work_item``."""
 
     __tablename__ = "work_item"
+    __table_args__ = {"schema": SCHEMA}
 
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)

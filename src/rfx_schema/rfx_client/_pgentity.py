@@ -676,6 +676,84 @@ project_work_item_listing_view = PGView(
     """,
 )
 
+project_document_view = PGView(
+    schema=config.RFX_CLIENT_SCHEMA,
+    signature="_project_document",
+    definition=f"""
+    SELECT pd._id,
+        pd._created,
+        pd._updated,
+        pd._creator,
+        pd._updater,
+        pd._deleted,
+        pd._etag,
+        pd._realm,
+        pd.name AS document_name,
+        pd.description,
+        pd.doc_type,
+        pd.file_size,
+        pd.status,
+        pd.project_id,
+        p.name AS project_name,
+        p.status AS project_status,
+        pd.organization_id,
+        pd.media_entry_id,
+        me.filename,
+        me.filemime,
+        me.fspath,
+        me.cdn_url,
+        me.length AS file_length,
+        jsonb_build_object(
+            'id', creator._id, 
+            'name', COALESCE(
+                creator.preferred_name, 
+                ((creator.name__given::text || ' '::text) || creator.name__family::text)::character varying
+            ), 
+            'avatar', creator.picture_id
+        ) AS created_by,
+        COALESCE(
+            (
+                SELECT json_agg(
+                    jsonb_build_object(
+                        'id', part._id, 
+                        'name', COALESCE(
+                            part.preferred_name, 
+                            ((part.name__given::text || ' '::text) || part.name__family::text)::character varying
+                        ), 
+                        'avatar', part.picture_id, 
+                        'role', pdp.role
+                    )
+                ) AS json_agg
+                FROM {config.RFX_CLIENT_SCHEMA}.project_document_participant pdp
+                JOIN {config.RFX_USER_SCHEMA}.profile part ON part._id = pdp.participant_id
+                WHERE pdp.document_id = pd._id 
+                  AND pdp._deleted IS NULL
+            ), 
+            '[]'::json
+        ) AS participants,
+        COALESCE(
+            (
+                SELECT count(DISTINCT pdp.participant_id) AS count
+                FROM {config.RFX_CLIENT_SCHEMA}.project_document_participant pdp
+                WHERE pdp.document_id = pd._id 
+                  AND pdp._deleted IS NULL
+            ), 
+            0::bigint
+        )::integer AS participant_count,
+        GREATEST(pd._created, pd._updated) AS activity
+    FROM {config.RFX_CLIENT_SCHEMA}.project_document pd
+    JOIN {config.RFX_CLIENT_SCHEMA}.project p 
+        ON pd.project_id = p._id 
+        AND p._deleted IS NULL
+    LEFT JOIN "{config.RFX_MEDIA_SCHEMA}"."media-entry" me 
+        ON pd.media_entry_id = me._id
+    LEFT JOIN {config.RFX_USER_SCHEMA}.profile creator 
+        ON pd._creator = creator._id
+    WHERE pd._deleted IS NULL
+    ORDER BY pd.organization_id, pd.project_id, pd._created DESC;
+    """,
+)
+
 
 # ============================================================================
 # TICKET VIEWS
@@ -968,6 +1046,7 @@ def register_pg_entities(allow):
             # Project views
             project_view,
             project_credit_summary_view,
+            project_document_view,
             # Work package views
             work_package_view,
             project_work_package_view,

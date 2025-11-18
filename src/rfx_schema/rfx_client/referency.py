@@ -21,6 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
+from sqlalchemy.sql import func
 
 from . import TableBase, SCHEMA
 from .types import SyncStatusEnum
@@ -181,6 +182,14 @@ class ProjectIntegration(TableBase):
     """Project integration in ``rfx_client.project_integration``."""
 
     __tablename__ = "project_integration"
+    __table_args__ = {"schema": SCHEMA}
+
+    _etag: Mapped[Optional[str]] = mapped_column(
+        String(64), server_default=func.uuid_generate_v4()
+    )
+    _created: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     provider: Mapped[str] = mapped_column(String(255), nullable=False)
     external_id: Mapped[str] = mapped_column(String(255), nullable=False)

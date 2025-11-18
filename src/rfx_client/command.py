@@ -3613,4 +3613,67 @@ class SyncCommentFromWebhookChange(Command):
         )
 
 
-### ========= Command for credit system ========== ###
+### command for document project
+
+
+class UploadProjectDocument(Command):
+    """Upload project document"""
+
+    class Meta:
+        key = "upload-project-document"
+        resources = ("project",)
+        tags = ["project", "document"]
+        auth_required = True
+        description = "Upload project document"
+        policy_required = False
+
+    Data = datadef.UploadProjectDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Upload project document"""
+        result = await agg.upload_project_document(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result), _type="project-document-response"
+        )
+
+
+class UpdateProjectDocument(Command):
+    """Update status of project document"""
+
+    class Meta:
+        key = "update-project-document"
+        resources = ("project",)
+        tags = ["project", "document", "status"]
+        auth_required = True
+        description = "Update status of project document"
+        policy_required = False
+
+    Data = datadef.UpdateProjectDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update status of project document"""
+        await agg.update_status_project_document(data=payload)
+        yield agg.create_response(
+            {"status": "success"}, _type="project-document-response"
+        )
+
+
+class AddParticipanToDocument(Command):
+    """Add participant to document"""
+
+    class Meta:
+        key = "add-participant-to-document"
+        resources = ("project",)
+        tags = ["project", "document", "participant"]
+        auth_required = True
+        description = "Add participant to document"
+        policy_required = False
+
+    Data = datadef.AddParticipantToDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add participant to document"""
+        result = await agg.add_participant_to_document(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result), _type="project-document-response"
+        )

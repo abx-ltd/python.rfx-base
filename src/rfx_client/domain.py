@@ -147,3 +147,7 @@ class CommentAttachResponse(RFXClientDomain.Response):
 
 class CommentReactionResponse(RFXClientDomain.Response):
     pass
+
+
+class ProjectDocumentResponse(RFXClientDomain.Response):
+    pass

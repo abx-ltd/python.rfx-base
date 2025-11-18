@@ -20,7 +20,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import INTERVAL, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from . import TableBase, SCHEMA
 from .types import WorkPackageStatusEnum
 from .project import Project

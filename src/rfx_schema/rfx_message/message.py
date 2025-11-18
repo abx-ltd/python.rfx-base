@@ -14,7 +14,15 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import ARRAY, Boolean, DateTime, Enum as SQLEnum, ForeignKey, String, Text
+from sqlalchemy import (
+    ARRAY,
+    Boolean,
+    DateTime,
+    Enum as SQLEnum,
+    ForeignKey,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -217,9 +225,7 @@ class MessageRecipient(TableBase):
     executed_action: Mapped[Optional["MessageAction"]] = relationship(
         back_populates="executed_by", foreign_keys=[executed_action_id]
     )
-    last_reply: Mapped[Optional["Message"]] = relationship(
-        foreign_keys=[last_reply_id]
-    )
+    last_reply: Mapped[Optional["Message"]] = relationship(foreign_keys=[last_reply_id])
     box: Mapped[Optional["MessageBox"]] = relationship(back_populates="recipients")
     actions: Mapped[List["MessageRecipientAction"]] = relationship(
         back_populates="message_recipient", cascade="all, delete-orphan"
@@ -232,7 +238,9 @@ class MessageRecipientAction(TableBase):
     __tablename__ = "message_recipient_action"
 
     message_recipient_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message_recipient._id"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.message_recipient._id"),
+        nullable=False,
     )
     action_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message_action._id"), nullable=False
@@ -309,6 +317,7 @@ class Tag(TableBase):
     """Global tags for message classification."""
 
     __tablename__ = "tag"
+    __table_args__ = {"schema": SCHEMA}
 
     name: Mapped[str] = mapped_column(String(255), primary_key=True, unique=True)
     background_color: Mapped[Optional[str]] = mapped_column(String(7))

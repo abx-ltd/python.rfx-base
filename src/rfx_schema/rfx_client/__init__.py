@@ -7,6 +7,7 @@ from rfx_base import config
 from fluvius.data import DomainSchema, SqlaDriver
 from .._meta import config as schema_config
 
+
 # --- Connector and Base Schema ---
 class RFXClientConnector(SqlaDriver):
     __db_dsn__ = schema_config.DB_DSN

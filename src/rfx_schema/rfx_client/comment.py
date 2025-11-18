@@ -1,17 +1,13 @@
-"""
-Comment System ORM Models (Schema Layer)
-========================================
-Note: Comments are stored in rfx_client schema in current database
-"""
+"""Comment System ORM Models (Schema Layer)"""
 
 from __future__ import annotations
-from typing import List, Optional
+from typing import Optional
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
+import sqlalchemy as sa
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from . import TableBase, SCHEMA
 
@@ -20,37 +16,26 @@ class Comment(TableBase):
     """Comments stored in ``rfx_client.comment``."""
 
     __tablename__ = "comment"
+    __table_args__ = (
+        sa.Index("idx_comment_depth", "depth"),
+        sa.Index("idx_comment_master", "master_id"),
+        sa.Index("idx_comment_parent", "parent_id"),
+        {"schema": SCHEMA},
+    )
 
     master_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE")
+        UUID(as_uuid=True),
+        ForeignKey(
+            f"{SCHEMA}.comment._id", name="comment_parent_id_fkey", ondelete="CASCADE"
+        ),
     )
-
     content: Mapped[str] = mapped_column(Text, nullable=False)
     depth: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     resource: Mapped[Optional[str]] = mapped_column(String(100))
     resource_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-
-    source: Mapped[Optional[str]] = mapped_column(String(255))
-
-    # Relationships
-    parent: Mapped[Optional["Comment"]] = relationship(
-        back_populates="replies", remote_side="_id"
-    )
-    replies: Mapped[List["Comment"]] = relationship(
-        back_populates="parent", cascade="all, delete-orphan"
-    )
-    reactions: Mapped[List["CommentReaction"]] = relationship(
-        back_populates="comment", cascade="all, delete-orphan"
-    )
-    attachments: Mapped[List["CommentAttachment"]] = relationship(
-        back_populates="comment", cascade="all, delete-orphan"
-    )
-    integrations: Mapped[List["CommentIntegration"]] = relationship(
-        back_populates="comment", cascade="all, delete-orphan"
-    )
+    source: Mapped[Optional[str]] = mapped_column(String)
 
 
 class CommentReaction(TableBase):
@@ -58,22 +43,25 @@ class CommentReaction(TableBase):
 
     __tablename__ = "comment_reaction"
     __table_args__ = (
-        UniqueConstraint(
+        sa.UniqueConstraint(
             "comment_id", "user_id", "reaction_type", name="uq_comment_reaction"
         ),
+        sa.Index("idx_comment_reaction_comment", "comment_id"),
+        sa.Index("idx_comment_reaction_user", "user_id"),
         {"schema": SCHEMA},
     )
 
     comment_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE"),
+        ForeignKey(
+            f"{SCHEMA}.comment._id",
+            name="comment_reaction_comment_id_fkey",
+            ondelete="CASCADE",
+        ),
         nullable=False,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     reaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
-
-    # Relationships
-    comment: Mapped["Comment"] = relationship(back_populates="reactions")
 
 
 class CommentAttachment(TableBase):
@@ -81,38 +69,54 @@ class CommentAttachment(TableBase):
 
     __tablename__ = "comment_attachment"
     __table_args__ = (
-        UniqueConstraint("comment_id", "media_entry_id", name="uq_comment_media"),
+        sa.UniqueConstraint("comment_id", "media_entry_id", name="uq_comment_media"),
+        sa.Index(
+            "idx_attachment_comment",
+            "comment_id",
+            postgresql_where=sa.text("_deleted IS NULL"),
+        ),
+        sa.Index(
+            "idx_attachment_media",
+            "media_entry_id",
+            postgresql_where=sa.text("_deleted IS NULL"),
+        ),
+        sa.Index(
+            "idx_attachment_primary",
+            "comment_id",
+            "is_primary",
+            postgresql_where=sa.text("(_deleted IS NULL) AND (is_primary = true)"),
+        ),
         {"schema": SCHEMA},
     )
 
     comment_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE"),
+        ForeignKey(f"{SCHEMA}.comment._id", name="fk_comment", ondelete="CASCADE"),
         nullable=False,
     )
     media_entry_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey(
+            '"cpo-media"."media-entry"._id', 
+            name="fk_media",
+            ondelete="RESTRICT",
+        ),
+        nullable=False,
     )
-
     attachment_type: Mapped[Optional[str]] = mapped_column(String(50))
     caption: Mapped[Optional[str]] = mapped_column(Text)
     display_order: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    # Relationships
-    comment: Mapped["Comment"] = relationship(back_populates="attachments")
+    is_primary: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
 
 
 class CommentIntegration(TableBase):
-    """Comment integration tracking in ``rfx_client.comment_integration``."""
+    """Comment integration in ``rfx_client.comment_integration``."""
 
     __tablename__ = "comment_integration"
+    __table_args__ = {"schema": SCHEMA}
 
     comment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     provider: Mapped[str] = mapped_column(String(100), nullable=False)
     external_id: Mapped[str] = mapped_column(String(255), nullable=False)
     external_url: Mapped[str] = mapped_column(String(255), nullable=False)
-    source: Mapped[Optional[str]] = mapped_column(String(255))
-
-    # Relationships
-    comment: Mapped["Comment"] = relationship(back_populates="integrations")
+    source: Mapped[Optional[str]] = mapped_column(String)

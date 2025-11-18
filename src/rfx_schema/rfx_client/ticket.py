@@ -22,6 +22,7 @@ class Ticket(TableBase):
     """Tickets stored in ``rfx_client.ticket``."""
 
     __tablename__ = "ticket"
+    __table_args__ = {"schema": SCHEMA}
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -144,6 +145,7 @@ class TicketStatus(TableBase):
     """Ticket status history in ``rfx_client.ticket_status``."""
 
     __tablename__ = "ticket_status"
+    __table_args__ = {"schema": SCHEMA}
 
     ticket_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -163,6 +165,7 @@ class ProjectTicket(TableBase):
     """Link tickets to projects in ``rfx_client.project_ticket``."""
 
     __tablename__ = "project_ticket"
+    __table_args__ = {"schema": SCHEMA}
 
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

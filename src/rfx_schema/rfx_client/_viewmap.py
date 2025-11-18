@@ -541,3 +541,46 @@ class WorkPackageCreditUsageView(TableBase):
     total_work_items: Mapped[int] = mapped_column(Integer)
     completed_work_items: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(50))
+
+
+class ProjectDocumentView(TableBase):
+    """View: _project_document - Project documents with participants and file metadata"""
+
+    __tablename__ = "_project_document"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    # Document info
+    document_name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    doc_type: Mapped[Optional[str]] = mapped_column(String(50))
+    file_size: Mapped[Optional[int]] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(50))
+
+    # Project info
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    project_name: Mapped[str] = mapped_column(String(255))
+    project_status: Mapped[str] = mapped_column(String(100))
+
+    # Organization
+    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+
+    # Media file info
+    media_entry_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    filename: Mapped[Optional[str]] = mapped_column(String(1024))
+    filemime: Mapped[Optional[str]] = mapped_column(String(256))
+    fspath: Mapped[Optional[str]] = mapped_column(String(1024))
+    cdn_url: Mapped[Optional[str]] = mapped_column(String(1024))
+    file_length: Mapped[Optional[int]] = mapped_column(Integer)
+
+    # Creator info (JSONB)
+    created_by: Mapped[dict] = mapped_column(JSONB)
+    # Structure: {id: UUID, name: str, avatar: UUID}
+
+    # Participants (JSON array)
+    participants: Mapped[List[dict]] = mapped_column(JSONB)
+    # Structure: [{id: UUID, name: str, avatar: UUID, role: str}]
+
+    participant_count: Mapped[int] = mapped_column(Integer)
+
+    # Activity timestamp
+    activity: Mapped[datetime] = mapped_column(DateTime(timezone=True))
