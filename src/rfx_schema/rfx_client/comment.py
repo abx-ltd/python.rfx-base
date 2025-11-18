@@ -96,11 +96,11 @@ class CommentAttachment(TableBase):
     )
     media_entry_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey(
-            '"cpo-media"."media-entry"._id', 
-            name="fk_media",
-            ondelete="RESTRICT",
-        ),
+        # ForeignKey(
+        #     '"cpo-media"."media-entry"._id', 
+        #     name="fk_media",
+        #     ondelete="RESTRICT",
+        # ),
         nullable=False,
     )
     attachment_type: Mapped[Optional[str]] = mapped_column(String(50))

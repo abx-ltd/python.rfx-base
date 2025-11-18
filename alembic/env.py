@@ -13,7 +13,6 @@ from rfx_base import config as base_config
 # STEP 2: Import RFXConnector and schema modules (they will use rfx_base.config directly)
 from rfx_schema import DOMAIN_CONNECTORS, config as schema_config
 from rfx_schema import _schema, _pgentity
-from rfx_schema.rfx_client import RFXConnector
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
