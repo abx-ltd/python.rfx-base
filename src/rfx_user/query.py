@@ -141,7 +141,8 @@ class ProfileDetailQuery(DomainQueryResource):
 
     class Meta(DomainQueryResource.Meta):
         allow_item_view = True
-        allow_list_view = True
+        allow_list_view = False
+        backend_model = "profile"
 
         resource = "profile"
         policy_required = "id"
@@ -236,6 +237,7 @@ class OrganizationDetailQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = False
         allow_meta_view = True
+        backend_model = "organization"
 
         resource = "organization"
         policy_required = "id"
