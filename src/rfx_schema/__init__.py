@@ -1,33 +1,28 @@
 from ._meta import config, logger
-
-from datetime import datetime, UTC
-from sqlalchemy import create_engine, MetaData, Column, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Mapped
-from fluvius.data import DomainSchema, SqlaDriver
+from fluvius.data import SqlaDriver
 
 
-# --- Connector and Base Schema ---
-class RFXConnector(SqlaDriver):
-    __db_dsn__ = config.DB_DSN
-    __schema__ = config.DB_SCHEMA
+# # --- Base connector used by legacy tooling ---
+# class RFXConnector(SqlaDriver):
+#     __db_dsn__ = config.DB_DSN
+#     __schema__ = config.DB_SCHEMA
 
 
-def create_base_model(schema_name: str):
-    """
-    Create a SQLAlchemy declarative base with a specific schema name.
-    All models will inherit audit fields (_created, _updated).
+# Domain-specific connectors (used by Alembic)
+from .rfx_user import RFXUserConnector
+from .rfx_policy import RFXPolicyConnector
+from .rfx_message import RFXMessageConnector
+from .rfx_media import RFXMediaConnector
+from .rfx_notify import RFXNotifyConnector
+from .rfx_client import RFXClientConnector
+from .rfx_discuss import RFXDiscussConnector
 
-    Args:
-        schema_name: The PostgreSQL schema name to use for all tables
-
-    Returns:
-        Declarative base class configured with the specified schema and audit fields
-    """
-
-    # Create a new base that includes the audit mixin
-    class RFXBaseSchema(RFXConnector.__data_schema_base__, DomainSchema):
-        __abstract__ = True
-        __table_args__ = {"schema": schema_name}
-
-    return RFXBaseSchema
+DOMAIN_CONNECTORS = {
+    "user": RFXUserConnector,
+    "policy": RFXPolicyConnector,
+    "message": RFXMessageConnector,
+    "media": RFXMediaConnector,
+    "notify": RFXNotifyConnector,
+    "client": RFXClientConnector,
+    "discuss": RFXDiscussConnector,
+}

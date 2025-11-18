@@ -147,8 +147,9 @@ UNION ALL
 
 
 def register_pg_entities(allow):
-    if not allow:
-        logger.info('REGISTER_PG_ENTITIES is not set.')
+    allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
+    if not allow_flag:
+        logger.info('REGISTER_PG_ENTITIES is disabled or not set.')
         return
     register_entities([
         policy_user_profile_view,

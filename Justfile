@@ -56,37 +56,37 @@ populate:
 # ========== Alembic Migration Commands (Schema-Specific) ==========
 
 # Generate alembic migration for specific schema(s)
-# Usage: just mig-autogen "message description" [schema]
+# Usage: just mig-autogen "message description" [schema] [REGISTER_ENTITIES=true|false]
 # Schema options: user, policy, message, or "all" (default)
 # Examples:
 #   just mig-autogen "add new field"           # All schemas
 #   just mig-autogen "add user field" user     # Only user schema
 #   just mig-autogen "update tables" user,message  # Multiple schemas
 [no-cd]
-mig-autogen MESSAGE SCHEMA="all":
-    @echo "🔍 Generating migration for schema(s): {{SCHEMA}}"
-    REGISTER_PG_ENTITIES=1 ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision --autogenerate -m "{{MESSAGE}}"
+mig-autogen MESSAGE SCHEMA="all" REGISTER_ENTITIES="1":
+    @echo "🔍 Generating migration for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
+    REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision --autogenerate -m "{{MESSAGE}}"
 
 # Apply all pending migrations (optionally filter by schema)
-# Usage: just mig-upgrade [revision] [schema]
+# Usage: just mig-upgrade [revision] [schema] [REGISTER_ENTITIES=true|false]
 [no-cd]
-mig-upgrade REVISION="head" SCHEMA="all" RENTITIES="0":
-    @echo "⬆️  Upgrading migrations for schema(s): {{SCHEMA}}"
-    REGISTER_PG_ENTITIES={{RENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini upgrade {{REVISION}}
+mig-upgrade REVISION="head" SCHEMA="all" REGISTER_ENTITIES="1":
+    @echo "⬆️  Upgrading migrations for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
+    REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini upgrade {{REVISION}}
 
 # Rollback migrations (optionally filter by schema)
-# Usage: just mig-downgrade [revision] [schema]
+# Usage: just mig-downgrade [revision] [schema] [REGISTER_ENTITIES=true|false]
 [no-cd]
-mig-downgrade REVISION="-1" SCHEMA="all" RENTITIES="0":
-    @echo "⬇️  Downgrading migrations for schema(s): {{SCHEMA}}"
-    REGISTER_PG_ENTITIES={{RENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini downgrade {{REVISION}}
+mig-downgrade REVISION="-1" SCHEMA="all" REGISTER_ENTITIES="1":
+    @echo "⬇️  Downgrading migrations for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
+    REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini downgrade {{REVISION}}
 
 # Create new empty migration (optionally for specific schema)
-# Usage: just mig-revision "message" [schema]
+# Usage: just mig-revision "message" [schema] [REGISTER_ENTITIES=true|false]
 [no-cd]
-mig-revision MESSAGE SCHEMA="all" RENTITIES="0":
-    @echo "📝 Creating revision for schema(s): {{SCHEMA}}"
-    REGISTER_PG_ENTITIES={{RENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision -m "{{MESSAGE}}"
+mig-revision MESSAGE SCHEMA="all" REGISTER_ENTITIES="1":
+    @echo "📝 Creating revision for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
+    REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision -m "{{MESSAGE}}"
 
 # Check current migration version
 [no-cd]
@@ -99,8 +99,8 @@ mig-history:
     alembic -c alembic/alembic.ini history
 
 # Check differences between database and models (optionally for specific schema)
-# Usage: just mig-check [schema]
+# Usage: just mig-check [schema] [REGISTER_ENTITIES=true|false]
 [no-cd]
-mig-check SCHEMA="all":
-    @echo "🔍 Checking schema(s): {{SCHEMA}}"
-    REGISTER_PG_ENTITIES=1 ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini check
+mig-check SCHEMA="all" REGISTER_ENTITIES="1":
+    @echo "🔍 Checking schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
+    REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini check

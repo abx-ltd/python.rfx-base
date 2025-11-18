@@ -11,7 +11,7 @@ from alembic import context
 from rfx_base import config as base_config
 
 # STEP 2: Import RFXConnector and schema modules (they will use rfx_base.config directly)
-from rfx_schema import RFXConnector, config as schema_config
+from rfx_schema import DOMAIN_CONNECTORS, config as schema_config
 from rfx_schema import _schema, _pgentity
 
 # this is the Alembic Config object, which provides
@@ -25,12 +25,10 @@ if config.config_file_name is not None:
 
 logger = logging.getLogger("alembic.env")
 
-# Use the shared base metadata for autogenerate
-target_metadata = RFXConnector.__data_schema_base__.metadata
 sync_url = schema_config.DB_DSN.replace('+asyncpg://', '+psycopg2://')
 
 # All available schemas
-ALL_SCHEMAS = {
+DOMAIN_SCHEMAS = {
     'user': base_config.RFX_USER_SCHEMA,
     'policy': base_config.RFX_POLICY_SCHEMA,
     'message': base_config.RFX_MESSAGE_SCHEMA,
@@ -46,14 +44,19 @@ ALL_SCHEMAS = {
 # Or use the just commands: just mig-autogen "message" user,message
 schema_filter = os.getenv('ALEMBIC_SCHEMA_FILTER', 'all')
 if schema_filter and schema_filter != 'all':
-    # Filter schemas based on the provided names
-    schema_names = [s.strip() for s in schema_filter.split(',')]
-    SCHEMAS = tuple(ALL_SCHEMAS[name] for name in schema_names if name in ALL_SCHEMAS)
-    logger.info(f"🔍 Filtering migrations to schemas: {schema_names} -> {SCHEMAS}")
+    schema_names = [s.strip() for s in schema_filter.split(',') if s.strip() in DOMAIN_SCHEMAS]
 else:
-    # Use all schemas
-    SCHEMAS = tuple(ALL_SCHEMAS.values())
-    logger.info(f"📋 Using all schemas: {SCHEMAS}")
+    schema_names = list(DOMAIN_SCHEMAS.keys())
+
+if not schema_names:
+    logger.warning("⚠️  No valid schemas selected, defaulting to all")
+    schema_names = list(DOMAIN_SCHEMAS.keys())
+
+SCHEMAS = tuple(DOMAIN_SCHEMAS[name] for name in schema_names)
+selected_connectors = [DOMAIN_CONNECTORS[name] for name in schema_names if name in DOMAIN_CONNECTORS]
+target_metadata = [connector.__data_schema_base__.metadata for connector in selected_connectors]
+
+logger.info(f"📋 Using schemas: {schema_names} -> {SCHEMAS}")
 
 
 def include_server_default(inspector, table, column, column_default, metadata_default, **kw):

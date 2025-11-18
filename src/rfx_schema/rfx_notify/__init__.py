@@ -3,10 +3,19 @@ from typing import Optional
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .. import create_base_model, logger
+from fluvius.data import DomainSchema, SqlaDriver
+from .._meta import config as schema_config, logger
 from rfx_base import config
 
-Base = create_base_model(config.RFX_NOTIFY_SCHEMA)
+
+class RFXNotifyConnector(SqlaDriver):
+    __db_dsn__ = schema_config.DB_DSN
+    __schema__ = config.RFX_NOTIFY_SCHEMA
+
+
+class Base(RFXNotifyConnector.__data_schema_base__, DomainSchema):
+    __abstract__ = True
+    __table_args__ = {"schema": config.RFX_NOTIFY_SCHEMA}
 
 
 class TableBase(Base):
@@ -15,5 +24,4 @@ class TableBase(Base):
 
 
 SCHEMA = config.RFX_NOTIFY_SCHEMA
-
 

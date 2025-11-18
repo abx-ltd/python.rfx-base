@@ -950,8 +950,9 @@ status_view = PGView(
 
 def register_pg_entities(allow):
     """Register all PostgreSQL views for Alembic migrations"""
-    if not allow:
-        logger.info("REGISTER_PG_ENTITIES is not set.")
+    allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
+    if not allow_flag:
+        logger.info("REGISTER_PG_ENTITIES is disabled or not set.")
         return
 
     register_entities(
