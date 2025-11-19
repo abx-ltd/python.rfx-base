@@ -18,9 +18,12 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Index,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 from . import TableBase, SCHEMA
 
@@ -39,7 +42,20 @@ class CreditBalance(TableBase):
             "total_credits = (ar_credits + de_credits + op_credits)",
             name="ck_total_credits_sum",
         ),
+        Index(
+            "idx_credit_balance_org",
+            "organization_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
         {"schema": SCHEMA},
+    )
+
+    # Fix: Match DB nullability
+    _etag: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), server_default=text("uuid_generate_v4()")
+    )
+    _created: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
@@ -94,7 +110,20 @@ class CreditPackage(TableBase):
     __table_args__ = (
         UniqueConstraint("package_code", name="credit_package_package_code_key"),
         UniqueConstraint("package_name", name="credit_package_package_name_key"),
+        Index(
+            "idx_credit_package_active",
+            "is_active",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
         {"schema": SCHEMA},
+    )
+
+    # Fix: Match DB nullability
+    _etag: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), server_default=text("uuid_generate_v4()")
+    )
+    _created: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
 
     package_name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -122,7 +151,33 @@ class CreditPurchase(TableBase):
     __table_args__ = (
         UniqueConstraint("transaction_id", name="credit_purchase_transaction_id_key"),
         UniqueConstraint("invoice_number", name="credit_purchase_invoice_number_key"),
+        Index(
+            "idx_purchase_org_date",
+            "organization_id",
+            text("purchase_date DESC"),
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_purchase_status",
+            "status",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_purchase_transaction",
+            "transaction_id",
+            postgresql_where=text(
+                "((_deleted IS NULL) AND (transaction_id IS NOT NULL))"
+            ),
+        ),
         {"schema": SCHEMA},
+    )
+
+    # Fix: Match DB nullability
+    _etag: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), server_default=text("uuid_generate_v4()")
+    )
+    _created: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
@@ -174,6 +229,31 @@ class CreditUsageLog(TableBase):
     """Credit usage tracking in ``rfx_client.credit_usage_log``."""
 
     __tablename__ = "credit_usage_log"
+    __table_args__ = (
+        Index(
+            "idx_usage_date_range",
+            text("usage_date DESC"),
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_usage_org_date",
+            "organization_id",
+            text("usage_date DESC"),
+        ),
+        Index("idx_usage_project", "project_id"),
+        Index("idx_usage_type", "work_type"),
+        Index("idx_usage_user", "used_by"),
+        Index("idx_usage_wp", "work_package_id"),
+        {"schema": SCHEMA},
+    )
+
+    # Fix: Match DB nullability
+    _etag: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), server_default=text("uuid_generate_v4()")
+    )
+    _created: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False
@@ -204,7 +284,8 @@ class CreditUsageLog(TableBase):
 
     description: Mapped[Optional[str]] = mapped_column(Text)
 
-    is_refunded: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Fix: DB allows NULL
+    is_refunded: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
     refund_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     refund_reason: Mapped[Optional[str]] = mapped_column(Text)
     refunded_credits: Mapped[Optional[float]] = mapped_column(Numeric(12, 2))

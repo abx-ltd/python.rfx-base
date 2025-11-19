@@ -23,6 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 from . import TableBase, SCHEMA
 
@@ -35,12 +36,6 @@ from . import TableBase, SCHEMA
 class Comment(TableBase):
     """
     Main comment table supporting threaded discussions.
-
-    Features:
-    - Hierarchical threading via parent_id
-    - Depth tracking for nested comments
-    - Soft deletion support
-    - Multi-resource attachable (via resource/resource_id)
     """
 
     __tablename__ = "comment"
@@ -54,27 +49,35 @@ class Comment(TableBase):
 
     # Thread hierarchy
     master_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), comment="Root comment ID for thread tracking"
+        UUID(as_uuid=True),
+        nullable=True,
     )
     parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE"),
-        comment="Parent comment for threading",
+        nullable=True,
     )
     depth: Mapped[int] = mapped_column(
-        Integer, default=0, nullable=False, comment="Nesting level (0 = top-level)"
+        Integer,
+        nullable=False,
+        server_default=text("0"),
     )
 
     # Content
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Context
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
     resource: Mapped[Optional[str]] = mapped_column(
-        String(100), comment="Entity type (e.g., 'project', 'ticket')"
+        String(100),
+        nullable=True,
     )
     resource_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), comment="Entity ID"
+        UUID(as_uuid=True),
+        nullable=True,
     )
 
     # Relationships
@@ -127,9 +130,10 @@ class Comment(TableBase):
 class CommentAttachment(TableBase):
     """
     Media attachments for comments (images, videos, documents).
-
     Links to media-entry table in cpo-media schema.
     """
+
+    from ..rfx_media.media import MediaEntry
 
     __tablename__ = "comment_attachment"
     __table_args__ = (
@@ -159,19 +163,36 @@ class CommentAttachment(TableBase):
 
     comment_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE"),
+        ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE", name="fk_comment"),
         nullable=False,
-    )
-    media_entry_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        nullable=False,
-        comment="References cpo-media.media-entry._id",
     )
 
-    attachment_type: Mapped[Optional[str]] = mapped_column(String(50))
-    caption: Mapped[Optional[str]] = mapped_column(Text)
-    display_order: Mapped[int] = mapped_column(Integer, default=0)
-    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    media_entry_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(MediaEntry._id, name="fk_media", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    attachment_type: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    caption: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # Fixed: Match DDL exactly - nullable=True, server_default
+    display_order: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        server_default=text("0"),
+    )
+    is_primary: Mapped[Optional[bool]] = mapped_column(
+        Boolean,
+        nullable=True,
+        server_default=text("false"),
+    )
 
     # Relationships
     comment: Mapped[Comment] = relationship("Comment", back_populates="attachments")
@@ -191,8 +212,6 @@ class CommentAttachment(TableBase):
 class CommentReaction(TableBase):
     """
     User reactions to comments (like, love, etc.).
-
-    Enforces one reaction per user per comment via unique constraint.
     """
 
     __tablename__ = "comment_reaction"
@@ -240,8 +259,6 @@ class CommentReaction(TableBase):
 class CommentFlag(TableBase):
     """
     User-reported flags for inappropriate comments.
-
-    Supports moderation workflows with status tracking.
     """
 
     __tablename__ = "comment_flag"
@@ -264,10 +281,13 @@ class CommentFlag(TableBase):
     reason: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(
         String(50),
-        default="pending",
         nullable=False,
+        server_default=text("'pending'::character varying"),
     )
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
 
     # Relationships
     comment: Mapped[Comment] = relationship("Comment", back_populates="flags")
@@ -293,8 +313,6 @@ class CommentFlag(TableBase):
 class CommentFlagResolution(TableBase):
     """
     Resolution records for comment flags.
-
-    One resolution per flag (enforced by unique constraint).
     """
 
     __tablename__ = "comment_flag_resolution"
@@ -315,7 +333,7 @@ class CommentFlagResolution(TableBase):
 
     flag_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey(f"{SCHEMA}.comment_flag._id", ondelete="CASCADE"),
+        ForeignKey(f"{SCHEMA}.comment_flag._id", ondelete="CASCADE", name="fk_flag"),
         nullable=False,
         unique=True,
     )
@@ -323,13 +341,20 @@ class CommentFlagResolution(TableBase):
         UUID(as_uuid=True),
         nullable=False,
     )
+    # Fixed: Match DDL - nullable=False with server_default
     resolved_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
         nullable=False,
+        server_default=func.now(),
     )
-    resolution_note: Mapped[Optional[str]] = mapped_column(Text)
-    resolution_action: Mapped[Optional[str]] = mapped_column(String(50))
+    resolution_note: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    resolution_action: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
 
     # Relationships
     flag: Mapped[CommentFlag] = relationship(
@@ -352,9 +377,9 @@ class CommentFlagResolution(TableBase):
 class CommentSubscription(TableBase):
     """
     User subscriptions to comment threads for notifications.
-
-    Users can subscribe/unsubscribe via is_active flag.
     """
+
+    from ..rfx_user.profile import Profile
 
     __tablename__ = "comment_subscription"
     __table_args__ = (
@@ -383,14 +408,20 @@ class CommentSubscription(TableBase):
 
     comment_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE"),
+        ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE", name="fk_comment"),
         nullable=False,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
+        ForeignKey(Profile._id, ondelete="CASCADE", name="fk_user"),
         nullable=False,
     )
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Fixed: Match DDL - nullable=True with server_default
+    is_active: Mapped[Optional[bool]] = mapped_column(
+        Boolean,
+        nullable=True,
+        server_default=text("true"),
+    )
 
     # Relationships
     comment: Mapped[Comment] = relationship("Comment", back_populates="subscriptions")
@@ -410,8 +441,6 @@ class CommentSubscription(TableBase):
 class CommentIntegration(TableBase):
     """
     Links comments to external systems (Jira, GitHub, etc.).
-
-    Enables bi-directional sync with third-party platforms.
     """
 
     __tablename__ = "comment_integration"
@@ -421,15 +450,9 @@ class CommentIntegration(TableBase):
         UUID(as_uuid=True),
         nullable=False,
     )
-    provider: Mapped[str] = mapped_column(
-        String(100), nullable=False, comment="External system (e.g., 'jira', 'github')"
-    )
-    external_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, comment="ID in external system"
-    )
-    external_url: Mapped[str] = mapped_column(
-        String(255), nullable=False, comment="Direct link to external comment"
-    )
+    provider: Mapped[str] = mapped_column(String(100), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    external_url: Mapped[str] = mapped_column(String(255), nullable=False)
 
     def __repr__(self) -> str:
         return (

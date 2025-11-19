@@ -13,15 +13,17 @@ from sqlalchemy import (
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
+    ForeignKeyConstraint, # <--- Cần import cái này
     Integer,
     String,
     Text,
     UniqueConstraint,
     BigInteger,
+    Index,
+    text,
 )
 from sqlalchemy.dialects.postgresql import INTERVAL, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Index
 
 from . import TableBase, SCHEMA
 from .types import PriorityEnum, SyncStatusEnum, ContactMethodEnum
@@ -31,6 +33,10 @@ class Project(TableBase):
     """Core project entity stored in ``rfx_client.project``."""
 
     __tablename__ = "project"
+    __table_args__ = (
+        Index("idx_project_referral_code", "referral_code_used"),
+        {"schema": SCHEMA},
+    )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -52,6 +58,8 @@ class Project(TableBase):
     sync_status: Mapped[Optional[SyncStatusEnum]] = mapped_column(
         SQLEnum(SyncStatusEnum, name="syncstatusenum", schema=SCHEMA),
         default=SyncStatusEnum.PENDING,
+        # Fix: Thêm server_default để khớp với DDL
+        server_default=text("'PENDING'::cpo_client.syncstatusenum")
     )
 
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
@@ -72,6 +80,11 @@ class Project(TableBase):
     bdm_contacts: Mapped[List["ProjectBDMContact"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    documents: Mapped[List["ProjectDocument"]] = (
+        relationship(  
+            back_populates="project", cascade="all, delete-orphan"
+        )
+    )
 
 
 class ProjectMember(TableBase):
@@ -79,13 +92,12 @@ class ProjectMember(TableBase):
 
     __tablename__ = "project_member"
     __table_args__ = (
-        # UniqueConstraint("project_id", "member_id", name="uq_project_member_active"),
         Index(
             "uq_project_member_active",
             "project_id",
             "member_id",
             unique=True,
-            postgresql_where="(_deleted IS NULL)",  # <-- Điều kiện quan trọng
+            postgresql_where=text("(_deleted IS NULL)"),
         ),
         {"schema": SCHEMA},
     )
@@ -106,6 +118,7 @@ class ProjectMilestone(TableBase):
     """Project milestones stored in ``rfx_client.project_milestone``."""
 
     __tablename__ = "project_milestone"
+    __table_args__ = {"schema": SCHEMA}
 
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.project._id"), nullable=False
@@ -115,7 +128,10 @@ class ProjectMilestone(TableBase):
     description: Mapped[Optional[str]] = mapped_column(Text)
     due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    is_completed: Mapped[Optional[bool]] = mapped_column(
+        Boolean, default=False, server_default=text("false")
+    )
 
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="milestones")
@@ -125,6 +141,8 @@ class ProjectBDMContact(TableBase):
     """BDM contact requests stored in ``rfx_client.project_bdm_contact``."""
 
     __tablename__ = "project_bdm_contact"
+    __table_args__ = {"schema": SCHEMA}
+
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.project._id"), nullable=False
     )
@@ -145,41 +163,62 @@ class ProjectDocument(TableBase):
     """Project documents stored in ``rfx_client.project_document``."""
 
     __tablename__ = "project_document"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = (
+        # FIX: Định nghĩa rõ ràng khóa ngoại thứ 2 đang tồn tại trong DB
+        # để Alembic không cố gắng drop nó.
+        ForeignKeyConstraint(
+            ["project_id"], 
+            [f"{SCHEMA}.project._id"], 
+            name="project_document_project_id_fkey"
+        ),
+        Index(
+            "idx_project_document_creator",
+            "_creator",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_project_document_project",
+            "project_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_project_document_status",
+            "status",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        {"schema": SCHEMA},
+    )
 
+    # Cột này map với khóa ngoại 'fk_project' (có CASCADE)
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey(f"{SCHEMA}.project._id", ondelete="CASCADE"),
+        ForeignKey(f"{SCHEMA}.project._id", name="fk_project", ondelete="CASCADE"),
         nullable=False,
     )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
 
-    # Media reference
     media_entry_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, comment="FK to cpo-media.media-entry._id"
+        UUID(as_uuid=True), nullable=False
     )
 
-    # File metadata
-    doc_type: Mapped[Optional[str]] = mapped_column(
-        String(50), comment="Document type: PDF, DOCX, XLSX, PPTX, PNG, etc."
+    doc_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
     )
     file_size: Mapped[Optional[int]] = mapped_column(
-        BigInteger, comment="File size in bytes"
+        BigInteger
     )
 
-    # Status
     status: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
         default="IN_PROGRESS",
-        comment="Document status: DRAFT, IN_PROGRESS, APPROVED, REJECTED",
+        server_default=text("'IN_PROGRESS'::character varying")
     )
 
-    # Organization
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True)
     )
 
     # Relationships
@@ -195,7 +234,12 @@ class ProjectDocumentParticipant(TableBase):
     __tablename__ = "project_document_participant"
     __table_args__ = (
         UniqueConstraint(
-            "document_id", "participant_id", name="uq_document_participant_active"
+            "document_id", "participant_id", name="unique_doc_participant"
+        ),
+        Index(
+            "idx_document_participant",
+            "document_id",
+            postgresql_where=text("(_deleted IS NULL)"),
         ),
         {"schema": SCHEMA},
     )
@@ -207,13 +251,14 @@ class ProjectDocumentParticipant(TableBase):
     )
 
     participant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, comment="FK to cpo_user.profile._id"
+        UUID(as_uuid=True), nullable=False
     )
 
     role: Mapped[str] = mapped_column(
-        String(100),
+        String(50),
         nullable=False,
-        comment="Participant role: VIEWER, REVIEWER, APPROVER, EDITOR",
+        default="REVIEWER",
+        server_default=text("'REVIEWER'::character varying")
     )
 
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))

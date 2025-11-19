@@ -17,6 +17,8 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Index,
+    text,
 )
 from sqlalchemy.dialects.postgresql import INTERVAL, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,10 +33,29 @@ class ProjectWorkPackage(TableBase):
 
     __tablename__ = "project_work_package"
     __table_args__ = (
-        UniqueConstraint(
+        # In DB, this is a UNIQUE INDEX with a WHERE clause, not a simple UniqueConstraint
+        Index(
+            "uq_project_work_package",
             "project_id",
             "work_package_id",
-            name="uq_project_work_package",
+            unique=True,
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        # Other specific indexes from DDL
+        Index(
+            "idx_pwp_project_id",
+            "project_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_pwp_project_not_deleted",
+            "project_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_pwp_work_package_id",
+            "work_package_id",
+            postgresql_where=text("(_deleted IS NULL)"),
         ),
         {"schema": SCHEMA},
     )
@@ -79,6 +100,14 @@ class ProjectWorkItem(TableBase):
     """Project work items in ``rfx_client.project_work_item``."""
 
     __tablename__ = "project_work_item"
+    __table_args__ = (
+        Index(
+            "idx_pwi_type",
+            "type",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        {"schema": SCHEMA},
+    )
 
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -109,6 +138,11 @@ class ProjectWorkPackageWorkItem(TableBase):
             "project_work_package_id",
             "project_work_item_id",
             name="project-work-package-work-ite_project_work_package_id_proje_key",
+        ),
+        Index(
+            "idx_pwpwi_work_item_id",
+            "project_work_item_id",
+            postgresql_where=text("(_deleted IS NULL)"),
         ),
         {"schema": SCHEMA},
     )
@@ -141,6 +175,14 @@ class ProjectWorkItemDeliverable(TableBase):
     """Project work item deliverables in ``rfx_client.project_work_item_deliverable``."""
 
     __tablename__ = "project_work_item_deliverable"
+    __table_args__ = (
+        Index(
+            "idx_pwid_project_work_item_id",
+            "project_work_item_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        {"schema": SCHEMA},
+    )
 
     project_work_item_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

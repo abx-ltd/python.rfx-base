@@ -17,6 +17,8 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     DateTime,
+    Index,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -40,7 +42,7 @@ class Tag(TableBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
 
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
     target_resource: Mapped[str] = mapped_column(String(100), nullable=False)
 
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
@@ -50,11 +52,15 @@ class Status(TableBase):
     """Status definitions in ``rfx_client.status``."""
 
     __tablename__ = "status"
+    __table_args__ = (
+        Index("idx_status_entity_type", "entity_type"),
+        {"schema": SCHEMA},
+    )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
 
     # Relationships
     keys: Mapped[List["StatusKey"]] = relationship(
@@ -71,6 +77,7 @@ class StatusKey(TableBase):
     __tablename__ = "status_key"
     __table_args__ = (
         UniqueConstraint("status_id", "key", name="uq_status_key"),
+        Index("idx_status_key_status", "status_id"),
         {"schema": SCHEMA},
     )
 
@@ -84,8 +91,8 @@ class StatusKey(TableBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
 
-    is_initial: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_final: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_initial: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    is_final: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
 
     # Relationships
     status: Mapped["Status"] = relationship(back_populates="keys")
@@ -102,6 +109,7 @@ class StatusTransition(TableBase):
             "dst_status_key_id",
             name="uq_status_transition",
         ),
+        Index("idx_status_transition_status", "status_id"),
         {"schema": SCHEMA},
     )
 
@@ -135,6 +143,15 @@ class Promotion(TableBase):
     __tablename__ = "promotion"
     __table_args__ = (
         UniqueConstraint("code", name="promotion_code_key"),
+        Index(
+            "idx_promotion_code_valid",
+            "code",
+            "valid_from",
+            "valid_until",
+            "current_uses",
+            "max_uses",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
         {"schema": SCHEMA},
     )
 
@@ -148,7 +165,7 @@ class Promotion(TableBase):
     )
 
     max_uses: Mapped[int] = mapped_column(Integer, nullable=False)
-    current_uses: Mapped[int] = mapped_column(Integer, default=0)
+    current_uses: Mapped[Optional[int]] = mapped_column(Integer, default=0)
 
     discount_value: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
 
@@ -201,6 +218,7 @@ class ProjectMilestoneIntegration(TableBase):
     """Project milestone integration in ``rfx_client.project_milestone_integration``."""
 
     __tablename__ = "project_milestone_integration"
+    __table_args__ = {"schema": SCHEMA}
 
     milestone_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     provider: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -212,6 +230,7 @@ class TicketIntegration(TableBase):
     """Ticket integration in ``rfx_client.ticket_integration``."""
 
     __tablename__ = "ticket_integration"
+    __table_args__ = {"schema": SCHEMA}
 
     ticket_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     provider: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -219,16 +238,21 @@ class TicketIntegration(TableBase):
     external_url: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
-# Reference tables
+# ============================================================================
+# REFERENCE TABLES
+# ============================================================================
+
+
 class RefNotificationType(TableBase):
     """Notification types in ``rfx_client.ref__notification_type``."""
 
     __tablename__ = "ref__notification_type"
+    __table_args__ = {"schema": SCHEMA}
 
     key: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
 
 
 class RefProjectCategory(TableBase):
@@ -236,14 +260,15 @@ class RefProjectCategory(TableBase):
 
     __tablename__ = "ref__project_category"
     __table_args__ = (
-        UniqueConstraint("key", name="ref,--project-category_key_key"),
+        # Fix: Explicitly named to match DB "ref--..." format
+        UniqueConstraint("key", name="ref--project-category_key_key"),
         {"schema": SCHEMA},
     )
 
     key: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
 
 
 class RefProjectRole(TableBase):
@@ -251,14 +276,15 @@ class RefProjectRole(TableBase):
 
     __tablename__ = "ref__project_role"
     __table_args__ = (
-        UniqueConstraint("key", name="ref,--project-role_key_key"),
+        # Fix: Explicitly named to match DB "ref--..." format
+        UniqueConstraint("key", name="ref--project-role_key_key"),
         {"schema": SCHEMA},
     )
 
     key: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
-    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_default: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
 
 
 class RefTicketType(TableBase):
@@ -266,7 +292,8 @@ class RefTicketType(TableBase):
 
     __tablename__ = "ref__ticket_type"
     __table_args__ = (
-        UniqueConstraint("key", name="ref,--ticket-type_key_key"),
+        # Fix: Explicitly named to match DB "ref--..." format
+        UniqueConstraint("key", name="ref--ticket-type_key_key"),
         {"schema": SCHEMA},
     )
 
@@ -274,17 +301,21 @@ class RefTicketType(TableBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     icon_color: Mapped[Optional[str]] = mapped_column(String(50))
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_inquiry: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
+    is_inquiry: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
 
 
 class RefWorkItemType(TableBase):
     """Work item types in ``rfx_client.ref__work_item_type``."""
 
     __tablename__ = "ref__work_item_type"
+    __table_args__ = (
+        Index("idx_rt_key", "key"),
+        {"schema": SCHEMA},
+    )
 
     key: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
     alias: Mapped[Optional[str]] = mapped_column(String(50))

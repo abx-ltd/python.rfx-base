@@ -7,7 +7,16 @@ from __future__ import annotations
 from typing import List, Optional
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    Index,
+    text,
+)
 from sqlalchemy.dialects.postgresql import INTERVAL, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -48,7 +57,20 @@ class WorkItem(TableBase):
     """Work item templates stored in ``rfx_client.work_item``."""
 
     __tablename__ = "work_item"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = (
+        # Fix: Added missing indexes from DB
+        Index(
+            "idx_wi_id_not_deleted",
+            "_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_wi_type",
+            "type",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        {"schema": SCHEMA},
+    )
 
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -87,6 +109,22 @@ class WorkPackageWorkItem(TableBase):
             "work_item_id",
             name="work-package-work-item_work_package_id_work_item_id_key",
         ),
+        # Fix: Added missing indexes from DB
+        Index(
+            "idx_wpwi_package_not_deleted",
+            "work_package_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_wpwi_work_item_id",
+            "work_item_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_wpwi_work_package_id",
+            "work_package_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
         {"schema": SCHEMA},
     )
 
@@ -111,7 +149,13 @@ class WorkItemDeliverable(TableBase):
 
     __tablename__ = "work_item_deliverable"
     __table_args__ = (
-        UniqueConstraint("work_item_id", name="uq_deliverable_work_item_active"),
+        # Fix: Changed from UniqueConstraint to Unique Index with WHERE clause
+        Index(
+            "uq_deliverable_work_item_active",
+            "work_item_id",
+            unique=True,
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
         {"schema": SCHEMA},
     )
 
