@@ -6,6 +6,7 @@ Registers database views for Alembic migrations.
 
 import os
 from alembic_utils.replaceable_entity import register_entities
+from rfx_schema import logger
 
 # Import all views from submodules
 from .views import (

@@ -1020,3 +1020,48 @@ class ProjectDocumentQuery(DomainQueryResource):
     activity: datetime = DatetimeField("Last Activity")
     created: datetime = DatetimeField("Created At")
     updated: datetime = DatetimeField("Updated At")
+
+
+@resource("organization-weekly-credit-usage")
+class OrganizationWeeklyCreditUsageQuery(DomainQueryResource):
+    """
+    Organization Weekly Credit Usage Query
+
+    Theo dõi credit usage theo tuần:
+    - Week number (relative to first project start date)
+    - Credits breakdown by type (AR/DE/OP)
+    - Work packages completed per week
+    - Usage trends over time
+    """
+
+    @classmethod
+    def base_query(cls, context, scope):
+        """Filter by organization from context"""
+        return {"organization_id": context.organization._id}
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "organization-weekly-credit-usage"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_organization_weekly_credit_usage"
+
+    # Organization
+    organization_id: UUID_TYPE = UUIDField("Organization ID", filterable=True)
+
+    # Week Information
+    week_number: int = IntegerField("Week Number", filterable=True, sortable=True)
+    week_label: str = StringField("Week Label")  # e.g., "Week 1", "Week 2"
+
+    # Credit Breakdown
+    total_credits: float = FloatField("Total Credits", sortable=True)
+    ar_credits: float = FloatField("Architecture Credits", sortable=True)
+    de_credits: float = FloatField("Development Credits", sortable=True)
+    op_credits: float = FloatField("Operation Credits", sortable=True)
+
+    # Work Package Stats
+    work_packages_completed: int = IntegerField(
+        "Work Packages Completed", sortable=True
+    )

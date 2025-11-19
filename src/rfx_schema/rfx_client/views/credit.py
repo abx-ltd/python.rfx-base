@@ -221,51 +221,48 @@ organization_credit_summary_view = PGView(
 organization_weekly_credit_usage_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
     signature="_organization_weekly_credit_usage",
-    definition=f"""
+    definition="""
     WITH done_work_packages AS (
          SELECT p.organization_id,
             pwp._id AS work_package_id,
-            pwp._updated AS completion_time,
             pwp.quantity,
-            ceil(EXTRACT(epoch FROM pwp._updated - (( SELECT min(project.start_date) AS min
-                   FROM {config.RFX_CLIENT_SCHEMA}.project
-                  WHERE project.organization_id = p.organization_id AND project.start_date IS NOT NULL))) / (7 * 24 * 60 * 60)::numeric)::integer AS relative_week,
+            pwp.date_complete,
             ( SELECT COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) AS "coalesce"
-                   FROM {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi
-                     JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
+                   FROM cpo_client.project_work_package_work_item pwpwi
+                     JOIN cpo_client.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
                   WHERE pwpwi.project_work_package_id = pwp._id AND pwi.type::text = 'ARCHITECTURE'::text AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL) AS ar_credits,
             ( SELECT COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) AS "coalesce"
-                   FROM {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi
-                     JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
+                   FROM cpo_client.project_work_package_work_item pwpwi
+                     JOIN cpo_client.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
                   WHERE pwpwi.project_work_package_id = pwp._id AND pwi.type::text = 'DEVELOPMENT'::text AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL) AS de_credits,
             ( SELECT COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) AS "coalesce"
-                   FROM {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi
-                     JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
+                   FROM cpo_client.project_work_package_work_item pwpwi
+                     JOIN cpo_client.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
                   WHERE pwpwi.project_work_package_id = pwp._id AND pwi.type::text = 'OPERATION'::text AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL) AS op_credits
-           FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
-             JOIN {config.RFX_CLIENT_SCHEMA}.project p ON pwp.project_id = p._id
-          WHERE pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum AND pwp._deleted IS NULL AND p._deleted IS NULL AND pwp._updated IS NOT NULL
+           FROM cpo_client.project_work_package pwp
+             JOIN cpo_client.project p ON pwp.project_id = p._id
+          WHERE pwp.status = 'DONE'::cpo_client.workpackageenum AND pwp.date_complete IS NOT NULL AND pwp._deleted IS NULL AND p._deleted IS NULL
         )
-     SELECT md5(done_work_packages.organization_id::text || done_work_packages.relative_week::text)::uuid AS _id,
-        now() AS _created,
-        now() AS _updated,
-        done_work_packages.organization_id AS _creator,
-        done_work_packages.organization_id AS _updater,
-        NULL::timestamp without time zone AS _deleted,
-        NULL::text AS _etag,
-        NULL::text AS _realm,
-        done_work_packages.organization_id,
-        done_work_packages.relative_week AS week_number,
-        'Week '::text || done_work_packages.relative_week AS week_label,
-        round(COALESCE(sum(done_work_packages.ar_credits + done_work_packages.de_credits + done_work_packages.op_credits), 0::numeric), 2) AS total_credits,
-        round(COALESCE(sum(done_work_packages.ar_credits), 0::numeric), 2) AS ar_credits,
-        round(COALESCE(sum(done_work_packages.de_credits), 0::numeric), 2) AS de_credits,
-        round(COALESCE(sum(done_work_packages.op_credits), 0::numeric), 2) AS op_credits,
-        count(done_work_packages.work_package_id)::integer AS work_packages_completed
-       FROM done_work_packages
-      WHERE done_work_packages.relative_week > 0
-      GROUP BY done_work_packages.organization_id, done_work_packages.relative_week
-      ORDER BY done_work_packages.organization_id, done_work_packages.relative_week;
+ SELECT md5(dwp.organization_id::text || date_trunc('week'::text, dwp.date_complete)::text)::uuid AS _id,
+    now() AS _created,
+    now() AS _updated,
+    dwp.organization_id AS _creator,
+    dwp.organization_id AS _updater,
+    NULL::timestamp without time zone AS _deleted,
+    NULL::text AS _etag,
+    NULL::text AS _realm,
+    dwp.organization_id,
+    date_part('week'::text, date_trunc('week'::text, dwp.date_complete))::integer AS week_number,
+    to_char(date_trunc('week'::text, dwp.date_complete), 'IYYY-"W"IW'::text) AS week_label,
+    date_trunc('week'::text, dwp.date_complete)::date AS week_start_date,
+    round(COALESCE(sum(dwp.ar_credits + dwp.de_credits + dwp.op_credits), 0::numeric), 2) AS total_credits,
+    round(COALESCE(sum(dwp.ar_credits), 0::numeric), 2) AS ar_credits,
+    round(COALESCE(sum(dwp.de_credits), 0::numeric), 2) AS de_credits,
+    round(COALESCE(sum(dwp.op_credits), 0::numeric), 2) AS op_credits,
+    count(dwp.work_package_id)::integer AS work_packages_completed
+   FROM done_work_packages dwp
+  GROUP BY dwp.organization_id, (date_trunc('week'::text, dwp.date_complete))
+  ORDER BY dwp.organization_id, (date_trunc('week'::text, dwp.date_complete)::date) DESC;
     """,
 )
 

@@ -8,8 +8,11 @@ from __future__ import annotations
 from typing import List, Optional
 import uuid
 
+from datetime import datetime
+
 from sqlalchemy import (
     Boolean,
+    DateTime,
     Enum as SQLEnum,
     ForeignKey,
     Integer,
@@ -86,6 +89,11 @@ class ProjectWorkPackage(TableBase):
         SQLEnum(WorkPackageStatusEnum, name="workpackageenum", schema=SCHEMA),
         default=WorkPackageStatusEnum.TODO,
         nullable=False,
+    )
+    date_complete: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when work package was completed (status changed to DONE)",
     )
 
     # Relationships

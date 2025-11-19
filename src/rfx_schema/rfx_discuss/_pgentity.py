@@ -264,17 +264,17 @@ def register_pg_entities(allow):
 
     register_entities(
         [
-            # Comment views
-            comment_view,
-            comment_attachment_view,
-            comment_reaction_view,
-            comment_reaction_summary_view,
-            # Flag views
-            comment_flag_view,
-            comment_flag_resolution_view,
-            comment_flag_summary_view,
-            # Subscription view
-            comment_subscription_view,
+            # # Comment views
+            # comment_view,
+            # comment_attachment_view,
+            # comment_reaction_view,
+            # comment_reaction_summary_view,
+            # # Flag views
+            # comment_flag_view,
+            # comment_flag_resolution_view,
+            # comment_flag_summary_view,
+            # # Subscription view
+            # comment_subscription_view,
         ]
     )
 

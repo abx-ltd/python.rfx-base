@@ -1208,3 +1208,36 @@ class ProjectDocumentView(RFXClientBaseModel):
     participant_count = sa.Column(sa.Integer)
 
     activity = sa.Column(sa.DateTime)
+
+
+class OrganizationWeeklyCreditUsageView(RFXClientBaseModel):
+    """
+    Organization Weekly Credit Usage View
+
+    Theo dõi credit usage theo tuần:
+    - Week number (relative to first project start date)
+    - Credits by type (AR/DE/OP)
+    - Work packages completed
+    """
+
+    __tablename__ = "_organization_weekly_credit_usage"
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
+
+    organization_id = sa.Column(pg.UUID, nullable=False)
+
+    # Week info
+    week_number = sa.Column(
+        sa.Integer, nullable=False, comment="Week number since first project"
+    )
+    week_label = sa.Column(
+        sa.String(50), nullable=False, comment="e.g., 'Week 1', 'Week 2'"
+    )
+
+    # Credit totals
+    total_credits = sa.Column(sa.Numeric(12, 2), nullable=False)
+    ar_credits = sa.Column(sa.Numeric(12, 2), nullable=False)
+    de_credits = sa.Column(sa.Numeric(12, 2), nullable=False)
+    op_credits = sa.Column(sa.Numeric(12, 2), nullable=False)
+
+    # Statistics
+    work_packages_completed = sa.Column(sa.Integer, nullable=False)
