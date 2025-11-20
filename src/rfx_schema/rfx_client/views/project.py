@@ -191,3 +191,45 @@ project_estimate_summary_view = PGView(
             LEFT JOIN referral r ON r.project_id = p._id;
     """,
 )
+
+
+document_view = PGView(
+    schema=config.RFX_CLIENT_SCHEMA,
+    signature="_document",
+    definition="""
+    SELECT d._id,
+    d._created,
+    d._updated,
+    d._creator,
+    d._updater,
+    d._deleted,
+    d._etag,
+    d._realm,
+    d.name AS document_name,
+    d.description,
+    d.doc_type,
+    d.file_size,
+    d.status,
+    d.organization_id,
+    d.media_entry_id,
+    me.filename,
+    me.filemime,
+    me.fspath,
+    me.cdn_url,
+    me.length AS file_length,
+    jsonb_build_object('id', creator._id, 'name', COALESCE(creator.preferred_name, concat(creator.name__given, ' ', creator.name__family)::character varying), 'avatar', creator.picture_id) AS created_by,
+    COALESCE(( SELECT json_agg(jsonb_build_object('id', part._id, 'name', COALESCE(part.preferred_name, concat(part.name__given, ' ', part.name__family)::character varying), 'avatar', part.picture_id, 'role', dp.role)) AS json_agg
+           FROM cpo_client.document_participant dp
+             JOIN cpo_user.profile part ON part._id = dp.participant_id
+          WHERE dp.document_id = d._id AND dp._deleted IS NULL), '[]'::json) AS participants,
+    COALESCE(( SELECT count(DISTINCT dp.participant_id) AS count
+           FROM cpo_client.document_participant dp
+          WHERE dp.document_id = d._id AND dp._deleted IS NULL), 0::bigint)::integer AS participant_count,
+    GREATEST(d._created, d._updated) AS activity
+   FROM cpo_client.document d
+     LEFT JOIN "cpo-media"."media-entry" me ON d.media_entry_id = me._id
+     LEFT JOIN cpo_user.profile creator ON d._creator = creator._id
+  WHERE d._deleted IS NULL
+  ORDER BY d.organization_id, d._created DESC;
+    """,
+)

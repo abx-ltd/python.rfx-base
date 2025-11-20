@@ -13,7 +13,7 @@ from sqlalchemy import (
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
-    ForeignKeyConstraint, # <--- Cần import cái này
+    ForeignKeyConstraint,  # <--- Cần import cái này
     Integer,
     String,
     Text,
@@ -59,7 +59,7 @@ class Project(TableBase):
         SQLEnum(SyncStatusEnum, name="syncstatusenum", schema=SCHEMA),
         default=SyncStatusEnum.PENDING,
         # Fix: Thêm server_default để khớp với DDL
-        server_default=text("'PENDING'::cpo_client.syncstatusenum")
+        server_default=text("'PENDING'::cpo_client.syncstatusenum"),
     )
 
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
@@ -80,10 +80,8 @@ class Project(TableBase):
     bdm_contacts: Mapped[List["ProjectBDMContact"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    documents: Mapped[List["ProjectDocument"]] = (
-        relationship(  
-            back_populates="project", cascade="all, delete-orphan"
-        )
+    documents: Mapped[List["ProjectDocument"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
     )
 
 
@@ -128,7 +126,7 @@ class ProjectMilestone(TableBase):
     description: Mapped[Optional[str]] = mapped_column(Text)
     due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    
+
     is_completed: Mapped[Optional[bool]] = mapped_column(
         Boolean, default=False, server_default=text("false")
     )
@@ -167,9 +165,9 @@ class ProjectDocument(TableBase):
         # FIX: Định nghĩa rõ ràng khóa ngoại thứ 2 đang tồn tại trong DB
         # để Alembic không cố gắng drop nó.
         ForeignKeyConstraint(
-            ["project_id"], 
-            [f"{SCHEMA}.project._id"], 
-            name="project_document_project_id_fkey"
+            ["project_id"],
+            [f"{SCHEMA}.project._id"],
+            name="project_document_project_id_fkey",
         ),
         Index(
             "idx_project_document_creator",
@@ -203,23 +201,17 @@ class ProjectDocument(TableBase):
         UUID(as_uuid=True), nullable=False
     )
 
-    doc_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )
-    file_size: Mapped[Optional[int]] = mapped_column(
-        BigInteger
-    )
+    doc_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    file_size: Mapped[Optional[int]] = mapped_column(BigInteger)
 
     status: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
         default="IN_PROGRESS",
-        server_default=text("'IN_PROGRESS'::character varying")
+        server_default=text("'IN_PROGRESS'::character varying"),
     )
 
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True)
-    )
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="documents")
@@ -258,10 +250,94 @@ class ProjectDocumentParticipant(TableBase):
         String(50),
         nullable=False,
         default="REVIEWER",
-        server_default=text("'REVIEWER'::character varying")
+        server_default=text("'REVIEWER'::character varying"),
     )
 
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     # Relationships
     document: Mapped["ProjectDocument"] = relationship(back_populates="participants")
+
+
+class Document(TableBase):
+    """Documents in ``rfx_client.document``."""
+
+    __tablename__ = "document"
+    __table_args__ = (
+        Index(
+            "idx_document_creator",
+            "_creator",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_document_status",
+            "status",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        {"schema": SCHEMA},
+    )
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+
+    media_entry_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+
+    doc_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    file_size: Mapped[Optional[int]] = mapped_column(BigInteger)
+
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="IN_PROGRESS",
+        server_default=text("'IN_PROGRESS'::character varying"),
+    )
+
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    # Relationships
+    participants: Mapped[List["ProjectDocumentParticipant"]] = relationship(  # noqa: F821
+        back_populates="document", cascade="all, delete-orphan"
+    )
+
+
+class DocumentParticipant(TableBase):
+    """Participants of documents stored in ``rfx_client.document_participant``."""
+
+    __tablename__ = "document_participant"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "participant_id",
+            name="unique_document_participant_global",
+        ),
+        Index(
+            "idx_document_participant_global",
+            "document_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        {"schema": SCHEMA},
+    )
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.document._id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    participant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="REVIEWER",
+        server_default=text("'REVIEWER'::character varying"),
+    )
+
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    # Relationships
+    document: Mapped["Document"] = relationship(back_populates="participants")

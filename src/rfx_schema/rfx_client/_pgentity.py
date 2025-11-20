@@ -6,7 +6,6 @@ Registers database views for Alembic migrations.
 
 import os
 from alembic_utils.replaceable_entity import register_entities
-from rfx_schema import logger
 
 # Import all views from submodules
 from .views import (
@@ -25,6 +24,7 @@ from .views import (
     project_credit_summary_view,
     project_document_view,
     project_estimate_summary_view,
+    document_view,
     work_package_view,
     project_work_package_view,
     work_package_credit_usage_view,
@@ -66,6 +66,7 @@ def register_pg_entities(allow):
             project_credit_summary_view,
             project_document_view,
             project_estimate_summary_view,
+            document_view,
             # Work package views
             work_package_view,
             project_work_package_view,

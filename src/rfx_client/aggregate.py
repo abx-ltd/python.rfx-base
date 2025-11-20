@@ -1982,3 +1982,75 @@ class RFXClientAggregate(Aggregate):
             )
             await self.statemgr.insert(record)
             result.append(record)
+
+    @action("document-uploaded", resources="document")
+    async def upload_document(self, /, data):
+        """Upload a global organization document"""
+        document = self.init_resource(
+            "document",
+            serialize_mapping(data),
+            _id=self.aggroot.identifier,
+            organization_id=self.context.organization_id,
+        )
+        await self.statemgr.insert(document)
+        return document
+
+    @action("document-updated", resources="document")
+    async def update_document(self, /, data):
+        """Update document information"""
+        document = self.rootobj
+        update_data = serialize_mapping(data)
+        await self.statemgr.update(document, **update_data)
+        return document
+
+    @action("document-deleted", resources="document")
+    async def delete_document(self, /):
+        """Delete document"""
+        document = self.rootobj
+        await self.statemgr.invalidate(document)
+
+    @action("participant-added-to-global-document", resources="document")
+    async def add_participant_to_global_document(self, /, data):
+        """Add participant to global organization document"""
+        document = self.rootobj
+
+        for participant_id in data.participant_ids:
+            existing_participant = await self.statemgr.find_one(
+                "document_participant",
+                where=dict(
+                    document_id=document._id,
+                    participant_id=participant_id,
+                ),
+            )
+            if existing_participant:
+                continue
+
+            record = self.init_resource(
+                "document_participant",
+                {
+                    "document_id": document._id,
+                    "participant_id": participant_id,
+                    "role": data.role if hasattr(data, "role") else "REVIEWER",
+                    "organization_id": self.context.organization_id,
+                },
+                _id=UUID_GENR(),
+            )
+            await self.statemgr.insert(record)
+
+    @action("participant-removed-from-global-document", resources="document")
+    async def remove_participant_from_global_document(self, /, data):
+        """Remove participant from global organization document"""
+        document = self.rootobj
+
+        participant = await self.statemgr.find_one(
+            "document_participant",
+            where=dict(
+                document_id=document._id,
+                participant_id=data.participant_id,
+            ),
+        )
+
+        if not participant:
+            raise ValueError("Participant not found in document")
+
+        await self.statemgr.invalidate(participant)

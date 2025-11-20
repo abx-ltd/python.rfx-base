@@ -1241,3 +1241,72 @@ class OrganizationWeeklyCreditUsageView(RFXClientBaseModel):
 
     # Statistics
     work_packages_completed = sa.Column(sa.Integer, nullable=False)
+
+
+# =========== Document Context (Global/Organization Level) ============
+
+
+class Document(RFXClientBaseModel):
+    """Global organization documents - not tied to projects"""
+
+    __tablename__ = "document"
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
+
+    name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    media_entry_id = sa.Column(pg.UUID, nullable=False)
+    doc_type = sa.Column(sa.String(50), nullable=False)
+    file_size = sa.Column(sa.BigInteger)
+    status = sa.Column(
+        sa.String(50),
+        nullable=False,
+        default="IN_PROGRESS",
+        server_default=sa.text("'IN_PROGRESS'::character varying"),
+    )
+    organization_id = sa.Column(pg.UUID)
+
+
+class DocumentParticipant(RFXClientBaseModel):
+    """Participants of global organization documents"""
+
+    __tablename__ = "document_participant"
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
+
+    document_id = sa.Column(
+        sa.ForeignKey(Document._id, ondelete="CASCADE"), nullable=False
+    )
+    participant_id = sa.Column(pg.UUID, nullable=False)
+    role = sa.Column(
+        sa.String(50),
+        nullable=False,
+        default="REVIEWER",
+        server_default=sa.text("'REVIEWER'::character varying"),
+    )
+    organization_id = sa.Column(pg.UUID)
+
+
+class DocumentView(RFXClientBaseModel):
+    __tablename__ = "_document"
+    __table_args__ = {"schema": config.RFX_CLIENT_SCHEMA}
+
+    document_name = sa.Column(sa.String(255), nullable=False)
+    description = sa.Column(sa.Text)
+    doc_type = sa.Column(sa.String(50))
+    file_size = sa.Column(sa.BigInteger)
+    status = sa.Column(sa.String(50), nullable=False)
+
+    organization_id = sa.Column(pg.UUID, nullable=False)
+
+    media_entry_id = sa.Column(pg.UUID, nullable=False)
+    filename = sa.Column(sa.String(1024))
+    filemime = sa.Column(sa.String(256))
+    fspath = sa.Column(sa.String(1024))
+    cdn_url = sa.Column(sa.String(1024))
+    file_length = sa.Column(sa.BigInteger)
+
+    created_by = sa.Column(pg.JSONB)
+
+    participants = sa.Column(pg.JSONB)
+    participant_count = sa.Column(sa.Integer)
+
+    activity = sa.Column(sa.DateTime)

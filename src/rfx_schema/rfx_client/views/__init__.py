@@ -23,6 +23,7 @@ from .project import (
     project_credit_summary_view,
     project_document_view,
     project_estimate_summary_view,
+    document_view,
 )
 from .work_package import (
     work_package_view,
@@ -61,6 +62,7 @@ __all__ = [
     "project_view",
     "project_credit_summary_view",
     "project_document_view",
+    "document_view",
     # Work package views
     "work_package_view",
     "project_work_package_view",

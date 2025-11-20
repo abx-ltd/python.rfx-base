@@ -3677,3 +3677,80 @@ class AddParticipanToDocument(Command):
         yield agg.create_response(
             {"status": "success"}, _type="project-document-response"
         )
+
+
+class UploadDocument(Command):
+    """Upload Global Document - Upload a document at organization level"""
+
+    class Meta:
+        key = "upload-document"
+        resources = ("document",)
+        tags = ["document", "upload"]
+        auth_required = True
+        description = "Upload a global organization document"
+        new_resource = True
+        policy_required = False
+
+    Data = datadef.UploadDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Upload global organization document"""
+        result = await agg.upload_document(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class UpdateDocument(Command):
+    """Update Document - Update global document information"""
+
+    class Meta:
+        key = "update-document"
+        resources = ("document",)
+        tags = ["document", "update"]
+        auth_required = True
+        description = "Update global document information"
+        policy_required = False
+
+    Data = datadef.UpdateDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update global document"""
+        result = await agg.update_document(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class DeleteDocument(Command):
+    """Delete Document - Delete a global organization document"""
+
+    class Meta:
+        key = "delete-document"
+        resources = ("document",)
+        tags = ["document", "delete"]
+        auth_required = True
+        description = "Delete a global organization document"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Delete global document"""
+        await agg.delete_document()
+
+
+class AddParticipantToGlobalDocument(Command):
+    """Add Participant to Global Document - Add participant(s) to organization document"""
+
+    class Meta:
+        key = "add-participant-to-global-document"
+        resources = ("document",)
+        tags = ["document", "participant", "add"]
+        auth_required = True
+        description = "Add participant to global organization document"
+        policy_required = False
+
+    Data = datadef.AddParticipantToGlobalDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add participant to global document"""
+        await agg.add_participant_to_global_document(data=payload)
+
+        yield agg.create_response(
+            {"status": "success"}, _type="document-participant-response"
+        )

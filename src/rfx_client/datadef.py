@@ -678,3 +678,42 @@ class UpdateProjectDocumentPayload(DataModel):
 class AddParticipantToDocumentPayload(DataModel):
     participant_ids: List[UUID_TYPE]
     document_id: UUID_TYPE
+
+
+class UploadDocumentPayload(DataModel):
+    """Upload global organization document payload"""
+
+    name: str
+    description: Optional[str] = None
+    media_entry_id: UUID_TYPE
+    doc_type: str  # e.g., "CONTRACT", "REPORT", "SPECIFICATION"
+    file_size: Optional[int] = None
+    status: Optional[str] = "IN_PROGRESS"  # IN_PROGRESS, COMPLETED, ARCHIVED
+
+
+class UpdateDocumentPayload(DataModel):
+    """Update document payload"""
+
+    name: Optional[str] = None
+    description: Optional[str] = None
+    doc_type: Optional[str] = None
+    status: Optional[str] = None  # IN_PROGRESS, COMPLETED, ARCHIVED
+
+
+class DeleteDocumentPayload(DataModel):
+    """Delete document payload"""
+
+    pass  # No additional fields needed
+
+
+class AddParticipantToGlobalDocumentPayload(DataModel):
+    """Add participant to global document payload"""
+
+    participant_ids: list[UUID_TYPE]
+    role: Optional[str] = "REVIEWER"  # REVIEWER, EDITOR, APPROVER
+
+
+class RemoveParticipantFromGlobalDocumentPayload(DataModel):
+    """Remove participant from global document payload"""
+
+    participant_id: UUID_TYPE

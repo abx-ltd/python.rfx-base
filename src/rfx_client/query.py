@@ -1065,3 +1065,43 @@ class OrganizationWeeklyCreditUsageQuery(DomainQueryResource):
     work_packages_completed: int = IntegerField(
         "Work Packages Completed", sortable=True
     )
+
+
+@resource("document")
+class DocumentQuery(DomainQueryResource):
+    """Global organization document queries"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        """Filter by organization"""
+        return {"organization_id": context.organization._id}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_list_view = True
+        allow_item_view = True
+        allow_meta_view = True
+        backend_model = "_document"
+
+    document_name: str = StringField("Document Name")
+    description: str = StringField("Description")
+    doc_type: str = StringField("Document Type")
+    file_size: int = IntegerField("File Size")
+    status: str = StringField("Status")
+
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+    media_entry_id: UUID_TYPE = UUIDField("Media Entry ID")
+    filename: str = StringField("Filename")
+    filemime: str = StringField("MIME Type")
+    cdn_url: str = StringField("CDN URL")
+    file_length: int = IntegerField("File Length")
+
+    created_by: dict = DictField("Created By")
+
+    participants: list = ArrayField("Participants")
+    participant_count: int = IntegerField("Participant Count")
+
+    activity: datetime = DatetimeField("Last Activity")
+    created: datetime = DatetimeField("Created At")
+    updated: datetime = DatetimeField("Updated At")
