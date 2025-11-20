@@ -1982,5 +1982,3 @@ class RFXClientAggregate(Aggregate):
             )
             await self.statemgr.insert(record)
             result.append(record)
-
-            return result

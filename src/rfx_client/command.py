@@ -3673,7 +3673,7 @@ class AddParticipanToDocument(Command):
 
     async def _process(self, agg, stm, payload):
         """Add participant to document"""
-        result = await agg.add_participant_to_document(data=payload)
+        await agg.add_participant_to_document(data=payload)
         yield agg.create_response(
-            serialize_mapping(result), _type="project-document-response"
+            {"status": "success"}, _type="project-document-response"
         )
