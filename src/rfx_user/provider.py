@@ -56,22 +56,42 @@ class RFXAuthProfileProvider(
             user = await self.fetch('user', user_id)
 
             # ---------- Profile ----------
-            q = where = dict(user_id=user_id, current_profile=True, status='ACTIVE', _realm=config.REALM)
-            curr_profile = await self.find_one('profile', where=q)
+            realm_query = dict(user_id=user_id, current_profile=True, status='ACTIVE', _realm=config.REALM)
+            curr_profile = await self.find_one('profile', where=realm_query)
 
             if not curr_profile:
-                org_record = self.create('organization', dict(
-                    _id=UUID_GENR(),
-                    name=f"{user.name__given}'s Organization",
-                    description=f"{user.name__given}'s Organization",
-                    business_name=f"{user.name__given}",
-                    system_entity=True,
-                    active=True,
-                    system_tag=['system'],
-                    status='SETUP',
-                    realm=config.REALM
-                ))
-                await self.insert(org_record)
+                existing_profiles = await self.find_all('profile', where=dict(user_id=user_id, status='ACTIVE'))
+                organization = None
+
+                if existing_profiles:
+                    owner_profile = None
+                    for candidate in existing_profiles:
+                        owner_role = await self.find_one(
+                            'profile_role',
+                            where=dict(profile_id=candidate._id, role_key='OWNER')
+                        )
+                        if owner_role:
+                            owner_profile = candidate
+                            break
+
+                    if owner_profile:
+                        organization = await self.fetch('organization', owner_profile.organization_id)
+
+                if organization is None:
+                    org_record = self.create('organization', dict(
+                        _id=UUID_GENR(),
+                        name=f"{user.name__given}'s Organization",
+                        description=f"{user.name__given}'s Organization",
+                        business_name=f"{user.name__given}",
+                        system_entity=True,
+                        active=True,
+                        system_tag=['system'],
+                        status='SETUP',
+                    ))
+                    await self.insert(org_record)
+                    organization = org_record
+
+                org_id = organization._id
 
                 profile_record = self.create('profile', dict(
                     _id=UUID_GENR(),
@@ -85,8 +105,8 @@ class RFXAuthProfileProvider(
                     telecom__phone=user.telecom__phone,
                     status='ACTIVE',
                     current_profile=True,
-                    organization_id=org_record._id,
-                    realm=config.REALM
+                    organization_id=org_id,
+                    _realm=config.REALM
                 ))
                 await self.insert(profile_record)
 
@@ -95,7 +115,7 @@ class RFXAuthProfileProvider(
                     profile_id=profile_record._id,
                     role_key='OWNER',
                     role_source='SYSTEM',
-                    realm=config.REALM
+                    _realm=config.REALM
                 ))
                 await self.insert(profile_role_record)
 
@@ -104,11 +124,10 @@ class RFXAuthProfileProvider(
                     profile_id=profile_record._id,
                     src_state=profile_record.status,
                     dst_state=profile_record.status,
-                    realm=config.REALM
+                    _realm=config.REALM
                 ))
                 await self.insert(profile_status)
                 profile = profile_record
-                organization = org_record
             else:
                 curr_profile = curr_profile
                 profile = curr_profile
