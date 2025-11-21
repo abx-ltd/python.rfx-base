@@ -10,6 +10,7 @@ from fluvius.data import DataAccessManager, UUID_GENR
 from fluvius.auth import AuthorizationContext
 from fluvius.fastapi.auth import FluviusAuthProfileProvider, KeycloakTokenPayload
 from fluvius.error import UnauthorizedError
+from . import config
 
 from .model import IDMConnector
 
@@ -54,8 +55,8 @@ class RFXAuthProfileProvider(
             await self.upsert('user', user_data)
             user = await self.fetch('user', user_id)
 
-            # ---------- Proifle ----------
-            q = where = dict(user_id=user_id, current_profile=True, status='ACTIVE')
+            # ---------- Profile ----------
+            q = where = dict(user_id=user_id, current_profile=True, status='ACTIVE', _realm=config.REALM)
             curr_profile = await self.find_one('profile', where=q)
 
             if not curr_profile:
@@ -68,6 +69,7 @@ class RFXAuthProfileProvider(
                     active=True,
                     system_tag=['system'],
                     status='SETUP',
+                    realm=config.REALM
                 ))
                 await self.insert(org_record)
 
@@ -84,6 +86,7 @@ class RFXAuthProfileProvider(
                     status='ACTIVE',
                     current_profile=True,
                     organization_id=org_record._id,
+                    realm=config.REALM
                 ))
                 await self.insert(profile_record)
 
@@ -92,6 +95,7 @@ class RFXAuthProfileProvider(
                     profile_id=profile_record._id,
                     role_key='OWNER',
                     role_source='SYSTEM',
+                    realm=config.REALM
                 ))
                 await self.insert(profile_role_record)
 
@@ -99,7 +103,8 @@ class RFXAuthProfileProvider(
                     _id=UUID_GENR(),
                     profile_id=profile_record._id,
                     src_state=profile_record.status,
-                    dst_state=profile_record.status
+                    dst_state=profile_record.status,
+                    realm=config.REALM
                 ))
                 await self.insert(profile_status)
                 profile = profile_record
@@ -123,7 +128,8 @@ class RFXAuthProfileProvider(
 
         # ---------- Realm/Roles ----------
         iamroles = auth_user.realm_access['roles']
-        realm = str(auth_user.iss).rsplit("/", 1)[1]
+        # realm = str(auth_user.iss).rsplit("/", 1)[1]
+        realm = config.REALM
 
         # ---------- Auth Context ----------
         return AuthorizationContext(
