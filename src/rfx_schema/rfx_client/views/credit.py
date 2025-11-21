@@ -116,62 +116,62 @@ organization_credit_summary_view = PGView(
     signature="_organization_credit_summary",
     definition=f"""
     WITH project_credit_calc AS (
-         SELECT p.organization_id,
-            sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) AS total_allocated,
-            sum(
-                CASE
-                    WHEN pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                    ELSE 0::numeric
-                END) AS total_used,
-            sum(
-                CASE
-                    WHEN pwi.type::text = 'ARCHITECTURE'::text THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                    ELSE 0::numeric
-                END) AS ar_allocated,
-            sum(
-                CASE
-                    WHEN pwi.type::text = 'ARCHITECTURE'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                    ELSE 0::numeric
-                END) AS ar_used,
-            sum(
-                CASE
-                    WHEN pwi.type::text = 'DEVELOPMENT'::text THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                    ELSE 0::numeric
-                END) AS de_allocated,
-            sum(
-                CASE
-                    WHEN pwi.type::text = 'DEVELOPMENT'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                    ELSE 0::numeric
-                END) AS de_used,
-            sum(
-                CASE
-                    WHEN pwi.type::text = 'OPERATION'::text THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                    ELSE 0::numeric
-                END) AS op_allocated,
-            sum(
-                CASE
-                    WHEN pwi.type::text = 'OPERATION'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                    ELSE 0::numeric
-                END) AS op_used
-           FROM {config.RFX_CLIENT_SCHEMA}.project p
-             LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package pwp ON p._id = pwp.project_id AND pwp._deleted IS NULL
-             LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
-             LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
-          WHERE p._deleted IS NULL
-          GROUP BY p.organization_id
-        ), project_counts AS (
-         SELECT project.organization_id,
-            count(*) AS total_projects,
-            count(
-                CASE
-                    WHEN project.status::text = 'ACTIVE'::text THEN 1
-                    ELSE NULL::integer
-                END) AS active_projects
-           FROM {config.RFX_CLIENT_SCHEMA}.project
-          WHERE project._deleted IS NULL
-          GROUP BY project.organization_id
-        )
-     SELECT org._id,
+            SELECT p.organization_id,
+                sum((EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) AS total_allocated,
+                sum(
+                    CASE
+                        WHEN pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        ELSE 0::numeric
+                    END) AS total_used,
+                sum(
+                    CASE
+                        WHEN pwi.type::text = 'ARCHITECTURE'::text THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        ELSE 0::numeric
+                    END) AS ar_allocated,
+                sum(
+                    CASE
+                        WHEN pwi.type::text = 'ARCHITECTURE'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        ELSE 0::numeric
+                    END) AS ar_used,
+                sum(
+                    CASE
+                        WHEN pwi.type::text = 'DEVELOPMENT'::text THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        ELSE 0::numeric
+                    END) AS de_allocated,
+                sum(
+                    CASE
+                        WHEN pwi.type::text = 'DEVELOPMENT'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        ELSE 0::numeric
+                    END) AS de_used,
+                sum(
+                    CASE
+                        WHEN pwi.type::text = 'OPERATION'::text THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        ELSE 0::numeric
+                    END) AS op_allocated,
+                sum(
+                    CASE
+                        WHEN pwi.type::text = 'OPERATION'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        ELSE 0::numeric
+                    END) AS op_used
+            FROM {config.RFX_CLIENT_SCHEMA}.project p
+                LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package pwp ON p._id = pwp.project_id AND pwp._deleted IS NULL
+                LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
+                LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
+            WHERE p._deleted IS NULL
+            GROUP BY p.organization_id
+            ), project_counts AS (
+            SELECT project.organization_id,
+                count(*) AS total_projects,
+                count(
+                    CASE
+                        WHEN project.status::text = 'ACTIVE'::text THEN 1
+                        ELSE NULL::integer
+                    END) AS active_projects
+            FROM {config.RFX_CLIENT_SCHEMA}.project
+            WHERE project._deleted IS NULL
+            GROUP BY project.organization_id
+            )
+    SELECT org._id,
         org._created,
         org._updated,
         org._creator,
@@ -209,60 +209,63 @@ organization_credit_summary_view = PGView(
         COALESCE(p_count.active_projects, 0::bigint)::integer AS active_projects,
         COALESCE(cb.is_low_balance, false) AS is_low_balance,
         round(COALESCE(cb.low_balance_threshold, 100::numeric), 2) AS low_balance_threshold
-       FROM {config.RFX_USER_SCHEMA}.organization org
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.credit_balance cb ON org._id = cb.organization_id AND cb._deleted IS NULL
-         LEFT JOIN project_credit_calc pc ON org._id = pc.organization_id
-         LEFT JOIN project_counts p_count ON org._id = p_count.organization_id
-      WHERE org._deleted IS NULL
-      ORDER BY org._id;
+    FROM {config.RFX_USER_SCHEMA}.organization org
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.credit_balance cb ON org._id = cb.organization_id AND cb._deleted IS NULL
+        LEFT JOIN project_credit_calc pc ON org._id = pc.organization_id
+        LEFT JOIN project_counts p_count ON org._id = p_count.organization_id
+    WHERE org._deleted IS NULL
+    ORDER BY org._id;
     """,
 )
 
 organization_weekly_credit_usage_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
     signature="_organization_weekly_credit_usage",
-    definition="""
-    WITH done_work_packages AS (
-         SELECT p.organization_id,
-            pwp._id AS work_package_id,
-            pwp.quantity,
-            pwp.date_complete,
-            ( SELECT COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) AS "coalesce"
-                   FROM cpo_client.project_work_package_work_item pwpwi
-                     JOIN cpo_client.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
-                  WHERE pwpwi.project_work_package_id = pwp._id AND pwi.type::text = 'ARCHITECTURE'::text AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL) AS ar_credits,
-            ( SELECT COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) AS "coalesce"
-                   FROM cpo_client.project_work_package_work_item pwpwi
-                     JOIN cpo_client.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
-                  WHERE pwpwi.project_work_package_id = pwp._id AND pwi.type::text = 'DEVELOPMENT'::text AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL) AS de_credits,
-            ( SELECT COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) AS "coalesce"
-                   FROM cpo_client.project_work_package_work_item pwpwi
-                     JOIN cpo_client.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
-                  WHERE pwpwi.project_work_package_id = pwp._id AND pwi.type::text = 'OPERATION'::text AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL) AS op_credits
-           FROM cpo_client.project_work_package pwp
-             JOIN cpo_client.project p ON pwp.project_id = p._id
-          WHERE pwp.status = 'DONE'::cpo_client.workpackageenum AND pwp.date_complete IS NOT NULL AND pwp._deleted IS NULL AND p._deleted IS NULL
-        )
- SELECT md5(dwp.organization_id::text || date_trunc('week'::text, dwp.date_complete)::text)::uuid AS _id,
-    now() AS _created,
-    now() AS _updated,
-    dwp.organization_id AS _creator,
-    dwp.organization_id AS _updater,
-    NULL::timestamp without time zone AS _deleted,
-    NULL::text AS _etag,
-    NULL::text AS _realm,
-    dwp.organization_id,
-    date_part('week'::text, date_trunc('week'::text, dwp.date_complete))::integer AS week_number,
-    to_char(date_trunc('week'::text, dwp.date_complete), 'IYYY-"W"IW'::text) AS week_label,
-    date_trunc('week'::text, dwp.date_complete)::date AS week_start_date,
-    round(COALESCE(sum(dwp.ar_credits + dwp.de_credits + dwp.op_credits), 0::numeric), 2) AS total_credits,
-    round(COALESCE(sum(dwp.ar_credits), 0::numeric), 2) AS ar_credits,
-    round(COALESCE(sum(dwp.de_credits), 0::numeric), 2) AS de_credits,
-    round(COALESCE(sum(dwp.op_credits), 0::numeric), 2) AS op_credits,
-    count(dwp.work_package_id)::integer AS work_packages_completed
-   FROM done_work_packages dwp
-  GROUP BY dwp.organization_id, (date_trunc('week'::text, dwp.date_complete))
-  ORDER BY dwp.organization_id, (date_trunc('week'::text, dwp.date_complete)::date) DESC;
+    definition=f"""
+    WITH calculated_items AS (
+            SELECT p.organization_id,
+                pwp._id AS work_package_id,
+                pwp.date_complete,
+                pwi.type,
+                (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric AS credit_amount
+            FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
+                JOIN {config.RFX_CLIENT_SCHEMA}.project p ON pwp.project_id = p._id
+                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id
+                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
+            WHERE pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum AND pwp.date_complete IS NOT NULL AND pwp._deleted IS NULL AND p._deleted IS NULL AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL
+            )
+    SELECT md5(ci.organization_id::text || date_trunc('week'::text, ci.date_complete)::text)::uuid AS _id,
+        now() AS _created,
+        now() AS _updated,
+        ci.organization_id AS _creator,
+        ci.organization_id AS _updater,
+        NULL::timestamp without time zone AS _deleted,
+        NULL::text AS _etag,
+        NULL::text AS _realm,
+        ci.organization_id,
+        date_part('week'::text, date_trunc('week'::text, ci.date_complete))::integer AS week_number,
+        to_char(date_trunc('week'::text, ci.date_complete), 'IYYY-"W"IW'::text) AS week_label,
+        date_trunc('week'::text, ci.date_complete)::date AS week_start_date,
+        round(COALESCE(sum(ci.credit_amount), 0::numeric), 2) AS total_credits,
+        round(COALESCE(sum(
+            CASE
+                WHEN ci.type::text = 'ARCHITECTURE'::text THEN ci.credit_amount
+                ELSE 0::numeric
+            END), 0::numeric), 2) AS ar_credits,
+        round(COALESCE(sum(
+            CASE
+                WHEN ci.type::text = 'DEVELOPMENT'::text THEN ci.credit_amount
+                ELSE 0::numeric
+            END), 0::numeric), 2) AS de_credits,
+        round(COALESCE(sum(
+            CASE
+                WHEN ci.type::text = 'OPERATION'::text THEN ci.credit_amount
+                ELSE 0::numeric
+            END), 0::numeric), 2) AS op_credits,
+        count(DISTINCT ci.work_package_id)::integer AS work_packages_completed
+    FROM calculated_items ci
+    GROUP BY ci.organization_id, (date_trunc('week'::text, ci.date_complete))
+    ORDER BY ci.organization_id, (date_trunc('week'::text, ci.date_complete)::date) DESC;
     """,
 )
 
@@ -270,7 +273,7 @@ organization_weekly_credit_usage_view = PGView(
 credit_purchase_history_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
     signature="_credit_purchase_history",
-    definition="""
+    definition=f"""
     SELECT cp._id,
         cp._created,
         cp._updated,
@@ -302,9 +305,9 @@ credit_purchase_history_view = PGView(
         prof.telecom__email AS purchaser_email,
         cp._created AS created_at,
         cp.completed_date
-    FROM cpo_client.credit_purchase cp
-        LEFT JOIN cpo_client.credit_package pkg ON cp.package_id = pkg._id
-        LEFT JOIN cpo_user.profile prof ON cp.purchased_by = prof._id
+    FROM {config.RFX_CLIENT_SCHEMA}.credit_purchase cp
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.credit_package pkg ON cp.package_id = pkg._id
+        LEFT JOIN {config.RFX_USER_SCHEMA}.profile prof ON cp.purchased_by = prof._id
     WHERE cp._deleted IS NULL
     ORDER BY cp.organization_id, cp.purchase_date DESC;
     """,
@@ -313,7 +316,7 @@ credit_purchase_history_view = PGView(
 credit_usage_summary_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
     signature="_credit_usage_summary",
-    definition="""
+    definition=f"""
     WITH usage_summary AS (
          SELECT EXTRACT(year FROM credit_usage_log.usage_date)::integer AS usage_year,
             EXTRACT(month FROM credit_usage_log.usage_date)::integer AS usage_month,
@@ -337,7 +340,7 @@ credit_usage_summary_view = PGView(
             round(sum(credit_usage_log.credits_used), 2) AS total_credits,
             min(credit_usage_log._created) AS first_created,
             max(credit_usage_log._updated) AS last_updated
-           FROM cpo_client.credit_usage_log
+           FROM {config.RFX_CLIENT_SCHEMA}.credit_usage_log
           WHERE credit_usage_log._deleted IS NULL
           GROUP BY (EXTRACT(year FROM credit_usage_log.usage_date)), (EXTRACT(month FROM credit_usage_log.usage_date)), (EXTRACT(week FROM credit_usage_log.usage_date)), (date_trunc('week'::text, credit_usage_log.usage_date))
         )

@@ -22,7 +22,6 @@ from .views import (
     # Project views
     project_view,
     project_credit_summary_view,
-    project_document_view,
     project_estimate_summary_view,
     document_view,
     work_package_view,
@@ -64,7 +63,6 @@ def register_pg_entities(allow):
             # Project views
             project_view,
             project_credit_summary_view,
-            project_document_view,
             project_estimate_summary_view,
             document_view,
             # Work package views

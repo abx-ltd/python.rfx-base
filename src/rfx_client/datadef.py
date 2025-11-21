@@ -5,7 +5,7 @@ from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
 from .types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 # Project related payloads
 
@@ -659,27 +659,6 @@ class CreateReactionCommentPayload(DataModel):
     reaction_type: str  # e.g., like, helpful, insightful, funny
 
 
-class UploadProjectDocumentPayload(DataModel):
-    name: str = Field(max_length=255)
-    description: Optional[str] = None
-    media_entry_id: UUID_TYPE
-    doc_type: Optional[str] = None
-    file_size: Optional[int] = None
-    status: Optional[str] = None
-
-
-class UpdateProjectDocumentPayload(DataModel):
-    name: Optional[str] = Field(max_length=255)
-    description: Optional[str] = None
-    status: Optional[str] = None
-    project_document_id: UUID_TYPE
-
-
-class AddParticipantToDocumentPayload(DataModel):
-    participant_ids: List[UUID_TYPE]
-    document_id: UUID_TYPE
-
-
 class UploadDocumentPayload(DataModel):
     """Upload global organization document payload"""
 
@@ -706,7 +685,7 @@ class DeleteDocumentPayload(DataModel):
     pass  # No additional fields needed
 
 
-class AddParticipantToGlobalDocumentPayload(DataModel):
+class AddParticipantDocumentPayload(DataModel):
     """Add participant to global document payload"""
 
     participant_ids: list[UUID_TYPE]

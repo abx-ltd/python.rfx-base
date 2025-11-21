@@ -1914,75 +1914,6 @@ class RFXClientAggregate(Aggregate):
             )
         await self.statemgr.invalidate(reaction)
 
-    @action("upload-project-document", resources="project")
-    async def upload_project_document(self, /, data):
-        """Upload a document to the project document repository"""
-        project_document = self.init_resource(
-            "project_document",
-            serialize_mapping(data),
-            project_id=self.aggroot.identifier,
-            _id=UUID_GENR(),
-            organization_id=self.context.organization_id,
-        )
-        await self.statemgr.insert(project_document)
-        return project_document
-
-    @action("update-status-project-document", resources="project")
-    async def update_status_project_document(self, /, data):
-        """Update status of a project document"""
-        project_document = await self.statemgr.find_one(
-            "project_document",
-            where=dict(
-                _id=data.project_document_id,
-                project_id=self.aggroot.identifier,
-            ),
-        )
-
-        if not project_document:
-            raise ValueError("Project document not found")
-
-        update_data = serialize_mapping(data)
-        update_data.pop("project_document_id", None)
-
-        await self.statemgr.update(project_document, **update_data)
-        return project_document
-
-    @action("add-participant-to-document", resources="project")
-    async def add_participant_to_document(self, /, data):
-        """Add participant to project document"""
-        document = await self.statemgr.find_one(
-            "project_document",
-            where=dict(
-                _id=data.document_id,
-            ),
-        )
-        if not document:
-            raise ValueError("Project document not found")
-
-        result = []
-
-        for participant_id in data.participant_ids:
-            existing_participant = await self.statemgr.find_one(
-                "project_document_participant",
-                where=dict(
-                    document_id=document._id,
-                    participant_id=participant_id,
-                ),
-            )
-            if existing_participant:
-                continue
-
-            record = self.init_resource(
-                "project_document_participant",
-                {
-                    "document_id": document._id,
-                    "participant_id": participant_id,
-                },
-                _id=UUID_GENR(),
-            )
-            await self.statemgr.insert(record)
-            result.append(record)
-
     @action("document-uploaded", resources="document")
     async def upload_document(self, /, data):
         """Upload a global organization document"""
@@ -2010,7 +1941,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.invalidate(document)
 
     @action("participant-added-to-global-document", resources="document")
-    async def add_participant_to_global_document(self, /, data):
+    async def add_participant_document(self, /, data):
         """Add participant to global organization document"""
         document = self.rootobj
 
@@ -2036,21 +1967,3 @@ class RFXClientAggregate(Aggregate):
                 _id=UUID_GENR(),
             )
             await self.statemgr.insert(record)
-
-    @action("participant-removed-from-global-document", resources="document")
-    async def remove_participant_from_global_document(self, /, data):
-        """Remove participant from global organization document"""
-        document = self.rootobj
-
-        participant = await self.statemgr.find_one(
-            "document_participant",
-            where=dict(
-                document_id=document._id,
-                participant_id=data.participant_id,
-            ),
-        )
-
-        if not participant:
-            raise ValueError("Participant not found in document")
-
-        await self.statemgr.invalidate(participant)

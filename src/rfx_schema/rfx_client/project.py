@@ -13,7 +13,6 @@ from sqlalchemy import (
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
-    ForeignKeyConstraint,  # <--- Cần import cái này
     Integer,
     String,
     Text,
@@ -80,9 +79,9 @@ class Project(TableBase):
     bdm_contacts: Mapped[List["ProjectBDMContact"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    documents: Mapped[List["ProjectDocument"]] = relationship(
-        back_populates="project", cascade="all, delete-orphan"
-    )
+    # documents: Mapped[List["ProjectDocument"]] = relationship(
+    #     back_populates="project", cascade="all, delete-orphan"
+    # )
 
 
 class ProjectMember(TableBase):
@@ -155,108 +154,6 @@ class ProjectBDMContact(TableBase):
 
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="bdm_contacts")
-
-
-class ProjectDocument(TableBase):
-    """Project documents stored in ``rfx_client.project_document``."""
-
-    __tablename__ = "project_document"
-    __table_args__ = (
-        # FIX: Định nghĩa rõ ràng khóa ngoại thứ 2 đang tồn tại trong DB
-        # để Alembic không cố gắng drop nó.
-        ForeignKeyConstraint(
-            ["project_id"],
-            [f"{SCHEMA}.project._id"],
-            name="project_document_project_id_fkey",
-        ),
-        Index(
-            "idx_project_document_creator",
-            "_creator",
-            postgresql_where=text("(_deleted IS NULL)"),
-        ),
-        Index(
-            "idx_project_document_project",
-            "project_id",
-            postgresql_where=text("(_deleted IS NULL)"),
-        ),
-        Index(
-            "idx_project_document_status",
-            "status",
-            postgresql_where=text("(_deleted IS NULL)"),
-        ),
-        {"schema": SCHEMA},
-    )
-
-    # Cột này map với khóa ngoại 'fk_project' (có CASCADE)
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey(f"{SCHEMA}.project._id", name="fk_project", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-
-    media_entry_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
-    )
-
-    doc_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    file_size: Mapped[Optional[int]] = mapped_column(BigInteger)
-
-    status: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,
-        default="IN_PROGRESS",
-        server_default=text("'IN_PROGRESS'::character varying"),
-    )
-
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-
-    # Relationships
-    project: Mapped["Project"] = relationship(back_populates="documents")
-    participants: Mapped[List["ProjectDocumentParticipant"]] = relationship(  # noqa: F821
-        back_populates="document", cascade="all, delete-orphan"
-    )
-
-
-class ProjectDocumentParticipant(TableBase):
-    """Participants of project documents stored in ``rfx_client.project_document_participant``."""
-
-    __tablename__ = "project_document_participant"
-    __table_args__ = (
-        UniqueConstraint(
-            "document_id", "participant_id", name="unique_doc_participant"
-        ),
-        Index(
-            "idx_document_participant",
-            "document_id",
-            postgresql_where=text("(_deleted IS NULL)"),
-        ),
-        {"schema": SCHEMA},
-    )
-
-    document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey(f"{SCHEMA}.project_document._id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    participant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
-    )
-
-    role: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,
-        default="REVIEWER",
-        server_default=text("'REVIEWER'::character varying"),
-    )
-
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-
-    # Relationships
-    document: Mapped["ProjectDocument"] = relationship(back_populates="participants")
 
 
 class Document(TableBase):

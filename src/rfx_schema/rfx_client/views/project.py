@@ -31,20 +31,20 @@ project_view = PGView(
         p.sync_status,
         p.organization_id,
         COALESCE(array_agg(pm.member_id) FILTER (WHERE pm._deleted IS NULL), '{{}}'::uuid[]) AS members,
-        round(COALESCE(( SELECT sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) AS sum
-               FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
-                 JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
-                 JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
-              WHERE pwp.project_id = p._id AND pwp._deleted IS NULL), 0::numeric), 2) AS total_credit,
-        round(COALESCE(( SELECT sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) AS sum
-               FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
-                 JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
-                 JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
-              WHERE pwp.project_id = p._id AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum AND pwp._deleted IS NULL), 0::numeric), 2) AS used_credit
-       FROM {config.RFX_CLIENT_SCHEMA}.project p
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_member pm ON pm.project_id = p._id
-      WHERE p._deleted IS NULL
-      GROUP BY p._id;
+        round(COALESCE(( SELECT sum((EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) AS sum
+            FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
+                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
+                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
+            WHERE pwp.project_id = p._id AND pwp._deleted IS NULL), 0::numeric), 2) AS total_credit,
+        round(COALESCE(( SELECT sum((EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) AS sum
+            FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
+                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
+                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
+            WHERE pwp.project_id = p._id AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum AND pwp._deleted IS NULL), 0::numeric), 2) AS used_credit
+    FROM {config.RFX_CLIENT_SCHEMA}.project p
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_member pm ON pm.project_id = p._id
+    WHERE p._deleted IS NULL
+    GROUP BY p._id;
     """,
 )
 
@@ -103,50 +103,6 @@ project_credit_summary_view = PGView(
     """,
 )
 
-project_document_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
-    signature="_project_document",
-    definition="""
-    SELECT pd._id,
-        pd._created,
-        pd._updated,
-        pd._creator,
-        pd._updater,
-        pd._deleted,
-        pd._etag,
-        pd._realm,
-        pd.name AS document_name,
-        pd.description,
-        pd.doc_type,
-        pd.file_size,
-        pd.status,
-        pd.project_id,
-        p.name AS project_name,
-        p.status AS project_status,
-        pd.organization_id,
-        pd.media_entry_id,
-        me.filename,
-        me.filemime,
-        me.fspath,
-        me.cdn_url,
-        me.length AS file_length,
-        jsonb_build_object('id', creator._id, 'name', COALESCE(creator.preferred_name, concat(creator.name__given, ' ', creator.name__family)::character varying), 'avatar', creator.picture_id) AS created_by,
-        COALESCE(( SELECT json_agg(jsonb_build_object('id', part._id, 'name', COALESCE(part.preferred_name, concat(part.name__given, ' ', part.name__family)::character varying), 'avatar', part.picture_id, 'role', pdp.role)) AS json_agg
-            FROM cpo_client.project_document_participant pdp
-                JOIN cpo_user.profile part ON part._id = pdp.participant_id
-            WHERE pdp.document_id = pd._id AND pdp._deleted IS NULL), '[]'::json) AS participants,
-        COALESCE(( SELECT count(DISTINCT pdp.participant_id) AS count
-            FROM cpo_client.project_document_participant pdp
-            WHERE pdp.document_id = pd._id AND pdp._deleted IS NULL), 0::bigint)::integer AS participant_count,
-        GREATEST(pd._created, pd._updated) AS activity
-    FROM cpo_client.project_document pd
-        JOIN cpo_client.project p ON pd.project_id = p._id AND p._deleted IS NULL
-        LEFT JOIN "cpo-media"."media-entry" me ON pd.media_entry_id = me._id
-        LEFT JOIN cpo_user.profile creator ON pd._creator = creator._id
-    WHERE pd._deleted IS NULL
-    ORDER BY pd.organization_id, pd.project_id, pd._created DESC;
-    """,
-)
 
 project_estimate_summary_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,

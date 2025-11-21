@@ -976,52 +976,6 @@ class ProjectQueryDetail(DomainQueryResource):
     used_credits: float = FloatField("Used Credits")
 
 
-@resource("project-document")
-class ProjectDocumentQuery(DomainQueryResource):
-    """Project Document Query - List documents by project"""
-
-    @classmethod
-    def base_query(cls, context, scope):
-        """Filter by organization"""
-        return {"organization_id": context.organization._id}
-
-    class Meta(DomainQueryResource.Meta):
-        resource = "project_document"
-        include_all = True
-        allow_list_view = True
-        allow_item_view = True
-        allow_meta_view = True
-
-        backend_model = "_project_document"
-
-    document_name: str = StringField("Document Name")
-    description: str = StringField("Description")
-    doc_type: str = StringField("Document Type")
-    file_size: int = IntegerField("File Size")
-    status: str = StringField("Status")
-
-    project_id: UUID_TYPE = UUIDField("Project ID")
-    project_name: str = StringField("Project Name")
-    project_status: str = StringField("Project Status")
-
-    organization_id: UUID_TYPE = UUIDField("Organization ID")
-
-    media_entry_id: UUID_TYPE = UUIDField("Media Entry ID")
-    filename: str = StringField("Filename")
-    filemime: str = StringField("MIME Type")
-    cdn_url: str = StringField("CDN URL")
-    file_length: int = IntegerField("File Length")
-
-    created_by: dict = DictField("Created By")
-
-    participants: list = ArrayField("Participants")
-    participant_count: int = IntegerField("Participant Count")
-
-    activity: datetime = DatetimeField("Last Activity")
-    created: datetime = DatetimeField("Created At")
-    updated: datetime = DatetimeField("Updated At")
-
-
 @resource("organization-weekly-credit-usage")
 class OrganizationWeeklyCreditUsageQuery(DomainQueryResource):
     """
