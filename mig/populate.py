@@ -16,6 +16,33 @@ from rfx_base import config
 from rfx_user.state import IDMStateManager
 from rfx_policy.state import PolicyStateManager
 
+# Accept common timestamp formats seen in seed CSVs (with or without fractional seconds, tz offset optional).
+_DATETIME_FORMATS = [
+    "%Y-%m-%d %H:%M:%S.%f %z",
+    "%Y-%m-%d %H:%M:%S %z",
+    "%Y-%m-%d %H:%M:%S.%f",
+    "%Y-%m-%d %H:%M:%S",
+]
+
+
+def _coerce_value(value: str) -> object:
+    if value == "":
+        return None
+
+    # Convert common literal bool strings to actual booleans for correct DB binding.
+    lower_value = value.lower()
+    if lower_value in {"true", "false"}:
+        return lower_value == "true"
+
+    # Try to parse datetime strings so asyncpg binds real datetime objects instead of text.
+    for fmt in _DATETIME_FORMATS:
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+
+    return value
+
 
 def _read_csv_rows(csv_path: Path) -> list[dict]:
     with csv_path.open(newline="") as csv_file:
@@ -24,15 +51,7 @@ def _read_csv_rows(csv_path: Path) -> list[dict]:
         for row in reader:
             cleaned: dict[str, object] = {}
             for key, value in row.items():
-                if value == "":
-                    cleaned[key] = None
-                    continue
-
-                # Convert common literal bool strings to actual booleans for correct DB binding.
-                if isinstance(value, str) and value.lower() in {"true", "false"}:
-                    cleaned[key] = value.lower() == "true"
-                else:
-                    cleaned[key] = value
+                cleaned[key] = _coerce_value(value)
             cleaned.setdefault("_realm", None)
             # Ensure mandatory audit fields are populated when missing in the snapshot.
             if cleaned.get("_created") is None:
