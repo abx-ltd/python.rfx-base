@@ -118,6 +118,29 @@ async def reject_invitation(query_manager: UserProfileQueryManager, request: Req
         return {"success": True}
 
 
+@resource('user')
+class UserQuery(DomainQueryResource):
+    """ List current user's basic info """
+
+    class Meta(DomainQueryResource.Meta):
+        allow_item_view = True
+        allow_list_view = False
+        backend_model = "user"
+
+        resource = "user"
+        policy_required = "id"
+
+    id: UUID_TYPE = PrimaryID("User ID")
+    name__family: str = StringField("Family Name")
+    name__given: str = StringField("Given Name")
+    telecom__email: str = StringField("Email")
+    telecom__phone: str = StringField("Phone")
+    username: str = StringField("Username")
+    verified_email: Optional[str] = StringField("Verified Email")
+    verified_phone: Optional[str] = StringField("Verified Phone")
+    is_super_admin: bool = BooleanField("Is Super Admin")
+    status: str = StringField("Status")
+
 @resource('profile')
 class ProfileQuery(DomainQueryResource):
     """ List current profile's user """

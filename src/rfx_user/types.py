@@ -15,6 +15,7 @@ class OrganizationStatusEnum(Enum):
     SETUP       = "SETUP"       # Organization is being configured (initial state)
     REVIEW      = "REVIEW"      # Organization pending administrative approval
     DEACTIVATED = "DEACTIVATED" # Organization permanently disabled
+    NEW         = "NEW"         # Newly created organization, pending setup
 
 
 class ProfileStatusEnum(Enum):

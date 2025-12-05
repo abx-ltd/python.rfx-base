@@ -116,6 +116,21 @@ UNION ALL
    FROM {config.RFX_USER_SCHEMA}."user"
 UNION ALL
  SELECT uuid_generate_v4() AS _id,
+    'g3'::character varying(255) AS ptype,
+    'sys-admin'::character varying(255) AS role,
+    "user"._id::character varying(255) AS sub,
+    NULL::character varying(255) AS org,
+    NULL::character varying(255) AS dom,
+    NULL::character varying(255) AS res,
+    NULL::character varying(255) AS rid,
+    NULL::character varying(255) AS act,
+    NULL::character varying(255) AS cqrs,
+    NULL::character varying(255) AS meta,
+    NULL::timestamp without time zone AS _deleted
+   FROM {config.RFX_USER_SCHEMA}."user"
+  WHERE "user".is_super_admin IS TRUE
+UNION ALL
+ SELECT uuid_generate_v4() AS _id,
     'g4'::character varying(255) AS ptype,
     NULL::character varying(255) AS role,
     "user"._id::character varying(255) AS sub,

@@ -46,6 +46,7 @@ class UserStatusEnum(Enum):
     EXPIRED     = "EXPIRED"
     PENDING     = "PENDING"
     DEACTIVATED = "DEACTIVATED"
+    NEW         = "NEW"
 
 
 class InvitationStatusEnum(Enum):

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA
@@ -28,6 +28,10 @@ class Policy(TableBase):
     """Top-level policy definition."""
 
     __tablename__ = "policy"
+    __table_args__ = (
+        Index("policy_key_unique", "key", unique=True),
+        {"schema": SCHEMA},
+    )
 
     key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display: Mapped[Optional[str]] = mapped_column(String(255))
