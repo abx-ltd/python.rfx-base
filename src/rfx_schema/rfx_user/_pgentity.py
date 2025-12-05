@@ -68,6 +68,40 @@ user_profile_view = PGView(
     """
 )
 
+user_profile_list_view = PGView(
+    schema=config.RFX_USER_SCHEMA,
+    signature="_profile_list",
+    definition=f"""
+    SELECT
+        profile._created,
+        profile._creator,
+        profile._deleted,
+        profile._etag,
+        profile._id,
+        profile._updated,
+        profile._updater,
+        profile._realm,
+        profile.name__family,
+        profile.name__given,
+        profile.preferred_name,
+        profile.username,
+        profile.status,
+        profile.active,
+        profile.organization_id,
+        organization.name AS organization_name,
+        COALESCE(role_list.role_keys, '{{}}'::character varying[]) AS role_keys
+    FROM "{config.RFX_USER_SCHEMA}".profile AS profile
+    LEFT JOIN "{config.RFX_USER_SCHEMA}".organization AS organization
+        ON profile.organization_id = organization._id
+    LEFT JOIN LATERAL (
+        SELECT
+            array_agg(DISTINCT profile_role.role_key)
+                FILTER (WHERE profile_role.role_key IS NOT NULL) AS role_keys
+        FROM "{config.RFX_USER_SCHEMA}".profile_role AS profile_role
+        WHERE profile_role.profile_id = profile._id
+    ) AS role_list ON true;
+    """
+)
 
 def register_pg_entities(allow):
     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
@@ -76,6 +110,7 @@ def register_pg_entities(allow):
         return
     register_entities([
         user_profile_view,
+        user_profile_list_view,
     ])
 
 register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))

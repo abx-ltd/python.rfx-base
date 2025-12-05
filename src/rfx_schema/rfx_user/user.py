@@ -110,7 +110,9 @@ class User(TableBase):
         cascade="all",
         foreign_keys="Invitation.user_id",
     )
-
+    _created: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True, server_default=text("now()")
+    )
 
 class UserIdentity(TableBase):
     """External identity providers linked to a user."""

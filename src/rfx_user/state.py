@@ -12,4 +12,3 @@ class IDMStateManager(DataAccessManager):
 
     async def add_entry(self, model, **data):
         return await self._add_entry(model, **data)
-

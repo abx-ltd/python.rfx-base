@@ -97,3 +97,36 @@ class UserProfileView(Base):
             f"<UserProfileView(_id={self._id}, username={self.username}, "
             f"status={self.status})>"
         )
+
+
+class ProfileListView(Base):
+    """
+    ORM mapping for the materialized `_profile_list` view that powers
+    read-heavy profile list queries. The view mirrors a subset of the
+    `profile` table while exposing a stable surface for downstream consumers.
+    """
+
+    __tablename__ = "_profile_list"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    name__family: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__given: Mapped[Optional[str]] = mapped_column(String(1024))
+    preferred_name: Mapped[Optional[str]] = mapped_column(String(255))
+    username: Mapped[Optional[str]] = mapped_column(String(1024))
+    status: Mapped[ProfileStatusEnum] = mapped_column(
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
+    )
+    active: Mapped[Optional[bool]] = mapped_column(Boolean)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_name: Mapped[Optional[str]] = mapped_column(String(255))
+
+    def __repr__(self) -> str:
+        return (
+            f"<ProfileListView(_id={self._id}, username={self.username}, "
+            f"status={self.status})>"
+        )
