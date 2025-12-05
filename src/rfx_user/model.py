@@ -509,3 +509,25 @@ class InvitationStatus(IDMBaseModel):
         nullable=False
     )
     note = sa.Column(sa.String)
+
+
+class ProfileListView(IDMConnector.__data_schema_base__, DomainSchema):
+    """
+    Database view for listing user profiles with key identity fields.
+    Provides a read-only view optimized for profile listing operations.
+    """
+    __tablename__ = "_profile_list"
+    __table_args__ = {'schema': config.USER_PROFILE_SCHEMA}
+    __view__ = True
+
+    organization_id = sa.Column(pg.UUID)
+    organization_name = sa.Column(sa.String)
+    username = sa.Column(sa.String)
+    name__given = sa.Column(sa.String)
+    name__family = sa.Column(sa.String)
+    preferred_name = sa.Column(sa.String)
+    active = sa.Column(sa.Boolean)
+    status = sa.Column(
+        sa.Enum(types.ProfileStatusEnum, schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
