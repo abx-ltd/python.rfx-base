@@ -108,7 +108,7 @@ class Profile(TableBase):
         Boolean, nullable=False, server_default=text("false")
     )
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=True
     )
 
     user: Mapped[Optional["User"]] = relationship(back_populates="profiles")

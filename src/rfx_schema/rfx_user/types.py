@@ -18,6 +18,7 @@ class OrganizationStatusEnum(Enum):
     SETUP       = "SETUP"
     REVIEW      = "REVIEW"
     DEACTIVATED = "DEACTIVATED"
+    NEW         = "NEW"
 
 
 class ProfileStatusEnum(Enum):

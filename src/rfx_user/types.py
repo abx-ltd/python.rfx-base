@@ -42,6 +42,7 @@ class UserStatusEnum(Enum):
     EXPIRED     = "EXPIRED"     # User account has expired
     PENDING     = "PENDING"     # User account awaiting activation
     DEACTIVATED = "DEACTIVATED" # User account permanently disabled
+    NEW         = "NEW"         # Newly created user, pending setup
 
 
 class InvitationStatusEnum(Enum):

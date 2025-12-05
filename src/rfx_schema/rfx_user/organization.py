@@ -60,9 +60,6 @@ class Organization(TableBase):
         "type", ForeignKey(f"{SCHEMA}.ref__organization_type.key")
     )
 
-    profiles: Mapped[List["Profile"]] = relationship(
-        back_populates="organization", cascade="all"
-    )
     delegated_access: Mapped[List["OrganizationDelegatedAccess"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"
     )
