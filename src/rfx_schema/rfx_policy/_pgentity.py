@@ -90,6 +90,21 @@ UNION ALL
     'g2'::character varying(255) AS ptype,
     NULL::character varying(255) AS role,
     NULL::character varying(255) AS sub,
+    profile.organization_id::character varying(255) AS org,
+    'user-profile'::character varying(255) AS dom,
+    'user'::character varying(255) AS res,
+    profile.user_id::character varying(255) AS rid,
+    NULL::character varying(255) AS act,
+    NULL::character varying(255) AS cqrs,
+    NULL::character varying(255) AS meta,
+    NULL::timestamp without time zone AS _deleted
+   FROM {config.RFX_USER_SCHEMA}.profile
+  WHERE profile.organization_id IS NOT NULL AND profile.user_id IS NOT NULL
+UNION ALL
+ SELECT uuid_generate_v4() AS _id,
+    'g2'::character varying(255) AS ptype,
+    NULL::character varying(255) AS role,
+    NULL::character varying(255) AS sub,
     "group".resource_id::character varying(255) AS org,
     'user-profile'::character varying(255) AS dom,
     'group'::character varying(255) AS res,

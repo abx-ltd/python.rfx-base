@@ -117,14 +117,15 @@ async def reject_invitation(query_manager: UserProfileQueryManager, request: Req
         )
         return {"success": True}
 
-
 @resource('user')
 class UserQuery(DomainQueryResource):
     """ List current user's basic info """
 
     class Meta(DomainQueryResource.Meta):
+        include_all = True
         allow_item_view = True
-        allow_list_view = False
+        allow_list_view = True
+        allow_meta_view = True
         backend_model = "user"
 
         resource = "user"
