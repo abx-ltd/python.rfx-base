@@ -158,31 +158,6 @@ class ProfileQuery(DomainQueryResource):
     telecom__email: str = StringField("Email")
     status: str = StringField("Status")
 
-@resource('profile-list')
-class ProfileListQuery(DomainQueryResource):
-    """ List current profile's users """
-    @classmethod
-    def base_query(cls, context, scope):
-        return {'user_id': context.user_id}
-
-    class Meta(DomainQueryResource.Meta):
-        allow_item_view = False
-        allow_list_view = True
-
-        backend_model = "_profile_list"
-        resource = "profile"
-        policy_required = "id"
-
-    name__family: str = StringField("Family Name")
-    name__given: str = StringField("Given Name")
-    preferred_name: Optional[str] = StringField("Preferred Name")
-    username: str = StringField("Username")
-    status: str = StringField("Status")
-    organization_id: UUID_TYPE = UUIDField("Organization ID")
-    user_id: UUID_TYPE = UUIDField("User ID")
-    organization_name: str = StringField("Organization Name")
-
-
 @resource('profile-detail')
 class ProfileDetailQuery(DomainQueryResource):
     """ List current profile's user """
