@@ -79,7 +79,7 @@ class Message(MServiceBaseModel):
     # Additional metadata fields
     data = sa.Column(pg.JSONB, default=dict)
     context = sa.Column(pg.JSONB, default=dict)
-    mtype = sa.Column(sa.String(255), nullable=False)
+    mtype = sa.Column(sa.String(255), nullable=True)
 
     # Template rendering fields
     template_key = sa.Column(sa.String(255))
