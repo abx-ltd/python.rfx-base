@@ -161,7 +161,7 @@ class ProfileQuery(DomainQueryResource):
 @resource('profile-list')
 class ProfileListQuery(DomainQueryResource):
     """ List current profile's users """
-    @base_query
+    @classmethod
     def base_query(cls, context, scope):
         return {'user_id': context.user_id}
 
