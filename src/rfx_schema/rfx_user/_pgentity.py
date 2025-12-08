@@ -88,6 +88,7 @@ user_profile_list_view = PGView(
         profile.status,
         profile.active,
         profile.organization_id,
+        profile.user_id,
         organization.name AS organization_name,
         COALESCE(role_list.role_keys, '{{}}'::character varying[]) AS role_keys
     FROM "{config.RFX_USER_SCHEMA}".profile AS profile

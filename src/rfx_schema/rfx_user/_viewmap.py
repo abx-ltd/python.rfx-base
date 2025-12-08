@@ -124,6 +124,7 @@ class ProfileListView(Base):
     active: Mapped[Optional[bool]] = mapped_column(Boolean)
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     organization_name: Mapped[Optional[str]] = mapped_column(String(255))
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     def __repr__(self) -> str:
         return (

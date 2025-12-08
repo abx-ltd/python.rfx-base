@@ -522,6 +522,7 @@ class ProfileListView(IDMConnector.__data_schema_base__, DomainSchema):
 
     organization_id = sa.Column(pg.UUID)
     organization_name = sa.Column(sa.String)
+    user_id = sa.Column(pg.UUID)
     username = sa.Column(sa.String)
     name__given = sa.Column(sa.String)
     name__family = sa.Column(sa.String)
