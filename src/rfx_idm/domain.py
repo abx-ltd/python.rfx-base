@@ -1,6 +1,7 @@
 from fluvius.domain import Domain, SQLDomainLogStore
 from .aggregate import IDMAggregate
 from .state import IDMStateManager
+from .policy import IDMPolicyManager
 
 from . import config
 
@@ -10,6 +11,7 @@ class IDMDomain(Domain):
 	__aggregate__ 	= IDMAggregate
 	__statemgr__ 	= IDMStateManager
 	__logstore__ 	= SQLDomainLogStore
+	__policymgr__   = IDMPolicyManager
 
 
 class IDMResponse(IDMDomain.Response):
