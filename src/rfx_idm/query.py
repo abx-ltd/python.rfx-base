@@ -283,6 +283,7 @@ class OrganizationListQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
+        backend_model = "organization"
         resource = "organization"
         policy_required = "id"
 
