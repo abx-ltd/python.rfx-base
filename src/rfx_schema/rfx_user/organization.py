@@ -41,6 +41,7 @@ class Organization(TableBase):
     description: Mapped[Optional[str]] = mapped_column(Text)
     name: Mapped[Optional[str]] = mapped_column(String(255))
     system_entity: Mapped[Optional[bool]] = mapped_column(Boolean)
+    business_name: Mapped[Optional[str]] = mapped_column(String(255))
     active: Mapped[Optional[bool]] = mapped_column(Boolean)
     system_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     user_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))

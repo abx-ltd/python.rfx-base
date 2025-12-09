@@ -268,7 +268,6 @@ class OrganizationDetailQuery(DomainQueryResource):
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
     description: str = StringField("Description")
-    tax_id: str = StringField("Tax ID")
     business_name: str = StringField("Business Name")
     system_entity: str = BooleanField("System Entity")
     active: str = BooleanField("Active")
