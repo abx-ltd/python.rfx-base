@@ -193,7 +193,7 @@ class ProfileListQuery(DomainQueryResource):
         backend_model = "profile"
         resource = "profile"
         policy_required = "id"
-        scope_required = scope.ProfileListScopeSchema
+        scope_required = scope.OrgProfileListScopeSchema
 
     name__family: str = StringField("Family Name")
     name__middle: Optional[str] = StringField("Middle Name")
