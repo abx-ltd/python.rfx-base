@@ -182,6 +182,37 @@ class ProfileListQuery(DomainQueryResource):
     organization_name: str = StringField("Organization Name")
 
 
+@resource('org-member-list')
+class ProfileListQuery(DomainQueryResource):
+    """ List current profile's users """
+
+    class Meta(DomainQueryResource.Meta):
+        allow_item_view = False
+        allow_list_view = True
+
+        backend_model = "profile"
+        resource = "profile"
+        policy_required = "id"
+        scope_required = scope.ProfileListScopeSchema
+
+    name__family: str = StringField("Family Name")
+    name__middle: Optional[str] = StringField("Middle Name")
+    name__given: str = StringField("Given Name")
+    telecom__email: str = StringField("Email")
+    telecom__phone: str = StringField("Phone")
+
+    user_id: UUID_TYPE = UUIDField("User ID")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    organization_name: str = StringField("Organization Name")
+    profile_status: str = StringField("Status")
+    profile_role: str = StringField("Role")
+    policy_count: int = StringField("Policy Count")
+
+
+
+
+
+
 @resource('profile-detail')
 class ProfileDetailQuery(DomainQueryResource):
     """ List current profile's user """
@@ -278,8 +309,8 @@ class OrganizationRoleQuery(DomainQueryResource):
 @resource('organization-list')
 class OrganizationListQuery(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
+        # include_all = True
+        # allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
 
@@ -289,6 +320,7 @@ class OrganizationListQuery(DomainQueryResource):
 
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization Name")
+    business_name: str = StringField("Business Name")
     tax_id: str = StringField("Tax ID")
     address: str = StringField("Address")
     contact_email: str = StringField("Contact Email")

@@ -131,3 +131,39 @@ class ProfileListView(Base):
             f"<ProfileListView(_id={self._id}, username={self.username}, "
             f"status={self.status})>"
         )
+
+
+class OrgMemberView(Base):
+    """
+    ORM mapping for the materialized `_org_member` view that powers
+    read-heavy organization member queries. The view mirrors a subset of the
+    `profile` table while exposing a stable surface for downstream consumers.
+    """
+
+    __tablename__ = "_org_member"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_name: Mapped[Optional[str]] = mapped_column(String(255))
+    name__given: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__middle: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__family: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__email: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__phone: Mapped[Optional[str]] = mapped_column(String(1024))
+    profile_status: Mapped[ProfileStatusEnum] = mapped_column(
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
+    )
+    profile_role: Mapped[Optional[str]] = mapped_column(String(255))
+    policy_count: Mapped[int] = mapped_column(nullable=False)
+
+    def __repr__(self) -> str:
+        return (
+            f"<OrgMemberView(profile_id={self._id}, user_id={self.user_id}, "
+            f"organization_id={self.organization_id})>"
+        )

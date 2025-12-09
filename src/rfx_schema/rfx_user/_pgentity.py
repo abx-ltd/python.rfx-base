@@ -104,6 +104,44 @@ user_profile_list_view = PGView(
     """
 )
 
+org_member_view = PGView(
+    schema=config.RFX_USER_SCHEMA,
+    signature="_org_member",
+    definition=f"""
+    SELECT
+        profile._created,
+        profile._creator,
+        profile._deleted,
+        profile._etag,
+        profile._id,
+        profile._updated,
+        profile._updater,
+        profile._realm,
+        profile.user_id,
+        profile.organization_id,
+        organization.name AS organization_name,
+        profile.name__given,
+        profile.name__middle,
+        profile.name__family,
+        profile.telecom__email,
+        profile.telecom__phone,
+        profile.status AS profile_status,
+        profile_role.role_key AS profile_role,
+        COALESCE(policy_counts.policy_count, 0) AS policy_count
+    FROM "{config.RFX_USER_SCHEMA}".profile AS profile
+    JOIN "{config.RFX_USER_SCHEMA}".organization AS organization
+        ON profile.organization_id = organization._id
+    JOIN "{config.RFX_USER_SCHEMA}".profile_role AS profile_role
+        ON profile._id = profile_role.profile_id
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS policy_count
+        FROM "{config.RFX_POLICY_SCHEMA}"._policy__user_profile AS policy
+        WHERE policy.org = organization._id::character varying(255)
+            AND policy._deleted IS NULL
+    ) AS policy_counts ON true;
+    """
+)
+
 def register_pg_entities(allow):
     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
     if not allow_flag:
@@ -112,6 +150,7 @@ def register_pg_entities(allow):
     register_entities([
         user_profile_view,
         user_profile_list_view,
+        org_member_view,
     ])
 
 register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))

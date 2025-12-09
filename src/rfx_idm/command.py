@@ -73,7 +73,24 @@ class DeactivateUser(Command):
 
     async def _process(self, agg, stm, payload):
         rootobj = agg.get_rootobj()
-        await kc_admin.update_user(rootobj._id, dict(enabled=False))
+        # Get full user representation from Keycloak
+        kc_user = await kc_admin.get_user(rootobj._id)
+        if not kc_user:
+            raise ValueError(f"User {rootobj._id} not found in Keycloak")
+
+        # Update enabled status and send back full representation
+        user_data = {
+            "email": kc_user.email,
+            "username": kc_user.username,
+            "firstName": kc_user.firstName,
+            "lastName": kc_user.lastName,
+            "enabled": False,
+            "emailVerified": kc_user.emailVerified,
+        }
+        if hasattr(kc_user, 'requiredActions'):
+            user_data["requiredActions"] = kc_user.requiredActions
+
+        await kc_admin.update_user(rootobj._id, user_data)
         await agg.deactivate_user()
 
 
@@ -90,7 +107,24 @@ class ActivateUser(Command):
 
     async def _process(self, agg, stm, payload):
         rootobj = agg.get_rootobj()
-        await kc_admin.update_user(rootobj._id, dict(enabled=True))
+        # Get full user representation from Keycloak
+        kc_user = await kc_admin.get_user(rootobj._id)
+        if not kc_user:
+            raise ValueError(f"User {rootobj._id} not found in Keycloak")
+
+        # Update enabled status and send back full representation
+        user_data = {
+            "email": kc_user.email,
+            "username": kc_user.username,
+            "firstName": kc_user.firstName,
+            "lastName": kc_user.lastName,
+            "enabled": True,
+            "emailVerified": kc_user.emailVerified,
+        }
+        if hasattr(kc_user, 'requiredActions'):
+            user_data["requiredActions"] = kc_user.requiredActions
+
+        await kc_admin.update_user(rootobj._id, user_data)
         await agg.activate_user()
 
 

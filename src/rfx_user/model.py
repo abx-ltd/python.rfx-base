@@ -541,3 +541,30 @@ class ProfileListView(IDMConnector.__data_schema_base__, DomainSchema):
         sa.Enum(types.ProfileStatusEnum, schema=config.USER_PROFILE_SCHEMA),
         nullable=False
     )
+
+
+class OrgMemberView(IDMConnector.__data_schema_base__, DomainSchema):
+    """
+    Database view for organization members with profile and role details.
+    Provides a read-only view optimized for organization member queries.
+    """
+    __tablename__ = "_org_member"
+    __table_args__ = {'schema': config.USER_PROFILE_SCHEMA}
+    __view__ = True
+
+    profile_id = sa.Column(pg.UUID)
+    user_id = sa.Column(pg.UUID)
+    organization_id = sa.Column(pg.UUID)
+    organization_name = sa.Column(sa.String)
+    name__given = sa.Column(sa.String)
+    name__middle = sa.Column(sa.String)
+    name__family = sa.Column(sa.String)
+    telecom__email = sa.Column(sa.String)
+    telecom__phone = sa.Column(sa.String)
+    profile_status = sa.Column(
+        sa.Enum(types.ProfileStatusEnum, schema=config.USER_PROFILE_SCHEMA),
+        nullable=False
+    )
+    profile_role = sa.Column(sa.String)
+    policy_count = sa.Column(sa.Integer)
+
