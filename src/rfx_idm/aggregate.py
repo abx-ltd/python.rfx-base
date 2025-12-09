@@ -160,9 +160,9 @@ class IDMAggregate(Aggregate):
 
         record = self.init_resource(
             "organization",
-            serialize_mapping(data),
+            data,
             _id=self.aggroot.identifier,
-            status=getattr(data, "status", "SETUP")
+            status='NEW'
         )
         await self.statemgr.insert(record)
         await self.set_org_status(record, record.status)

@@ -178,33 +178,8 @@ class CreateOrganization(Command):
     async def _process(self, agg, stm, payload):
         profile_id = UUID_GENR()
         org_data = serialize_mapping(payload)
-        org_data.update(profile_id=profile_id, creator=profile_id)
-        org = await agg.create_organization(payload)
+        org = await agg.create_organization(org_data)
 
-        context = agg.get_context()
-        user = await stm.fetch("user", context.user_id)
-        profile_data = dict(
-            _id=profile_id,
-            user_id=user._id,
-            organization_id=org._id,
-            name__family=user.name__family,
-            name__given=user.name__given,
-            name__middle=user.name__middle,
-            name__prefix=user.name__prefix,
-            name__suffix=user.name__suffix,
-            telecom__email=user.telecom__email,
-            telecom__phone=user.telecom__phone,
-            status='ACTIVE',
-            current_profile=False
-        )
-        await agg.create_profile(profile_data)
-
-        profile_role = dict(
-            profile_id=profile_id,
-            role_key='OWNER',
-            role_source='SYSTEM'
-        )
-        await agg.assign_role_to_profile(data=profile_role)
         yield agg.create_response(serialize_mapping(org), _type="idm-response")
 
 
@@ -381,6 +356,22 @@ class CreateProfile(Command):
         )
         await agg.assign_role_to_profile(profile_role)
         yield agg.create_response(serialize_mapping(profile), _type="idm-response")
+
+class CreateProfileWithOrg(Command):
+    """
+    Create user profile and associated organization.
+    Sets up both organizational context and user presence with initial permissions.
+    """
+    class Meta:
+        key = "create-profile-with-org"
+        new_resource = True
+        resources = ("profile", "organization")
+        tags = ["profile", "organization", "create"]
+        auth_required = True
+        new_resource = True
+        policy_required = True
+
+    Data = datadef.CreateProfileWithOrgPayload
 
 
 class SwitchProfile(Command):

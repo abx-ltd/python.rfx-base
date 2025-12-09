@@ -286,7 +286,7 @@ class OrganizationListQuery(DomainQueryResource):
         policy_required = "id"
 
     id: UUID_TYPE = PrimaryID("Organization ID")
-    business_name: str = StringField("Business Name")
+    name: str = StringField("Organization Name")
     tax_id: str = StringField("Tax ID")
     address: str = StringField("Address")
     contact_email: str = StringField("Contact Email")
@@ -321,6 +321,13 @@ class OrganizationDetailQuery(DomainQueryResource):
     status: str = EnumField("Status")
     invitation_code: str = StringField("Invitation Code")
     type: str = StringField("Organization Type Key (ForeignKey)")
+    contact_person: Optional[str] = StringField("Contact Person")
+    contact_email: Optional[str] = StringField("Contact Email")
+    contact_phone: Optional[str] = StringField("Contact Phone")
+    address: Optional[str] = StringField("Address")
+    vat_number: Optional[str] = StringField("VAT Number")
+    registered_date: Optional[datetime] = StringField("Registered Date")
+    avatar: Optional[str] = StringField("Avatar URL")
 
 @resource('sent-invitation')
 class SentInvitationQuery(DomainQueryResource):

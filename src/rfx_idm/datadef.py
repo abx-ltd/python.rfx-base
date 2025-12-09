@@ -23,7 +23,6 @@ class CreateOrganizationPayload(DataModel):
     active: Optional[bool] = True
     system_tag: Optional[List[str]] = []
     user_tag: Optional[List[str]] = []
-    status: OrganizationStatusEnum = 'ACTIVE'
     organization_code: Optional[str] = Field(max_length=255, default=None)
     invitation_code: Optional[str] = Field(max_length=10, default=None)
     type: Optional[str] = None # FK to RefOrganizationType.key
@@ -56,6 +55,7 @@ class UpdateOrganizationPayload(DataModel):
         if not field_values:
             raise ValueError("At least one field must be provided for update")
         return self
+
 
 class CreateProfilePayload(DataModel):
     """Payload for creating user profiles within organizations."""
@@ -93,6 +93,7 @@ class CreateProfilePayload(DataModel):
     telecom__fax: str
     telecom__phone: str
 
+
     tfa_method: Optional[str] = None
     tfa_token: Optional[str] = None
     two_factor_authentication: Optional[bool] = Field(default=False)
@@ -112,6 +113,10 @@ class CreateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
+
+
+class CreateProfileWithOrgPayload(CreateProfilePayload):
+    organization_id: UUID_TYPE
 
 class UpdateProfilePayload(DataModel):
     """Payload for updating user profiles within organizations."""
