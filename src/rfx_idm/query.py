@@ -275,6 +275,7 @@ class OrganizationRoleQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
+@resource('organization-list')
 class OrganizationListQuery(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
         include_all = True
