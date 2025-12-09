@@ -190,7 +190,7 @@ class ProfileListQuery(DomainQueryResource):
         allow_item_view = False
         allow_list_view = True
 
-        backend_model = "profile"
+        backend_model = "_org_member"
         resource = "profile"
         policy_required = "id"
         scope_required = scope.OrgProfileListScopeSchema
@@ -207,10 +207,6 @@ class ProfileListQuery(DomainQueryResource):
     profile_status: str = StringField("Status")
     profile_role: str = StringField("Role")
     policy_count: int = StringField("Policy Count")
-
-
-
-
 
 
 @resource('profile-detail')
