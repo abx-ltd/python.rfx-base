@@ -24,7 +24,7 @@ SELECT uuid_generate_v4() AS _id,
     NULL::timestamp without time zone AS _deleted
    FROM {config.RFX_POLICY_SCHEMA}.policy_role pol_rol
      JOIN {config.RFX_POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
-  WHERE pol_res.domain::text = ANY (ARRAY['user-profile'::text, 'x'::text])
+  WHERE pol_res.domain::text = ANY (ARRAY['user-profile'::text, '*'::text])
 UNION ALL
  SELECT uuid_generate_v4() AS _id,
     'g'::character varying(255) AS ptype,
@@ -193,7 +193,7 @@ SELECT uuid_generate_v4() AS _id,
     NULL::timestamp without time zone AS _deleted
    FROM {config.RFX_POLICY_SCHEMA}.policy_role pol_rol
      JOIN {config.RFX_POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
-  WHERE pol_res.domain::text = ANY (ARRAY['user-profile'::text, 'x'::text])
+  WHERE pol_res.domain::text = ANY (ARRAY['user-profile'::text, '*'::text])
 UNION ALL
  SELECT uuid_generate_v4() AS _id,
     'g'::character varying(255) AS ptype,
