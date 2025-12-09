@@ -317,12 +317,7 @@ class OrganizationListQuery(DomainQueryResource):
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization Name")
     business_name: str = StringField("Business Name")
-    tax_id: str = StringField("Tax ID")
-    address: str = StringField("Address")
-    contact_email: str = StringField("Contact Email")
-    contact_person: str = StringField("Contact Person")
-    contact_phone: str = StringField("Contact Phone")
-    status: str = EnumField("Status")
+
 
 @resource('organization-detail')
 class OrganizationDetailQuery(DomainQueryResource):
@@ -341,7 +336,6 @@ class OrganizationDetailQuery(DomainQueryResource):
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
     description: str = StringField("Description")
-    tax_id: str = StringField("Tax ID")
     business_name: str = StringField("Business Name")
     system_entity: str = BooleanField("System Entity")
     active: str = BooleanField("Active")
@@ -351,13 +345,6 @@ class OrganizationDetailQuery(DomainQueryResource):
     status: str = EnumField("Status")
     invitation_code: str = StringField("Invitation Code")
     type: str = StringField("Organization Type Key (ForeignKey)")
-    contact_person: Optional[str] = StringField("Contact Person")
-    contact_email: Optional[str] = StringField("Contact Email")
-    contact_phone: Optional[str] = StringField("Contact Phone")
-    address: Optional[str] = StringField("Address")
-    vat_number: Optional[str] = StringField("VAT Number")
-    registered_date: Optional[datetime] = StringField("Registered Date")
-    avatar: Optional[str] = StringField("Avatar URL")
 
 @resource('sent-invitation')
 class SentInvitationQuery(DomainQueryResource):

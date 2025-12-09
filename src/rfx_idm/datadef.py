@@ -26,19 +26,11 @@ class CreateOrganizationPayload(DataModel):
     organization_code: Optional[str] = Field(max_length=255, default=None)
     invitation_code: Optional[str] = Field(max_length=10, default=None)
     type: Optional[str] = None # FK to RefOrganizationType.key
-    contact_person: Optional[str] = Field(max_length=255, default=None)
-    contact_email: Optional[str] = Field(max_length=255, default=None)
-    contact_phone: Optional[str] = Field(max_length=50, default=None)
-    address: Optional[str] = Field(max_length=1024, default=None)
-    vat_number: Optional[str] = Field(max_length=50, default=None)
-    registered_date: Optional[datetime] = None
-    avatar: Optional[str] = Field(max_length=1024, default=None)
 
 
 class UpdateOrganizationPayload(DataModel):
     description: Optional[str] = None
     name: Optional[str] = Field(max_length=255, default=None)
-    tax_id: Optional[str] = Field(max_length=9, default=None)
     business_name: Optional[str] = None
     system_entity: Optional[bool] = None
     active: Optional[bool] = None

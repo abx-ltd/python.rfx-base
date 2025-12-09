@@ -150,6 +150,31 @@ class UserSchema(IDMBaseModel):
 
     last_verified_request = sa.Column(sa.DateTime(timezone=True))
 
+class GuestUser(IDMBaseModel):
+    """
+    Guest user entity for temporary access with limited profile data.
+    Supports ephemeral user sessions without full account creation.
+    """
+    __tablename__ = "guest_user"
+
+    email = sa.Column(sa.String, nullable=False)
+    phone = sa.Column(sa.String, nullable=True)
+    session_id = sa.Column(sa.String, nullable=False)
+    email_verified = sa.Column(sa.Boolean, default=False)
+    last_active_at = sa.Column(sa.DateTime(timezone=True))
+
+class GuestVerification(IDMBaseModel):
+    """
+    Guest verification codes stored in the `rfx_user.guest_verification` table.
+    """
+    __tablename__ = "guest_verification"
+
+    email = sa.Column(sa.String, nullable=False, index=True)
+    phone = sa.Column(sa.String, nullable=True)
+    code = sa.Column(sa.String, nullable=False, index=True)
+    expires_at = sa.Column(sa.DateTime(timezone=True), nullable=False, index=True)
+    verified = sa.Column(sa.Boolean, default=False)
+
 
 class UserIdentity(IDMBaseModel):
     """
@@ -248,7 +273,6 @@ class Organization(IDMBaseModel):
     description = sa.Column(sa.String)
     name = sa.Column(sa.String(255))
     # gov_id = sa.Column(sa.String(10))  # government issued id
-    tax_id = sa.Column(sa.String(9))   # tax authority issued id
     business_name = sa.Column(sa.String(255))
     system_entity = sa.Column(sa.Boolean)
     active = sa.Column(sa.Boolean)
@@ -263,15 +287,6 @@ class Organization(IDMBaseModel):
 
     invitation_code = sa.Column(sa.String(10))
     type = sa.Column(sa.ForeignKey(RefOrganizationType.key))
-
-    # Additional contact and profile fields from ttp_organization
-    contact_person = sa.Column(sa.String)
-    contact_email = sa.Column(sa.String)
-    contact_phone = sa.Column(sa.String)
-    address = sa.Column(sa.String)
-    vat_number = sa.Column(sa.String)
-    registered_date = sa.Column(sa.DateTime)
-    avatar = sa.Column(sa.String)
 
 
 class OrganizationDelegatedAccess(IDMBaseModel):
@@ -567,4 +582,5 @@ class OrgMemberView(IDMConnector.__data_schema_base__, DomainSchema):
     )
     profile_role = sa.Column(sa.String)
     policy_count = sa.Column(sa.Integer)
+
 

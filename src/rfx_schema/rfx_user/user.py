@@ -114,6 +114,32 @@ class User(TableBase):
         DateTime(timezone=True), nullable=True, server_default=text("now()")
     )
 
+class GuestUser(TableBase):
+    """Guest user account stored in the `rfx_user.guest_user` table."""
+
+    __tablename__ = "guest_user"
+
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50))
+    session_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+class GuestVerification(TableBase):
+    """Guest verification codes stored in the `rfx_user.guest_verification` table."""
+
+    __tablename__ = "guest_verification"
+
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50))
+    code: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+
 class UserIdentity(TableBase):
     """External identity providers linked to a user."""
 

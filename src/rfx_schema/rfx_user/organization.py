@@ -40,8 +40,6 @@ class Organization(TableBase):
 
     description: Mapped[Optional[str]] = mapped_column(Text)
     name: Mapped[Optional[str]] = mapped_column(String(255))
-    tax_id: Mapped[Optional[str]] = mapped_column(String(9))
-    business_name: Mapped[Optional[str]] = mapped_column(String(255))
     system_entity: Mapped[Optional[bool]] = mapped_column(Boolean)
     active: Mapped[Optional[bool]] = mapped_column(Boolean)
     system_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
@@ -60,14 +58,6 @@ class Organization(TableBase):
     type_key: Mapped[Optional[str]] = mapped_column(
         "type", ForeignKey(f"{SCHEMA}.ref__organization_type.key")
     )
-
-    contact_person: Mapped[Optional[str]] = mapped_column(String(255))
-    contact_email: Mapped[Optional[str]] = mapped_column(String(255))
-    contact_phone: Mapped[Optional[str]] = mapped_column(String(50))
-    address: Mapped[Optional[str]] = mapped_column(String(1024))
-    vat_number: Mapped[Optional[str]] = mapped_column(String(50))
-    registered_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    avatar: Mapped[Optional[str]] = mapped_column(String(1024))
 
     delegated_access: Mapped[List["OrganizationDelegatedAccess"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"
