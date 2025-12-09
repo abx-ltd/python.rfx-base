@@ -54,86 +54,86 @@ Command = UserProfileDomain.Command
 #         tags = ["user"]
 #         auth_required = True
 
-class SendAction(Command):
-    """
-    Send required actions to user in Keycloak (e.g., UPDATE_PASSWORD, VERIFY_EMAIL).
-    Manages user action requirements and integrates with Keycloak's action execution system.
-    Updates user's required actions list if marked as required for enforcement.
-    """
-    class Meta:
-        key = "send-action"
-        resources = ("user",)
-        tags = ["user"]
-        auth_required = True
-        policy_required = False
+# class SendAction(Command):
+#     """
+#     Send required actions to user in Keycloak (e.g., UPDATE_PASSWORD, VERIFY_EMAIL).
+#     Manages user action requirements and integrates with Keycloak's action execution system.
+#     Updates user's required actions list if marked as required for enforcement.
+#     """
+#     class Meta:
+#         key = "send-action"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
+#         policy_required = False
 
-    Data = datadef.SendActionPayload
+#     Data = datadef.SendActionPayload
 
-    async def _process(self, agg, stm, payload):
-        rootobj = agg.get_rootobj()
-        user_id = rootobj._id
+#     async def _process(self, agg, stm, payload):
+#         rootobj = agg.get_rootobj()
+#         user_id = rootobj._id
 
-        await kc_admin.execute_actions(user_id=user_id, actions=payload.actions, redirect_uri=config.REDIRECT_URL)
-        await agg.track_user_action(payload)
+#         await kc_admin.execute_actions(user_id=user_id, actions=payload.actions, redirect_uri=config.REDIRECT_URL)
+#         await agg.track_user_action(payload)
 
-        if payload.required:
-            kc_user = await kc_admin.get_user(user_id)
-            required_action = kc_user.requiredActions
-            actions = [
-                action for action in payload.actions if action not in required_action]
-            required_action.extend(actions)
-            await kc_admin.update_user(user_id=user_id, payload={"requiredActions": required_action})
-
-
-class SendVerification(Command):
-    """
-    Send email verification request to user through Keycloak.
-    Updates user record with verification request timestamp for tracking.
-    """
-    class Meta:
-        key = "send-verification"
-        resources = ("user",)
-        tags = ["user"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        rootobj = agg.get_rootobj()
-        await kc_admin.send_verify_email(rootobj._id)
-        await agg.update_user(dict(last_verified_request=datetime.utcnow()))
+#         if payload.required:
+#             kc_user = await kc_admin.get_user(user_id)
+#             required_action = kc_user.requiredActions
+#             actions = [
+#                 action for action in payload.actions if action not in required_action]
+#             required_action.extend(actions)
+#             await kc_admin.update_user(user_id=user_id, payload={"requiredActions": required_action})
 
 
-class DeactivateUser(Command):
-    """
-    Deactivate user account in both local system and Keycloak.
-    Disables user login while preserving account data for potential reactivation.
-    """
-    class Meta:
-        key = "deactivate-user"
-        resources = ("user",)
-        tags = ["user"]
-        auth_required = True
+# class SendVerification(Command):
+#     """
+#     Send email verification request to user through Keycloak.
+#     Updates user record with verification request timestamp for tracking.
+#     """
+#     class Meta:
+#         key = "send-verification"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
 
-    async def _process(self, agg, stm, payload):
-        rootobj = agg.get_rootobj()
-        await kc_admin.update_user(rootobj._id, dict(enabled=False))
-        await agg.deactivate_user()
+#     async def _process(self, agg, stm, payload):
+#         rootobj = agg.get_rootobj()
+#         await kc_admin.send_verify_email(rootobj._id)
+#         await agg.update_user(dict(last_verified_request=datetime.utcnow()))
 
 
-class ActivateUser(Command):
-    """
-    Reactivate previously deactivated user account.
-    Enables user login in both Keycloak and local system state.
-    """
-    class Meta:
-        key = "activate-user"
-        resources = ("user",)
-        tags = ["user"]
-        auth_required = True
+# class DeactivateUser(Command):
+#     """
+#     Deactivate user account in both local system and Keycloak.
+#     Disables user login while preserving account data for potential reactivation.
+#     """
+#     class Meta:
+#         key = "deactivate-user"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
 
-    async def _process(self, agg, stm, payload):
-        rootobj = agg.get_rootobj()
-        await kc_admin.update_user(rootobj._id, dict(enabled=True))
-        await agg.activate_user()
+#     async def _process(self, agg, stm, payload):
+#         rootobj = agg.get_rootobj()
+#         await kc_admin.update_user(rootobj._id, dict(enabled=False))
+#         await agg.deactivate_user()
+
+
+# class ActivateUser(Command):
+#     """
+#     Reactivate previously deactivated user account.
+#     Enables user login in both Keycloak and local system state.
+#     """
+#     class Meta:
+#         key = "activate-user"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
+
+#     async def _process(self, agg, stm, payload):
+#         rootobj = agg.get_rootobj()
+#         await kc_admin.update_user(rootobj._id, dict(enabled=True))
+#         await agg.activate_user()
 
 
 class SyncUser(Command):

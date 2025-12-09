@@ -15,10 +15,11 @@ custom roles, and status history.
 
 from __future__ import annotations
 
+from datetime import datetime
 import uuid
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import ARRAY, Boolean, Enum as SQLEnum, ForeignKey, String, Text
+from sqlalchemy import ARRAY, Boolean, DateTime, Enum as SQLEnum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -59,6 +60,14 @@ class Organization(TableBase):
     type_key: Mapped[Optional[str]] = mapped_column(
         "type", ForeignKey(f"{SCHEMA}.ref__organization_type.key")
     )
+
+    contact_person: Mapped[Optional[str]] = mapped_column(String(255))
+    contact_email: Mapped[Optional[str]] = mapped_column(String(255))
+    contact_phone: Mapped[Optional[str]] = mapped_column(String(50))
+    address: Mapped[Optional[str]] = mapped_column(String(1024))
+    vat_number: Mapped[Optional[str]] = mapped_column(String(50))
+    registered_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    avatar: Mapped[Optional[str]] = mapped_column(String(1024))
 
     delegated_access: Mapped[List["OrganizationDelegatedAccess"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"

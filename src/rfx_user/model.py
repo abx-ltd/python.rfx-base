@@ -264,6 +264,15 @@ class Organization(IDMBaseModel):
     invitation_code = sa.Column(sa.String(10))
     type = sa.Column(sa.ForeignKey(RefOrganizationType.key))
 
+    # Additional contact and profile fields from ttp_organization
+    contact_person = sa.Column(sa.String)
+    contact_email = sa.Column(sa.String)
+    contact_phone = sa.Column(sa.String)
+    address = sa.Column(sa.String)
+    vat_number = sa.Column(sa.String)
+    registered_date = sa.Column(sa.DateTime)
+    avatar = sa.Column(sa.String)
+
 
 class OrganizationDelegatedAccess(IDMBaseModel):
     """

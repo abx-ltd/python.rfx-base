@@ -275,6 +275,25 @@ class OrganizationRoleQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
+class OrganizationListQuery(DomainQueryResource):
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        resource = "organization"
+        policy_required = "id"
+
+    id: UUID_TYPE = PrimaryID("Organization ID")
+    business_name: str = StringField("Business Name")
+    tax_id: str = StringField("Tax ID")
+    address: str = StringField("Address")
+    contact_email: str = StringField("Contact Email")
+    contact_person: str = StringField("Contact Person")
+    contact_phone: str = StringField("Contact Phone")
+    status: str = EnumField("Status")
+
 @resource('organization-detail')
 class OrganizationDetailQuery(DomainQueryResource):
     """ Query organization details """
