@@ -365,8 +365,8 @@ class CreateProfileWithOrg(Command):
     class Meta:
         key = "create-profile-with-org"
         new_resource = True
-        resources = ("profile", "organization")
-        tags = ["profile", "organization", "create"]
+        resources = ("profile",)
+        tags = ["profile", "create"]
         auth_required = True
         new_resource = True
         policy_required = True
