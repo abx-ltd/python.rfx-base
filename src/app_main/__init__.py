@@ -9,15 +9,15 @@ from fluvius.fastapi import (
 from rfx_idm import IDMDomain
 
 domains = (
-    IDMDomain,
+    # IDMDomain,
     'rfx_user.UserProfileDomain',
-    'rfx_message.RFXMessageServiceDomain',
+    # 'rfx_message.RFXMessageServiceDomain',
 )
 
 queries = (
-    'rfx_idm.IDMQueryManager',
+    # 'rfx_idm.IDMQueryManager',
     'rfx_user.UserProfileQueryManager',
-    'rfx_message.RFXMessageServiceQueryManager',
+    # 'rfx_message.RFXMessageServ1iceQueryManager',
 )
 
 app = create_app() \

@@ -65,7 +65,6 @@ class ProjectDraftQuery(DomainQueryResource):
         return {"members.ov": [profile_id], "status": "DRAFT"}
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -73,7 +72,7 @@ class ProjectDraftQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
-        policy_required = "id"
+        policy_required = True
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -98,7 +97,6 @@ class ProjectQuery(DomainQueryResource):
         return {"members.ov": [profile_id], "status": "ACTIVE"}
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -106,7 +104,7 @@ class ProjectQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
-        policy_required = "id"
+        policy_required = True
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -129,13 +127,12 @@ class ProjectBDMContactQuery(DomainQueryResource):
     """Project BDM contact queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
 
-        policy_required = "project_id"
+        policy_required = True
         scope_required = scope.ProjectBDMContactScopeSchema
 
     contact_method: list[ContactMethodEnum] = ArrayField("Contact Method")
@@ -149,14 +146,13 @@ class ProjectMilestoneQuery(DomainQueryResource):
     """Project milestone queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
         allow_text_search = True
 
-        policy_required = "project_id"
+        policy_required = True
         scope_required = scope.ProjectMilestoneScopeSchema
 
     name: str = StringField("Milestone Name")
@@ -172,14 +168,13 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
     """Project estimate summary queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
 
         backend_model = "_project_estimate_summary"
-        policy_required = "id"
+        policy_required = True
 
     architectural_credits: float = FloatField("Architectural Credits")
     development_credits: float = FloatField("Development Credits")
@@ -235,7 +230,6 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     """Project work package queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -244,7 +238,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
 
         backend_model = "_project_work_package"
         scope_required = scope.ProjectWorkPackageScopeSchema
-        policy_required = "project_id"
+        policy_required = True
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
@@ -273,7 +267,6 @@ class ProjectWorkItemDetailQuery(DomainQueryResource):
     """Work item detail queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -295,7 +288,6 @@ class ProjectWorkItemListingQuery(DomainQueryResource):
     """Work item listing queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -453,7 +445,6 @@ class PromotionQuery(DomainQueryResource):
     """Promotion queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "promotion"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -475,14 +466,13 @@ class InquiryQuery(DomainQueryResource):
     """Inquiry listing queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "ticket"
         include_all = True
         allow_list_view = True
         allow_item_view = True
         allow_meta_view = True
 
         backend_model = "_inquiry"
-        policy_required = "id"
+        policy_required = True
 
     type: str = StringField("Type")
     type_icon_color: str = StringField("Type Icon Color")
@@ -503,7 +493,6 @@ class TicketQuery(DomainQueryResource):
     """Ticket queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "ticket"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -511,7 +500,7 @@ class TicketQuery(DomainQueryResource):
 
         backend_model = "_ticket"
         scope_required = scope.TicketScopeSchema
-        policy_required = "id"
+        policy_required = True
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     title: str = StringField("Title")
@@ -551,7 +540,6 @@ class TagQuery(DomainQueryResource):
     """Tag queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "tag"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -571,7 +559,6 @@ class CommentQuery(DomainQueryResource):
     """Comment queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -596,7 +583,6 @@ class CommentAttachmentQuery(DomainQueryResource):
     """Comment attachment queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "commment_attachment"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -618,7 +604,6 @@ class CommentReactionQuery(DomainQueryResource):
     """Comment reaction queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment_reaction"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -637,7 +622,6 @@ class CommentReactionSummaryQuery(DomainQueryResource):
     """Comment Reaction Summary queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment-reaction-summary"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -657,7 +641,6 @@ class CreditSummaryQuery(DomainQueryResource):
     """Credit summary for organization dashboard"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "credit-summary"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -665,7 +648,7 @@ class CreditSummaryQuery(DomainQueryResource):
 
         backend_model = "_credit_summary"
         # scope_required = scope.OrganizationScopeSchema
-        # policy_required = "organization_id"
+        # policy_required = True
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     current_ar_credits: float = FloatField("Current AR Credits")
@@ -689,7 +672,6 @@ class WorkPackageCreditUsageQuery(DomainQueryResource):
     """Credit usage breakdown by work package"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -697,7 +679,7 @@ class WorkPackageCreditUsageQuery(DomainQueryResource):
 
         backend_model = "_work_package_credit_usage"
         scope_required = scope.ProjectWorkPackageScopeSchema
-        policy_required = "project_id"
+        policy_required = True
 
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     project_id: UUID_TYPE = UUIDField("Project ID")
@@ -734,7 +716,7 @@ class CreditPurchaseHistoryQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "_credit_purchase_history"
-        policy_required = "organization_id"
+        policy_required = True
 
     purchase_id: UUID_TYPE = UUIDField("Purchase ID")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
@@ -795,7 +777,7 @@ class CreditBalanceQuery(DomainQueryResource):
         allow_list_view = False
         allow_meta_view = False
 
-        policy_required = "organization_id"
+        policy_required = True
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     ar_credits: float = FloatField("AR Credits")
@@ -826,7 +808,7 @@ class CreditUsageLogQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        policy_required = "organization_id"
+        policy_required = True
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     project_id: UUID_TYPE = UUIDField("Project ID")
@@ -908,7 +890,6 @@ class ProjectCreditSummaryQuery(DomainQueryResource):
         return {"organization_id": context.organization._id}
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -950,7 +931,6 @@ class ProjectQueryDetail(DomainQueryResource):
         return {"members.ov": [profile_id], "status": "ACTIVE"}
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -958,7 +938,7 @@ class ProjectQueryDetail(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project_detail"
-        # policy_required = "id"
+        # policy_required = True
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -994,7 +974,6 @@ class OrganizationWeeklyCreditUsageQuery(DomainQueryResource):
         return {"organization_id": context.organization._id}
 
     class Meta(DomainQueryResource.Meta):
-        resource = "organization-weekly-credit-usage"
         include_all = True
         allow_item_view = True
         allow_list_view = True

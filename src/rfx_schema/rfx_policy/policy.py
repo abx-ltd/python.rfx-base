@@ -102,5 +102,10 @@ class PolicyRole(TableBase):
         String(255), ForeignKey(f"{SCHEMA}.policy.key"), nullable=False
     )
     role_key: Mapped[Optional[str]] = mapped_column(String(255))
+    scope: Mapped[Optional[PolicyScopeEnum]] = mapped_column(
+        SQLEnum(PolicyScopeEnum, name="policyscopeenum", schema=SCHEMA),
+        default=PolicyScopeEnum.TENANT,
+        nullable=False,
+    )
 
     policy: Mapped["Policy"] = relationship(back_populates="roles")

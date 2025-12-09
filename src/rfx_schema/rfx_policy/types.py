@@ -20,8 +20,10 @@ class PolicyStatusEnum(Enum):
 
 
 class PolicyScopeEnum(Enum):
-    SYSTEM = "SYSTEM"
-    PUBLIC = "PUBLIC"
+    SYSTEM   = "SYSTEM"
+    TENANT   = "TENANT"
+    RESOURCE = "RESOURCE"
+    PUBLIC   = "PUBLIC"
 
 
 class PolicyKindEnum(Enum):

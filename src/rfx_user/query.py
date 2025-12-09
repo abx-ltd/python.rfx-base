@@ -128,8 +128,7 @@ class UserQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "user"
 
-        resource = "user"
-        policy_required = "id"
+        policy_required = True
 
     id: UUID_TYPE = PrimaryID("User ID")
     name__family: str = StringField("Family Name")
@@ -157,6 +156,8 @@ class ProfileQuery(DomainQueryResource):
     name__given: str = StringField("Given Name")
     telecom__email: str = StringField("Email")
     status: str = StringField("Status")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    user_id: UUID_TYPE = UUIDField("User ID")
 
 @resource('profile-detail')
 class ProfileDetailQuery(DomainQueryResource):
@@ -167,8 +168,7 @@ class ProfileDetailQuery(DomainQueryResource):
         allow_list_view = False
         backend_model = "profile"
 
-        resource = "profile"
-        policy_required = "id"
+        policy_required = True
 
     user_id: UUID_TYPE = UUIDField("User ID")
     name__family: str = StringField("Family Name")
@@ -219,8 +219,7 @@ class ProfileRole(DomainQueryResource):
         allow_meta_view = True
         backend_model = "profile_role"
 
-        resource = "profile"
-        policy_required = "profile_id"
+        policy_required = True
         scope_required = scope.ProfileRoleScopeSchema
 
 
@@ -238,8 +237,7 @@ class OrganizationRoleQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        resource = "organization"
-        policy_required = "organization_id"
+        policy_required = True
 
     user_id: UUID_TYPE = UUIDField("User ID")
     address__city: str = StringField("City")
@@ -262,8 +260,7 @@ class OrganizationDetailQuery(DomainQueryResource):
         allow_meta_view = True
         backend_model = "organization"
 
-        resource = "organization"
-        policy_required = "id"
+        policy_required = True
 
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
@@ -286,9 +283,8 @@ class SentInvitationQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
 
-        resource = "invitation"
         backend_model = "invitation"
-        policy_required = "id"
+        policy_required = True
         # scope_required = scope.SentInvitationScopeSchema
 
 
@@ -310,8 +306,7 @@ class ReceivedInvitationQuery(DomainQueryResource):
         allow_list_view = True
 
         backend_model = "invitation"
-        resource = "invitation"
-        policy_required = "id"
+        policy_required = True
 
     id: UUID_TYPE = PrimaryID("Invitation ID")
     sender_id: UUID_TYPE = UUIDField("Sender User ID")

@@ -7,7 +7,7 @@ Handles user data synchronization and authorization context setup.
 
 from types import SimpleNamespace
 from fluvius.data import DataAccessManager, UUID_GENR
-from fluvius.auth import AuthorizationContext
+from fluvius.auth import AuthorizationContext, SessionProfile, SessionOrganization
 from fluvius.fastapi.auth import FluviusAuthProfileProvider, KeycloakTokenPayload
 from fluvius.error import UnauthorizedError
 from . import config
@@ -52,7 +52,7 @@ class RFXAuthProfileProvider(
             # ---------- User ----------
             user_id = auth_user.sub
             user_data = self.format_user_data(auth_user)
-            await self.upsert('user', user_data)
+            await self.upsert_data('user', user_data)
             user = await self.fetch('user', user_id)
 
             # ---------- Profile ----------
@@ -153,8 +153,18 @@ class RFXAuthProfileProvider(
         # ---------- Auth Context ----------
         return AuthorizationContext(
             realm = realm,
-            user = user,
-            profile = profile,
-            organization = organization,
+            user = auth_user,
+            profile = SessionProfile(
+                id=profile._id,
+                name=profile.name__given,
+                family_name=profile.name__family,
+                given_name=profile.name__given,
+                email=profile.telecom__email,
+                username=user.username,
+                roles=tuple(),
+                org_id=organization._id,
+                usr_id=user._id
+            ),
+            organization=SessionOrganization(id=organization._id, name=organization.name),
             iamroles = iamroles
         )

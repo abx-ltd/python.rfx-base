@@ -48,7 +48,7 @@ class MessageQuery(DomainQueryResource):
 
         backend_model = "_message_recipients"
 
-        # policy_required = True  # Enable access control
+        # policy_required True
         # scope_optional = ResourceScope
 
         default_order = ("_created.desc",)
@@ -104,8 +104,7 @@ class TemplateQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "message_template"
-        resource = "message_template"
-        policy_required = "id"
+        policy_required = True
         scope_optional = TemplateScope
 
         default_order = ("key", "-version")

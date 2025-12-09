@@ -50,7 +50,6 @@ class CommentQuery(DomainQueryResource):
     """Comment queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -78,7 +77,6 @@ class CommentAttachmentQuery(DomainQueryResource):
     """Comment Attachment queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment-attachment"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -100,7 +98,6 @@ class CommentReactionQuery(DomainQueryResource):
     """Comment Reaction queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment-reaction"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -120,7 +117,6 @@ class CommentReactionSummaryQuery(DomainQueryResource):
     """Comment Reaction Summary queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment-reaction-summary"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -140,7 +136,6 @@ class CommentFlagQuery(DomainQueryResource):
     """Comment Flag queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment-flag"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -163,7 +158,6 @@ class CommentFlagResolutionQuery(DomainQueryResource):
     """Comment Flag resolution queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment-flag-resolution"
         include_all = True
         allow_item_view = True
         allow_list_view = True
@@ -186,7 +180,6 @@ class CommentFlagSummaryQuery(DomainQueryResource):
     """Comment Flag summary queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "comment-flag-summary"
         include_all = True
         allow_item_view = True
         allow_list_view = True
