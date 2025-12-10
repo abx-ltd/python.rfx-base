@@ -1,6 +1,7 @@
 from fluvius.casbin import PolicyManager, PolicySchema
-from .model import IDMConnector
+from rfx_schema import RFXPolicyConnector
 from . import config
+from .model import IDMConnector
 
 
 class IDMPolicy(IDMConnector.__data_schema_base__, PolicySchema):

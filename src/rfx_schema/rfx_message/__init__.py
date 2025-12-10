@@ -24,3 +24,7 @@ class TableBase(Base):
 
 
 SCHEMA = config.RFX_MESSAGE_SCHEMA
+
+# Ensure ORM schemas and view maps register when module loads.
+from . import _schema  # noqa: F401
+from . import _viewmap  # noqa: F401

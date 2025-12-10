@@ -21,7 +21,7 @@ from typing import List, Optional, TYPE_CHECKING
 
 from sqlalchemy import ARRAY, Boolean, DateTime, Enum as SQLEnum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 # Import from local types to avoid rfx_user module initialization
 from .types import OrganizationStatusEnum
@@ -59,9 +59,12 @@ class Organization(TableBase):
     type_key: Mapped[Optional[str]] = mapped_column(
         "type", ForeignKey(f"{SCHEMA}.ref__organization_type.key")
     )
+    type = synonym("type_key")
 
     delegated_access: Mapped[List["OrganizationDelegatedAccess"]] = relationship(
-        back_populates="organization", cascade="all, delete-orphan"
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        foreign_keys="OrganizationDelegatedAccess.organization_id",
     )
     delegated_to_us: Mapped[List["OrganizationDelegatedAccess"]] = relationship(
         back_populates="delegated_organization",
@@ -75,6 +78,12 @@ class Organization(TableBase):
     )
     invitations: Mapped[List["Invitation"]] = relationship(
         back_populates="organization", cascade="all"
+    )
+    profiles: Mapped[List["Profile"]] = relationship(
+        "Profile",
+        back_populates="organization",
+        cascade="all",
+        foreign_keys="Profile.organization_id",
     )
 
 

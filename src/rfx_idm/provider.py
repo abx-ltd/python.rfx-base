@@ -12,7 +12,7 @@ from fluvius.fastapi.auth import FluviusAuthProfileProvider, KeycloakTokenPayloa
 from fluvius.error import UnauthorizedError
 from . import config
 
-from .model import IDMConnector
+from rfx_user.model import IDMConnector
 
 class RFXIDMAuthProfileProvider(
     FluviusAuthProfileProvider,

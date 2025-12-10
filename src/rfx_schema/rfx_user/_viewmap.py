@@ -1,4 +1,6 @@
+
 from __future__ import annotations
+from fluvius.casbin import PolicySchema
 
 import uuid
 from datetime import datetime
@@ -8,7 +10,7 @@ from sqlalchemy import ARRAY, Boolean, DateTime, Enum as SQLEnum, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import Base, SCHEMA
+from . import Base, PolicyBase, SCHEMA, POLICY_SCHEMA
 from .types import ProfileStatusEnum
 
 
@@ -167,3 +169,21 @@ class OrgMemberView(Base):
             f"<OrgMemberView(profile_id={self._id}, user_id={self.user_id}, "
             f"organization_id={self.organization_id})>"
         )
+
+
+class PolicyUserProfileView(PolicyBase, PolicySchema):
+    """
+    ORM mapping for the `_policy__user_profile` view used to materialize Casbin
+    policy tuples for the user-profile domain.
+    """
+    __tablename__ = "_policy__user_profile"
+    __table_args__ = {"schema": POLICY_SCHEMA, "info": {"is_view": True}}
+
+
+class PolicyIDMProfileView(PolicyBase, PolicySchema):
+    """
+    ORM mapping for the `_policy__idm_profile` view used for IDM profile access
+    policy evaluation.
+    """
+    __tablename__ = "_policy__idm_profile"
+    __table_args__ = {"schema": POLICY_SCHEMA, "info": {"is_view": True}}

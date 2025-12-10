@@ -174,6 +174,8 @@ class ProfileListQuery(DomainQueryResource):
     name__family: str = StringField("Family Name")
     name__given: str = StringField("Given Name")
     preferred_name: Optional[str] = StringField("Preferred Name")
+    telecom__email: str = StringField("Email")
+    telecom__phone: str = StringField("Phone")
     username: str = StringField("Username")
     user_id: UUID_TYPE = UUIDField("User ID")
     status: str = StringField("Status")
