@@ -4,7 +4,7 @@ from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum
+from rfx_schema.rfx_client.types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum
 from typing import Any, Dict
 
 # Project related payloads

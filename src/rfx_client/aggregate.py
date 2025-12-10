@@ -3,7 +3,7 @@ from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR, logger
 from datetime import datetime, timezone
 from .helper import parse_duration_for_db
-from .types import SyncStatusEnum, InquiryStatusEnum
+from rfx_schema.rfx_client.types import SyncStatusEnum, InquiryStatusEnum
 from . import config
 
 
