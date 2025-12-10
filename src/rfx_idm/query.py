@@ -301,24 +301,6 @@ class OrganizationRoleQuery(DomainQueryResource):
     address__state: str = StringField("State/Province")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
-
-@resource('organization-list')
-class OrganizationListQuery(DomainQueryResource):
-    class Meta(DomainQueryResource.Meta):
-        # include_all = True
-        # allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-
-        backend_model = "organization"
-        resource = "organization"
-        policy_required = "id"
-
-    id: UUID_TYPE = PrimaryID("Organization ID")
-    name: str = StringField("Organization Name")
-    business_name: str = StringField("Business Name")
-
-
 @resource('organization-detail')
 class OrganizationDetailQuery(DomainQueryResource):
     """ Query organization details """
