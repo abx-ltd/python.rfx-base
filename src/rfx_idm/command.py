@@ -78,13 +78,6 @@ class CreateUser(Command):
             "realm_access": payload.realm_access,
             "resource_access": payload.resource_access,
         }
-
-        # Add tags if provided
-        if payload.system_tag:
-            user_data["system_tag"] = payload.system_tag
-        if payload.user_tag:
-            user_data["user_tag"] = payload.user_tag
-
         # Create user in local database
         user = await agg.create_user(user_data)
 
