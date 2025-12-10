@@ -102,7 +102,7 @@ class Profile(TableBase):
     default_theme: Mapped[Optional[str]] = mapped_column(String(255))
 
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=True
     )
     current_profile: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")

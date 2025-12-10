@@ -333,6 +333,7 @@ class IDMAggregate(Aggregate):
         await self.set_profile_status(record, record.status)
         return record
 
+
     @action("profile-switched", resources="profile")
     async def switch_profile(self):
         """Switch active profile in user context."""
@@ -352,6 +353,35 @@ class IDMAggregate(Aggregate):
                 await self.statemgr.update(profile, current_profile=False)
 
         return {"message": f"Switched to profile {profile_id}", "switched": True}
+
+    @action("profile-created-in-org", resources=("profile", "organization"))
+    async def create_profile_in_org(self, data):
+        """Create user profile within organization with role assignment."""
+        user_id = data.get("user_id", None)
+        if user_id is None or user_id == self.context.user_id:
+            return {"message": "Cannot create profile for current user."}
+        existing_profiles = await self.statemgr.find_all("profile", where=dict(
+            user_id=user_id,
+            organization_id=data.get("organization_id"),
+            status='ACTIVE'
+        ))
+        if existing_profiles:
+            return {"message": "Active profile already exists for user in this organization."}
+
+        user = await self.statemgr.fetch('user', user_id)
+        if not user:
+            return {"message": f"User with id {user_id} not found."}
+
+        record = self.init_resource(
+            "profile",
+            **data,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(record)
+        await self.set_profile_status(record, record.status)
+
+
+        return {"profile_id": record._id}
 
 
     @action("profile-updated", resources="profile")
@@ -383,25 +413,22 @@ class IDMAggregate(Aggregate):
         """Assign system role to profile. Prevents duplicate role assignments."""
         role_key = data.get("role_key", "VIEWER")
         profile_id = data.get("profile_id", self.aggroot.identifier)
-        profile = await self.statemgr.fetch('profile', profile_id)
 
-        if profile.organization_id != self.context.organization_id:
-            return {"message": "Profile does not belong to current organization."}
         role = await self.statemgr.find_one('ref__system_role', where=dict(key=role_key))
 
         profile_role = await self.statemgr.find_one('profile_role', where=dict(
             profile_id=profile_id,
         ))
         if not profile_role:
-            record = self.init_resource("profile_role", data, role_id=role._id, _id=UUID_GENR())
+            record = self.init_resource("profile_role", **data, role_id=role._id, _id=UUID_GENR())
             await self.statemgr.insert(record)
             return
 
         if profile_role.role_key == role_key:
-            return {"message": f"Role {role_key} already assigned to profile."}
+            raise ValueError(f"Role {role_key} already assigned to profile.")
         else:
             await self.statemgr.update(profile_role, role_key=role_key, role_id=role._id)
-            return {"message": f"Profile role updated to {role_key}."}
+            raise ValueError(f"Profile role updated to {role_key}.")
 
     @action("role-revoked-from-profile", resources="profile")
     async def revoke_role_from_profile(self, data):

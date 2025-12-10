@@ -87,14 +87,14 @@ class CreateProfilePayload(DataModel):
     """Payload for creating user profiles within organizations."""
     user_id: str = Field(default=None)
     access_tags: list[str] = []
-    active: bool = Field(default=True)
+    active: Optional[bool] = Field(default=True)
 
-    address__city: str
-    address__country: str
-    address__line1: str
+    address__city: Optional[str] = None
+    address__country: Optional[str] = None
+    address__line1: Optional[str] = None
     address__line2: Optional[str] = None
-    address__postal: str
-    address__state: str
+    address__postal: Optional[str] = None
+    address__state: Optional[str] = None
 
     picture_id: Optional[str] = None
     birthdate: Optional[date] = None
@@ -116,7 +116,7 @@ class CreateProfilePayload(DataModel):
     user_tag: Optional[list[str]] = None
 
     telecom__email: str
-    telecom__fax: str
+    telecom__fax: Optional[str] = None
     telecom__phone: str
 
 
@@ -126,7 +126,6 @@ class CreateProfilePayload(DataModel):
 
     upstream_user_id: Optional[str] = None
     user_type: Optional[str] = None
-    username: str
 
     verified_email: Optional[str] = None
     verified_phone: Optional[str] = None
@@ -140,9 +139,11 @@ class CreateProfilePayload(DataModel):
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
 
-
-class CreateProfileWithOrgPayload(CreateProfilePayload):
-    organization_id: UUID_TYPE
+class CreateProfileInOrgPayload(CreateProfilePayload):
+    """Payload for creating user profiles within organizations."""
+    organization_id: str
+    profile_role_key: Optional[str] = 'VIEWER'  # Default role for new profile
+    profile_role_source: Optional[str] = 'SYSTEM'  # Default role source
 
 class UpdateProfilePayload(DataModel):
     """Payload for updating user profiles within organizations."""
