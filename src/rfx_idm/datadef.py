@@ -40,7 +40,7 @@ class CreateUserPayload(DataModel):
     verified_phone: Optional[str] = None
 
     # Access control (JSON fields)
-    realm_access: Optional[List[dict]] = None
+    realm_access: Optional[dict] = None
     resource_access: Optional[dict] = None
 
     # Tags
