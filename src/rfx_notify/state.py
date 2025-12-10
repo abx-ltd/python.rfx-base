@@ -1,9 +1,9 @@
 from fluvius.domain.state import DataAccessManager
-from .model import NotifyConnector
+from rfx_schema import RFXNotifyConnector
 
 
 class NotifyStateManager(DataAccessManager):
-    __connector__ = NotifyConnector
+    __connector__ = RFXNotifyConnector
     __automodel__ = True
 
     async def _add_entry(self, model, **data):

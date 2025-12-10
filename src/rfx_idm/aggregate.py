@@ -76,6 +76,23 @@ class IDMAggregate(Aggregate):
             ))
             await self.statemgr.insert(record)
 
+    @action("user-created", resources="user")
+    async def create_user(self, data):
+        """Create new user with initial NEW status and verified email."""
+        # Use provided _id (from Keycloak) if available, otherwise generate new one
+        user_id = data.get("_id", UUID_GENR())
+
+        record = self.init_resource(
+            "user",
+            data,
+            _id=user_id,
+            status='NEW',
+            verified_email=data.get("verified_email") or data.get("telecom__email"),
+        )
+        await self.statemgr.insert(record)
+        await self.set_user_status(record, record.status)
+        return record
+
     @action("user-updated", resources="user")
     async def update_user(self, data):
         """Update user information and track status changes."""

@@ -13,6 +13,40 @@ from fluvius.data import DataModel, UUID_TYPE
 
 from .types import OrganizationStatusEnum, ProfileStatusEnum
 
+
+class CreateUserPayload(DataModel):
+    """Payload for creating new users."""
+    # Required fields
+    username: str
+    email: str
+
+    # Name fields (map to name__* in UserSchema)
+    first_name: Optional[str] = None  # -> name__given
+    last_name: Optional[str] = None   # -> name__family
+    middle_name: Optional[str] = None # -> name__middle
+    name_prefix: Optional[str] = None # -> name__prefix
+    name_suffix: Optional[str] = None # -> name__suffix
+
+    # Telecom fields
+    phone: Optional[str] = None       # -> telecom__phone
+
+    # Authentication
+    password: Optional[str] = None
+    is_active: Optional[bool] = True
+    is_superuser: Optional[bool] = False
+
+    # Verification
+    verified_email: Optional[str] = None
+    verified_phone: Optional[str] = None
+
+    # Access control (JSON fields)
+    realm_access: Optional[List[str]] = None
+    resource_access: Optional[dict] = None
+
+    # Tags
+    system_tag: Optional[List[str]] = []
+    user_tag: Optional[List[str]] = []
+
 class CreateOrganizationPayload(DataModel):
     """Payload for creating new organizations."""
     description: Optional[str]

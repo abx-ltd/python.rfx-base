@@ -12,6 +12,84 @@ Command = IDMDomain.Command
 # ============ User Context =============
 
 
+class CreateUser(Command):
+    """
+    Create new user in Keycloak and local system.
+    Establishes user account with initial settings and verification status.
+    """
+    class Meta:
+        key = "create-user"
+        new_resource = True
+        resources = ("user",)
+        tags = ["user", "create"]
+        auth_required = True
+        policy_required = False
+
+    Data = datadef.CreateUserPayload
+
+    async def _process(self, agg, stm, payload):
+        # Prepare Keycloak user data
+        kc_user_data = {
+            "email": payload.email,
+            "username": payload.username,
+            "firstName": payload.first_name or "",
+            "lastName": payload.last_name or "",
+            "enabled": payload.is_active,
+            "requiredActions": ["VERIFY_EMAIL"],
+        }
+
+        # Add password credentials if provided
+        if payload.password:
+            kc_user_data["credentials"] = [{
+                "value": payload.password,
+                "temporary": False,
+                "type": "password",
+            }]
+        else:
+            # If no password provided, require user to update password
+            kc_user_data["requiredActions"].append("UPDATE_PASSWORD")
+
+        # Create user in Keycloak
+        kc_user = await kc_admin.create_user(kc_user_data)
+
+        # Prepare local database user data with proper field mapping
+        user_data = {
+            "_id": kc_user.id,  # Use Keycloak user ID as primary key
+            "username": payload.username,
+            "active": payload.is_active,
+            "is_super_admin": payload.is_superuser,
+
+            # Name fields (with double underscore prefix)
+            "name__given": payload.first_name,
+            "name__family": payload.last_name,
+            "name__middle": payload.middle_name,
+            "name__prefix": payload.name_prefix,
+            "name__suffix": payload.name_suffix,
+
+            # Telecom fields (with double underscore prefix)
+            "telecom__email": payload.email,
+            "telecom__phone": payload.phone,
+
+            # Verification fields
+            "verified_email": payload.verified_email or (payload.email if payload.is_active else None),
+            "verified_phone": payload.verified_phone,
+
+            # Access control (JSON fields)
+            "realm_access": payload.realm_access,
+            "resource_access": payload.resource_access,
+        }
+
+        # Add tags if provided
+        if payload.system_tag:
+            user_data["system_tag"] = payload.system_tag
+        if payload.user_tag:
+            user_data["user_tag"] = payload.user_tag
+
+        # Create user in local database
+        user = await agg.create_user(user_data)
+
+        yield agg.create_response(serialize_mapping(user), _type="idm-response")
+
 class SendAction(Command):
     """
     Send required actions to user in Keycloak (e.g., UPDATE_PASSWORD, VERIFY_EMAIL).
