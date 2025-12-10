@@ -115,6 +115,8 @@ class ProfileListView(Base):
     name__given: Mapped[Optional[str]] = mapped_column(String(1024))
     preferred_name: Mapped[Optional[str]] = mapped_column(String(255))
     username: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__email: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__phone: Mapped[Optional[str]] = mapped_column(String(1024))
     status: Mapped[ProfileStatusEnum] = mapped_column(
         SQLEnum(
             ProfileStatusEnum,

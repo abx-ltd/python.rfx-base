@@ -88,6 +88,8 @@ user_profile_list_view = PGView(
         profile.status,
         profile.active,
         profile.organization_id,
+        profile.telecom__email,
+        profile.telecom__phone,
         profile.user_id,
         organization.name AS organization_name,
         COALESCE(role_list.role_keys, '{{}}'::character varying[]) AS role_keys
@@ -135,7 +137,7 @@ org_member_view = PGView(
         ON profile._id = profile_role.profile_id
     LEFT JOIN LATERAL (
         SELECT COUNT(*) AS policy_count
-        FROM "{config.RFX_USER_SCHEMA}"._policy__user_profile AS policy
+        FROM "{config.RFX_POLICY_SCHEMA}"._policy__user_profile AS policy
         WHERE policy.org = organization._id::character varying(255)
             AND policy._deleted IS NULL
     ) AS policy_counts ON true;

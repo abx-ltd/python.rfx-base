@@ -9,7 +9,7 @@ from fluvius.data import SqlaDriver
 
 
 # Domain-specific connectors (used by Alembic)
-from .rfx_user import RFXUserConnector
+from .rfx_user import RFXUserConnector as IDMConnector
 from .rfx_policy import RFXPolicyConnector
 from .rfx_message import RFXMessageConnector
 from .rfx_media import RFXMediaConnector
@@ -18,7 +18,7 @@ from .rfx_client import RFXClientConnector
 from .rfx_discuss import RFXDiscussConnector
 
 DOMAIN_CONNECTORS = {
-    "user": RFXUserConnector,
+    "user": IDMConnector,
     "policy": RFXPolicyConnector,
     "message": RFXMessageConnector,
     "media": RFXMediaConnector,

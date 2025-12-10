@@ -32,13 +32,13 @@ import sqlalchemy as sa
 
 from fluvius.data import DomainSchema, SqlaDriver
 from sqlalchemy.dialects import postgresql as pg
-from rfx_schema import RFXUserConnector
+from rfx_schema import IDMConnector
 
 from . import types, config
 
-class IDMConnector(SqlaDriver):
-    """Database connection driver for Identity and Access Management schema."""
-    assert config.DB_DSN, "[rfx_user.DB_DSN] not set."
+# class IDMConnector(SqlaDriver):
+#     """Database connection driver for Identity and Access Management schema."""
+#     assert config.DB_DSN, "[rfx_user.DB_DSN] not set."
 
-    __db_dsn__ = config.DB_DSN
-    __schema__ = config.USER_PROFILE_SCHEMA
+#     __db_dsn__ = config.DB_DSN
+#     __schema__ = config.USER_PROFILE_SCHEMA
