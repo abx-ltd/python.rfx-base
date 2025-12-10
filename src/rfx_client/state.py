@@ -1,5 +1,5 @@
 from fluvius.data import DataAccessManager, item_query, list_query, value_query
-from .model import RFXClientConnector
+from rfx_schema.rfx_client import RFXClientConnector
 from pypika import Table, Schema
 from . import config
 

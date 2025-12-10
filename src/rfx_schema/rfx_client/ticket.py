@@ -59,7 +59,10 @@ class Ticket(TableBase):
 
     # Relationships
     parent: Mapped[Optional["Ticket"]] = relationship(
-        back_populates="children", remote_side="_id"
+        "Ticket",
+        back_populates="children",
+        remote_side="Ticket._id",  # FIX: Chỉ định remote side bằng string reference
+        foreign_keys=[parent_id]
     )
     children: Mapped[List["Ticket"]] = relationship(
         back_populates="parent", cascade="all, delete-orphan"

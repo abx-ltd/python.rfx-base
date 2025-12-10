@@ -40,6 +40,10 @@ from .views import (
     organization_weekly_credit_usage_view,
     # Status view
     status_view,
+    fn_update_pwp_date_complete,
+    fn_update_org_credit_balance,
+    trg_pwp_auto_date_complete,
+    trg_auto_update_credit_balance,
 )
 
 
@@ -79,6 +83,11 @@ def register_pg_entities(allow):
             ticket_view,
             # Status view
             status_view,
+            # trigger
+            fn_update_pwp_date_complete,
+            fn_update_org_credit_balance,
+            trg_pwp_auto_date_complete,
+            trg_auto_update_credit_balance,
         ]
     )
 

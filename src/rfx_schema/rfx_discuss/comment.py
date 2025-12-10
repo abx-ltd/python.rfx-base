@@ -90,7 +90,7 @@ class Comment(TableBase):
     parent: Mapped[Optional[Comment]] = relationship(
         "Comment",
         back_populates="children",
-        remote_side="_id",
+        remote_side="Comment._id",  # ← FIX: String reference thay vì "_id"
         foreign_keys=[parent_id],
     )
 

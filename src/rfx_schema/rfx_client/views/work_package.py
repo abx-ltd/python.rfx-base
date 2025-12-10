@@ -10,20 +10,17 @@ work_package_view = PGView(
     signature="_work_package",
     definition=f"""
     WITH work_items AS (
-         SELECT link.work_package_id,
-            wi_1._id AS work_item_id,
-            wi_1.type,
-            wi_1.price_unit,
-            wi_1.credit_per_unit,
-            wi_1.price_unit * wi_1.credit_per_unit AS total_credits,
-            wi_1.price_unit * wi_1.credit_per_unit * 30.0 AS total_cost,
-            rt.alias AS type_alias
-           FROM {config.RFX_CLIENT_SCHEMA}.work_package_work_item link
-             JOIN {config.RFX_CLIENT_SCHEMA}.work_item wi_1 ON wi_1._id = link.work_item_id AND wi_1._deleted IS NULL
-             LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rt ON wi_1.type::text = rt.key::text
-          WHERE link._deleted IS NULL
-        )
-     SELECT wp._id,
+            SELECT link.work_package_id,
+                wi_1._id AS work_item_id,
+                wi_1.type,
+                (EXTRACT(day FROM COALESCE(wi_1.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(wi_1.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(wi_1.estimate, '00:00:00'::interval)) / 60.0) * COALESCE(wi_1.credit_per_unit, 0::numeric) AS calculated_credits,
+                rt.alias AS type_alias
+            FROM {config.RFX_CLIENT_SCHEMA}.work_package_work_item link
+                JOIN {config.RFX_CLIENT_SCHEMA}.work_item wi_1 ON wi_1._id = link.work_item_id AND wi_1._deleted IS NULL
+                LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rt ON wi_1.type::text = rt.key::text
+            WHERE link._deleted IS NULL
+            )
+    SELECT wp._id,
         wp._created,
         wp._updated,
         wp._creator,
@@ -40,39 +37,35 @@ work_package_view = PGView(
         wp.organization_id IS NOT NULL AS is_custom,
         array_agg(DISTINCT wi.type_alias)::character varying(50)[] AS type_list,
         count(DISTINCT wi.work_item_id) AS work_item_count,
-        sum(wi.total_credits) AS credits,
-        sum(wi.total_credits) FILTER (WHERE wi.type::text = 'ARCHITECTURE'::text) AS architectural_credits,
-        sum(wi.total_credits) FILTER (WHERE wi.type::text = 'DEVELOPMENT'::text) AS development_credits,
-        sum(wi.total_credits) FILTER (WHERE wi.type::text = 'OPERATION'::text) AS operation_credits,
-        sum(wi.total_cost) FILTER (WHERE wi.type::text = ANY (ARRAY['ARCHITECTURE'::text, 'DEVELOPMENT'::text])) AS upfront_cost,
-        sum(wi.total_cost) FILTER (WHERE wi.type::text = 'OPERATION'::text) AS monthly_cost
-       FROM {config.RFX_CLIENT_SCHEMA}.work_package wp
-         LEFT JOIN work_items wi ON wi.work_package_id = wp._id
-      WHERE wp._deleted IS NULL
-      GROUP BY wp._id, wp._created, wp._updated, wp._creator, wp._updater, wp._deleted, wp._etag, wp._realm, 
-               wp.organization_id, wp.work_package_name, wp.description, wp.example_description, wp.complexity_level, wp.estimate;
+        round(COALESCE(sum(wi.calculated_credits), 0::numeric), 2) AS credits,
+        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'ARCHITECTURE'::text), 0::numeric), 2) AS architectural_credits,
+        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'DEVELOPMENT'::text), 0::numeric), 2) AS development_credits,
+        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'OPERATION'::text), 0::numeric), 2) AS operation_credits,
+        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = ANY (ARRAY['ARCHITECTURE'::text, 'DEVELOPMENT'::text])), 0::numeric) * 30.0, 2) AS upfront_cost,
+        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'OPERATION'::text), 0::numeric) * 30.0, 2) AS monthly_cost
+    FROM {config.RFX_CLIENT_SCHEMA}.work_package wp
+        LEFT JOIN work_items wi ON wi.work_package_id = wp._id
+    WHERE wp._deleted IS NULL
+    GROUP BY wp._id, wp._created, wp._updated, wp._creator, wp._updater, wp._deleted, wp._etag, wp._realm, wp.organization_id, wp.work_package_name, wp.description, wp.example_description, wp.complexity_level, wp.estimate;
     """,
 )
 
 project_work_package_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
     signature="_project_work_package",
-    definition="""
+    definition=f"""
     WITH work_items AS (
             SELECT link.project_work_package_id,
                 wi_1._id AS project_work_item_id,
                 wi_1.type,
-                wi_1.price_unit,
-                wi_1.credit_per_unit,
-                wi_1.price_unit * wi_1.credit_per_unit AS total_credits,
-                wi_1.price_unit * wi_1.credit_per_unit * 30.0 AS total_cost
-            FROM cpo_client.project_work_package_work_item link
-                JOIN cpo_client.project_work_item wi_1 ON wi_1._id = link.project_work_item_id AND wi_1._deleted IS NULL
+                (EXTRACT(day FROM COALESCE(wi_1.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(wi_1.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(wi_1.estimate, '00:00:00'::interval)) / 60.0) * COALESCE(wi_1.credit_per_unit, 0::numeric) AS calculated_credits
+            FROM {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item link
+                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item wi_1 ON wi_1._id = link.project_work_item_id AND wi_1._deleted IS NULL
             WHERE link._deleted IS NULL
             ), deliverable_counts AS (
             SELECT d.project_work_item_id,
                 count(DISTINCT d._id) AS deliverable_count
-            FROM cpo_client.project_work_item_deliverable d
+            FROM {config.RFX_CLIENT_SCHEMA}.project_work_item_deliverable d
             WHERE d._deleted IS NULL
             GROUP BY d.project_work_item_id
             )
@@ -96,18 +89,19 @@ project_work_package_view = PGView(
         pwp.work_package_estimate,
         array_agg(DISTINCT rwt.alias)::character varying(50)[] AS type_list,
         count(DISTINCT wi.project_work_item_id) AS work_item_count,
-        COALESCE(sum(wi.total_credits), 0::numeric) AS credits,
-        COALESCE(sum(wi.total_credits) FILTER (WHERE upper(wi.type::text) = 'ARCHITECTURE'::text), 0::numeric) AS architectural_credits,
-        COALESCE(sum(wi.total_credits) FILTER (WHERE upper(wi.type::text) = 'DEVELOPMENT'::text), 0::numeric) AS development_credits,
-        COALESCE(sum(wi.total_credits) FILTER (WHERE upper(wi.type::text) = 'OPERATION'::text), 0::numeric) AS operation_credits,
-        COALESCE(sum(wi.total_cost) FILTER (WHERE upper(wi.type::text) = ANY (ARRAY['ARCHITECTURE'::text, 'DEVELOPMENT'::text])), 0::numeric) AS upfront_cost,
-        COALESCE(sum(wi.total_cost) FILTER (WHERE upper(wi.type::text) = 'OPERATION'::text), 0::numeric) AS monthly_cost,
+        round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS credits,
+        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'ARCHITECTURE'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS architectural_credits,
+        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'DEVELOPMENT'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS development_credits,
+        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'OPERATION'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS operation_credits,
+        round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric * 30.0, 2) AS upfront_cost,
+        0::numeric AS monthly_cost,
         COALESCE(sum(dc.deliverable_count), 0::numeric) AS total_deliverables,
         pwp.status AS status_wp
-    FROM cpo_client.project_work_package pwp
-        JOIN cpo_client.project p ON p._id = pwp.project_id
+    FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
+        JOIN {config.RFX_CLIENT_SCHEMA}.project p ON p._id = pwp.project_id
         LEFT JOIN work_items wi ON wi.project_work_package_id = pwp._id
-        LEFT JOIN cpo_client.ref__work_item_type rwt ON wi.type::text = rwt.key::text
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi_join ON wi.project_work_item_id = pwi_join._id
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rwt ON pwi_join.type::text = rwt.key::text
         LEFT JOIN deliverable_counts dc ON dc.project_work_item_id = wi.project_work_item_id
     WHERE pwp._deleted IS NULL
     GROUP BY pwp._id, pwp.project_id, pwp.work_package_id, pwp.quantity, pwp.work_package_name, pwp.work_package_is_custom, pwp.work_package_estimate, p.status;

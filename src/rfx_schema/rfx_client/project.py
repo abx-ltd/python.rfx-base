@@ -194,7 +194,7 @@ class Document(TableBase):
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     # Relationships
-    participants: Mapped[List["ProjectDocumentParticipant"]] = relationship(  # noqa: F821
+    participants: Mapped[List["DocumentParticipant"]] = relationship(  # noqa: F821
         back_populates="document", cascade="all, delete-orphan"
     )
 
