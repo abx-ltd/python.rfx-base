@@ -40,6 +40,7 @@ class SendMessagePayload(DataModel):
 
     # Additional metadata
     tags: Optional[List[str]] = Field([], description="Message tags")
+    data: Optional[Dict[str, Any]] = Field(None, description="Additional data for the message")
     expiration_date: Optional[datetime] = Field(None, description="Message expiration time")
 
     @model_validator(mode='after')
@@ -108,6 +109,7 @@ class Notification(DataModel):
     is_important: Optional[bool] = Field(False, description="Whether the message is marked as important")
     expiration_date: Optional[datetime] = Field(None, description="Expiration date of the message")
     tags: Optional[list[str]] = Field(default_factory=list, description="Tags associated with the message")
+    data: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Arbitrary message metadata payload")
 
     # Template fields for client rendering
     template_key: Optional[str] = Field(None, description="Template key used for rendering")

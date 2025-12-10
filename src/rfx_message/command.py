@@ -57,6 +57,8 @@ class SendMessage(Command):
             message_payload = serialize_mapping(payload)
             recipients = message_payload.pop("recipients", None)
 
+            logger.info(f"message_payload: {message_payload}")
+
             if not recipients:
                 raise ValueError("Recipients list cannot be empty")
 

@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, Optional, Any
 from .datadef import Notification
-
+from fluvius.data import serialize_mapping
 from .types import MessageTypeEnum, RenderStrategyEnum, ProcessingModeEnum, ContentTypeEnum, PriorityLevelEnum
 
 
@@ -88,11 +88,11 @@ def message_to_notification_data(message):
         is_important=getattr(message, "is_important", False) or False,
         expiration_date=getattr(message, "expiration_date", None),
         tags=getattr(message, "tags", []) or [],
-
         # Template information for client rendering
         template_key=getattr(message, "template_key", None),
         template_version=getattr(message, "template_version", None),
         template_locale=getattr(message, "template_locale", None),
         template_data=getattr(message, "template_data", {}) or {},
         render_strategy=getattr(message, "render_strategy", RenderStrategyEnum.SERVER),
+        data=getattr(message, "data", {}) or {},
     )
