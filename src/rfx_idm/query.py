@@ -158,8 +158,8 @@ class ProfileQuery(DomainQueryResource):
     telecom__email: str = StringField("Email")
     status: str = StringField("Status")
 
-@resource('profile-list')
-class ProfileListQuery(DomainQueryResource):
+@resource('user-profile')
+class UserProfileQuery(DomainQueryResource):
     """ List current profile's users """
 
     class Meta(DomainQueryResource.Meta):
@@ -184,7 +184,7 @@ class ProfileListQuery(DomainQueryResource):
     organization_name: str = StringField("Organization Name")
 
 
-@resource('org-member-list')
+@resource('organization-member')
 class ProfileListQuery(DomainQueryResource):
     """ List current profile's users """
 
