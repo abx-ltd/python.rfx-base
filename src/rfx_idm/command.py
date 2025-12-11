@@ -332,6 +332,22 @@ class UpdateOrganization(Command):
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
 
+class ActivateOrganization(Command):
+    """
+    Reactivate previously deactivated organization.
+    Restores organizational operations and access for all associated profiles.
+    """
+    class Meta:
+        key = "activate-organization"
+        resources = ("organization",)
+        tags = ["organization"]
+        auth_required = True
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.activate_organization()
+        yield agg.create_response(serialize_mapping(result), _type="idm-response")
+
 class DeactivateOrganization(Command):
     """
     Deactivate organization and cascade to all profiles.

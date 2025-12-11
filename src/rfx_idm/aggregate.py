@@ -196,12 +196,19 @@ class IDMAggregate(Aggregate):
 
         return item
 
+    @action("organization-activated", resources="organization")
+    async def activate_organization(self, data=None):
+        """Reactivate organization and record status change."""
+        item = self.rootobj
+        await self.statemgr.update(item, status=OrganizationStatusEnum.ACTIVE.value)
+        await self.set_org_status(item, OrganizationStatusEnum.ACTIVE.value)
+
     @action("organization-deactivated", resources="organization")
     async def deactivate_organization(self, data=None):
         """Deactivate organization and record status change."""
         item = self.rootobj
-        await self.statemgr.update(item, status=OrganizationStatusEnum.DEACTIVATED)
-        await self.set_org_status(item, OrganizationStatusEnum.DEACTIVATED)
+        await self.statemgr.update(item, status=OrganizationStatusEnum.DEACTIVATED.value)
+        await self.set_org_status(item, OrganizationStatusEnum.DEACTIVATED.value)
 
     @action("org-role-created", resources="organization")
     async def create_org_role(self, data):
@@ -398,15 +405,15 @@ class IDMAggregate(Aggregate):
     async def deactivate_profile(self, data=None):
         """Deactivate profile to prevent further access."""
         item = self.rootobj
-        await self.statemgr.update(item, status=ProfileStatusEnum.DEACTIVATED)
-        await self.set_profile_status(item, ProfileStatusEnum.DEACTIVATED)
+        await self.statemgr.update(item, status=ProfileStatusEnum.DEACTIVATED.value)
+        await self.set_profile_status(item, ProfileStatusEnum.DEACTIVATED.value)
 
     @action("profile-activated", resources="profile")
     async def activate_profile(self, data=None):
         """Activate profile to allow access."""
         item = self.rootobj
-        await self.statemgr.update(item, status=ProfileStatusEnum.ACTIVE)
-        await self.set_profile_status(item, ProfileStatusEnum.ACTIVE)
+        await self.statemgr.update(item, status=ProfileStatusEnum.ACTIVE.value)
+        await self.set_profile_status(item, ProfileStatusEnum.ACTIVE.value)
 
     @action("role-assigned-to-profile", resources=("organization", "profile"))
     async def assign_role_to_profile(self, data):
