@@ -12,6 +12,26 @@ Command = IDMDomain.Command
 # ============ User Context =============
 
 
+DEFAULT_REALM_ACCESS = {
+        "roles": [
+            "offline_access",
+            "default-roles-id.neucares.com",
+            "uma_authorization",
+        ]
+}
+
+
+DEFAULT_RESOURCE_ACCESS = {
+    "account": {
+        "roles": [
+            "manage-account",
+            "manage-account-links",
+            "view-profile",
+        ]
+    }
+}
+
+
 class CreateUser(Command):
     """
     Create new user in Keycloak and local system.
@@ -23,7 +43,7 @@ class CreateUser(Command):
         resources = ("user",)
         tags = ["user", "create"]
         auth_required = True
-        policy_required = False
+        policy_required = True
 
     Data = datadef.CreateUserPayload
 
@@ -52,6 +72,9 @@ class CreateUser(Command):
         # Create user in Keycloak
         kc_user = await kc_admin.create_user(kc_user_data)
 
+        realm_access = payload.realm_access or DEFAULT_REALM_ACCESS
+        resource_access = payload.resource_access or DEFAULT_RESOURCE_ACCESS
+
         # Prepare local database user data with proper field mapping
         user_data = {
             "_id": kc_user.id,  # Use Keycloak user ID as primary key
@@ -75,8 +98,8 @@ class CreateUser(Command):
             "verified_phone": payload.verified_phone,
 
             # Access control (JSON fields)
-            "realm_access": payload.realm_access,
-            "resource_access": payload.resource_access,
+            "realm_access": realm_access,
+            "resource_access": resource_access,
         }
         # Create user in local database
         user = await agg.create_user(user_data)
@@ -94,7 +117,7 @@ class SendAction(Command):
         resources = ("user",)
         tags = ["user"]
         auth_required = True
-        policy_required = False
+        policy_required = True
 
     Data = datadef.SendActionPayload
 
@@ -124,6 +147,7 @@ class SendVerification(Command):
         resources = ("user",)
         tags = ["user"]
         auth_required = True
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         rootobj = agg.get_rootobj()
@@ -141,6 +165,7 @@ class DeactivateUser(Command):
         resources = ("user",)
         tags = ["user"]
         auth_required = True
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         rootobj = agg.get_rootobj()
