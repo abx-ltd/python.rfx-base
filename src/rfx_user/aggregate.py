@@ -86,14 +86,14 @@ class UserProfileAggregate(Aggregate):
         return item
 
     @action("user-deactivated", resources="user")
-    async def deactivate_user(self, data):
+    async def deactivate_user(self, data=None):
         """Deactivate user account and record status change."""
         item = self.rootobj
         await self.statemgr.update(item, status=UserStatusEnum.DEACTIVATED)
         await self.set_user_status(item, UserStatusEnum.DEACTIVATED)
 
     @action("user-activated", resources="user")
-    async def activate_user(self, data):
+    async def activate_user(self, data=None):
         """Activate user account and record status change."""
         item = self.rootobj
         await self.statemgr.update(item, status=UserStatusEnum.ACTIVE)

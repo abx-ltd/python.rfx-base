@@ -103,18 +103,18 @@ class IDMAggregate(Aggregate):
         return item
 
     @action("user-deactivated", resources="user")
-    async def deactivate_user(self, data):
+    async def deactivate_user(self, data=None):
         """Deactivate user account and record status change."""
         item = self.rootobj
-        await self.statemgr.update(item, status=UserStatusEnum.DEACTIVATED)
-        await self.set_user_status(item, UserStatusEnum.DEACTIVATED)
+        await self.statemgr.update(item, status=UserStatusEnum.DEACTIVATED.value)
+        await self.set_user_status(item, UserStatusEnum.DEACTIVATED.value)
 
     @action("user-activated", resources="user")
-    async def activate_user(self, data):
+    async def activate_user(self, data=None):
         """Activate user account and record status change."""
         item = self.rootobj
-        await self.statemgr.update(item, status=UserStatusEnum.ACTIVE)
-        await self.set_user_status(item, UserStatusEnum.ACTIVE)
+        await self.statemgr.update(item, status=UserStatusEnum.ACTIVE.value)
+        await self.set_user_status(item, UserStatusEnum.ACTIVE.value)
 
     @action("user-synced", resources="user")
     async def sync_user(self, data):
