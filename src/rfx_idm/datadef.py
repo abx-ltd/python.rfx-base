@@ -58,7 +58,7 @@ class CreateOrganizationPayload(DataModel):
     user_tag: Optional[List[str]] = []
     organization_code: Optional[str] = Field(max_length=255, default=None)
     invitation_code: Optional[str] = Field(max_length=10, default=None)
-    type: Optional[str] = None # FK to RefOrganizationType.key
+    # type: Optional[str] = None # FK to RefOrganizationType.key
 
 
 class UpdateOrganizationPayload(DataModel):
