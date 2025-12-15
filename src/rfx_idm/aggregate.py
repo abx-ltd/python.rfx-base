@@ -388,7 +388,7 @@ class IDMAggregate(Aggregate):
         await self.set_profile_status(record, record.status)
 
 
-        return {"profile_id": record._id}
+        return {"profile_id": str(record._id)}
 
 
     @action("profile-updated", resources="profile")
