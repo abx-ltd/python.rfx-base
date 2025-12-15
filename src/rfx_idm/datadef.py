@@ -141,7 +141,7 @@ class CreateProfilePayload(DataModel):
 class CreateProfileInOrgPayload(CreateProfilePayload):
     """Payload for creating user profiles within organizations."""
     organization_id: str
-    profile_role_key: Optional[str] = 'VIEWER'  # Default role for new profile
+    profile_role_key: str = 'VIEWER'  # Default role for new profile
     profile_role_source: Optional[str] = 'SYSTEM'  # Default role source
 
 class UpdateProfilePayload(DataModel):
