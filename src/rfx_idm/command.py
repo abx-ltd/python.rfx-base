@@ -106,6 +106,78 @@ class CreateUser(Command):
 
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
+
+class UpdateUser(Command):
+    """
+    Update user attributes in Keycloak and local datastore.
+    Synchronizes identity information, status, and verification metadata.
+    """
+    class Meta:
+        key = "update-user"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+        policy_required = True
+
+    Data = datadef.UpdateUserPayload
+
+    async def _process(self, agg, stm, payload):
+        rootobj = agg.get_rootobj()
+        user_id = rootobj._id
+
+        # Build Keycloak update payload from provided fields
+        kc_payload = {}
+        if payload.email is not None:
+            kc_payload["email"] = payload.email
+        if payload.username is not None:
+            kc_payload["username"] = payload.username
+        if payload.first_name is not None:
+            kc_payload["firstName"] = payload.first_name
+        if payload.last_name is not None:
+            kc_payload["lastName"] = payload.last_name
+        if payload.is_active is not None:
+            kc_payload["enabled"] = payload.is_active
+        if payload.verified_email is not None:
+            kc_payload["emailVerified"] = bool(payload.verified_email)
+
+        if kc_payload:
+            await kc_admin.update_user(user_id, kc_payload)
+
+        # Handle password change separately via Keycloak credential endpoint
+        if payload.password:
+            await kc_admin.set_user_password(user_id, payload.password, temporary=False)
+
+        # Map payload fields to local datastore column names
+        user_updates = {}
+
+        def set_update(value, key, transform=None):
+            if value is None:
+                return
+            user_updates[key] = transform(value) if transform else value
+
+        set_update(payload.username, "username")
+        set_update(payload.is_active, "active")
+        set_update(payload.is_superuser, "is_super_admin")
+        set_update(payload.first_name, "name__given")
+        set_update(payload.last_name, "name__family")
+        set_update(payload.middle_name, "name__middle")
+        set_update(payload.name_prefix, "name__prefix")
+        set_update(payload.name_suffix, "name__suffix")
+        set_update(payload.email, "telecom__email")
+        set_update(payload.phone, "telecom__phone")
+        set_update(payload.verified_email, "verified_email")
+        set_update(payload.verified_phone, "verified_phone")
+        set_update(payload.realm_access, "realm_access")
+        set_update(payload.resource_access, "resource_access")
+        set_update(payload.status, "status", lambda v: v.value if hasattr(v, "value") else v)
+        set_update(payload.last_verified_request, "last_verified_request")
+
+        updated_user = rootobj
+        if user_updates:
+            updated_user = await agg.update_user(user_updates)
+
+        yield agg.create_response(serialize_mapping(updated_user), _type="idm-response")
+
 class SendAction(Command):
     """
     Send required actions to user in Keycloak (e.g., UPDATE_PASSWORD, VERIFY_EMAIL).

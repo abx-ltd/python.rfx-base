@@ -11,7 +11,7 @@ from pydantic import Field, model_validator
 
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import OrganizationStatusEnum, ProfileStatusEnum
+from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum
 
 
 class CreateUserPayload(DataModel):
@@ -46,6 +46,49 @@ class CreateUserPayload(DataModel):
     # Tags
     system_tag: Optional[List[str]] = []
     user_tag: Optional[List[str]] = []
+
+
+class UpdateUserPayload(DataModel):
+    """Payload for updating existing users."""
+    username: Optional[str] = None
+    email: Optional[str] = None
+
+    # Name fields (map to name__* in UserSchema)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    name_prefix: Optional[str] = None
+    name_suffix: Optional[str] = None
+
+    # Telecom fields
+    phone: Optional[str] = None
+
+    # Authentication + status
+    password: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+    status: Optional[UserStatusEnum] = None
+
+    # Verification metadata
+    verified_email: Optional[str] = None
+    verified_phone: Optional[str] = None
+    last_verified_request: Optional[datetime] = None
+
+    # Access control (JSON fields)
+    realm_access: Optional[dict] = None
+    resource_access: Optional[dict] = None
+
+    # Tags
+    system_tag: Optional[List[str]] = None
+    user_tag: Optional[List[str]] = None
+
+    @model_validator(mode='after')
+    def validate_at_least_one_field(self):
+        """Ensure update payload contains at least one field."""
+        field_values = self.model_dump(exclude_none=True)
+        if not field_values:
+            raise ValueError("At least one field must be provided for update")
+        return self
 
 class CreateOrganizationPayload(DataModel):
     """Payload for creating new organizations."""
