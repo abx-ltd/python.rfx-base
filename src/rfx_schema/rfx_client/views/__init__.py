@@ -19,12 +19,6 @@ from .credit import (
     credit_usage_summary_view,
 )
 
-from .triggers import (
-    fn_update_pwp_date_complete,
-    fn_update_org_credit_balance,
-    trg_pwp_auto_date_complete,
-    trg_auto_update_credit_balance,
-)
 
 from .project import (
     project_view,
@@ -85,10 +79,4 @@ __all__ = [
     "ticket_view",
     # Status view
     "status_view",
-    # Trigger Functions
-    "fn_update_pwp_date_complete",
-    "fn_update_org_credit_balance",
-    # Triggers
-    "trg_pwp_auto_date_complete",
-    "trg_auto_update_credit_balance",
 ]
