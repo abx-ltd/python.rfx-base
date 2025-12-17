@@ -204,7 +204,7 @@ class UserProfileAggregate(Aggregate):
     async def remove_org_role(self, data):
         """Remove organization role and revoke from all profiles."""
         item = await self.statemgr.fetch('organization_role', data.role_id, organization_id=self.aggroot.identifier)
-        await self.statemgr.invalidate_one("organization_role", item._id)
+        await self.statemgr.invalidate_data("organization_role", item._id)
         return {"removed": True}
 
     @action("org-type-created", resources="organization")
@@ -221,7 +221,7 @@ class UserProfileAggregate(Aggregate):
         item = await self.statemgr.find_one('ref__organization_type', where=dict(key=key))
         if item is None:
             return {"message": "Organization type not found."}
-        await self.statemgr.invalidate_one('ref__organization_type', item._id)
+        await self.statemgr.invalidate_data('ref__organization_type', item._id)
         return {"removed": True}
 
 
@@ -393,14 +393,14 @@ class UserProfileAggregate(Aggregate):
         item = await self.statemgr.fetch('profile_role', profile_role_id, profile_id=self.aggroot.identifier)
         if not item:
             return {"message": f"Profile role with id {profile_role_id} not found!"}
-        await self.statemgr.invalidate_one('profile_role', item._id)
+        await self.statemgr.invalidate_data('profile_role', item._id)
 
     @action("role-cleared-from-profile", resources="profile")
     async def clear_all_role_from_profile(self):
         """Remove all roles assigned to profile."""
         roles = await self.statemgr.find_all('profile_role', where=dict(profile_id=self.aggroot.identifier))
         for role in roles:
-            await self.statemgr.invalidate_one('profile_role', role._id)
+            await self.statemgr.invalidate_data('profile_role', role._id)
 
     # ==========================================================================
     # GROUP OPERATIONS
@@ -435,13 +435,13 @@ class UserProfileAggregate(Aggregate):
         if not item:
             raise ValueError(
                 f"Profile_group association with id {data.profile_group_id} not found!")
-        await self.statemgr.invalidate_one('profile_group', item._id)
+        await self.statemgr.invalidate_data('profile_group', item._id)
 
     @action("group-cleared-from-profile", resources="profile")
     async def clear_all_group_from_profile(self):
         groups = await self.statemgr.find_all('profile_group', where=dict(profile_id=self.aggroot.identifier))
         for group in groups:
-            await self.statemgr.invalidate_one('profile_group', group._id)
+            await self.statemgr.invalidate_data('profile_group', group._id)
 
     @action("group-created", resources="group")
     async def create_group(self, data):
@@ -465,7 +465,7 @@ class UserProfileAggregate(Aggregate):
         # First remove all profile associations
         groups = await self.statemgr.find_all('profile_group', where=dict(group_id=self.aggroot.identifier))
         for group in groups:
-            await self.statemgr.invalidate_one('profile_group', group._id)
+            await self.statemgr.invalidate_data('profile_group', group._id)
 
         # Then delete the group
-        await self.statemgr.invalidate_one('group', self.aggroot.identifier)
+        await self.statemgr.invalidate_data('group', self.aggroot.identifier)

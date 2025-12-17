@@ -155,6 +155,7 @@ class ProfileQuery(DomainQueryResource):
 
     name__family: str = StringField("Family Name")
     name__given: str = StringField("Given Name")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
     telecom__email: str = StringField("Email")
     status: str = StringField("Status")
 
