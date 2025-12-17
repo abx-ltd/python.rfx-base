@@ -62,7 +62,7 @@ class ProjectDraftQuery(DomainQueryResource):
     @classmethod
     def base_query(cls, context, scope):
         profile_id = context.profile._id
-        return {"members.ov": [profile_id], "status": "DRAFT"}
+        return {"members.ov": [profile_id], "status.eq": "DRAFT"}
 
     class Meta(DomainQueryResource.Meta):
         resource = "project"
@@ -75,6 +75,7 @@ class ProjectDraftQuery(DomainQueryResource):
         backend_model = "_project"
         policy_required = "id"
 
+    status: str = StringField("Status")
     name: str = StringField("Project Name")
     description: str = StringField("Description")
     category: str = StringField("Category")
@@ -250,9 +251,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     work_package_name: str = StringField("Work Package Name")
     work_package_description: str = StringField("Work Package Description")
-    work_package_example_description: str = StringField(
-        "Work Package Example Description"
-    )
+    work_package_example_description: str = StringField("Work Package Example Description")
     work_package_complexity_level: int = IntegerField("Work Package Complexity Level")
     work_package_estimate: str = StringField("Work Package Estimate")
     work_package_is_custom: bool = BooleanField("Work Package Is Custom")
@@ -1016,9 +1015,7 @@ class OrganizationWeeklyCreditUsageQuery(DomainQueryResource):
     op_credits: float = FloatField("Operation Credits", sortable=True)
 
     # Work Package Stats
-    work_packages_completed: int = IntegerField(
-        "Work Packages Completed", sortable=True
-    )
+    work_packages_completed: int = IntegerField("Work Packages Completed", sortable=True)
 
 
 @resource("document")
