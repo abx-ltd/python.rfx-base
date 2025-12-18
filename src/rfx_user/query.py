@@ -39,7 +39,7 @@ async def accept_invitation(query_manager: UserProfileQueryManager, request: Req
             return {"error": "Invitation does not belong to the current user"}
         if invitation.status != InvitationStatusEnum.PENDING:
             return {"error": f"Invitation status is {invitation.status}, cannot accept"}
-        existing_profile = await query_manager.data_manager.find_one('profile', where=dict(
+        existing_profile = await query_manager.data_manager.exist('profile', where=dict(
             user_id=invitation.user_id,
             organization_id=invitation.organization_id
         ))

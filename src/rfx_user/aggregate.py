@@ -218,7 +218,7 @@ class UserProfileAggregate(Aggregate):
     async def remove_org_type(self, data):
         """Remove organization type."""
         key = data.get("key")
-        item = await self.statemgr.find_one('ref__organization_type', where=dict(key=key))
+        item = await self.statemgr.exist('ref__organization_type', where=dict(key=key))
         if item is None:
             return {"message": "Organization type not found."}
         await self.statemgr.invalidate_data('ref__organization_type', item._id)
@@ -242,7 +242,7 @@ class UserProfileAggregate(Aggregate):
         email = data.get("email")
         duration = data.get("duration")
         message = data.get("message", "")
-        user = await self.statemgr.find_one("user", where=dict(verified_email=email))
+        user = await self.statemgr.exist("user", where=dict(verified_email=email))
         if not user:
             return {"error": f"User with email {email} not found."}
         invitation_record = dict(
@@ -370,9 +370,9 @@ class UserProfileAggregate(Aggregate):
 
         if profile.organization_id != self.context.organization_id:
             return {"message": "Profile does not belong to current organization."}
-        role = await self.statemgr.find_one('ref__system_role', where=dict(key=role_key))
+        role = await self.statemgr.exist('ref__system_role', where=dict(key=role_key))
 
-        profile_role = await self.statemgr.find_one('profile_role', where=dict(
+        profile_role = await self.statemgr.exist('profile_role', where=dict(
             profile_id=profile_id,
         ))
         if not profile_role:

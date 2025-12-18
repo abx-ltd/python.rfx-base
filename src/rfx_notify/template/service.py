@@ -86,7 +86,7 @@ class NotificationTemplateService:
                 query = {k: v for k, v in query.items() if v is not None}
 
                 try:
-                    template = await self.stm.find_one("notification_template", where=query)
+                    template = await self.stm.exist("notification_template", where=query)
                     if template:
                         logger.debug(f"Resolved template {key} for {channel} with scope: {query}")
                         return template

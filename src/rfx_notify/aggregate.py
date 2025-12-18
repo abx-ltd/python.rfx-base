@@ -155,7 +155,7 @@ class NotifyAggregate(Aggregate):
         channel = data.get('channel')
 
         # Find existing preference
-        existing = await self.statemgr.find_one(
+        existing = await self.statemgr.exist(
             "notification_preference",
             where={'user_id': user_id, 'channel': channel}
         )

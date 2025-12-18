@@ -57,7 +57,7 @@ class RFXIDMAuthProfileProvider(
 
             # ---------- Profile ----------
             realm_query = dict(user_id=user_id, current_profile=True, status='ACTIVE', _realm=config.REALM)
-            curr_profile = await self.find_one('profile', where=realm_query)
+            curr_profile = await self.exist('profile', where=realm_query)
 
             if not curr_profile:
                 existing_profiles = await self.find_all('profile', where=dict(user_id=user_id, status='ACTIVE'))
@@ -66,7 +66,7 @@ class RFXIDMAuthProfileProvider(
                 if existing_profiles:
                     owner_profile = None
                     for candidate in existing_profiles:
-                        owner_role = await self.find_one(
+                        owner_role = await self.exist(
                             'profile_role',
                             where=dict(profile_id=candidate._id, role_key='OWNER')
                         )
@@ -133,7 +133,7 @@ class RFXIDMAuthProfileProvider(
                 profile = curr_profile
 
                 if self._active_profile:
-                    act_profile = await self.find_one('profile', identifier=self._active_profile._id)
+                    act_profile = await self.exist('profile', identifier=self._active_profile._id)
                     if not act_profile:
                         raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
 
