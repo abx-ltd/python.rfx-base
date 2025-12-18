@@ -5,9 +5,8 @@ Integrates with Keycloak for user authentication and profile management.
 Handles user data synchronization and authorization context setup.
 """
 
-from types import SimpleNamespace
 from fluvius.data import DataAccessManager, UUID_GENR
-from fluvius.auth import AuthorizationContext
+from fluvius.auth import AuthorizationContext, SessionOrganization, SessionProfile
 from fluvius.fastapi.auth import FluviusAuthProfileProvider, KeycloakTokenPayload
 from fluvius.error import UnauthorizedError
 from . import config
@@ -52,12 +51,12 @@ class RFXAuthProfileProvider(
             # ---------- User ----------
             user_id = auth_user.sub
             user_data = self.format_user_data(auth_user)
-            await self.upsert('user', user_data)
+            await self.upsert_data('user', user_data)
             user = await self.fetch('user', user_id)
 
             # ---------- Profile ----------
             realm_query = dict(user_id=user_id, current_profile=True, status='ACTIVE', _realm=config.REALM)
-            curr_profile = await self.exist('profile', where=realm_query)
+            curr_profile = await self.find_one('profile', where=realm_query)
 
             if not curr_profile:
                 existing_profiles = await self.find_all('profile', where=dict(user_id=user_id, status='ACTIVE'))
@@ -66,7 +65,7 @@ class RFXAuthProfileProvider(
                 if existing_profiles:
                     owner_profile = None
                     for candidate in existing_profiles:
-                        owner_role = await self.exist(
+                        owner_role = await self.find_one(
                             'profile_role',
                             where=dict(profile_id=candidate._id, role_key='OWNER')
                         )
@@ -127,13 +126,14 @@ class RFXAuthProfileProvider(
                     _realm=config.REALM
                 ))
                 await self.insert(profile_status)
-                profile = profile_record
+                profile = await self.fetch('profile', profile_record._id)
+                organization = await self.fetch('organization', org_record._id)
             else:
                 curr_profile = curr_profile
                 profile = curr_profile
 
                 if self._active_profile:
-                    act_profile = await self.exist('profile', identifier=self._active_profile._id)
+                    act_profile = await self.find_one('profile', identifier=self._active_profile._id)
                     if not act_profile:
                         raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
 
@@ -146,15 +146,35 @@ class RFXAuthProfileProvider(
                 organization = await self.fetch('organization', profile.organization_id)
 
         # ---------- Realm/Roles ----------
-        iamroles = auth_user.realm_access['roles']
-        # realm = str(auth_user.iss).rsplit("/", 1)[1]
+        realm_access = getattr(auth_user, "realm_access", None)
+        if realm_access and isinstance(realm_access, dict):
+            iamroles = tuple(realm_access.get("roles", ()))
+        else:
+            iamroles = tuple()
+
         realm = config.REALM
 
-        # ---------- Auth Context ----------
+        profile_payload = SessionProfile(
+            id=profile._id,
+            name=profile.name__given or profile.name__family or (profile.telecom__email or ""),
+            family_name=profile.name__family or "",
+            given_name=profile.name__given or "",
+            email=profile.telecom__email,
+            username=user.username or user.telecom__email,
+            roles=iamroles,
+            org_id=profile.organization_id,
+            usr_id=user._id,
+        )
+
+        organization_payload = SessionOrganization(
+            id=organization._id,
+            name=getattr(organization, "name", None) or getattr(organization, "business_name", None) or "Organization"
+        )
+
         return AuthorizationContext(
-            realm = realm,
-            user = user,
-            profile = profile,
-            organization = organization,
-            iamroles = iamroles
+            realm=realm,
+            user=auth_user,
+            profile=profile_payload,
+            organization=organization_payload,
+            iamroles=iamroles,
         )
