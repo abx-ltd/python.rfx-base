@@ -16,7 +16,7 @@ class RFXClientAggregate(Aggregate):
         # create a new project with the data
         """Create a new estimator (project draft)"""
         profile_id = self.get_context().profile_id
-        estimator = await self.statemgr.find_one(
+        estimator = await self.statemgr.exist(
             "_project", where={"members.ov": [profile_id], "status": "DRAFT"}
         )
         if estimator:

@@ -1,5 +1,6 @@
 from fluvius.data import DataAccessManager, item_query, list_query, value_query
-from rfx_schema.rfx_client import RFXClientConnector
+from rfx_schema.rfx_client import RFXClientConnector, _schema  # noqa
+from .policy import RFXClientPolicy  # noqa
 from pypika import Table, Schema
 from . import config
 
@@ -29,17 +30,20 @@ class RFXClientStateManager(DataAccessManager):
 
     @item_query
     def get_profile(self, profile_id):
-        return """
+        return (
+            """
             select * from {user_profile}
             where _id = $1
-        """.format(user_profile=user_profile), str(profile_id)
+        """.format(user_profile=user_profile),
+            str(profile_id),
+        )
 
     @list_query
     def get_profiles(self, profile_ids):
         if not profile_ids:
             return "SELECT * FROM {user_profile} WHERE 1=0".format(user_profile=user_profile), ()
 
-        placeholders = ', '.join(f'${i+1}' for i in range(len(profile_ids)))
+        placeholders = ", ".join(f"${i + 1}" for i in range(len(profile_ids)))
         query = """
             select * from {user_profile}
             where _id in ({placeholders})
@@ -102,45 +106,60 @@ class RFXClientStateManager(DataAccessManager):
 
     @item_query
     def count_work_packages(self, organization_id):
-        return """
+        return (
+            """
             select COUNT(*) from {wp_table}
             where organization_id = $1
-        """.format(wp_table=work_package_table), str(organization_id)
+        """.format(wp_table=work_package_table),
+            str(organization_id),
+        )
 
     @item_query
     def count_messages(self, organization_id):
-        return """
+        return (
+            """
             select COUNT(*) from {message_table}
             where organization_id = $1
-        """.format(message_table=message_table), str(organization_id)
-
+        """.format(message_table=message_table),
+            str(organization_id),
+        )
 
     @item_query
     def count_open_inquiries(self, organization_id):
-        return """
+        return (
+            """
             select COUNT(*) from {ticket_table}
             where organization_id = $1
             and status = 'OPEN'
-        """.format(ticket_table=ticket_table), str(organization_id)
+        """.format(ticket_table=ticket_table),
+            str(organization_id),
+        )
 
     @value_query
     def get_status_id(self, entity_type):
-        return """
+        return (
+            """
             select _id from {status_table}
             where entity_type = $1
             and _deleted is null
-        """.format(status_table=status_table), str(entity_type)
+        """.format(status_table=status_table),
+            str(entity_type),
+        )
 
     @value_query
     def has_status_key(self, status_id, key):
-        return """
+        return (
+            """
             select exists (
             select _id from {sk_table}
                 where status_id = $1
                 and key = $2
                 and _deleted is null
             )
-        """.format(sk_table=status_key_table), str(status_id), str(key)
+        """.format(sk_table=status_key_table),
+            str(status_id),
+            str(key),
+        )
 
     @value_query
     def has_status_transition(self, status_id, current_status, new_status):
@@ -155,18 +174,20 @@ class RFXClientStateManager(DataAccessManager):
                 and ws_dst.key = $3
             )
         """
-        return query.format(
-            st_table=status_transition_table,
-            sk_table=status_key_table
-        ), str(status_id), str(current_status), str(new_status)
-        
+        return (
+            query.format(st_table=status_transition_table, sk_table=status_key_table),
+            str(status_id),
+            str(current_status),
+            str(new_status),
+        )
+
     @item_query
     def get_project_integration(self, provider: str, external_id: str, project_id):
         """
         Tìm một bản ghi project-integration cụ thể dựa trên
         provider, external_id, và project_id.
         """
-        
+
         query = """
             SELECT * FROM {pi_table}
             WHERE
@@ -174,40 +195,44 @@ class RFXClientStateManager(DataAccessManager):
                 external_id = $2 AND
                 project_id = $3
         """
-        return query.format(
-            pi_table=project_integration_table
-        ), provider, external_id, str(project_id)
-    
-    
+        return query.format(pi_table=project_integration_table), provider, external_id, str(project_id)
+
     # Ticket Queries
     @value_query
     def get_project_id_by_ticket_id(self, ticket_id):
         """
         Lấy project_id từ bảng project-ticket bằng ticket_id.
         """
-        return """
+        return (
+            """
             SELECT project_id FROM {pt_table}
             WHERE ticket_id = $1
-        """.format(pt_table=project_ticket_table), str(ticket_id)
-        
+        """.format(pt_table=project_ticket_table),
+            str(ticket_id),
+        )
+
     @list_query
     def get_ticket_ids_by_project_id(self, project_id):
         """
         Lấy danh sách ticket_id từ bảng project-ticket (schema cpo-client).
         """
-        return """
+        return (
+            """
             SELECT ticket_id FROM {pt_table}
             WHERE project_id = $1
-        """.format(pt_table=project_ticket_table), str(project_id)
+        """.format(pt_table=project_ticket_table),
+            str(project_id),
+        )
 
     @list_query
     def get_tickets_by_ids(self, ticket_ids: list):
         """
         Lấy thông tin chi tiết của các ticket dựa trên danh sách ID.
         """
-        return """
+        return (
+            """
             SELECT * FROM {ticket_table}
             WHERE _id = ANY($1)
-        """.format(ticket_table=ticket_table), ticket_ids
-    
-    
+        """.format(ticket_table=ticket_table),
+            ticket_ids,
+        )

@@ -2,7 +2,7 @@ from fluvius.domain import Domain, SQLDomainLogStore
 
 from .aggregate import RFXClientAggregate
 from .state import RFXClientStateManager
-from .policy import RFXClientPolicyManager
+from .policy import RFXClientPolicyManager, RFXClientPolicy  # noqa
 from . import config
 
 

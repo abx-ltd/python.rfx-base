@@ -21,6 +21,8 @@ from .types import ContactMethodEnum
 from datetime import datetime
 from typing import Optional
 
+from rfx_schema.rfx_client import _schema, _viewmap  # noqa
+
 
 default_exclude_fields = [
     "realm",
