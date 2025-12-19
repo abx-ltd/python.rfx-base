@@ -6,4 +6,4 @@ POLICY_SCHEMA = "rfx__user"
 POLICY_TABLE = "_policy__idm_profile"
 
 IDM_SCHEMA = "rfx__user"
-IDM_NAMESPACE = "idm-service"
+IDM_NAMESPACE = "rfx-idm"
