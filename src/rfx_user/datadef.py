@@ -246,3 +246,7 @@ class SyncUserPayload(DataModel):
     sync_actions: Optional[bool] = True  # Whether to sync required actions
     user_data: dict  # User data from Keycloak
     required_actions: Optional[list[str]] = []  # Required actions from Keycloak
+
+class SwitchProfilePayload(DataModel):
+    """Payload for switching active user profiles."""
+    profile_id: UUID_TYPE

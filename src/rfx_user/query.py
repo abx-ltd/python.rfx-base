@@ -2,14 +2,17 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import Request
 from pydantic import BaseModel
+from fastapi.responses import RedirectResponse
 from fluvius.data import UUID_TYPE, UUID_GENR
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
 from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID
 
+from . import config
 from .state import IDMStateManager
 from .domain import UserProfileDomain
 from .policy import UserProfilePolicyManager
 from .types import InvitationStatusEnum
+from .datadef import SwitchProfilePayload
 from . import scope
 
 
@@ -116,6 +119,29 @@ async def reject_invitation(query_manager: UserProfileQueryManager, request: Req
             dst_state=invitation.status
         )
         return {"success": True}
+
+@endpoint('.profile/switch', methods=['POST'])
+async def switch_profile(query_manager: UserProfileQueryManager, request: Request, body: SwitchProfilePayload):
+    context = request.state.auth_context
+    profile_id = body.profile_id
+    profile = await query_manager.data_manager.fetch('profile', profile_id)
+    if profile.user_id != context.profile.user_id:
+        return {"error": "Profile does not belong to the current user"}
+    profiles = await query_manager.find_all(
+        'profile',
+        where=dict(
+            user_id=context.profile.user_id,
+            status='ACTIVE'
+        ))
+
+    for p in profiles:
+        if p._id == profile._id:
+            await query_manager.data_manager.update(p, current_profile=True)
+        else:
+            await query_manager.data_manager.update(p, current_profile=False)
+
+    redirect_url = config.REALM_URL_MAPPER.get(config.REALM, '/')
+    return RedirectResponse(redirect_url, status_code=302)
 
 @resource('user')
 class UserQuery(DomainQueryResource):
