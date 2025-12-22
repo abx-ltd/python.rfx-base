@@ -179,9 +179,10 @@ class ProfileQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope):
-      return {'organization_id': context.organization._id}
+      return {'user_id': context.user._id}
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+    user_id: UUID_TYPE = UUIDField("User ID")
     name__family: str = StringField("Family Name")
     name__given: str = StringField("Given Name")
     telecom__email: str = StringField("Email")
