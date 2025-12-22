@@ -138,12 +138,18 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
 
         target_id = str(profile._id)
         for p in profiles:
-            is_current = str(p._id) == target_id
-            await query_manager.data_manager.update_data(
-                'profile',
-                p._id,
-                current_profile=is_current
-            )
+            if str(p._id) == target_id:
+                await query_manager.data_manager.update_data(
+                    'profile',
+                    p._id,
+                    current_profile=True
+                )
+            else:
+                await query_manager.data_manager.update_data(
+                    'profile',
+                    p._id,
+                    current_profile=False
+                )
 
     redirect_url = config.REALM_URL_MAPPER.get(config.REALM, '/')
     return RedirectResponse(redirect_url, status_code=303)
