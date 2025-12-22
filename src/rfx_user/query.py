@@ -190,7 +190,7 @@ class ProfileQuery(DomainQueryResource):
     name__given: str = StringField("Given Name")
     telecom__email: str = StringField("Email")
     status: str = StringField("Status")
-    current_profile = BooleanField("Current Profile")
+    current_profile: bool = BooleanField("Current Profile")
 
 @resource('profile-detail')
 class ProfileDetailQuery(DomainQueryResource):
