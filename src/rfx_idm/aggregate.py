@@ -102,6 +102,57 @@ class IDMAggregate(Aggregate):
             await self.set_user_status(item, data.status)
         return item
 
+    @action("user-synced", resources="user")
+    async def sync_user(self, data):
+        """
+        Synchronize user data from Keycloak and manage required actions.
+        Handles action lifecycle (pending -> completed) based on Keycloak state.
+        """
+        user = self.rootobj
+        await self.statemgr.update(user, **data.user_data)
+
+        # Handle user actions
+        if data.sync_actions:
+            # Get current pending actions from database
+            current_actions = await self.statemgr.find_all('user_action', where=dict(
+                user_id=user._id,
+                status='PENDING'
+            ))
+
+            # If there are required actions from Keycloak, update or create them
+            if data.required_actions:
+                # Track which actions we've seen
+                processed_actions = set()
+
+                for action in data.required_actions:
+                    # Try to find existing action
+                    existing = next(
+                        (a for a in current_actions if a.action == action), None)
+
+                    if existing:
+                        # Action already exists, mark as seen
+                        processed_actions.add(existing._id)
+                    else:
+                        # Create new action record
+                        record = self.init_resource('user_action', dict(
+                            user_id=user._id,
+                            action=action,
+                            name=action,
+                            status='PENDING'
+                        ))
+                        await self.statemgr.insert(record)
+
+                # Any current actions not in required_actions should be marked as completed
+                for action in current_actions:
+                    if action._id not in processed_actions:
+                        await self.statemgr.update(action, status='COMPLETED')
+            else:
+                # If no required actions, mark all pending actions as completed
+                for action in current_actions:
+                    await self.statemgr.update(action, status='COMPLETED')
+
+        return user
+
     @action("user-deactivated", resources="user")
     async def deactivate_user(self, data=None):
         """Deactivate user account and record status change."""

@@ -82,12 +82,20 @@ class UpdateUserPayload(DataModel):
     system_tag: Optional[List[str]] = None
     user_tag: Optional[List[str]] = None
 
+    # Sync options
+    sync_remote: bool = False
+    force_sync: bool = False
+    sync_actions: bool = True
+
     @model_validator(mode='after')
     def validate_at_least_one_field(self):
-        """Ensure update payload contains at least one field."""
-        field_values = self.model_dump(exclude_none=True)
-        if not field_values:
-            raise ValueError("At least one field must be provided for update")
+        """Ensure update payload contains at least one field or an explicit sync instruction."""
+        field_values = self.model_dump(
+            exclude_none=True,
+            exclude={"sync_remote", "force_sync", "sync_actions"}
+        )
+        if not field_values and not (self.sync_remote or self.force_sync):
+            raise ValueError("Provide update fields or enable sync_remote/force_sync")
         return self
 
 class CreateOrganizationPayload(DataModel):
@@ -324,7 +332,7 @@ class UpdateGroupPayload(DataModel):
 
 class SyncUserPayload(DataModel):
     """Payload for synchronizing user data with Keycloak."""
-    force: Optional[bool] = False  # Force sync even if recently synced
-    sync_actions: Optional[bool] = True  # Whether to sync required actions
-    user_data: dict  # User data from Keycloak
-    required_actions: Optional[list[str]] = []  # Required actions from Keycloak
+    force: bool = False  # Force sync even if recently synced
+    sync_actions: bool = True  # Whether to sync required actions
+    user_data: dict = Field(default_factory=dict)  # User data from Keycloak
+    required_actions: List[str] = Field(default_factory=list)  # Required actions from Keycloak

@@ -176,7 +176,70 @@ class UpdateUser(Command):
         if user_updates:
             updated_user = await agg.update_user(user_updates)
 
-        yield agg.create_response(serialize_mapping(updated_user), _type="idm-response")
+        update_performed = bool(kc_payload) or bool(payload.password) or bool(user_updates)
+
+        sync_requested = payload.sync_remote or payload.force_sync
+        sync_only = sync_requested and not update_performed
+
+        synced_user = None
+        sync_status = None
+        if sync_requested:
+            synced_user, sync_status = await self._sync_from_keycloak(
+                agg,
+                force_sync=payload.force_sync,
+                sync_actions=payload.sync_actions
+            )
+
+            if sync_status and sync_only:
+                yield agg.create_response(sync_status, _type="idm-response")
+                return
+
+        result_user = synced_user or updated_user
+        response_payload = serialize_mapping(result_user)
+
+        if sync_status and not sync_only:
+            response_payload["sync_status"] = sync_status
+
+        yield agg.create_response(response_payload, _type="idm-response")
+
+    async def _sync_from_keycloak(self, agg, force_sync: bool, sync_actions: bool):
+        """Pull latest user info from Keycloak and update local state."""
+        user = agg.get_rootobj()
+        if not force_sync and getattr(user, "last_sync", None):
+            elapsed = (datetime.utcnow() - user.last_sync).total_seconds()
+            if elapsed < 300:
+                return None, {"status": "skipped", "reason": "Recently synced"}
+
+        user_id = user._id
+        kc_user = await kc_admin.get_user(user_id)
+        if not kc_user:
+            raise ValueError(f"User {user_id} not found in Keycloak")
+
+        user_data = {
+            "name__family": kc_user.lastName,
+            "name__given": kc_user.firstName,
+            "telecom__email": kc_user.email,
+            "username": kc_user.username,
+            "active": kc_user.enabled,
+            "realm_access": kc_user.realmRoles,
+            "resource_access": kc_user.clientRoles,
+            "verified_email": kc_user.emailVerified and kc_user.email,
+            "last_sync": datetime.utcnow()
+        }
+
+        required_actions = []
+        if hasattr(kc_user, 'requiredActions'):
+            required_actions = kc_user.requiredActions
+
+        sync_payload = datadef.SyncUserPayload(
+            force=force_sync,
+            sync_actions=sync_actions,
+            user_data=user_data,
+            required_actions=required_actions
+        )
+
+        synced_user = await agg.sync_user(sync_payload)
+        return synced_user, None
 
 class SendAction(Command):
     """
@@ -294,68 +357,6 @@ class ActivateUser(Command):
 
         await kc_admin.update_user(rootobj._id, user_data)
         await agg.activate_user()
-
-
-class SyncUser(Command):
-    """
-    Synchronize user information from Keycloak to local system.
-    Implements intelligent sync with rate limiting (5-minute minimum interval)
-    unless force flag is used. Retrieves user profile, roles, and verification status.
-    """
-    class Meta:
-        key = "sync-user"
-        resources = ("user",)
-        tags = ["user"]
-        auth_required = True
-        description = "Synchronize user information from Keycloak"
-
-    Data = datadef.SyncUserPayload
-
-    async def _process(self, agg, stm, payload):
-        # Check if sync is needed
-        if not payload.force:
-            user = agg.get_rootobj()
-            if user.last_sync:
-                # Don't sync if last sync was less than 5 minutes ago
-                if (datetime.utcnow() - user.last_sync).total_seconds() < 300:
-                    yield agg.create_response({"status": "skipped", "reason": "Recently synced"}, _type="idm-response")
-                    return
-
-        # Get user info from Keycloak
-        user_id = agg.get_rootobj()._id
-        kc_user = await kc_admin.get_user(user_id)
-        if not kc_user:
-            raise ValueError(f"User {user_id} not found in Keycloak")
-
-        # Extract user data from Keycloak response
-        user_data = {
-            "name__family": kc_user.lastName,
-            "name__given": kc_user.firstName,
-            "telecom__email": kc_user.email,
-            "username": kc_user.username,
-            "active": kc_user.enabled,
-            "realm_access": kc_user.realmRoles,
-            "resource_access": kc_user.clientRoles,
-            "verified_email": kc_user.emailVerified and kc_user.email,
-            "last_sync": datetime.utcnow()
-        }
-
-        # Get required actions
-        required_actions = []
-        if hasattr(kc_user, 'requiredActions'):
-            required_actions = kc_user.requiredActions
-
-        # Create sync payload with Keycloak data
-        sync_payload = datadef.SyncUserPayload(
-            force=payload.force,
-            sync_actions=payload.sync_actions,
-            user_data=user_data,
-            required_actions=required_actions
-        )
-
-        # Perform sync
-        user = await agg.sync_user(sync_payload)
-        yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
 
 # ============ Organization Context =============

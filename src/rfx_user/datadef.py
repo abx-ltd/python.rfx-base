@@ -242,10 +242,10 @@ class UpdateGroupPayload(DataModel):
 
 class SyncUserPayload(DataModel):
     """Payload for synchronizing user data with Keycloak."""
-    force: Optional[bool] = False  # Force sync even if recently synced
-    sync_actions: Optional[bool] = True  # Whether to sync required actions
-    user_data: dict  # User data from Keycloak
-    required_actions: Optional[list[str]] = []  # Required actions from Keycloak
+    force: bool = False  # Force sync even if recently synced
+    sync_actions: bool = True  # Whether to sync required actions
+    user_data: dict = Field(default_factory=dict)  # User data from Keycloak
+    required_actions: List[str] = Field(default_factory=list)  # Required actions from Keycloak
 
 class SwitchProfilePayload(DataModel):
     """Payload for switching active user profiles."""
