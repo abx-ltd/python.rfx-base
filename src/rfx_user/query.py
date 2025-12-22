@@ -136,8 +136,9 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
                 _realm=config.REALM
             ))
 
+        target_id = str(profile._id)
         for p in profiles:
-            is_current = p._id == profile._id
+            is_current = str(p._id) == target_id
             await query_manager.data_manager.update_data(
                 'profile',
                 p._id,
