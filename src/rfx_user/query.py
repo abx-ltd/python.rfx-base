@@ -143,7 +143,7 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
                 await query_manager.data_manager.update(p, current_profile=False)
 
     redirect_url = config.REALM_URL_MAPPER.get(config.REALM, '/')
-    return RedirectResponse(redirect_url, status_code=302)
+    return RedirectResponse(redirect_url, status_code=303)
 
 @resource('user')
 class UserQuery(DomainQueryResource):
