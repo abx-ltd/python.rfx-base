@@ -131,7 +131,8 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
         'profile',
         where=dict(
             user_id=context.profile.user_id,
-            status='ACTIVE'
+            status='ACTIVE',
+            _realm=config.REALM
         ))
 
     for p in profiles:
