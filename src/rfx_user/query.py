@@ -128,7 +128,7 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
         profile = await query_manager.data_manager.fetch('profile', profile_id)
         if profile.user_id != context.profile.usr_id:
             return {"error": "Profile does not belong to the current user"}
-        profiles = await query_manager.find_all(
+        profiles = await query_manager.data_manager.find_all(
             'profile',
             where=dict(
                 user_id=context.profile.usr_id,
