@@ -183,14 +183,20 @@ class UserQuery(DomainQueryResource):
 class ProfileQuery(DomainQueryResource):
     """ List current profile's user """
     class Meta(DomainQueryResource.Meta):
+        include_all = True
         allow_item_view = True
         allow_list_view = True
+        allow_meta_view = True
+        backend_model = "_profile_list"
+
+        excluded_fields = ["_updated", "_updater", "_creator", "_created", "_deleted", "_etag"]
 
     @classmethod
     def base_query(cls, context, scope):
       return {'user_id': context.user._id}
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+    organization_name: str = StringField("Organization Name")
     user_id: UUID_TYPE = UUIDField("User ID")
     name__family: str = StringField("Family Name")
     name__given: str = StringField("Given Name")
