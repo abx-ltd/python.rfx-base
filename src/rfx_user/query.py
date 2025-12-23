@@ -123,7 +123,8 @@ async def reject_invitation(query_manager: UserProfileQueryManager, request: Req
 @endpoint('.switch-profile/{profile_id}')
 async def switch_profile(query_manager: UserProfileQueryManager, request: Request, profile_id: str):
     context = request.state.auth_context
-    profile_id = profile_id
+    if profile_id == str(context.profile._id):
+        return {"error": "Cannot switch to the current profile"}
     async with query_manager.data_manager.transaction():
         profile = await query_manager.data_manager.fetch('profile', profile_id)
         if profile.user_id != context.profile.usr_id:
@@ -133,7 +134,7 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
             where=dict(
                 user_id=context.profile.usr_id,
                 status='ACTIVE',
-                _realm=config.REALM
+                _realm=profile._realm
             ))
 
         target_id = str(profile._id)
@@ -151,7 +152,7 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
                     current_profile=False
                 )
 
-    redirect_url = config.REALM_URL_MAPPER.get(config.REALM, '/')
+    redirect_url = config.REALM_URL_MAPPER.get(profile._realm, '/')
     return RedirectResponse(redirect_url, status_code=303)
 
 @resource('user')
