@@ -437,8 +437,8 @@ class IDMAggregate(Aggregate):
             "profile",
             **data,
             _id=UUID_GENR(),
-            _realm=realm
         )
+        record._realm = realm
         await self.statemgr.insert(record)
         await self.set_profile_status(record, record.status)
 

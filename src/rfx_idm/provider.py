@@ -69,7 +69,7 @@ class RFXIDMAuthProfileProvider(
 
                 if realm_profiles:
                     profile = realm_profiles[0]
-                    await self.update_data('profile', identifier=profile._id, current_profile=True)
+                    await self.update_data('profile', profile._id, current_profile=True)
                 else:
                     raise UnauthorizedError('U100-404', f'Profile not found for realm [{config.REALM}].')
 
@@ -79,8 +79,8 @@ class RFXIDMAuthProfileProvider(
                     raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
 
                 if profile and profile._id != act_profile._id:
-                    await self.update_data('profile', identifier=profile._id, current_profile=False)
-                    await self.update_data('profile', identifier=act_profile._id, current_profile=True)
+                    await self.update_data('profile', profile._id, current_profile=False)
+                    await self.update_data('profile', act_profile._id, current_profile=True)
 
                 profile = act_profile
 
