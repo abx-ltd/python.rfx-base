@@ -132,23 +132,6 @@ class CreditSummaryView(TableBase):
     last_usage_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
-class CreditUsageView(TableBase):
-    """View: _credit_usage - Project credit usage by week"""
-
-    __tablename__ = "_credit_usage"
-    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
-
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    usage_year: Mapped[int] = mapped_column(Integer)
-    usage_week: Mapped[int] = mapped_column(Integer)
-    usage_month: Mapped[int] = mapped_column(Integer)
-    week_start_date: Mapped[datetime] = mapped_column(DateTime)
-
-    ar_credits: Mapped[float] = mapped_column(Numeric(12, 2))
-    de_credits: Mapped[float] = mapped_column(Numeric(12, 2))
-    op_credits: Mapped[float] = mapped_column(Numeric(12, 2))
-    total_credits: Mapped[float] = mapped_column(Numeric(12, 2))
-
 
 # ============================================================================
 # PROJECT VIEWS

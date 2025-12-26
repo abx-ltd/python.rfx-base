@@ -130,7 +130,7 @@ class Comment(TableBase):
 class CommentAttachment(TableBase):
     """
     Media attachments for comments (images, videos, documents).
-    Links to media-entry table in cpo-media schema.
+    Links to media-entry table in rfx-media schema.
     """
 
     from ..rfx_media.media import MediaEntry

@@ -12,7 +12,6 @@ from .comment import (
 )
 from .credit import (
     credit_summary_view,
-    credit_usage_view,
     organization_credit_summary_view,
     organization_weekly_credit_usage_view,
     credit_purchase_history_view,
@@ -55,7 +54,6 @@ __all__ = [
     "comment_reaction_summary_view",
     # Credit views
     "credit_summary_view",
-    "credit_usage_view",
     "organization_credit_summary_view",
     "organization_weekly_credit_usage_view",
     "credit_purchase_history_view",

@@ -107,23 +107,23 @@ project_credit_summary_view = PGView(
 project_estimate_summary_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
     signature="_project_estimate_summary",
-    definition="""
+    definition=f"""
     WITH project_credits AS (
          SELECT pwp.project_id,
             sum(wi.price_unit * wi.credit_per_unit * pwp.quantity::numeric) FILTER (WHERE wi.type::text = 'ARCHITECTURE'::text) AS architectural_credits,
             sum(wi.price_unit * wi.credit_per_unit * pwp.quantity::numeric) FILTER (WHERE wi.type::text = 'DEVELOPMENT'::text) AS development_credits,
             sum(wi.price_unit * wi.credit_per_unit * pwp.quantity::numeric) FILTER (WHERE wi.type::text = 'OPERATION'::text) AS operation_credits,
             sum(wi.price_unit * wi.credit_per_unit * pwp.quantity::numeric) AS total_credits
-           FROM cpo_client.project_work_package pwp
-             JOIN cpo_client.work_package_work_item wpwi ON pwp.work_package_id = wpwi.work_package_id AND wpwi._deleted IS NULL
-             JOIN cpo_client.work_item wi ON wpwi.work_item_id = wi._id AND wi._deleted IS NULL
+           FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
+             JOIN {config.RFX_CLIENT_SCHEMA}.work_package_work_item wpwi ON pwp.work_package_id = wpwi.work_package_id AND wpwi._deleted IS NULL
+             JOIN {config.RFX_CLIENT_SCHEMA}.work_item wi ON wpwi.work_item_id = wi._id AND wi._deleted IS NULL
           WHERE pwp._deleted IS NULL
           GROUP BY pwp.project_id
         ), referral AS (
          SELECT p_1._id AS project_id,
             COALESCE(pr.discount_value, 0::numeric) AS discount_value
-           FROM cpo_client.project p_1
-             LEFT JOIN cpo_client.promotion pr ON pr.code::text = p_1.referral_code_used::text AND pr._deleted IS NULL AND pr.valid_from <= now() AND pr.valid_until >= now() AND pr.current_uses < pr.max_uses
+           FROM {config.RFX_CLIENT_SCHEMA}.project p_1
+             LEFT JOIN {config.RFX_CLIENT_SCHEMA}.promotion pr ON pr.code::text = p_1.referral_code_used::text AND pr._deleted IS NULL AND pr.valid_from <= now() AND pr.valid_until >= now() AND pr.current_uses < pr.max_uses
         )
         SELECT p._id,
             p._created,
@@ -142,7 +142,7 @@ project_estimate_summary_view = PGView(
             COALESCE(pc.total_credits, 0::numeric) AS total_credits_raw,
             COALESCE(pc.total_credits, 0::numeric) - r.discount_value / 30.0 AS total_credits_after_discount,
             (COALESCE(pc.total_credits, 0::numeric) - r.discount_value / 30.0) * 30.0 AS total_cost
-        FROM cpo_client.project p
+        FROM {config.RFX_CLIENT_SCHEMA}.project p
             LEFT JOIN project_credits pc ON pc.project_id = p._id
             LEFT JOIN referral r ON r.project_id = p._id;
     """,
@@ -152,7 +152,7 @@ project_estimate_summary_view = PGView(
 document_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
     signature="_document",
-    definition="""
+    definition=f"""
     SELECT d._id,
     d._created,
     d._updated,
@@ -175,16 +175,16 @@ document_view = PGView(
     me.length AS file_length,
     jsonb_build_object('id', creator._id, 'name', COALESCE(creator.preferred_name, concat(creator.name__given, ' ', creator.name__family)::character varying), 'avatar', creator.picture_id) AS created_by,
     COALESCE(( SELECT json_agg(jsonb_build_object('id', part._id, 'name', COALESCE(part.preferred_name, concat(part.name__given, ' ', part.name__family)::character varying), 'avatar', part.picture_id, 'role', dp.role)) AS json_agg
-           FROM cpo_client.document_participant dp
-             JOIN cpo_user.profile part ON part._id = dp.participant_id
+           FROM {config.RFX_CLIENT_SCHEMA}.document_participant dp
+             JOIN {config.RFX_USER_SCHEMA}.profile part ON part._id = dp.participant_id
           WHERE dp.document_id = d._id AND dp._deleted IS NULL), '[]'::json) AS participants,
     COALESCE(( SELECT count(DISTINCT dp.participant_id) AS count
-           FROM cpo_client.document_participant dp
+           FROM {config.RFX_CLIENT_SCHEMA}.document_participant dp
           WHERE dp.document_id = d._id AND dp._deleted IS NULL), 0::bigint)::integer AS participant_count,
     GREATEST(d._created, d._updated) AS activity
-   FROM cpo_client.document d
-     LEFT JOIN "cpo-media"."media-entry" me ON d.media_entry_id = me._id
-     LEFT JOIN cpo_user.profile creator ON d._creator = creator._id
+   FROM {config.RFX_CLIENT_SCHEMA}.document d
+     LEFT JOIN "{config.RFX_MEDIA_SCHEMA}"."media-entry" me ON d.media_entry_id = me._id
+     LEFT JOIN {config.RFX_USER_SCHEMA}.profile creator ON d._creator = creator._id
   WHERE d._deleted IS NULL
   ORDER BY d.organization_id, d._created DESC;
     """,

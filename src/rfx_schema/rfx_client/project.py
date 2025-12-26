@@ -8,6 +8,8 @@ from datetime import datetime
 from typing import List, Optional
 import uuid
 
+from rfx_base import config
+
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -58,7 +60,7 @@ class Project(TableBase):
         SQLEnum(SyncStatusEnum, name="syncstatusenum", schema=SCHEMA),
         default=SyncStatusEnum.PENDING,
         # Fix: Thêm server_default để khớp với DDL
-        server_default=text("'PENDING'::cpo_client.syncstatusenum"),
+        server_default=text(f"'PENDING'::{config.RFX_CLIENT_SCHEMA}.syncstatusenum"),
     )
 
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))

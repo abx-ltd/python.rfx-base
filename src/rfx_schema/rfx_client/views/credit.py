@@ -56,60 +56,6 @@ credit_summary_view = PGView(
     """,
 )
 
-credit_usage_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
-    signature="_credit_usage",
-    definition=f"""
-    SELECT p._id,
-        p._created,
-        p._creator,
-        p._deleted,
-        p._etag,
-        p._updated,
-        p._realm,
-        p.organization_id,
-        EXTRACT(isoyear FROM activity_log_entry._created) AS usage_year,
-        EXTRACT(week FROM activity_log_entry._created) AS usage_week,
-        EXTRACT(month FROM activity_log_entry._created) AS usage_month,
-        date_trunc('week'::text, activity_log_entry._created)::date AS week_start_date,
-        COALESCE(sum(
-            CASE
-                WHEN rwt.alias::text = 'AR'::text THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                ELSE 0::numeric
-            END), 0::numeric) AS ar_credits,
-        COALESCE(sum(
-            CASE
-                WHEN rwt.alias::text = 'DE'::text THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                ELSE 0::numeric
-            END), 0::numeric) AS de_credits,
-        COALESCE(sum(
-            CASE
-                WHEN rwt.alias::text = 'OP'::text THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
-                ELSE 0::numeric
-            END), 0::numeric) AS op_credits,
-        COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) AS total_credits
-       FROM {config.RFX_CLIENT_SCHEMA}.project p
-         JOIN LATERAL ( SELECT al._created
-               FROM "{config.RFX_AUDIT_SCHEMA}"."activity-log" al
-              WHERE al.identifier = p._id 
-                AND al.resource::text = 'project'::text 
-                AND al.msglabel::text = 'create-project'::text
-              ORDER BY al._created
-             LIMIT 1) activity_log_entry ON true
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package pwp ON p._id = pwp.project_id AND pwp._deleted IS NULL
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rwt ON pwi.type::text = rwt.key::text
-      WHERE p.status::text = 'ACTIVE'::text AND activity_log_entry._created IS NOT NULL
-      GROUP BY p._id, p._created, p._creator, p._deleted, p._etag, p._updated, p._realm, 
-               (EXTRACT(isoyear FROM activity_log_entry._created)), 
-               (EXTRACT(week FROM activity_log_entry._created)), 
-               (EXTRACT(month FROM activity_log_entry._created)), 
-               (date_trunc('week'::text, activity_log_entry._created))
-      ORDER BY (EXTRACT(isoyear FROM activity_log_entry._created)) DESC, 
-               (EXTRACT(week FROM activity_log_entry._created)) DESC;
-    """,
-)
 
 organization_credit_summary_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
