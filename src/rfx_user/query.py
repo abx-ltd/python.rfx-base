@@ -368,3 +368,25 @@ class ReceivedInvitationQuery(DomainQueryResource):
     status: str = EnumField("Status")
     message: str = StringField("Message")
     expires_at: datetime = StringField("Expiration DateTime")
+
+@resource('guest-user')
+class GuestUserQuery(DomainQueryResource):
+    """ Query guest user information """
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"id": context.user._id}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "guest_user"
+
+        resource = "guest_user"
+
+    id: UUID_TYPE = PrimaryID("Guest User ID")
+    email: str = StringField("Email")
+    full_name: str = StringField("Full Name")
+    email_verified: bool = BooleanField("Email Verified")
+    phone: str = StringField("Phone")

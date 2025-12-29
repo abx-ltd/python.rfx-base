@@ -25,3 +25,4 @@ jinja2
 markdown
 markupsafe
 alembic_utils
+napas-qr-python

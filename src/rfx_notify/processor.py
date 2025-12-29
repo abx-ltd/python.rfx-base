@@ -24,7 +24,7 @@ class NotificationContentProcessor:
         notification: DataModel,
         *,
         context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    ) -> list[Dict[str, Any]]:
         """
         Process notification content based on type.
 
@@ -101,7 +101,7 @@ class NotificationContentProcessor:
             'notification_id': notification._id,
             'timestamp': datetime.utcnow().isoformat(),
             'recipient_id': getattr(notification, 'recipient_id', None),
-            'recipient_address': notification.recipient_address,
+            'recipients': getattr(notification, 'recipients', None),
             # Add more system variables as needed
         })
 
@@ -129,8 +129,9 @@ class NotificationContentProcessor:
         channel: NotificationChannelEnum,
         template_key: str,
         template_data: Dict[str, Any],
-        recipient_address: str,
+        recipients: list[str],
         *,
+        template_version: Optional[int] = None,
         recipient_id: Optional[str] = None,
         sender_id: Optional[str] = None,
         priority: str = "NORMAL",
@@ -144,19 +145,20 @@ class NotificationContentProcessor:
             channel: Notification channel
             template_key: Template key
             template_data: Data for template rendering
-            recipient_address: Recipient address (email, phone, etc.)
+            recipients: Recipient addresses (email, phone, etc.)
             recipient_id: Optional recipient user ID
             sender_id: Optional sender user ID
             priority: Priority level
             context: Optional context for template resolution
 
         Returns:
-            Dictionary with notification data ready to be saved
+            List of notification data ready to be saved
         """
         # Resolve template
         template = await self.template_service.resolve_template(
             template_key,
             channel=channel.value,
+            version=template_version,
             **(context or {})
         )
 
@@ -165,30 +167,29 @@ class NotificationContentProcessor:
                 f"Template not found: {template_key} for channel {channel.value}"
             )
 
-        # Add system variables
-        enriched_data = {
-            **template_data,
-            'timestamp': datetime.utcnow().isoformat(),
-            'recipient_address': recipient_address,
-        }
+        notifications = []
+        for recipient_address in recipients:
+            enriched_data = {
+                **template_data,
+                'timestamp': datetime.utcnow().isoformat(),
+                'recipients': [recipient_address],
+            }
 
-        # Render template
-        rendered = await self.template_service.render_template(template, enriched_data)
+            rendered = await self.template_service.render_template(template, enriched_data)
 
-        # Prepare notification data
-        notification_data = {
-            'channel': channel.value,
-            'recipient_id': recipient_id,
-            'sender_id': sender_id,
-            'recipient_address': recipient_address,
-            'subject': rendered.get('subject'),
-            'body': rendered['body'],
-            'content_type': template.get('content_type', ContentTypeEnum.TEXT.value),
-            'priority': priority,
-            'template_key': template_key,
-            'template_version': template['version'],
-            'template_data': template_data,
-            'status': 'PENDING'
-        }
+            notifications.append({
+                'channel': channel.value,
+                'recipient_id': recipient_id,
+                'sender_id': sender_id,
+                'recipients': [recipient_address],
+                'subject': rendered.get('subject'),
+                'body': rendered['body'],
+                'content_type': template.get('content_type', ContentTypeEnum.TEXT.value),
+                'priority': priority,
+                'template_key': template_key,
+                'template_version': template['version'],
+                'template_data': template_data,
+                'status': 'PENDING'
+            })
 
-        return notification_data
+        return notifications

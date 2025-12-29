@@ -3,10 +3,9 @@ Base notification provider interface
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from fluvius.data import timestamp
+from ..state import NotifyStateManager
 
-from ..types import NotificationStatusEnum, ProviderTypeEnum
-from .. import config, logger
+from .. import logger, config
 
 
 class NotificationProviderBase(ABC):
@@ -18,12 +17,15 @@ class NotificationProviderBase(ABC):
     __CONFIG_CLS__ = None
     name = None
 
-    def __init__(self):
+    def __init__(self, provider_config: Optional[Any] = None):
         """
-        Base providers pull their configuration directly from rfx_notify config.
+        Base providers accept configuration explicitly on init.
         """
         super().__init__()
-        self.config = self._load_config_model()
+        if provider_config is None:
+            provider_config = self.build_config()
+        self.provider_config = self._init_config_model(provider_config)
+        self.statemgr = NotifyStateManager(None)
 
     def __init_subclass__(cls):
         if not getattr(cls, "name", None):
@@ -34,16 +36,30 @@ class NotificationProviderBase(ABC):
 
         cls.__REGISTRY__[cls.name] = cls
 
-    def _load_config_model(self):
+    def _init_config_model(self, provider_config):
         if not self.__CONFIG_CLS__:
             return None
 
-        if not hasattr(config, "model"):
-            raise AttributeError(
-                f"Config object does not support typed models for [{self.__class__.__name__}]"
+        if provider_config is None:
+            raise ValueError(
+                f"Provider [{self.__class__.__name__}] requires an explicit config instance."
             )
 
-        return config.model(self.__CONFIG_CLS__)
+        if isinstance(provider_config, self.__CONFIG_CLS__):
+            return provider_config
+
+        if isinstance(provider_config, dict):
+            return self.__CONFIG_CLS__(**provider_config)
+
+        if hasattr(provider_config, "model_dump"):
+            return self.__CONFIG_CLS__(**provider_config.model_dump())
+
+        if hasattr(provider_config, "dict"):
+            return self.__CONFIG_CLS__(**provider_config.dict())
+
+        raise TypeError(
+            f"Unsupported config type for [{self.__class__.__name__}]: {type(provider_config)}"
+        )
 
     @classmethod
     def init_provider(cls, name, **params):
@@ -52,107 +68,20 @@ class NotificationProviderBase(ABC):
 
         return cls.__REGISTRY__[name](**params)
 
-    async def send_and_update(
-        self,
-        notification: Any,
-        statemgr: Any
-    ) -> Dict[str, Any]:
+    @abstractmethod
+    def build_config(self) -> Any:
         """
-        Complete send flow: update status, send, update result, log delivery.
-        This is the high-level method that orchestrates the entire process.
-
-        Args:
-            notification: Notification model instance
-            statemgr: State manager for database operations
-
-        Returns:
-            Dictionary with notification_id, status, provider info
+        Build a provider-specific config instance or dict.
         """
-
-        notification_id = notification._id
-        attempt_number = notification.retry_count + 1
-
-        # Update to PROCESSING
-        await statemgr.update(notification, status=NotificationStatusEnum.PROCESSING.value)
-
-        try:
-            # Send via provider implementation
-            result = await self.send(
-                recipient=notification.recipient_address,
-                subject=getattr(notification, 'subject', None),
-                body=notification.body,
-                content_type=notification.content_type,
-                **self._extract_kwargs(notification)
-            )
-
-            # Parse result
-            status = result.get('status', NotificationStatusEnum.FAILED)
-            provider_type = result.get('provider_type')
-
-            # Update notification with send result
-            update_data = {
-                'status': status.value if hasattr(status, 'value') else status,
-                'provider_type': provider_type,
-                'provider_message_id': result.get('provider_message_id'),
-                'provider_response': result.get('response', {}),
-            }
-
-            if status == NotificationStatusEnum.SENT:
-                update_data['sent_at'] = timestamp()
-            elif status == NotificationStatusEnum.FAILED:
-                update_data['error_message'] = result.get('error', 'Unknown error')
-                update_data['failed_at'] = timestamp()
-
-            await statemgr.update(notification, **update_data)
-
-            # Log delivery attempt
-            await self._log_delivery_attempt(statemgr, notification_id, result, attempt_number)
-
-            return {
-                "notification_id": notification_id,
-                "status": status.value if hasattr(status, 'value') else status,
-                "provider_message_id": result.get('provider_message_id'),
-                "provider_type": provider_type,
-            }
-
-        except Exception as e:
-            from .. import logger
-            logger.error(f"Exception while sending notification {notification_id}: {str(e)}", exc_info=True)
-
-            # Update to failed
-            await statemgr.update(
-                notification,
-                status=NotificationStatusEnum.FAILED.value,
-                error_message=str(e),
-                failed_at=timestamp()
-            )
-
-            # Log failed attempt
-            await self._log_delivery_attempt(
-                statemgr,
-                notification_id,
-                {'status': NotificationStatusEnum.FAILED, 'error': str(e), 'provider_type': self.provider_type},
-                attempt_number
-            )
-
-            raise
+        pass
 
     @abstractmethod
-    async def send(
-        self,
-        recipient: str,
-        subject: Optional[str],
-        body: str,
-        **kwargs
-    ) -> Dict[str, Any]:
+    async def send(self, notification: Any) -> Dict[str, Any]:
         """
         Send a notification through this provider.
 
         Args:
-            recipient: Recipient address (email, phone, etc.)
-            subject: Subject/title of the notification (optional for SMS)
-            body: Body content of the notification
-            **kwargs: Additional provider-specific parameters
+            notification: Notification model or payload data.
 
         Returns:
             Dictionary containing:
@@ -229,8 +158,11 @@ class NotificationProviderBase(ABC):
         """
         kwargs = {}
 
-        if hasattr(notification, 'meta') and notification.meta:
-            meta = notification.meta
+        if isinstance(notification, dict):
+            meta = notification.get('meta')
+        else:
+            meta = getattr(notification, 'meta', None)
+        if meta:
             if 'from_email' in meta:
                 kwargs['from_email'] = meta['from_email']
             if 'from_number' in meta:
@@ -245,45 +177,3 @@ class NotificationProviderBase(ABC):
                 kwargs['dlr_url'] = meta['dlr_url']
 
         return kwargs
-
-    async def _log_delivery_attempt(
-        self,
-        statemgr: Any,
-        notification_id: str,
-        result: Dict[str, Any],
-        attempt_number: int
-    ):
-        """
-        Helper to log delivery attempt to the database.
-
-        Args:
-            statemgr: State manager instance
-            notification_id: Notification ID
-            result: Result from provider send
-            attempt_number: Attempt number
-        """
-
-
-        provider_type = result.get('provider_type')
-        if provider_type and not isinstance(provider_type, ProviderTypeEnum):
-            try:
-                provider_type = ProviderTypeEnum(provider_type)
-            except:
-                pass
-
-        status = result.get('status', NotificationStatusEnum.FAILED)
-
-        log_data = {
-            'notification_id': notification_id,
-            'provider_type': provider_type,
-            'attempt_number': attempt_number,
-            'attempted_at': timestamp(),
-            'status': status.value if hasattr(status, 'value') else status,
-            'response': result.get('response', {}),
-            'error_message': result.get('error'),
-        }
-
-        try:
-            await statemgr.add_notification_log(**log_data)
-        except Exception as e:
-            logger.error(f"Failed to log delivery attempt for {notification_id}: {str(e)}")

@@ -22,8 +22,8 @@ class SendNotificationPayload(DataModel):
     channel: NotificationChannelEnum = Field(
         ..., description="Channel to deliver the notification (EMAIL, SMS, etc.)"
     )
-    recipient_address: str = Field(
-        ..., description="Destination address such as email, phone number, or device token."
+    recipients: Optional[List[str]] = Field(
+        None, description="Optional list of recipient addresses for bulk send."
     )
     subject: Optional[str] = Field(
         None, description="Subject or title (used by email-like channels)."

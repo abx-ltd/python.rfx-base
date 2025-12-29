@@ -44,6 +44,7 @@ class User(TableBase):
     """Primary user account stored in the `rfx_user.user` table."""
 
     __tablename__ = "user"
+    __ts_index__ = ["name__family", "name__given", "telecom__email", "telecom__phone", "username"]
 
     active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
 
@@ -121,6 +122,7 @@ class GuestUser(TableBase):
 
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50))
+    full_name: Mapped[Optional[str]] = mapped_column(String(255))
     session_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     last_active_at: Mapped[datetime] = mapped_column(

@@ -63,11 +63,18 @@ class NotifyAggregate(Aggregate):
         }
 
     @action("notification-sent", resources="notification")
-    async def send_notification(self, *, notification_id: str):
+    async def send_notification(self, *, notification_id: str | None = None, data: dict | None = None):
         """
         Send notification through provider.
         Service handles the full flow: send, update status, log delivery.
         """
+        if data is not None:
+            logger.info("Sending notification from payload")
+            return await self.notification_service.send_notification(data)
+
+        if notification_id is None:
+            raise ValueError("notification_id or data is required")
+
         notification = await self.statemgr.fetch("notification", notification_id)
         if not notification:
             raise ValueError(f"Notification not found: {notification_id}")
@@ -78,10 +85,7 @@ class NotifyAggregate(Aggregate):
         logger.info(f"Sending notification {notification_id}")
 
         # Delegate to service - it handles send, update, and logging
-        return await self.notification_service.send_and_update_notification(
-            notification,
-            self.statemgr
-        )
+        return await self.notification_service.send_notification(notification)
 
     @action("notification-retried", resources="notification")
     async def retry_notification(self, *, notification_id: str):
@@ -110,10 +114,7 @@ class NotifyAggregate(Aggregate):
         notification = await self.statemgr.fetch("notification", notification_id)
 
         # Delegate to service - it handles send, update, and logging
-        result = await self.notification_service.send_and_update_notification(
-            notification,
-            self.statemgr
-        )
+        result = await self.notification_service.send_notification(notification)
 
         result['attempt'] = notification.retry_count
         return result
@@ -229,5 +230,4 @@ class NotifyAggregate(Aggregate):
             "template_id": template._id,
             "is_active": template.is_active
         }
-
 

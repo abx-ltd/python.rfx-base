@@ -137,7 +137,7 @@ from rfx_notify.query import RFXNotifyServiceQueryManager
 {
     "channel": "EMAIL",
     "recipient_id": "user-uuid",
-    "recipient_address": "user@example.com",
+    "recipients": ["user@example.com"],
     "subject": "Welcome to MyApp",
     "body": "<h1>Hello!</h1><p>Welcome to our platform.</p>",
     "content_type": "HTML",
@@ -150,7 +150,7 @@ from rfx_notify.query import RFXNotifyServiceQueryManager
 ```python
 {
     "channel": "EMAIL",
-    "recipient_address": "user@example.com",
+    "recipients": ["user@example.com"],
     "subject": "Important Notice",
     "body": "This is a test message",
     "content_type": "TEXT",
@@ -169,7 +169,7 @@ from rfx_notify.query import RFXNotifyServiceQueryManager
 {
     "channel": "SMS",
     "recipient_id": "user-uuid",
-    "recipient_address": "+1234567890",
+    "recipients": ["+1234567890"],
     "body": "Your verification code is: 123456",
     "content_type": "TEXT",
     "priority": "URGENT",
@@ -200,7 +200,7 @@ from rfx_notify.query import RFXNotifyServiceQueryManager
 # Then send notification with template
 {
     "channel": "EMAIL",
-    "recipient_address": "user@example.com",
+    "recipients": ["user@example.com"],
     "template_key": "welcome_email",
     "template_data": {
         "user_name": "John Doe",
@@ -215,7 +215,7 @@ from rfx_notify.query import RFXNotifyServiceQueryManager
 ```python
 {
     "channel": "EMAIL",
-    "recipient_address": "user@example.com",
+    "recipients": ["user@example.com"],
     "subject": "Reminder",
     "body": "This is your scheduled reminder",
     "scheduled_at": "2025-11-15T10:00:00Z",
@@ -404,7 +404,7 @@ async def send_welcome_email(user):
     result = await command.execute({
         "channel": "EMAIL",
         "recipient_id": user.id,
-        "recipient_address": user.email,
+        "recipients": [user.email],
         "template_key": "welcome_email",
         "template_data": {"user_name": user.name}
     })
@@ -442,7 +442,7 @@ async def send_templated_notification(template_key, recipient, data):
         channel=NotificationChannelEnum.EMAIL,
         template_key=template_key,
         template_data=data,
-        recipient_address=recipient.email,
+        recipients=[recipient.email],
         recipient_id=recipient.id
     )
 

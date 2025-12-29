@@ -5,6 +5,8 @@ from fluvius.data import serialize_mapping
 
 from .domain import NotifyServiceDomain
 from . import datadef, logger
+from .types import NotificationChannelEnum
+from .processor import NotificationContentProcessor
 
 processor = NotifyServiceDomain.command_processor
 Command = NotifyServiceDomain.Command
@@ -26,26 +28,61 @@ class SendNotification(Command):
         auth_required = True
         policy_required = False
 
-
-
     Data = datadef.SendNotificationPayload
 
     async def _process(self, agg, stm, payload):
         try:
             notification_payload = serialize_mapping(payload)
+            recipients = notification_payload.get("recipients") or []
+            notification_payload["recipients"] = recipients
+            template_key = notification_payload.get("template_key")
 
-            # 1. Create notification record
-            create_result = await agg.create_notification(data=notification_payload)
-            notification_id = create_result["notification_id"]
+            context = {
+                key: notification_payload.get(key)
+                for key in ("tenant_id", "app_id", "locale")
+                if notification_payload.get(key) is not None
+            }
 
-            # 2. Send notification
-            send_result = await agg.send_notification(notification_id=notification_id)
+            if template_key:
+                channel = NotificationChannelEnum(notification_payload["channel"])
+                template_data = notification_payload.get("template_data", {}) or {}
+                template_version = notification_payload.get("template_version")
+
+                if not recipients:
+                    raise ValueError("Recipients list cannot be empty")
+
+                content_processor = NotificationContentProcessor(stm)
+                rendered_payloads = await content_processor.prepare_notification_with_template(
+                    channel=channel,
+                    template_key=template_key,
+                    template_data=template_data,
+                    recipients=recipients,
+                    template_version=template_version,
+                    recipient_id=notification_payload.get("recipient_id"),
+                    sender_id=notification_payload.get("sender_id"),
+                    priority=notification_payload.get("priority", "NORMAL"),
+                    context=context
+                )
+
+                results = []
+                for rendered_payload in rendered_payloads:
+                    send_result = await agg.send_notification(data=rendered_payload)
+                    results.append(send_result)
+
+                send_result = {"count": len(results), "results": results}
+            else:
+                # Send notification (provider will create the record)
+                if not recipients:
+                    raise ValueError("Recipients list cannot be empty")
+                send_result = await agg.send_notification(data=notification_payload)
 
             yield agg.create_response({
                 "status": "success",
-                "notification_id": notification_id,
-                "delivery_status": send_result["status"],
-                "provider_message_id": send_result.get("provider_message_id")
+                "notification_id": send_result.get("notification_id"),
+                "delivery_status": send_result.get("status"),
+                "provider_message_id": send_result.get("provider_message_id"),
+                "results": send_result.get("results"),
+                "count": send_result.get("count")
             }, _type="notify-service-response")
 
         except Exception as e:

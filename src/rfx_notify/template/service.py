@@ -2,7 +2,7 @@
 Template Service for Notification Templates
 """
 from typing import Optional, Dict, Any
-from fluvius.data import DataAccessManager
+from fluvius.data import DataAccessManager, serialize_mapping
 from fluvius.data.exceptions import ItemNotFoundError
 
 from .engine import template_registry
@@ -86,10 +86,8 @@ class NotificationTemplateService:
                 query = {k: v for k, v in query.items() if v is not None}
 
                 try:
-                    template = await self.stm.exist("notification_template", where=query)
-                    if template:
-                        logger.debug(f"Resolved template {key} for {channel} with scope: {query}")
-                        return template
+                    template = await self.stm.find_one("notification_template", where=query)
+                    return serialize_mapping(template)
                 except ItemNotFoundError:
                     continue
 
@@ -188,6 +186,11 @@ class NotificationTemplateService:
         Returns:
             Created template dict
         """
+        if hasattr(channel, "value"):
+            channel = channel.value
+        if hasattr(content_type, "value"):
+            content_type = content_type.value
+
         # Validate template syntax
         template_engine = template_registry.get(engine)
         if not template_engine:
@@ -209,11 +212,11 @@ class NotificationTemplateService:
                 "app_id": app_id,
                 "locale": locale
             },
-            order_by=["-version"],
-            limit=1
+            sort=[("version", "desc")]
         )
 
-        version = (existing[0]['version'] + 1) if existing else 1
+        latest = existing[0] if existing else None
+        version = (latest['version'] + 1) if latest else 1
 
         template_data = {
             "key": key,
@@ -231,7 +234,9 @@ class NotificationTemplateService:
             "is_active": True,
         }
 
-        return await self.stm.insert("notification_template", template_data)
+        template = self.stm.create("notification_template", template_data)
+        await self.stm.insert(template)
+        return template
 
     async def activate_template(self, template_id: str) -> Dict[str, Any]:
         """Activate a template."""

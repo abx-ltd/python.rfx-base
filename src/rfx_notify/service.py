@@ -26,33 +26,6 @@ class NotificationService:
     def __init__(self):
         self._provider_cache: Dict[ProviderTypeEnum, NotificationProviderBase] = {}
 
-    async def send_and_update_notification(self, notification: Any, statemgr: Any) -> Dict[str, Any]:
-        """
-        Send notification through provider.
-        Provider handles the complete flow: update status, send, update result, log delivery.
-
-        Args:
-            notification: Notification model instance
-            statemgr: State manager for database operations
-
-        Returns:
-            Dictionary containing notification_id, status, provider info
-        """
-        channel = NotificationChannelEnum(notification.channel)
-
-        try:
-            provider_type = self._determine_provider_type(notification, channel)
-        except ValueError as exc:
-            logger.error(str(exc))
-            raise
-
-        provider_instance = self._get_provider_instance(provider_type)
-        if not provider_instance:
-            raise ValueError(f'No provider implementation available for {provider_type.value}')
-
-        # Delegate to provider - it handles everything
-        return await provider_instance.send_and_update(notification, statemgr)
-
     async def send_notification(self, notification: Any) -> Dict[str, Any]:
         """
         Send a notification through the appropriate provider.
@@ -63,52 +36,16 @@ class NotificationService:
         Returns:
             Dictionary containing status, provider_message_id, response, and error
         """
-        channel = NotificationChannelEnum(notification.channel)
+        channel_value = self._get_field(notification, "channel")
+        channel = NotificationChannelEnum(channel_value)
 
-        try:
-            provider_type = self._determine_provider_type(notification, channel)
-        except ValueError as exc:
-            logger.error(str(exc))
-            return {
-                'status': NotificationStatusEnum.FAILED,
-                'provider_type': None,
-                'provider_message_id': None,
-                'response': {},
-                'error': str(exc)
-            }
-
+        provider_type = self._determine_provider_type(notification, channel)
         provider_instance = self._get_provider_instance(provider_type)
         if not provider_instance:
-            return {
-                'status': NotificationStatusEnum.FAILED,
-                'provider_type': provider_type.value,
-                'provider_message_id': None,
-                'response': {},
-                'error': f'No provider implementation available for {provider_type.value}'
-            }
+            raise ValueError(f'No provider implementation available for {provider_type.value}')
 
-        # Send notification
-        try:
-            result = await provider_instance.send(
-                recipient=notification.recipient_address,
-                subject=getattr(notification, 'subject', None),
-                body=notification.body,
-                content_type=notification.content_type,
-                **self._extract_provider_kwargs(notification)
-            )
-
-            result['provider_type'] = provider_type.value
-            return result
-
-        except Exception as e:
-            logger.error(f"Provider {provider_type.value} failed to send notification: {str(e)}")
-            return {
-                'status': NotificationStatusEnum.FAILED,
-                'provider_type': provider_type.value,
-                'provider_message_id': None,
-                'response': {},
-                'error': str(e)
-            }
+        result = await provider_instance.send(notification)
+        return result
 
     async def check_notification_status(
         self,
@@ -161,11 +98,11 @@ class NotificationService:
         2. provider_type declared inside notification.meta
         3. Default mapping per channel using configured credentials
         """
-        explicit_type = getattr(notification, 'provider_type', None)
+        explicit_type = self._get_field(notification, 'provider_type')
         if explicit_type:
             return ProviderTypeEnum(explicit_type if isinstance(explicit_type, str) else explicit_type)
 
-        meta = getattr(notification, 'meta', {}) or {}
+        meta = self._get_field(notification, 'meta', {}) or {}
         meta_type = meta.get('provider_type')
         if meta_type:
             return ProviderTypeEnum(meta_type if isinstance(meta_type, str) else meta_type)
@@ -202,9 +139,13 @@ class NotificationService:
         except ValueError:
             logger.error(f"Provider [{provider_name}] is not registered.")
             return None
+        except Exception as exc:
+            logger.error(f"Provider [{provider_name}] failed to initialize: {exc}")
+            return None
 
         self._provider_cache[provider_type] = provider_instance
         return provider_instance
+
 
     def _extract_provider_kwargs(self, notification: Any) -> Dict[str, Any]:
         """
@@ -218,9 +159,9 @@ class NotificationService:
         """
         kwargs = {}
 
-        if hasattr(notification, 'meta') and notification.meta:
+        meta = self._get_field(notification, 'meta')
+        if meta:
             # Extract common fields
-            meta = notification.meta
             if 'from_email' in meta:
                 kwargs['from_email'] = meta['from_email']
             if 'from_number' in meta:
@@ -233,6 +174,13 @@ class NotificationService:
                 kwargs['media_url'] = meta['media_url']
 
         return kwargs
+
+    @staticmethod
+    def _get_field(notification: Any, field: str, default: Any = None) -> Any:
+        if isinstance(notification, dict):
+            return notification.get(field, default)
+
+        return getattr(notification, field, default)
 
     async def validate_provider(self, provider_key: str) -> bool:
         """

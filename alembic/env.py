@@ -36,6 +36,7 @@ DOMAIN_SCHEMAS = {
     'notify': base_config.RFX_NOTIFY_SCHEMA,
     'client': base_config.RFX_CLIENT_SCHEMA,
     'discuss': base_config.RFX_DISCUSS_SCHEMA,
+    'qr': base_config.RFX_QR_SCHEMA,
 }
 
 # Get schema filter from environment variable

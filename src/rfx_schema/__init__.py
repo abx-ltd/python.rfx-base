@@ -16,6 +16,7 @@ from .rfx_media import RFXMediaConnector
 from .rfx_notify import RFXNotifyConnector
 from .rfx_client import RFXClientConnector
 from .rfx_discuss import RFXDiscussConnector
+from .rfx_qr import RFXQRConnector
 
 DOMAIN_CONNECTORS = {
     "user": IDMConnector,
@@ -25,4 +26,5 @@ DOMAIN_CONNECTORS = {
     "notify": RFXNotifyConnector,
     "client": RFXClientConnector,
     "discuss": RFXDiscussConnector,
+    "qr": RFXQRConnector,
 }

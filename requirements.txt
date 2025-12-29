@@ -4,3 +4,4 @@ pipe
 casbin
 pyyaml
 gmqtt
+napas-qr-python

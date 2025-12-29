@@ -5,10 +5,11 @@ import httpx
 from typing import Dict, Any, Optional
 
 from fluvius.data.data_model import DataModel
+from fluvius.data import UUID_GENR, timestamp
 
 from .base import NotificationProviderBase
 from ..types import NotificationStatusEnum, ProviderTypeEnum
-from .. import logger
+from .. import logger, config
 
 
 class KannelSMSProviderConfig(DataModel):
@@ -31,124 +32,221 @@ class KannelSMSProvider(NotificationProviderBase):
     name = "kannel"
     __CONFIG_CLS__ = KannelSMSProviderConfig
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, provider_config: Optional[Any] = None):
+        super().__init__(provider_config=provider_config)
 
-    async def send(
-        self,
-        recipient: str,
-        subject: Optional[str],
-        body: str,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def build_config(self) -> Any:
+        return {
+            "kannel_host": config.KANNEL_HOST,
+            "kannel_port": config.KANNEL_PORT,
+            "kannel_username": config.KANNEL_USERNAME,
+            "kannel_password": config.KANNEL_PASSWORD,
+            "kannel_send_url": config.KANNEL_SEND_URL,
+            "kannel_dlr_mask": config.KANNEL_DLR_MASK,
+            "kannel_timeout": config.KANNEL_TIMEOUT,
+            "kannel_from_number": config.KANNEL_FROM_NUMBER,
+        }
+
+    async def send(self, notification: Any) -> Dict[str, Any]:
         """
         Send SMS via self-hosted Kannel gateway.
 
         Args:
-            recipient: Phone number in E.164 format (e.g., +1234567890)
-            subject: Not used for SMS
-            body: SMS message body
-            **kwargs: Additional parameters (from_number, dlr_url for delivery reports)
+            notification: Notification payload or model
         """
-        try:
-            # Build Kannel sendsms URL
-            url = f"http://{self.config.kannel_host}:{self.config.kannel_port}{self.config.kannel_send_url}"
+        def get_field(field, default=None):
+            if isinstance(notification, dict):
+                return notification.get(field, default)
+            return getattr(notification, field, default)
 
-            # Prepare parameters
-            params = {
-                'username': self.config.kannel_username,
-                'password': self.config.kannel_password,
-                'to': recipient,
-                'text': body,
-            }
+        def enum_value(value):
+            return value.value if hasattr(value, "value") else value
 
-            # Add from number if configured
-            from_number = kwargs.get('from_number') or self.config.kannel_from_number
-            if from_number:
-                params['from'] = from_number
+        recipients = get_field("recipients")
+        if not recipients:
+            raise ValueError("Missing recipient address.")
 
-            # Add DLR (Delivery Report) configuration if webhook URL provided
-            dlr_url = kwargs.get('dlr_url')
-            if dlr_url:
-                params['dlr-url'] = dlr_url
-                params['dlr-mask'] = self.config.kannel_dlr_mask
+        if isinstance(recipients, (list, tuple, set)):
+            recipients = [recipient for recipient in recipients if recipient]
+        else:
+            recipients = [recipients]
 
-            logger.info(
-                f"Sending SMS to {recipient} via Kannel at {self.config.kannel_host}:{self.config.kannel_port}"
-            )
+        results = []
+        is_bulk = len(recipients) > 1
 
-            async with httpx.AsyncClient(timeout=self.config.kannel_timeout) as client:
-                response = await client.get(url, params=params)
+        for recipient in recipients:
+            async with self.statemgr.transaction():
+                entry = None
+                if not is_bulk:
+                    if isinstance(notification, dict) and notification.get("_id"):
+                        entry = await self.statemgr.fetch("notification", notification["_id"])
+                    elif get_field("_id"):
+                        entry = notification
 
-                # Kannel returns different status codes and messages
-                # Successful: "0: Accepted for delivery" or similar
-                # Error: "3: Temporarily failed" or error message
-                response_text = response.text.strip()
+                if entry is None:
+                    data = {
+                        "_id": UUID_GENR(),
+                        "channel": enum_value(get_field("channel")),
+                        "recipients": [recipient],
+                        "subject": get_field("subject"),
+                        "body": get_field("body"),
+                        "content_type": enum_value(get_field("content_type")),
+                        "recipient_id": get_field("recipient_id"),
+                        "sender_id": get_field("sender_id"),
+                        "provider_type": self.provider_type.value,
+                        "priority": enum_value(get_field("priority")),
+                        "scheduled_at": get_field("scheduled_at"),
+                        "template_key": get_field("template_key"),
+                        "template_version": get_field("template_version"),
+                        "template_data": get_field("template_data", {}),
+                        "meta": get_field("meta", {}),
+                        "tags": get_field("tags", []),
+                        "max_retries": get_field("max_retries", 0),
+                        "retry_count": 0,
+                        "status": NotificationStatusEnum.PENDING.value,
+                    }
+                    entry = self.statemgr.create("notification", data)
+                    await self.statemgr.insert(entry)
 
-                if response.status_code == 200:
-                    # Check response text for success indicators
-                    if any(indicator in response_text for indicator in ['Sent', 'Queued', 'Accepted']):
-                        # Extract message ID from response (format: "0: Accepted for delivery")
-                        try:
-                            message_id = response_text.split(':')[0].strip()
-                        except:
-                            message_id = None
+                await self.statemgr.update(
+                    entry,
+                    status=NotificationStatusEnum.PROCESSING.value,
+                )
 
-                        logger.info(
-                            f"SMS sent to {recipient} via Kannel, message_id: {message_id}"
-                        )
+            attempt_number = entry.retry_count + 1
+            meta = getattr(entry, "meta", None) or {}
 
-                        return {
-                            'status': NotificationStatusEnum.SENT,
-                            'provider_type': self.provider_type,
-                            'provider_message_id': message_id,
-                            'response': {
-                                'kannel_response': response_text,
-                                'recipient': recipient,
-                                'kannel_host': self.config.kannel_host,
-                            },
-                            'error': None
-                        }
+            try:
+                url = f"http://{self.provider_config.kannel_host}:{self.provider_config.kannel_port}{self.provider_config.kannel_send_url}"
+
+                params = {
+                    'username': self.provider_config.kannel_username,
+                    'password': self.provider_config.kannel_password,
+                    'to': recipient,
+                    'text': entry.body,
+                }
+
+                from_number = meta.get('from_number') or self.provider_config.kannel_from_number
+                if from_number:
+                    params['from'] = from_number
+
+                dlr_url = meta.get('dlr_url')
+                if dlr_url:
+                    params['dlr-url'] = dlr_url
+                    params['dlr-mask'] = self.provider_config.kannel_dlr_mask
+
+                logger.info(
+                    f"Sending SMS to {recipient} via Kannel at {self.provider_config.kannel_host}:{self.provider_config.kannel_port}"
+                )
+
+                async with httpx.AsyncClient(timeout=self.provider_config.kannel_timeout) as client:
+                    response = await client.get(url, params=params)
+
+                    response_text = response.text.strip()
+
+                    if response.status_code == 200:
+                        if any(indicator in response_text for indicator in ['Sent', 'Queued', 'Accepted']):
+                            try:
+                                message_id = response_text.split(':')[0].strip()
+                            except Exception:
+                                message_id = None
+
+                            logger.info(
+                                f"SMS sent to {recipient} via Kannel, message_id: {message_id}"
+                            )
+
+                            result = {
+                                'status': NotificationStatusEnum.SENT,
+                                'provider_type': self.provider_type,
+                                'provider_message_id': message_id,
+                                'response': {
+                                    'kannel_response': response_text,
+                                    'recipient': recipient,
+                                    'kannel_host': self.provider_config.kannel_host,
+                                },
+                                'error': None
+                            }
+                        else:
+                            logger.error(f"Kannel error: {response_text}")
+                            result = {
+                                'status': NotificationStatusEnum.FAILED,
+                                'provider_type': self.provider_type,
+                                'provider_message_id': None,
+                                'response': {'kannel_response': response_text},
+                                'error': f"Kannel error: {response_text}"
+                            }
                     else:
-                        # Response indicates error
-                        logger.error(f"Kannel error: {response_text}")
-                        return {
+                        logger.error(
+                            f"Kannel HTTP error {response.status_code}: {response.text}"
+                        )
+                        result = {
                             'status': NotificationStatusEnum.FAILED,
                             'provider_type': self.provider_type,
                             'provider_message_id': None,
-                            'response': {'kannel_response': response_text},
-                            'error': f"Kannel error: {response_text}"
+                            'response': {},
+                            'error': f"HTTP {response.status_code}: {response.text}"
                         }
-                else:
-                    logger.error(
-                        f"Kannel HTTP error {response.status_code}: {response.text}"
-                    )
-                    return {
-                        'status': NotificationStatusEnum.FAILED,
-                        'provider_type': self.provider_type,
-                        'provider_message_id': None,
-                        'response': {},
-                        'error': f"HTTP {response.status_code}: {response.text}"
-                    }
 
-        except httpx.TimeoutException:
-            logger.error(f"Timeout connecting to Kannel for {recipient}")
-            return {
-                'status': NotificationStatusEnum.FAILED,
-                'provider_type': self.provider_type,
-                'provider_message_id': None,
-                'response': {},
-                'error': "Timeout connecting to Kannel gateway"
+            except httpx.TimeoutException:
+                logger.error(f"Timeout connecting to Kannel for {recipient}")
+                result = {
+                    'status': NotificationStatusEnum.FAILED,
+                    'provider_type': self.provider_type,
+                    'provider_message_id': None,
+                    'response': {},
+                    'error': "Timeout connecting to Kannel gateway"
+                }
+            except Exception as e:
+                logger.error(f"Error sending SMS to {recipient} via Kannel: {str(e)}")
+                result = {
+                    'status': NotificationStatusEnum.FAILED,
+                    'provider_type': self.provider_type,
+                    'provider_message_id': None,
+                    'response': {},
+                    'error': str(e)
+                }
+
+            status = result.get('status', NotificationStatusEnum.FAILED)
+            provider_type = result.get('provider_type', self.provider_type)
+
+            update_data = {
+                'status': enum_value(status),
+                'provider_type': enum_value(provider_type),
+                'provider_message_id': result.get('provider_message_id'),
+                'provider_response': result.get('response', {}),
             }
-        except Exception as e:
-            logger.error(f"Error sending SMS to {recipient} via Kannel: {str(e)}")
-            return {
-                'status': NotificationStatusEnum.FAILED,
-                'provider_type': self.provider_type,
-                'provider_message_id': None,
-                'response': {},
-                'error': str(e)
+
+            if status == NotificationStatusEnum.SENT:
+                update_data['sent_at'] = timestamp()
+            elif status == NotificationStatusEnum.FAILED:
+                update_data['error_message'] = result.get('error', 'Unknown error')
+                update_data['failed_at'] = timestamp()
+
+            log_data = {
+                'notification_id': entry._id,
+                'provider_type': enum_value(provider_type),
+                'attempt_number': attempt_number,
+                'attempted_at': timestamp(),
+                'status': enum_value(status),
+                'response': result.get('response', {}),
+                'error_message': result.get('error'),
             }
+
+            async with self.statemgr.transaction():
+                await self.statemgr.update(entry, **update_data)
+                await self.statemgr.add_notification_log(**log_data)
+
+            results.append({
+                "notification_id": entry._id,
+                "status": enum_value(status),
+                "provider_message_id": result.get('provider_message_id'),
+                "provider_type": enum_value(provider_type),
+            })
+
+        if len(results) == 1:
+            return results[0]
+
+        return {"count": len(results), "results": results}
 
     async def check_status(self, provider_message_id: str) -> Dict[str, Any]:
         """
@@ -158,10 +256,10 @@ class KannelSMSProvider(NotificationProviderBase):
         try:
             # Kannel status checking is typically done via DLR webhooks
             # This is a placeholder for status page checking
-            url = f"http://{self.config.kannel_host}:{self.config.kannel_port}/status"
+            url = f"http://{self.provider_config.kannel_host}:{self.provider_config.kannel_port}/status"
             params = {
-                'username': self.config.kannel_username,
-                'password': self.config.kannel_password,
+                'username': self.provider_config.kannel_username,
+                'password': self.provider_config.kannel_password,
             }
 
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -188,10 +286,10 @@ class KannelSMSProvider(NotificationProviderBase):
         Validate Kannel configuration by checking status page.
         """
         try:
-            url = f"http://{self.config.kannel_host}:{self.config.kannel_port}/status"
+            url = f"http://{self.provider_config.kannel_host}:{self.provider_config.kannel_port}/status"
             params = {
-                'username': self.config.kannel_username,
-                'password': self.config.kannel_password,
+                'username': self.provider_config.kannel_username,
+                'password': self.provider_config.kannel_password,
             }
 
             async with httpx.AsyncClient(timeout=5.0) as client:

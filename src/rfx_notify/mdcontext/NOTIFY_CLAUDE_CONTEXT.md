@@ -57,7 +57,7 @@ Command → Aggregate → Service → Provider → External API
 {
     "channel": "EMAIL|SMS|PUSH|WEBHOOK|INAPP",
     "recipient_id": "uuid",
-    "recipient_address": "email@example.com or +1234567890",
+    "recipients": ["email@example.com or +1234567890"],
     "subject": "Email subject (EMAIL only)",
     "body": "Message body",
     "content_type": "TEXT|HTML|MARKDOWN|JSON",
@@ -222,7 +222,7 @@ notification_data = await processor.prepare_notification_with_template(
     channel=NotificationChannelEnum.EMAIL,
     template_key="welcome",
     template_data={"name": "John"},
-    recipient_address="user@example.com"
+    recipients=["user@example.com"]
 )
 ```
 
@@ -306,8 +306,8 @@ src/rfx_schema/rfx_notify/
 
 ## Quick Reference
 
-**Send Email**: `channel=EMAIL, recipient_address=email, subject, body`
-**Send SMS**: `channel=SMS, recipient_address=+phone, body`
+**Send Email**: `channel=EMAIL, recipients=[email], subject, body`
+**Send SMS**: `channel=SMS, recipients=[+phone], body`
 **With Template**: `template_key=key, template_data={vars}`
 **Scheduled**: `scheduled_at=ISO8601`
 **Custom Headers**: `meta={from_email, cc, bcc}`

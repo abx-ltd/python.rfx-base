@@ -31,7 +31,7 @@ alembic upgrade head
 # Command: send-notification
 {
     "channel": "EMAIL",
-    "recipient_address": "user@example.com",
+    "recipients": ["user@example.com"],
     "subject": "Hello",
     "body": "Welcome!",
     "content_type": "TEXT"
@@ -54,7 +54,7 @@ alembic upgrade head
 # 2. Send notification
 {
     "channel": "EMAIL",
-    "recipient_address": "user@example.com",
+    "recipients": ["user@example.com"],
     "template_key": "welcome",
     "template_data": {"name": "John"}
 }
@@ -75,7 +75,7 @@ alembic upgrade head
 # 2. Send SMS
 {
     "channel": "SMS",
-    "recipient_address": "+1234567890",
+    "recipients": ["+1234567890"],
     "body": "Your code: 123456"
 }
 ```
@@ -84,7 +84,7 @@ alembic upgrade head
 ```python
 {
     "channel": "EMAIL",
-    "recipient_address": "user@example.com",
+    "recipients": ["user@example.com"],
     "subject": "Reminder",
     "body": "Your appointment is tomorrow",
     "scheduled_at": "2025-11-15T10:00:00Z"
@@ -95,7 +95,7 @@ alembic upgrade head
 ```python
 {
     "channel": "EMAIL",
-    "recipient_address": "user@example.com",
+    "recipients": ["user@example.com"],
     "subject": "Important",
     "body": "<h1>Hello!</h1>",
     "content_type": "HTML",
@@ -199,7 +199,7 @@ async def send_welcome_email(user):
     cmd = SendNotification()
     result = await cmd.execute({
         "channel": "EMAIL",
-        "recipient_address": user.email,
+        "recipients": [user.email],
         "template_key": "welcome",
         "template_data": {"name": user.name}
     })

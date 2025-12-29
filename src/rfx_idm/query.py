@@ -126,6 +126,7 @@ class UserQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        allow_text_search = True
         backend_model = "user"
 
         resource = "user"
