@@ -1,15 +1,15 @@
 """
 RFX Messaging Domain Aggregate - Business Logic and State Management
 """
-from unittest import result
+
 from fluvius.domain.aggregate import Aggregate, action
-from fluvius.data import serialize_mapping, UUID_GENR, timestamp
+from fluvius.data import serialize_mapping, timestamp
 from typing import Optional, Dict, Any
 # import asyncio
 
 from .processor import MessageContentProcessor
-from .types import MessageTypeEnum, RenderStrategyEnum, ProcessingModeEnum, RenderStatusEnum
-from . import logger
+from .types import ProcessingModeEnum, RenderStatusEnum
+
 
 class MessageAggregate(Aggregate):
     """
@@ -36,9 +36,11 @@ class MessageAggregate(Aggregate):
     async def generate_message(self, *, data):
         """Action to create a new message."""
         message_data = data
-        message_data['render_status'] = 'PENDING'
+        message_data["render_status"] = "PENDING"
 
-        message = self.init_resource("message", message_data, _id=self.aggroot.identifier)
+        message = self.init_resource(
+            "message", message_data, _id=self.aggroot.identifier
+        )
         await self.statemgr.insert(message)
 
         return {
@@ -46,7 +48,13 @@ class MessageAggregate(Aggregate):
         }
 
     @action("message-content-processed", resources="message")
-    async def process_message_content(self, *, message_id: str, context: Optional[Dict[str, Any]] = None, mode: str = "sync"):
+    async def process_message_content(
+        self,
+        *,
+        message_id: str,
+        context: Optional[Dict[str, Any]] = None,
+        mode: str = "sync",
+    ):
         """Process message content (template resolution and rendering)."""
         message = await self.statemgr.fetch("message", message_id)
         if not message:
@@ -55,7 +63,9 @@ class MessageAggregate(Aggregate):
         processing_mode = ProcessingModeEnum(mode)
 
         # Process content
-        processed_message = await self.content_processor.process_message_content(message, mode=processing_mode, context=context or {})
+        processed_message = await self.content_processor.process_message_content(
+            message, mode=processing_mode, context=context or {}
+        )
 
         return processed_message
 
@@ -66,10 +76,15 @@ class MessageAggregate(Aggregate):
         if not message:
             raise ValueError(f"Message not found: {message_id}")
 
-        if message.render_status not in [RenderStatusEnum.COMPLETED, RenderStatusEnum.CLIENT_RENDERING]:
-            raise ValueError(f"Message {message_id} is not ready for delivery (status: {message.render_status})")
+        if message.render_status.value not in [
+            RenderStatusEnum.COMPLETED.value,
+            RenderStatusEnum.CLIENT_RENDERING.value,
+        ]:
+            raise ValueError(
+                f"Message {message_id} is not ready for delivery (status: {message.render_status})"
+            )
 
-        await self.statemgr.update(message, delivery_status='PENDING')
+        await self.statemgr.update(message, delivery_status="PENDING")
 
         return {"message_id": message_id, "status": "PENDING"}
 
@@ -88,18 +103,17 @@ class MessageAggregate(Aggregate):
             recipient = self.init_resource("message_recipient", recipient_data)
             records.append(serialize_mapping(recipient))
 
-        await self.statemgr.insert_many("message_recipient", *records)
+        await self.statemgr.insert_data("message_recipient", *records)
 
-        return {
-            "message_id": message_id,
-            "recipients_count": len(recipients)
-        }
+        return {"message_id": message_id, "recipients_count": len(recipients)}
 
     @action("message-read", resources="message_recipient")
     async def mark_message_read(self):
         """Action to mark a message as read for a specific user."""
         # Find the recipient record
-        recipient = await self.statemgr.fetch("message_recipient", self.aggroot.identifier)
+        recipient = await self.statemgr.fetch(
+            "message_recipient", self.aggroot.identifier
+        )
 
         if not recipient:
             raise ValueError(f"Recipient not found: {self.aggroot.identifier}")
@@ -111,8 +125,7 @@ class MessageAggregate(Aggregate):
         """Action to mark all messages as read for a user."""
         user_id = self.context.user_id
         recipients = await self.statemgr.find_all(
-            "message_recipient",
-            where={"recipient_id": user_id, "read": False}
+            "message_recipient", where={"recipient_id": user_id, "read": False}
         )
 
         updated_count = 0
@@ -120,10 +133,7 @@ class MessageAggregate(Aggregate):
             await self.statemgr.update(recipient, read=True, mark_as_read=timestamp())
             updated_count += 1
 
-        return {
-            "user_id": user_id,
-            "updated_count": updated_count
-        }
+        return {"user_id": user_id, "updated_count": updated_count}
 
     @action("message-archived", resources="message_recipient")
     async def archive_message(self):
@@ -132,7 +142,9 @@ class MessageAggregate(Aggregate):
 
         recipient = await self.statemgr.fetch("message_recipient", message_id)
         if not recipient:
-            raise ValueError(f"Recipient not found: {self.context.user_id} for message {message_id}")
+            raise ValueError(
+                f"Recipient not found: {self.context.user_id} for message {message_id}"
+            )
 
         await self.statemgr.update(recipient, archived=True, archived_at=timestamp())
 
@@ -150,20 +162,22 @@ class MessageAggregate(Aggregate):
         old_template = await self.statemgr.find_one(
             "message_template",
             where=dict(
-                tenant_id=getattr(data, 'tenant_id', None),
-                app_id=getattr(data, 'app_id', None),
-                key=getattr(data, 'key', None),
-                locale=getattr(data, 'locale', None),
-                channel=getattr(data, 'channel', None)
-            )
+                tenant_id=getattr(data, "tenant_id", None),
+                app_id=getattr(data, "app_id", None),
+                key=getattr(data, "key", None),
+                locale=getattr(data, "locale", None),
+                channel=getattr(data, "channel", None),
+            ),
         )
 
         if old_template:
-            template_data['version'] = old_template.version + 1
+            template_data["version"] = old_template.version + 1
         else:
-            template_data['version'] = 1
+            template_data["version"] = 1
 
-        template = self.init_resource("message_template", template_data, _id=self.aggroot.identifier)
+        template = self.init_resource(
+            "message_template", template_data, _id=self.aggroot.identifier
+        )
         await self.statemgr.insert(template)
 
         return {
@@ -183,20 +197,22 @@ class MessageAggregate(Aggregate):
         return {
             "template_id": template._id,
             "key": template.key,
-            "version": template.version
+            "version": template.version,
         }
 
     @action("template-published", resources="message_template")
     async def publish_template(self):
         """Publish a template to make it available for use."""
-        template = await self.statemgr.fetch("message_template", self.aggroot.identifier)
+        template = await self.statemgr.fetch(
+            "message_template", self.aggroot.identifier
+        )
         if not template:
             raise ValueError(f"Template not found: {self.aggroot.identifier}")
 
         await self.statemgr.update(template, status="PUBLISHED")
 
         # Invalidate cache if using content processor
-        if hasattr(self, '_content_processor') and self._content_processor:
+        if hasattr(self, "_content_processor") and self._content_processor:
             await self._content_processor.template_service.invalidate_template_cache(
                 template.key, template.version
             )
@@ -205,5 +221,5 @@ class MessageAggregate(Aggregate):
             "template_id": template._id,
             "key": template.key,
             "version": template.version,
-            "status": "PUBLISHED"
+            "status": "PUBLISHED",
         }

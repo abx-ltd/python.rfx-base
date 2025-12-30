@@ -54,7 +54,13 @@ class Message(TableBase):
     content: Mapped[Optional[str]] = mapped_column(String(1024))
     rendered_content: Mapped[Optional[str]] = mapped_column(String(1024))
     content_type: Mapped[Optional[ContentTypeEnum]] = mapped_column(
-        SQLEnum(ContentTypeEnum, name="contenttypeenum", schema=SCHEMA)
+        SQLEnum(
+            ContentTypeEnum,
+            name="contenttypeenum",
+            schema=SCHEMA,
+            native_enum=True,
+            values_callable=lambda enum: [e.value for e in enum],
+        )
     )
 
     tags: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
@@ -103,7 +109,10 @@ class Message(TableBase):
         back_populates="message", cascade="all, delete-orphan"
     )
     recipients: Mapped[List["MessageRecipient"]] = relationship(
-        back_populates="message", cascade="all, delete-orphan"
+        "MessageRecipient",
+        back_populates="message",
+        cascade="all, delete-orphan",
+        foreign_keys="MessageRecipient.message_id",
     )
     attachments: Mapped[List["MessageAttachment"]] = relationship(
         back_populates="message", cascade="all, delete-orphan"
