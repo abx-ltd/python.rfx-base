@@ -336,6 +336,34 @@ class UserProfileAggregate(Aggregate):
 
         return {"message": f"Switched to profile {profile_id}", "switched": True}
 
+    @action("profile-created-in-org", resources=("profile", "organization"))
+    async def create_profile_in_org(self, data):
+        """Create user profile within organization with role assignment."""
+        user_id = data.get("user_id", None)
+        if user_id is None or user_id == self.context.user_id:
+            return {"message": "Cannot create profile for current user."}
+        existing_profiles = await self.statemgr.find_all("profile", where=dict(
+            user_id=user_id,
+            organization_id=data.get("organization_id"),
+            status='ACTIVE'
+        ))
+        if existing_profiles:
+            return {"message": "Active profile already exists for user in this organization."}
+
+        user = await self.statemgr.fetch('user', user_id)
+        if not user:
+            return {"message": f"User with id {user_id} not found."}
+
+        record = self.init_resource(
+            "profile",
+            **data,
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        await self.set_profile_status(record, record.status)
+
+        return {"profile_id": str(record._id)}
+
 
     @action("profile-updated", resources="profile")
     async def update_profile(self, data):

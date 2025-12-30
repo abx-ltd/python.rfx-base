@@ -33,6 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .organization import Organization
     from .invitation import Invitation
     from .group import ProfileGroup
+    from .realm import Realm
 
 
 class Profile(TableBase):
@@ -64,7 +65,9 @@ class Profile(TableBase):
     name__prefix: Mapped[Optional[str]] = mapped_column(String(1024))
     name__suffix: Mapped[Optional[str]] = mapped_column(String(1024))
 
-    realm: Mapped[Optional[str]] = mapped_column(String(1024))
+    realm: Mapped[Optional[str]] = mapped_column(
+        String(255), ForeignKey(f"{SCHEMA}.realm.key")
+    )
     svc_access: Mapped[Optional[str]] = mapped_column(String(1024))
     svc_secret: Mapped[Optional[str]] = mapped_column(String(1024))
     user_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
@@ -113,6 +116,9 @@ class Profile(TableBase):
 
     user: Mapped[Optional["User"]] = relationship(back_populates="profiles")
     organization: Mapped[Optional["Organization"]] = relationship(
+        back_populates="profiles"
+    )
+    realm_entry: Mapped[Optional["Realm"]] = relationship(
         back_populates="profiles"
     )
     status_history: Mapped[List["ProfileStatus"]] = relationship(

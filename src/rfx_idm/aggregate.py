@@ -415,9 +415,6 @@ class IDMAggregate(Aggregate):
     @action("profile-created-in-org", resources=("profile", "organization"))
     async def create_profile_in_org(self, data):
         """Create user profile within organization with role assignment."""
-        organization_id = data.get("organization_id", None)
-        organization = await self.statemgr.fetch('organization', organization_id)
-        realm = organization._realm if organization else None
         user_id = data.get("user_id", None)
         if user_id is None or user_id == self.context.user_id:
             return {"message": "Cannot create profile for current user."}
@@ -438,7 +435,6 @@ class IDMAggregate(Aggregate):
             **data,
             _id=UUID_GENR(),
         )
-        record._realm = realm
         await self.statemgr.insert(record)
         await self.set_profile_status(record, record.status)
 

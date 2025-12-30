@@ -17,3 +17,12 @@ class Realm(TableBase):
     display: Mapped[Optional[str]] = mapped_column(String(1024))
     description: Mapped[Optional[str]] = mapped_column(String(2048))
     active: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text("true"))
+
+    profiles: Mapped[List["Profile"]] = relationship(
+        back_populates="realm_entry",
+        foreign_keys="Profile.realm",
+    )
+
+
+if TYPE_CHECKING:
+    from .profile import Profile

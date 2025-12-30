@@ -31,7 +31,7 @@ async def get_qr_code_by_id(query_manager: QRQueryManager, request: Request, qr_
             return {"error": "QR code not found."}
         qr_img = segno.make_qr(qr_code.qr_code)
         buffer = io.BytesIO()
-        qr_img.save(buffer, kind="png")
+        qr_img.save(buffer, kind="png", scale=6)
         qr_base64 = base64.b64encode(buffer.getvalue()).decode("ascii")
         return {
             "qr_code_id": qr_code_id,
