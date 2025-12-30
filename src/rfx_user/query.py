@@ -440,30 +440,30 @@ class ProfileListQuery(DomainQueryResource):
     profile_role: str = StringField("Role")
     policy_count: int = StringField("Policy Count")
 
-@resource('user-profile')
-class UserProfileQuery(DomainQueryResource):
-    """ List current profile's users """
-    @classmethod
-    def base_query(cls, context, scope):
-      return {'organization_id': context.organization._id}
+# @resource('user-profile')
+# class UserProfileQuery(DomainQueryResource):
+#     """ List current profile's users """
+#     @classmethod
+#     def base_query(cls, context, scope):
+#       return {'organization_id': context.organization._id}
 
-    class Meta(DomainQueryResource.Meta):
-        allow_item_view = False
-        allow_list_view = True
+#     class Meta(DomainQueryResource.Meta):
+#         allow_item_view = False
+#         allow_list_view = True
 
-        backend_model = "_profile_list"
-        resource = "profile"
-        policy_required = "id"
-        scope_required = scope.ProfileListScopeSchema
+#         backend_model = "_profile_list"
+#         resource = "profile"
+#         policy_required = "id"
+#         scope_required = scope.ProfileListScopeSchema
 
-    name__family: str = StringField("Family Name")
-    name__given: str = StringField("Given Name")
-    preferred_name: Optional[str] = StringField("Preferred Name")
-    telecom__email: str = StringField("Email")
-    telecom__phone: str = StringField("Phone")
-    username: str = StringField("Username")
-    user_id: UUID_TYPE = UUIDField("User ID")
-    status: str = StringField("Status")
-    organization_id: UUID_TYPE = UUIDField("Organization ID")
-    user_id: UUID_TYPE = UUIDField("User ID")
-    organization_name: str = StringField("Organization Name")
+#     name__family: str = StringField("Family Name")
+#     name__given: str = StringField("Given Name")
+#     preferred_name: Optional[str] = StringField("Preferred Name")
+#     telecom__email: str = StringField("Email")
+#     telecom__phone: str = StringField("Phone")
+#     username: str = StringField("Username")
+#     user_id: UUID_TYPE = UUIDField("User ID")
+#     status: str = StringField("Status")
+#     organization_id: UUID_TYPE = UUIDField("Organization ID")
+#     user_id: UUID_TYPE = UUIDField("User ID")
+#     organization_name: str = StringField("Organization Name")

@@ -25,3 +25,4 @@ c0bd8380-d6da-4562-b539-cf92f7d24096,"2025-11-17 10:29:20.898 +0700",,,,,,user-p
 "6dc166c1-d27a-4672-80ad-ba19129b525a","2025-12-19 13:26:36.213 +0700",,,,"4f7e4f4b-5c8e-4c11-952e-1fcb35775883",,rfx-idm.group.query,OWNER,TENANT
 "b231423d-2441-4bf0-b0c4-300cb3345ca0","2025-12-19 13:26:36.217 +0700",,,,"d9ea46d0-0b64-4327-a955-8530182d6afa",,rfx-idm.group.manage,OWNER,TENANT
 "4214dea9-0d8d-4223-93ef-826d892659bb","2025-12-19 13:28:47.957 +0700",,,,"f01b1caa-ca14-44eb-bf85-2db0d0027f34",,rfx-idm.user.query,OWNER,TENANT
+"c2772152-c750-4045-b58a-b87b6c309673","2025-12-30 14:33:31.431 +0700",,,,"29f3be47-3adf-4a81-b1c7-4c84ad1a4e8d",,user-profile.profile.query,ADMIN,
