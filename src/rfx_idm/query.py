@@ -375,3 +375,21 @@ class ReceivedInvitationQuery(DomainQueryResource):
     status: str = EnumField("Status")
     message: str = StringField("Message")
     expires_at: datetime = StringField("Expiration DateTime")
+
+@resource('realm')
+class RealmQuery(DomainQueryResource):
+    """ Query realm information """
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "realm"
+
+        resource = "realm"
+
+    key: str = StringField("Realm Key")
+    display: Optional[str] = StringField("Display Name")
+    description: Optional[str] = StringField("Description")
+    active: Optional[bool] = BooleanField("Active")
