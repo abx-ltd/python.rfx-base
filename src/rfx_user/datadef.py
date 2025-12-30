@@ -51,6 +51,8 @@ class UpdateOrganizationPayload(DataModel):
 
 class CreateProfilePayload(DataModel):
     """Payload for creating user profiles within organizations."""
+    profile_role_key: Optional[str] = 'VIEWER'
+    profile_role_source: Optional[str] = 'SYSTEM'
     user_id: str = Field(default=None)
     access_tags: list[str] = []
     active: bool = Field(default=True)

@@ -449,42 +449,18 @@ class CreateProfile(Command):
     Data = datadef.CreateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        profile = await agg.create_profile(serialize_mapping(payload))
+        data = serialize_mapping(payload)
+        profile_role_key = data.pop("profile_role_key", 'VIEWER')
+        profile_role_source = data.pop("profile_role_source", 'SYSTEM')
+        profile = await agg.create_profile(data)
         profile_role = dict(
             profile_id=profile._id,
-            role_key='VIEWER',
-            role_source='SYSTEM'
+            role_key=profile_role_key,
+            role_source=profile_role_source
         )
         await agg.assign_role_to_profile(profile_role)
         yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
 
-class CreateProfileInOrg(Command):
-    """
-    Create user profile directly within specified organization.
-    Bypasses invitation process for streamlined profile creation.
-    """
-    class Meta:
-        key = "create-profile-in-org"
-        resources = ("profile",)
-        tags = ["profile"]
-        auth_required = True
-        new_resource = True
-        policy_required = True
-
-    Data = datadef.CreateProfileInOrgPayload
-
-    async def _process(self, agg, stm, payload):
-        profile_data = serialize_mapping(payload)
-        profile_data.pop("profile_role_key", None)
-        profile_data.pop("profile_role_source", None)
-        result = await agg.create_profile_in_org(profile_data)
-        profile_role = dict(
-            profile_id=result.get("profile_id"),
-            role_key=payload.profile_role_key,
-            role_source=payload.profile_role_source,
-        )
-        await agg.assign_role_to_profile(profile_role)
-        yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
 class SwitchProfile(Command):
     """
