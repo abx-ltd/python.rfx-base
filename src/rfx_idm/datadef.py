@@ -36,6 +36,7 @@ class CreateUserPayload(DataModel):
     is_superuser: Optional[bool] = False
 
     # Verification
+    email_verified: Optional[bool] = True
     verified_email: Optional[str] = None
     verified_phone: Optional[str] = None
 
@@ -70,6 +71,7 @@ class UpdateUserPayload(DataModel):
     status: Optional[UserStatusEnum] = None
 
     # Verification metadata
+    email_verified: Optional[bool] = None
     verified_email: Optional[str] = None
     verified_phone: Optional[str] = None
     last_verified_request: Optional[datetime] = None

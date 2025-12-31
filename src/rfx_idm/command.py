@@ -48,6 +48,12 @@ class CreateUser(Command):
     Data = datadef.CreateUserPayload
 
     async def _process(self, agg, stm, payload):
+        email_verified = False
+        if payload.email_verified is not None:
+            email_verified = payload.email_verified
+        elif payload.verified_email:
+            email_verified = True
+
         # Prepare Keycloak user data
         kc_user_data = {
             "email": payload.email,
@@ -55,7 +61,8 @@ class CreateUser(Command):
             "firstName": payload.first_name or "",
             "lastName": payload.last_name or "",
             "enabled": payload.is_active,
-            "requiredActions": ["VERIFY_EMAIL"],
+            "emailVerified": email_verified,
+            "requiredActions": [],
         }
 
         # Add password credentials if provided
@@ -68,6 +75,8 @@ class CreateUser(Command):
         else:
             # If no password provided, require user to update password
             kc_user_data["requiredActions"].append("UPDATE_PASSWORD")
+        if not email_verified:
+            kc_user_data["requiredActions"].append("VERIFY_EMAIL")
 
         # Create user in Keycloak
         kc_user = await kc_admin.create_user(kc_user_data)
@@ -94,7 +103,10 @@ class CreateUser(Command):
             "telecom__phone": payload.phone,
 
             # Verification fields
-            "verified_email": payload.verified_email or (payload.email if payload.is_active else None),
+            "verified_email": (
+                payload.verified_email
+                or (payload.email if email_verified else None)
+            ),
             "verified_phone": payload.verified_phone,
 
             # Access control (JSON fields)
@@ -137,6 +149,8 @@ class UpdateUser(Command):
             kc_payload["lastName"] = payload.last_name
         if payload.is_active is not None:
             kc_payload["enabled"] = payload.is_active
+        if payload.email_verified is not None:
+            kc_payload["emailVerified"] = payload.email_verified
         if payload.verified_email is not None:
             kc_payload["emailVerified"] = bool(payload.verified_email)
 
@@ -165,12 +179,18 @@ class UpdateUser(Command):
         set_update(payload.name_suffix, "name__suffix")
         set_update(payload.email, "telecom__email")
         set_update(payload.phone, "telecom__phone")
-        set_update(payload.verified_email, "verified_email")
         set_update(payload.verified_phone, "verified_phone")
         set_update(payload.realm_access, "realm_access")
         set_update(payload.resource_access, "resource_access")
         set_update(payload.status, "status", lambda v: v.value if hasattr(v, "value") else v)
         set_update(payload.last_verified_request, "last_verified_request")
+
+        if payload.verified_email is not None:
+            user_updates["verified_email"] = payload.verified_email
+        elif payload.email_verified is True:
+            user_updates["verified_email"] = payload.email or rootobj.telecom__email
+        elif payload.email_verified is False:
+            user_updates["verified_email"] = None
 
         updated_user = rootobj
         if user_updates:
