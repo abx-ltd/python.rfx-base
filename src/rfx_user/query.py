@@ -134,7 +134,7 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
             where=dict(
                 user_id=context.profile.usr_id,
                 status='ACTIVE',
-                _realm=profile._realm
+                realm=profile.realm
             ))
 
         target_id = str(profile._id)
