@@ -85,6 +85,7 @@ user_profile_list_view = PGView(
         profile.name__given,
         profile.preferred_name,
         profile.username,
+        profile.realm,
         profile.status,
         profile.active,
         profile.organization_id,
