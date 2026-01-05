@@ -71,7 +71,7 @@ class UpdateUserPayload(DataModel):
     status: Optional[UserStatusEnum] = None
 
     # Verification metadata
-    email_verified: Optional[bool] = None
+    email_verified: Optional[bool] = True
     verified_email: Optional[str] = None
     verified_phone: Optional[str] = None
     last_verified_request: Optional[datetime] = None
