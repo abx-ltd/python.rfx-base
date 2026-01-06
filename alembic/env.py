@@ -1,5 +1,7 @@
 import logging
 import os
+
+# import alembic_postgresql_enum  # noqa: F401
 from logging.config import fileConfig
 
 from sqlalchemy import create_engine
@@ -12,7 +14,7 @@ from rfx_base import config as base_config
 
 # STEP 2: Import RFXConnector and schema modules (they will use rfx_base.config directly)
 from rfx_schema import DOMAIN_CONNECTORS, config as schema_config
-from rfx_schema import _schema, _pgentity
+from rfx_schema import _schema, _pgentity  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,27 +27,29 @@ if config.config_file_name is not None:
 
 logger = logging.getLogger("alembic.env")
 
-sync_url = schema_config.DB_DSN.replace('+asyncpg://', '+psycopg2://')
+sync_url = schema_config.DB_DSN.replace("+asyncpg://", "+psycopg2://")
 
 # All available schemas
 DOMAIN_SCHEMAS = {
-    'user': base_config.RFX_USER_SCHEMA,
-    'policy': base_config.RFX_POLICY_SCHEMA,
-    'message': base_config.RFX_MESSAGE_SCHEMA,
-    'media': base_config.RFX_MEDIA_SCHEMA,
-    'notify': base_config.RFX_NOTIFY_SCHEMA,
-    'client': base_config.RFX_CLIENT_SCHEMA,
-    'discuss': base_config.RFX_DISCUSS_SCHEMA,
-    'qr': base_config.RFX_QR_SCHEMA,
+    "user": base_config.RFX_USER_SCHEMA,
+    "policy": base_config.RFX_POLICY_SCHEMA,
+    "message": base_config.RFX_MESSAGE_SCHEMA,
+    "media": base_config.RFX_MEDIA_SCHEMA,
+    "notify": base_config.RFX_NOTIFY_SCHEMA,
+    "client": base_config.RFX_CLIENT_SCHEMA,
+    "discuss": base_config.RFX_DISCUSS_SCHEMA,
+    "qr": base_config.RFX_QR_SCHEMA,
 }
 
 # Get schema filter from environment variable
 # Format: comma-separated list like "user,message" or "all" (default)
 # Set via: ALEMBIC_SCHEMA_FILTER=user,message alembic revision --autogenerate -m "message"
 # Or use the just commands: just mig-autogen "message" user,message
-schema_filter = os.getenv('ALEMBIC_SCHEMA_FILTER', 'all')
-if schema_filter and schema_filter != 'all':
-    schema_names = [s.strip() for s in schema_filter.split(',') if s.strip() in DOMAIN_SCHEMAS]
+schema_filter = os.getenv("ALEMBIC_SCHEMA_FILTER", "all")
+if schema_filter and schema_filter != "all":
+    schema_names = [
+        s.strip() for s in schema_filter.split(",") if s.strip() in DOMAIN_SCHEMAS
+    ]
 else:
     schema_names = list(DOMAIN_SCHEMAS.keys())
 
@@ -54,17 +58,24 @@ if not schema_names:
     schema_names = list(DOMAIN_SCHEMAS.keys())
 
 SCHEMAS = tuple(DOMAIN_SCHEMAS[name] for name in schema_names)
-selected_connectors = [DOMAIN_CONNECTORS[name] for name in schema_names if name in DOMAIN_CONNECTORS]
-target_metadata = [connector.__data_schema_base__.metadata for connector in selected_connectors]
+selected_connectors = [
+    DOMAIN_CONNECTORS[name] for name in schema_names if name in DOMAIN_CONNECTORS
+]
+target_metadata = [
+    connector.__data_schema_base__.metadata for connector in selected_connectors
+]
 
 logger.info(f"📋 Using schemas: {schema_names} -> {SCHEMAS}")
 
 
-def include_server_default(inspector, table, column, column_default, metadata_default, **kw):
+def include_server_default(
+    inspector, table, column, column_default, metadata_default, **kw
+):
     # Return False to skip comparison for this column
     if column.name in ("_created", "_updated", "_etag"):
         return False
     return True
+
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -79,18 +90,20 @@ def include_object(object, name, type_, reflected, compare_to):
     This prevents alembic from generating DROP TABLE statements and
     other destructive operations during autogenerate.
     """
-    if type_ in ('grant_table', 'extension'):
+    if type_ in ("grant_table", "extension"):
         return False
 
-    if type_ in ('table', 'view') and object.schema not in SCHEMAS:
+    if type_ in ("table", "view") and object.schema not in SCHEMAS:
         return False
 
-    if hasattr(object, 'info') and object.info.get('is_view'):
+    if hasattr(object, "info") and object.info.get("is_view"):
         logger.warning(f"include_object: skipping {name} because it is a view")
         return False
 
     # For other objects, use default behavior
     return True
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -140,7 +153,7 @@ def run_migrations_online() -> None:
             include_object=include_object,
             compare_type=True,
             include_server_default=include_server_default,
-            version_table='rfx_schema_version'
+            version_table="rfx_schema_version",
         )
 
         with context.begin_transaction():

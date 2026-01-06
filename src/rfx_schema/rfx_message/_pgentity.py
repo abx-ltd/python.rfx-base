@@ -6,12 +6,12 @@ from alembic_utils.pg_view import PGView
 from alembic_utils.replaceable_entity import register_entities
 
 
-message_recipients_view = PGView(
+message_recipient_view = PGView(
     schema=config.RFX_MESSAGE_SCHEMA,
-    signature="_message_recipients",
+    signature="_message_recipient",
     definition=f"""
     SELECT
-        message._id        AS message_id,
+        message._id,
         r.recipient_id,
         message.subject,
         message.content,
@@ -21,10 +21,12 @@ message_recipients_view = PGView(
         message.expirable,
         message.priority,
         message.message_type,
+        message.category,
         r.read              AS is_read,
         r.mark_as_read      AS read_at,
         r._id               AS record_id,
         r.archived,
+        r.trashed,
         message._realm,
         message._created,
         message._updated,
@@ -35,17 +37,20 @@ message_recipients_view = PGView(
     FROM {config.RFX_MESSAGE_SCHEMA}.message
     JOIN {config.RFX_MESSAGE_SCHEMA}.message_recipient r
          ON message._id = r.message_id;
-    """
+    """,
 )
 
 
 def register_pg_entities(allow):
     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
     if not allow_flag:
-        logger.info('REGISTER_PG_ENTITIES is disabled or not set.')
+        logger.info("REGISTER_PG_ENTITIES is disabled or not set.")
         return
-    register_entities([
-        message_recipients_view,
-    ])
+    register_entities(
+        [
+            message_recipient_view,
+        ]
+    )
 
-register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))
+
+register_pg_entities(os.environ.get("REGISTER_PG_ENTITIES"))
