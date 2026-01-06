@@ -9,21 +9,25 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import Base, SCHEMA
-from .types import ContentTypeEnum, MessageTypeEnum, PriorityLevelEnum
+from .types import (
+    ContentTypeEnum,
+    MessageCategoryEnum,
+    MessageTypeEnum,
+    PriorityLevelEnum,
+)
 
 
 class MessageRecipientsView(Base):
     """
-    ORM mapping for the `_message_recipients` view defined via PGView.
+    ORM mapping for the `_message_recipient` view defined via PGView.
     Exposes a flattened dataset that joins messages and recipients to
     support notification fan-out without additional joins.
     """
 
-    __tablename__ = "_message_recipients"
+    __tablename__ = "_message_recipient"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     record_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     recipient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     sender_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
@@ -41,10 +45,13 @@ class MessageRecipientsView(Base):
     message_type: Mapped[Optional[MessageTypeEnum]] = mapped_column(
         SQLEnum(MessageTypeEnum, name="messagetypeenum", schema=SCHEMA)
     )
-
+    category: Mapped[Optional[MessageCategoryEnum]] = mapped_column(
+        SQLEnum(MessageCategoryEnum, name="messagecategoryenum", schema=SCHEMA)
+    )
     is_read: Mapped[Optional[bool]] = mapped_column(Boolean)
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     archived: Mapped[Optional[bool]] = mapped_column(Boolean)
+    trashed: Mapped[Optional[bool]] = mapped_column(Boolean)
 
     def __repr__(self) -> str:
         return (

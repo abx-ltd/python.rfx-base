@@ -39,6 +39,7 @@ from .types import (
     RenderStatusEnum,
     RenderStrategyEnum,
     TagGroupEnum,
+    MessageCategoryEnum,
 )
 
 
@@ -78,6 +79,9 @@ class Message(TableBase):
     message_type: Mapped[Optional[MessageTypeEnum]] = mapped_column(
         SQLEnum(MessageTypeEnum, name="messagetypeenum", schema=SCHEMA)
     )
+    category: Mapped[Optional[MessageCategoryEnum]] = mapped_column(
+        SQLEnum(MessageCategoryEnum, name="messagecategoryenum", schema=SCHEMA)
+    )
     delivery_status: Mapped[DeliveryStatusEnum] = mapped_column(
         SQLEnum(DeliveryStatusEnum, name="deliverystatusenum", schema=SCHEMA),
         default=DeliveryStatusEnum.PENDING,
@@ -86,7 +90,6 @@ class Message(TableBase):
 
     data: Mapped[dict] = mapped_column(JSONB, default=dict)
     context: Mapped[dict] = mapped_column(JSONB, default=dict)
-    mtype: Mapped[str] = mapped_column(String(255), nullable=False)
 
     template_key: Mapped[Optional[str]] = mapped_column(String(255))
     template_version: Mapped[Optional[int]]
@@ -220,6 +223,7 @@ class MessageRecipient(TableBase):
     read: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
     mark_as_read: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     archived: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    trashed: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
     is_ignored: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     label: Mapped[Optional[List[uuid.UUID]]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), default=list

@@ -95,3 +95,9 @@ class ProcessingModeEnum(Enum):
     SYNC = "SYNC"
     ASYNC = "ASYNC"
     IMMEDIATE = "IMMEDIATE"
+
+
+class MessageCategoryEnum(Enum):
+    IMPORTANT = "IMPORTANT"
+    URGENT = "URGENT"
+    INFORMATION = "INFORMATION"

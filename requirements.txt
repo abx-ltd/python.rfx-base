@@ -5,3 +5,4 @@ casbin
 pyyaml
 gmqtt
 napas-qr-python
+alembic-postgresql-enum
