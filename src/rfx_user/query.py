@@ -178,7 +178,7 @@ class UserQuery(DomainQueryResource):
     verified_email: Optional[str] = StringField("Verified Email")
     verified_phone: Optional[str] = StringField("Verified Phone")
     is_super_admin: bool = BooleanField("Is Super Admin")
-    status: str = StringField("Status")
+    status: str = EnumField("Status")
 
 @resource('profile')
 class ProfileQuery(DomainQueryResource):
