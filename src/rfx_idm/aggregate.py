@@ -456,14 +456,22 @@ class IDMAggregate(Aggregate):
     async def deactivate_profile(self, data=None):
         """Deactivate profile to prevent further access."""
         item = self.rootobj
-        await self.statemgr.update(item, status=ProfileStatusEnum.DEACTIVATED.value)
+        await self.statemgr.update(
+            item,
+            status=ProfileStatusEnum.DEACTIVATED.value,
+            current_profile=False
+        )
         await self.set_profile_status(item, ProfileStatusEnum.DEACTIVATED.value)
 
     @action("profile-activated", resources="profile")
     async def activate_profile(self, data=None):
         """Activate profile to allow access."""
         item = self.rootobj
-        await self.statemgr.update(item, status=ProfileStatusEnum.ACTIVE.value)
+        await self.statemgr.update(
+            item,
+            status=ProfileStatusEnum.ACTIVE.value,
+            current_profile=True
+        )
         await self.set_profile_status(item, ProfileStatusEnum.ACTIVE.value)
 
     @action("role-assigned-to-profile", resources=("organization", "profile"))
