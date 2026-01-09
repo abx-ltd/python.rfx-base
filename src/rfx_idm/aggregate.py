@@ -430,6 +430,10 @@ class IDMAggregate(Aggregate):
         if not user:
             return {"message": f"User with id {user_id} not found."}
 
+        role = data.get("role_key")
+        if role == 'OWNER':
+            raise ValueError("Cannot assign OWNER role via this action.")
+
         record = self.init_resource(
             "profile",
             **data,
@@ -486,6 +490,9 @@ class IDMAggregate(Aggregate):
             profile_id=profile_id,
         ))
         if not profile_role:
+            existed_owner = await self.statemgr.exist('profile_role', where=dict(role_key='OWNER'))
+            if role_key == 'OWNER' and existed_owner:
+                raise ValueError("OWNER role already assigned to another profile.")
             record = self.init_resource("profile_role", **data, role_id=role._id, _id=UUID_GENR())
             await self.statemgr.insert(record)
             return
@@ -511,6 +518,24 @@ class IDMAggregate(Aggregate):
         roles = await self.statemgr.find_all('profile_role', where=dict(profile_id=self.aggroot.identifier))
         for role in roles:
             await self.statemgr.invalidate_data('profile_role', role._id)
+
+    @action("profile-deleted", resources="profile")
+    async def delete_profile(self):
+        """Delete profile and clean up associated roles and groups."""
+        # First remove all role associations
+        roles = await self.statemgr.find_all('profile_role', where=dict(profile_id=self.aggroot.identifier))
+        for role in roles:
+            if role.role_key == 'OWNER':
+                raise ValueError("Cannot delete profile with OWNER role assigned.")
+            await self.statemgr.invalidate_data('profile_role', role._id)
+
+        # Then remove all group associations
+        groups = await self.statemgr.find_all('profile_group', where=dict(profile_id=self.aggroot.identifier))
+        for group in groups:
+            await self.statemgr.invalidate_data('profile_group', group._id)
+
+        # Finally delete the profile
+        await self.statemgr.invalidate_data('profile', self.aggroot.identifier)
 
     # ==========================================================================
     # GROUP OPERATIONS

@@ -690,6 +690,21 @@ class ActivateProfile(Command):
     async def _process(self, agg, stm, payload):
         await agg.activate_profile()
 
+class DeleteProfile(Command):
+    """
+    Delete user profile within organization.
+    Removes profile and associated data from system.
+    """
+    class Meta:
+        key = "delete-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.delete_profile()
+
 
 # ============ Profile Role Management =============
 
