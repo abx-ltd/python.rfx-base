@@ -522,6 +522,9 @@ class IDMAggregate(Aggregate):
     @action("profile-deleted", resources="profile")
     async def delete_profile(self):
         """Delete profile and clean up associated roles and groups."""
+        current_profile = self.context.profile_id
+        if current_profile == self.aggroot.identifier:
+            raise ValueError("Cannot delete the currently active profile.")
         # First remove all role associations
         roles = await self.statemgr.find_all('profile_role', where=dict(profile_id=self.aggroot.identifier))
         for role in roles:
