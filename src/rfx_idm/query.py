@@ -394,3 +394,20 @@ class RealmQuery(DomainQueryResource):
     display: Optional[str] = StringField("Display Name")
     description: Optional[str] = StringField("Description")
     active: Optional[bool] = BooleanField("Active")
+
+@resource('role')
+class RoleQuery(DomainQueryResource):
+    """ Query role information """
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = False
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "ref__system_role"
+
+    key: str = StringField("Role Key")
+    name: Optional[str] = StringField("Display Name")
+    description: Optional[str] = StringField("Description")
+    active: Optional[bool] = BooleanField("Active")
+    role_type: Optional[str] = StringField("Role Type")
