@@ -3,9 +3,8 @@ RFX Messaging Domain Aggregate - Business Logic and State Management
 """
 
 from fluvius.domain.aggregate import Aggregate, action
-from fluvius.data import serialize_mapping, timestamp
+from fluvius.data import serialize_mapping, timestamp, UUID_GENR
 from typing import Optional, Dict, Any
-# import asyncio
 
 from .processor import MessageContentProcessor
 from .types import ProcessingModeEnum, RenderStatusEnum
@@ -33,19 +32,18 @@ class MessageAggregate(Aggregate):
     # ========================================================================
 
     @action("message-generated", resources="message")
-    async def generate_message(self, *, data):
+    async def generate_message(self, *, data, sender_id):
         """Action to create a new message."""
         message_data = data
         message_data["render_status"] = "PENDING"
 
         message = self.init_resource(
-            "message", message_data, _id=self.aggroot.identifier
+            "message", message_data, _id=UUID_GENR(), sender_id=sender_id
         )
+
         await self.statemgr.insert(message)
 
-        return {
-            "message_id": message._id,
-        }
+        return message
 
     @action("message-content-processed", resources="message")
     async def process_message_content(
