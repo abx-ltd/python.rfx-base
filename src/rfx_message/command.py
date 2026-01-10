@@ -66,9 +66,13 @@ class SendMessage(Command):
         if not recipients:
             raise ValueError("Recipients list cannot be empty")
 
+        user_id = agg.get_context().user_id
+
         # 1. Create message record
-        message_result = await agg.generate_message(data=message_payload)
-        message_id = message_result["message_id"]
+        message_result = await agg.generate_message(
+            data=message_payload, sender_id=user_id
+        )
+        message_id = message_result._id
 
         # 2. Add recipients
         await agg.add_recipients(data=recipients, message_id=message_id)
@@ -83,22 +87,15 @@ class SendMessage(Command):
 
         context = agg.get_context()
         client = context.service_proxy.mqtt_client
-        channels = []
         message = await self._process_message(
             agg, message_id, message_payload, processing_mode
         )
-        channels = self._notify_recipients(
+        self._notify_recipients(
             client, recipients, "message", message_id, message, processing_mode
         )
 
         yield agg.create_response(
-            {
-                "status": "success",
-                "message_id": message_id,
-                "processing_mode": processing_mode.value,
-                "recipients_count": len(recipients),
-                "channels": channels,
-            },
+            serialize_mapping(message_result),
             _type="message-service-response",
         )
 
