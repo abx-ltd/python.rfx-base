@@ -484,24 +484,50 @@ class IDMAggregate(Aggregate):
         role_key = data.get("role_key", "VIEWER")
         profile_id = data.get("profile_id", self.aggroot.identifier)
 
+        # Fetch the system role
         role = await self.statemgr.exist('ref__system_role', where=dict(key=role_key))
+        if not role:
+            raise ValueError(f"System role '{role_key}' does not exist.")
 
+        # Check if profile already has a role assigned
         profile_role = await self.statemgr.exist('profile_role', where=dict(
             profile_id=profile_id,
         ))
-        if not profile_role:
-            existed_owner = await self.statemgr.exist('profile_role', where=dict(role_key='OWNER'))
-            if role_key == 'OWNER' and existed_owner:
-                raise ValueError("OWNER role already assigned to another profile.")
-            record = self.init_resource("profile_role", **data, role_id=role._id, _id=UUID_GENR())
-            await self.statemgr.insert(record)
-            return
 
-        if profile_role.role_key == role_key:
-            raise ValueError(f"Role {role_key} already assigned to profile.")
-        else:
+        if profile_role:
+            # Profile already has a role assigned
+
+            # Cannot modify OWNER role
+            if profile_role.role_key == 'OWNER':
+                raise ValueError("Cannot change OWNER role assigned to profile.")
+
+            # Check if trying to assign the same role
+            if profile_role.role_key == role_key:
+                raise ValueError(f"Role {role_key} already assigned to profile.")
+
+            # Update to new role
             await self.statemgr.update(profile_role, role_key=role_key, role_id=role._id)
-            raise ValueError(f"Profile role updated to {role_key}.")
+            return {"message": f"Profile role updated to {role_key}"}
+
+        else:
+            # Profile has no role yet - create new role assignment
+
+            # If assigning OWNER, check no other OWNER exists in org
+            if role_key == 'OWNER':
+                existing_owner = await self.statemgr.exist('profile_role', where=dict(
+                    role_key='OWNER'
+                ))
+                # Need to check if that owner is in the same organization
+                if existing_owner:
+                    owner_profile = await self.statemgr.fetch('profile', existing_owner.profile_id)
+                    if owner_profile and owner_profile.organization_id == self.context.organization_id:
+                        raise ValueError("Organization can have only one OWNER role assigned.")
+
+            # Create new role assignment
+            record = self.init_resource("profile_role", profile_id=profile_id, role_key=role_key, role_id=role._id, _id=UUID_GENR())
+            await self.statemgr.insert(record)
+            return {"message": f"Role {role_key} assigned to profile"}
+
 
     @action("role-revoked-from-profile", resources="profile")
     async def revoke_role_from_profile(self, data):

@@ -13,6 +13,7 @@ from typing import List, Optional
 
 from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import text
 
 from . import TableBase, SCHEMA
 from .types import (
@@ -88,8 +89,7 @@ class PolicyResource(TableBase):
     policy_key: Mapped[str] = mapped_column(
         String(255), ForeignKey(f"{SCHEMA}.policy.key"), nullable=False
     )
-    meta: Mapped[Optional[str]] = mapped_column(Text)
-
+    meta: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
     policy: Mapped["Policy"] = relationship(back_populates="resources")
 
 

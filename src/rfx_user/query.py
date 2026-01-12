@@ -410,6 +410,7 @@ class RealmQuery(DomainQueryResource):
     description: Optional[str] = StringField("Description")
     active: Optional[bool] = BooleanField("Active")
 
+
 @resource('organization-member')
 class ProfileListQuery(DomainQueryResource):
     """ List current profile's users """
