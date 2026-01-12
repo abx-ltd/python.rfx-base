@@ -505,6 +505,17 @@ class IDMAggregate(Aggregate):
             if profile_role.role_key == role_key:
                 raise ValueError(f"Role {role_key} already assigned to profile.")
 
+            # If updating to OWNER, check no other OWNER exists in org
+            if role_key == 'OWNER':
+                existing_owner = await self.statemgr.exist('profile_role', where=dict(
+                    role_key='OWNER'
+                ))
+                # Need to check if that owner is in the same organization
+                if existing_owner:
+                    owner_profile = await self.statemgr.fetch('profile', existing_owner.profile_id)
+                    if owner_profile and owner_profile.organization_id == self.context.organization_id:
+                        raise ValueError("Organization can have only one OWNER role assigned.")
+
             # Update to new role
             await self.statemgr.update(profile_role, role_key=role_key, role_id=role._id)
             return {"message": f"Profile role updated to {role_key}"}
