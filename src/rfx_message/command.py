@@ -38,7 +38,7 @@ class SendMessage(Command):
         await agg.mark_ready_for_delivery(message_id)
         return processed_message
 
-    def _notify_recipients(
+    def _notify_recipient(
         self,
         client,
         recipients: list,
@@ -50,10 +50,14 @@ class SendMessage(Command):
         if not client:
             return ValueError("Client is not available")
         channels = []
-        for user_id in recipients:
-            msg["recipient_id"] = user_id
+        for profile_id in recipients:
+            msg["recipient_id"] = profile_id
             channel = client.notify(
-                user_id=user_id, kind=kind, target=target, msg=msg, batch_id=mode.value
+                profile_id=profile_id,
+                kind=kind,
+                target=target,
+                msg=msg,
+                batch_id=mode.value,
             )
             channels.append(channel)
         client.send(mode.value)
@@ -66,11 +70,11 @@ class SendMessage(Command):
         if not recipients:
             raise ValueError("Recipients list cannot be empty")
 
-        user_id = agg.get_context().user_id
+        profile_id = agg.get_context().profile_id
 
         # 1. Create message record
         message_result = await agg.generate_message(
-            data=message_payload, sender_id=user_id
+            data=message_payload, sender_id=profile_id
         )
         message_id = message_result._id
 
@@ -90,7 +94,7 @@ class SendMessage(Command):
         message = await self._process_message(
             agg, message_id, message_payload, processing_mode
         )
-        self._notify_recipients(
+        self._notify_recipient(
             client, recipients, "message", message_id, message, processing_mode
         )
 
@@ -119,7 +123,6 @@ class MarkAllMessagesRead(Command):
 
     class Meta:
         key = "mark-all-message-read"
-        # Substitute for the next Fluvius Batch update
         new_resource = True
         resources = ("message_recipient",)
         tags = ["messages", "read"]
@@ -135,13 +138,31 @@ class ArchiveMessage(Command):
 
     class Meta:
         key = "archive-message"
-        resources = ("message_recipient",)
+        resources = ("message",)
         tags = ["messages", "archived"]
         auth_required = True
         policy_required = False
 
+    Data = datadef.ArchiveMessagePayload
+
     async def _process(self, agg, stm, payload):
         await agg.archive_message()
+
+
+class TrashMessage(Command):
+    """Trash a message for the current user."""
+
+    class Meta:
+        key = "trash-message"
+        resources = ("message",)
+        tags = ["messages", "trashed"]
+        auth_required = True
+        policy_required = False
+
+    Data = datadef.TrashMessagePayload
+
+    async def _process(self, agg, stm, payload):
+        await agg.trash_message(payload)
 
 
 class ReplyMessage(Command):

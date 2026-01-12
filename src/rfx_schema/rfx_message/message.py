@@ -52,8 +52,8 @@ class Message(TableBase):
     thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     subject: Mapped[Optional[str]] = mapped_column(String(1024))
-    content: Mapped[Optional[str]] = mapped_column(String(1024))
-    rendered_content: Mapped[Optional[str]] = mapped_column(String(1024))
+    content: Mapped[Optional[str]] = mapped_column(Text)
+    rendered_content: Mapped[Optional[str]] = mapped_column(Text)
     content_type: Mapped[Optional[ContentTypeEnum]] = mapped_column(
         SQLEnum(
             ContentTypeEnum,
@@ -63,6 +63,8 @@ class Message(TableBase):
             values_callable=lambda enum: [e.value for e in enum],
         )
     )
+    archived: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    trashed: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
 
     tags: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     is_important: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
