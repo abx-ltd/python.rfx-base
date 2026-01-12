@@ -121,9 +121,9 @@ class MessageAggregate(Aggregate):
     @action("all-messages-read", resources="message_recipient")
     async def mark_all_messages_read(self):
         """Action to mark all messages as read for a user."""
-        user_id = self.context.user_id
+        profile_id = self.context.profile_id
         recipients = await self.statemgr.find_all(
-            "message_recipient", where={"recipient_id": user_id, "read": False}
+            "message_recipient", where={"recipient_id": profile_id, "read": False}
         )
 
         updated_count = 0
@@ -131,22 +131,33 @@ class MessageAggregate(Aggregate):
             await self.statemgr.update(recipient, read=True, mark_as_read=timestamp())
             updated_count += 1
 
-        return {"user_id": user_id, "updated_count": updated_count}
+        return {"profile_id": profile_id, "updated_count": updated_count}
 
     @action("message-archived", resources="message_recipient")
-    async def archive_message(self):
+    async def archive_message(self, /, data):
         """Action to archive a message for a specific user."""
-        message_id = self.aggroot.identifier
-
-        recipient = await self.statemgr.fetch("message_recipient", message_id)
-        if not recipient:
-            raise ValueError(
-                f"Recipient not found: {self.context.user_id} for message {message_id}"
+        message = self.rootobj
+        if data.recepient_id:
+            message_recipient = await self.statemgr.find_one(
+                "message_recipient",
+                where=dict(message_id=message._id, recipient_id=data.recepient_id),
             )
+            self.statemgr.update(message_recipient, archived=True)
+        else:
+            self.statemgr.update(message, archived=True)
 
-        await self.statemgr.update(recipient, archived=True, archived_at=timestamp())
-
-        return message_id
+    @action("message-trashed", resources="message_recipient")
+    async def trash_message(self, /, data):
+        """Action to trash a message for a specific user."""
+        message = self.rootobj
+        if data.recepient_id:
+            message_recipient = await self.statemgr.find_one(
+                "message_recipient",
+                where=dict(message_id=message._id, recipient_id=data.recepient_id),
+            )
+            self.statemgr.update(message_recipient, trashed=True)
+        else:
+            self.statemgr.update(message, trashed=True)
 
     # ========================================================================
     # TEMPLATE OPERATIONS
@@ -221,3 +232,4 @@ class MessageAggregate(Aggregate):
             "version": template.version,
             "status": "PUBLISHED",
         }
+    
