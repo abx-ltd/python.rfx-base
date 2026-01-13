@@ -188,9 +188,6 @@ class AddReaction(Command):
 
     async def _process(self, agg, stm, payload):
         """Add reaction to comment"""
-        comment = agg.get_aggroot()
-        if not comment:
-            raise ValueError(f"Comment not found: {agg.get_aggroot().identifier}")
         await agg.add_reaction(data=payload)
         yield agg.create_response(
             {"status": "success"}, _type="comment-reaction-response"

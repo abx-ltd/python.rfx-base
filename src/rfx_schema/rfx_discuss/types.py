@@ -47,14 +47,14 @@ class AttachmentTypeEnum(str, Enum):
 
 class ReactionTypeEnum(str, Enum):
     """Comment reaction types"""
-    LIKE = "like"
-    LOVE = "love"
-    LAUGH = "laugh"
-    WOW = "wow"
-    SAD = "sad"
-    ANGRY = "angry"
-    THINKING = "thinking"
-    CELEBRATE = "celebrate"
+    LIKE = "LIKE"
+    LOVE = "LOVE"
+    LAUGH = "LAUGH"
+    WOW = "WOW"
+    SAD = "SAD"
+    ANGRY = "ANGRY"
+    THINKING = "THINKING"
+    CELEBRATE = "CELEBRATE"
 
 
 __all__ = [

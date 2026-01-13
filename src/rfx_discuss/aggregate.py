@@ -2,6 +2,7 @@ from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
 from rfx_discuss import logger
+from rfx_schema.rfx_discuss.types import ReactionTypeEnum
 from . import config
 
 
@@ -119,7 +120,7 @@ class RFXDiscussAggregate(Aggregate):
         reaction_data = serialize_mapping(data)
         reaction_data["comment_id"] = comment._id
         reaction_data["user_id"] = user_id
-        check_existing = await self.statemgr.find_one(
+        check_existing = await self.statemgr.exist(
             "comment_reaction",
             where={
                 "comment_id": comment._id,

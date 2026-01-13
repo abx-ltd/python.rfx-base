@@ -10,12 +10,12 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, Enum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import TableBase, SCHEMA
-
+from .types import ReactionTypeEnum
 
 # ============================================================================
 # COMMENT VIEWS
@@ -116,7 +116,7 @@ class CommentReactionView(TableBase):
 
     comment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    reaction_type: Mapped[str] = mapped_column(String(50))
+    reaction_type: Mapped[ReactionTypeEnum] = mapped_column(Enum(ReactionTypeEnum, schema=SCHEMA))
 
     # Reactor info (JSONB)
     reactor: Mapped[Optional[dict]] = mapped_column(
@@ -141,7 +141,7 @@ class CommentReactionSummaryView(TableBase):
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     comment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    reaction_type: Mapped[str] = mapped_column(String(50))
+    reaction_type: Mapped[ReactionTypeEnum] = mapped_column(Enum(ReactionTypeEnum, schema=SCHEMA))
     reaction_count: Mapped[int] = mapped_column(Integer)
 
     # Array of user objects (JSONB)

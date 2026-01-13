@@ -20,12 +20,14 @@ from sqlalchemy import (
     Text,
     text,
     UniqueConstraint,
+    Enum as SQLEnum,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from . import TableBase, SCHEMA
+from .types import ReactionTypeEnum
 
 
 # ============================================================================
@@ -236,8 +238,8 @@ class CommentReaction(TableBase):
         UUID(as_uuid=True),
         nullable=False,
     )
-    reaction_type: Mapped[str] = mapped_column(
-        String(50),
+    reaction_type: Mapped[ReactionTypeEnum] = mapped_column(
+        SQLEnum(ReactionTypeEnum, name="reactiontypeenum", schema=SCHEMA),
         nullable=False,
     )
 
