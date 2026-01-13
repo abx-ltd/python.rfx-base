@@ -80,27 +80,6 @@ class DeleteComment(Command):
         await agg.delete_comment()
 
 
-class ReplyToComment(Command):
-    """Reply to Comment - Replies to a comment"""
-
-    class Meta:
-        key = "reply-to-comment"
-        resources = ("comment",)
-        tags = ["comment", "reply"]
-        auth_required = True
-        description = "Reply to a comment"
-        policy_required = True
-
-    Data = datadef.ReplyToCommentPayload
-
-    async def _process(self, agg, stm, payload):
-        """Reply to comment"""
-
-        result = await agg.reply_to_comment(data=payload)
-        await _handle_mentions(agg, stm, payload.content)
-        await _notify_subscribers(agg, stm, agg.get_aggroot().identifier)
-        yield agg.create_response(serialize_mapping(result), _type="comment-response")
-
 
 class AttachFileToComment(Command):
     """Attach File to Comment - Attaches a file to a comment after upload"""

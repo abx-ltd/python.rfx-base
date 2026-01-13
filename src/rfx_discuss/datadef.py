@@ -6,8 +6,9 @@ from rfx_schema.rfx_discuss.types import ReactionTypeEnum
 
 class CreateCommentPayload(DataModel):
     content: str
-    resource: str
-    resource_id: str
+    resource: Optional[str] = None
+    resource_id: Optional[str] = None
+    parent_id: Optional[UUID_TYPE] = None
 
 
 class UpdateCommentPayload(DataModel):
@@ -16,10 +17,6 @@ class UpdateCommentPayload(DataModel):
 
 class DeleteCommentPayload(DataModel):
     pass
-
-
-class ReplyToCommentPayload(DataModel):
-    content: str
 
 
 class AttachFileToCommentPayload(DataModel):

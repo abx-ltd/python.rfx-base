@@ -13,11 +13,39 @@ class RFXDiscussAggregate(Aggregate):
     @action("comment-created", resources="comment")
     async def create_comment(self, /, data):
         """Create a new comment"""
+        organization_id = self.context.organization_id
+        data = serialize_mapping(data)
+        parent_id = data.get("parent_id")
+        
+        if parent_id:
+            parent_comment = await self.statemgr.find_one(
+                "comment", where={"_id": parent_id}
+            )
+            depth = parent_comment.depth + 1
+            final_parent_id = parent_comment.parent_id
+
+            if parent_comment.depth >= config.COMMENT_NESTED_LEVEL:
+                depth = parent_comment.depth
+                final_parent_id = parent_comment.parent_id
+            
+            data.update(
+                {
+                    "parent_id": final_parent_id,
+                    "depth": depth,
+                    "resource": parent_comment.resource,
+                    "resource_id": parent_comment.resource_id,
+                }
+            )
+        else:
+            if not data.get("resource") or not data.get("resource_id"):
+                raise ValueError("resource and resource_id must be provided for top-level comments")
+            data.setdefault("depth", 0)
+
         record = self.init_resource(
             "comment",
-            serialize_mapping(data),
+            data,
             _id=UUID_GENR(),
-            organization_id=self.context.organization_id,
+            organization_id=organization_id,
         )
         await self.statemgr.insert(record)
         return record
@@ -34,38 +62,6 @@ class RFXDiscussAggregate(Aggregate):
         comment = self.rootobj
         await self.statemgr.invalidate(comment)
 
-    @action("reply-to-comment", resources="comment")
-    async def reply_to_comment(self, /, data):
-        """Reply to comment"""
-        parent_comment = self.rootobj
-        organization_id = self.get_context().organization_id
-
-        logger.info(f"Creating reply to comment: {parent_comment._id}")
-
-        parent_id = parent_comment._id
-        depth = parent_comment.depth + 1
-
-        if parent_comment.depth >= config.COMMENT_NESTED_LEVEL:
-            depth = parent_comment.depth
-            parent_id = parent_comment.parent_id
-            logger.info(f"Max nest level reached, attaching to parent: {parent_id}")
-
-        reply_data = serialize_mapping(data)
-        reply_data.update(
-            {
-                "parent_id": parent_id,
-                "depth": depth,
-                "resource": parent_comment.resource,
-                "resource_id": parent_comment.resource_id,
-            }
-        )
-
-        new_comment = self.init_resource(
-            "comment", reply_data, _id=UUID_GENR(), organization_id=organization_id
-        )
-
-        await self.statemgr.insert(new_comment)
-        return new_comment
 
     @action("attach-file", resources="comment")
     async def attach_file_to_comment(self, /, data):
