@@ -241,7 +241,7 @@ class ReadMessage(Command):
 
     class Meta:
         key = "read-message"
-        resources = ("message_recipient",)
+        resources = ("message",)
         tags = ["message", "read"]
         auth_required = True
         policy_required = False
@@ -255,8 +255,7 @@ class MarkAllMessagesRead(Command):
 
     class Meta:
         key = "mark-all-message-read"
-        new_resource = True
-        resources = ("message_recipient",)
+        resources = ("message",)
         tags = ["messages", "read"]
         auth_required = True
         policy_required = False
