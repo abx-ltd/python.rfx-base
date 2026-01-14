@@ -30,7 +30,7 @@ populate:
 
 
 @create-schema:
-    ./manager db create-schema rfx_schema._schema.RFXConnector --force
+    ./manager db create-schema rfx_schema.rfx_discuss.RFXDiscussConnector --force
 
 @drop-schema: print-vars && _drop-schema-confirmed
 

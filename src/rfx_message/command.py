@@ -66,7 +66,7 @@ class SendMessage(Command):
     async def _process(self, agg, stm, payload):
         message_payload = serialize_mapping(payload)
         recipients = message_payload.pop("recipients", None)
-
+        message_category = message_payload.pop("category", None)
         if not recipients:
             raise ValueError("Recipients list cannot be empty")
 
@@ -78,8 +78,14 @@ class SendMessage(Command):
         )
         message_id = message_result._id
 
-        # 2. Add recipients
+        # 2. Add recipients and set message category
         await agg.add_recipients(data=recipients, message_id=message_id)
+
+        # 2.2. Set message category
+        if message_category:
+            await agg.set_message_category(
+                resource="message", resource_id=message_id, category=message_category
+            )
 
         # 3. Determine processing mode
         message_type = MessageTypeEnum(
@@ -98,8 +104,13 @@ class SendMessage(Command):
             client, recipients, "message", message_id, message, processing_mode
         )
 
+        # Serialize message result and add category
+        response_data = serialize_mapping(message_result)
+        if message_category:
+            response_data["category"] = message_category
+
         yield agg.create_response(
-            serialize_mapping(message_result),
+            response_data,
             _type="message-service-response",
         )
 
@@ -152,9 +163,17 @@ class ReplyMessage(Command):
     async def _process(self, agg, stm, payload):
         message_payload = serialize_mapping(payload)
 
+        message_category = message_payload.pop("category", None)
+
         # 1. Create reply message with same thread_id as parent
         message_result = await agg.reply_message(data=message_payload)
         message_id = message_result._id
+
+        # 2.2. Set message category
+        if message_category:
+            await agg.set_message_category(
+                resource="message", resource_id=message_id, category=message_category
+            )
 
         # 3. Determine processing mode
         message_type = MessageTypeEnum(
@@ -178,10 +197,43 @@ class ReplyMessage(Command):
             client, recipients, "message", message_id, message, processing_mode
         )
 
+        # Serialize message result and add category
+        response_data = serialize_mapping(message_result)
+        if message_category:
+            response_data["category"] = message_category
+
         yield agg.create_response(
-            serialize_mapping(message_result),
+            response_data,
             _type="message-service-response",
         )
+
+
+class SetMessageCategory(Command):
+    """Set the category of a message."""
+
+    Data = datadef.SetMessageCategoryPayload
+
+    class Meta:
+        key = "set-message-category"
+        resources = ("message",)
+        tags = ["message", "category"]
+        auth_required = True
+
+    Data = datadef.SetMessageCategoryPayload
+
+    async def _process(self, agg, stm, payload):
+        if payload.recipient_id:
+            await agg.set_message_category(
+                resource="message_recipient",
+                resource_id=payload.recipient_id,
+                category=payload.category,
+            )
+        else:
+            await agg.set_message_category(
+                resource="message",
+                resource_id=agg.get_aggroot().identifier,
+                category=payload.category,
+            )
 
 
 class ReadMessage(Command):

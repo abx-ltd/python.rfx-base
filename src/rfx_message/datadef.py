@@ -62,7 +62,7 @@ class SendMessagePayload(DataModel):
         None, description="Message expiration time"
     )
     category: Optional[MessageCategoryEnum] = Field(
-        default=MessageCategoryEnum.INFORMATION.value,
+        None, description="Message category"
     )
 
     @model_validator(mode="after")
@@ -132,7 +132,7 @@ class ReplyMessagePayload(DataModel):
         None, description="Message expiration time"
     )
     category: Optional[MessageCategoryEnum] = Field(
-        default=MessageCategoryEnum.INFORMATION.value,
+        None, description="Message category"
     )
 
     @model_validator(mode="after")
@@ -149,6 +149,15 @@ class ReplyMessagePayload(DataModel):
             self.template_data = {}
 
         return self
+
+
+class SetMessageCategoryPayload(DataModel):
+    """Payload for setting the category of a message."""
+
+    recipient_id: UUID_TYPE = Field(None, description="Recipient ID")
+    category: MessageCategoryEnum = Field(
+        default=MessageCategoryEnum.INFORMATION, description="Message category"
+    )
 
 
 class CreateTemplatePayload(DataModel):

@@ -7,7 +7,7 @@ from fluvius.data import serialize_mapping, timestamp, UUID_GENR
 from typing import Optional, Dict, Any
 
 from .processor import MessageContentProcessor
-from .types import ProcessingModeEnum, RenderStatusEnum
+from .types import ProcessingModeEnum, RenderStatusEnum, MessageCategoryEnum
 
 
 class MessageAggregate(Aggregate):
@@ -65,6 +65,24 @@ class MessageAggregate(Aggregate):
         await self.statemgr.insert(reply_message)
 
         return reply_message
+
+    @action(
+        "message-category-set",
+        resources=("message", "message_recipient", "message_category"),
+    )
+    async def set_message_category(
+        self, *, resource: str, resource_id: str, category: MessageCategoryEnum
+    ):
+        """Action to set the category of a message."""
+        message_category = self.init_resource(
+            "message_category",
+            {
+                "resource": resource,
+                "resource_id": resource_id,
+                "category": category,
+            },
+        )
+        await self.statemgr.insert(message_category)
 
     @action("message-content-processed", resources="message")
     async def process_message_content(
@@ -126,16 +144,15 @@ class MessageAggregate(Aggregate):
 
         return {"message_id": message_id, "recipients_count": len(recipients)}
 
-    @action("message-read", resources="message_recipient")
+    @action("message-read", resources="message")
     async def mark_message_read(self):
         """Action to mark a message as read for a specific user."""
         # Find the recipient record
-        recipient = await self.statemgr.fetch(
-            "message_recipient", self.aggroot.identifier
+        message = self.rootobj
+        message_recipient = self.find_one(
+            "message_recipient",
+            where={"message_id": message._id, "recipient_id": self.context.profile_id},
         )
-
-        if not recipient:
-            raise ValueError(f"Recipient not found: {self.aggroot.identifier}")
 
         await self.statemgr.update(recipient, read=True, mark_as_read=timestamp())
 
@@ -158,31 +175,51 @@ class MessageAggregate(Aggregate):
     async def archive_message(self, /, data):
         """Action to archive a message for a specific user."""
         message = self.rootobj
-
-        if data.recipient_id is None:
-            await self.statemgr.update(message, archived=True)
-        else:
-            message_recipient = await self.statemgr.find_one(
-                "message_recipient",
-                where=dict(message_id=message._id, recipient_id=data.recipient_id),
+        if data.recipient_id:
+            message_archived = self.init_resource(
+                "message_archived",
+                {
+                    "resource": "message_recipient",
+                    "resource_id": data.recipient_id,
+                    "archived": True,
+                },
             )
-            if message_recipient:
-                await self.statemgr.update(message_recipient, archived=True)
+            await self.statemgr.insert(message_archived)
+        else:
+            message_archived = self.init_resource(
+                "message_archived",
+                {
+                    "resource": "message",
+                    "resource_id": message._id,
+                    "archived": True,
+                },
+            )
+            await self.statemgr.insert(message_archived)
 
     @action("message-trashed", resources="message")
     async def trash_message(self, /, data):
         """Action to trash a message for a specific user."""
         message = self.rootobj
-
-        if data.recipient_id is None:
-            await self.statemgr.update(message, trashed=True)
-        else:
-            message_recipient = await self.statemgr.find_one(
-                "message_recipient",
-                where=dict(message_id=message._id, recipient_id=data.recipient_id),
+        if data.recipient_id:
+            message_trashed = self.init_resource(
+                "message_trashed",
+                {
+                    "resource": "message_recipient",
+                    "resource_id": data.recipient_id,
+                    "trashed": True,
+                },
             )
-            if message_recipient:
-                await self.statemgr.update(message_recipient, trashed=True)
+            await self.statemgr.insert(message_trashed)
+        else:
+            message_trashed = self.init_resource(
+                "message_trashed",
+                {
+                    "resource": "message",
+                    "resource_id": message._id,
+                    "trashed": True,
+                },
+            )
+            await self.statemgr.insert(message_trashed)
 
     # ========================================================================
     # TEMPLATE OPERATIONS

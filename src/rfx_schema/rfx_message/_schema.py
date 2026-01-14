@@ -1,3 +1,33 @@
-from . import message, message_template
+from . import (
+    tag,
+    label,
+    ref_role,
+    message,
+    message_box,
+    message_action,
+    message_attachment,
+    message_embedded,
+    message_reference,
+    message_recipient,
+    message_template,
+    message_category,
+    message_archived,
+    message_trashed,
+)
 
-__all__ = ["message", "message_template"]
+__all__ = [
+    "tag",
+    "label",
+    "ref_role",
+    "message",
+    "message_box",
+    "message_action",
+    "message_attachment",
+    "message_embedded",
+    "message_reference",
+    "message_recipient",
+    "message_template",
+    "message_category",
+    "message_archived",
+    "message_trashed",
+]
