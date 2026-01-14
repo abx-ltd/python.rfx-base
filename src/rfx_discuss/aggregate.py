@@ -22,28 +22,28 @@ class RFXDiscussAggregate(Aggregate):
                 "comment", where={"_id": parent_id}
             )
             depth = parent_comment.depth + 1
-            final_parent_id = parent_comment.parent_id
 
             if parent_comment.depth >= config.COMMENT_NESTED_LEVEL:
                 depth = parent_comment.depth
-                final_parent_id = parent_comment.parent_id
             
             data.update(
                 {
-                    "parent_id": final_parent_id,
+                    "parent_id": parent_id,
                     "depth": depth,
                     "resource": parent_comment.resource,
                     "resource_id": parent_comment.resource_id,
+                    "master_id": parent_comment.master_id,
                 }
             )
         else:
             if not data.get("resource") or not data.get("resource_id"):
                 raise ValueError("resource and resource_id must be provided for top-level comments")
             data.setdefault("depth", 0)
-
+            data.setdefault("master_id", UUID_GENR())
         record = self.init_resource(
             "comment",
             data,
+            master_id=data["master_id"],
             _id=UUID_GENR(),
             organization_id=organization_id,
         )
