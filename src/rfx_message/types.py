@@ -152,7 +152,7 @@ class ProcessingModeEnum(Enum):
     IMMEDIATE = "IMMEDIATE"  # For critical alerts
 
 
-class MessageCategoryEnum(Enum):
+class MessageCategoryEnum(str, Enum):
     """
     Message category classifications for message organization and filtering.
     """

@@ -38,12 +38,33 @@ class MessageAggregate(Aggregate):
         message_data["render_status"] = "PENDING"
 
         message = self.init_resource(
-            "message", message_data, _id=UUID_GENR(), sender_id=sender_id
+            "message",
+            message_data,
+            _id=UUID_GENR(),
+            sender_id=sender_id,
+            thread_id=UUID_GENR(),
         )
 
         await self.statemgr.insert(message)
 
         return message
+
+    @action("message-replied", resources="message")
+    async def reply_message(self, *, data):
+        """Action to reply to a message."""
+        message = self.rootobj
+        reply_message = self.init_resource(
+            "message",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+            thread_id=message.thread_id,
+            sender_id=self.context.profile_id,
+            subject=f"Re: {message.subject}",
+        )
+
+        await self.statemgr.insert(reply_message)
+
+        return reply_message
 
     @action("message-content-processed", resources="message")
     async def process_message_content(
@@ -133,31 +154,35 @@ class MessageAggregate(Aggregate):
 
         return {"profile_id": profile_id, "updated_count": updated_count}
 
-    @action("message-archived", resources="message_recipient")
+    @action("message-archived", resources="message")
     async def archive_message(self, /, data):
         """Action to archive a message for a specific user."""
         message = self.rootobj
-        if data.recepient_id:
+
+        if data.recipient_id is None:
+            await self.statemgr.update(message, archived=True)
+        else:
             message_recipient = await self.statemgr.find_one(
                 "message_recipient",
-                where=dict(message_id=message._id, recipient_id=data.recepient_id),
+                where=dict(message_id=message._id, recipient_id=data.recipient_id),
             )
-            self.statemgr.update(message_recipient, archived=True)
-        else:
-            self.statemgr.update(message, archived=True)
+            if message_recipient:
+                await self.statemgr.update(message_recipient, archived=True)
 
-    @action("message-trashed", resources="message_recipient")
+    @action("message-trashed", resources="message")
     async def trash_message(self, /, data):
         """Action to trash a message for a specific user."""
         message = self.rootobj
-        if data.recepient_id:
+
+        if data.recipient_id is None:
+            await self.statemgr.update(message, trashed=True)
+        else:
             message_recipient = await self.statemgr.find_one(
                 "message_recipient",
-                where=dict(message_id=message._id, recipient_id=data.recepient_id),
+                where=dict(message_id=message._id, recipient_id=data.recipient_id),
             )
-            self.statemgr.update(message_recipient, trashed=True)
-        else:
-            self.statemgr.update(message, trashed=True)
+            if message_recipient:
+                await self.statemgr.update(message_recipient, trashed=True)
 
     # ========================================================================
     # TEMPLATE OPERATIONS
@@ -232,4 +257,3 @@ class MessageAggregate(Aggregate):
             "version": template.version,
             "status": "PUBLISHED",
         }
-    

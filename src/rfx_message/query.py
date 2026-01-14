@@ -22,6 +22,7 @@ from .types import (
     RenderStrategyEnum,
     MessageCategoryEnum,
 )
+from . import scope
 
 
 class RFXMessageServiceQueryManager(DomainQueryManager):
@@ -137,13 +138,19 @@ class MessageInboxQuery(DomainQueryResource):
 
         default_order = ("_created.desc",)
 
-    from_: UUID_TYPE = UUIDField("From")
+    # Fields mapped from _message_inbox view
+    message_id: UUID_TYPE = UUIDField("Message ID")
+    thread_id: UUID_TYPE = UUIDField("Thread ID")
+    sender_id: UUID_TYPE = UUIDField("Sender ID")
     recipient_id: UUID_TYPE = UUIDField("Recipient ID")
+    # Sender profile fields
+    sender_profile: dict = JSONField("Sender Profile")
+
+    # Recipient profile fields
+    recipient_profile: dict = JSONField("Recipient Profile")
     subject: str = StringField("Subject")
     content: str = StringField("Content")
-    rendered_content: str = StringField("Rendered Content")
     content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
-    sender_id: Optional[UUID_TYPE] = UUIDField("Sender ID")
     tags: Optional[List[str]] = ArrayField("Tags", default=[])
     expirable: bool = BooleanField("Is Expirable")
     priority: PriorityLevelEnum = EnumField("Priority Level", enum=PriorityLevelEnum)
@@ -187,7 +194,9 @@ class MessageOutboxQuery(DomainQueryResource):
         default_order = ("_created.desc",)
 
     sender_id: UUID_TYPE = UUIDField("Sender ID")
+    sender_profile: dict = JSONField("Sender Profile")
     recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
+    recipient_profile: dict = JSONField("Recipient Profile")
     subject: str = StringField("Subject")
     content: str = StringField("Content")
     content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
@@ -201,6 +210,8 @@ class MessageOutboxQuery(DomainQueryResource):
     recipient_read_at: Optional[str] = DatetimeField("Recipient Read At")
     archived: bool = BooleanField("Is Archived", default=False)
     trashed: bool = BooleanField("Is Trashed", default=False)
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
+    message_count: Optional[int] = IntegerField("Message Count")
 
 
 @resource("message-archived")
@@ -232,8 +243,10 @@ class MessageArchivedQuery(DomainQueryResource):
 
         default_order = ("_created.desc",)
 
+    message_id: UUID_TYPE = UUIDField("Message ID")
     sender_id: UUID_TYPE = UUIDField("Sender ID")
     recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
+    recipient_profile: dict = JSONField("Recipient Profile")
     subject: str = StringField("Subject")
     content: str = StringField("Content")
     content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
@@ -249,6 +262,8 @@ class MessageArchivedQuery(DomainQueryResource):
     trashed: bool = BooleanField("Is Trashed", default=False)
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
     box_type: str = StringField("Box Type")
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
+    message_count: Optional[int] = IntegerField("Message Count")
 
 
 @resource("message-trashed")
@@ -279,8 +294,11 @@ class MessageTrashedQuery(DomainQueryResource):
 
         default_order = ("_created.desc",)
 
+    message_id: UUID_TYPE = UUIDField("Message ID")
     sender_id: UUID_TYPE = UUIDField("Sender ID")
+    sender_profile: dict = JSONField("Sender Profile")
     recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
+    recipient_profile: dict = JSONField("Recipient Profile")
     subject: str = StringField("Subject")
     content: str = StringField("Content")
     content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
@@ -296,3 +314,58 @@ class MessageTrashedQuery(DomainQueryResource):
     trashed: bool = BooleanField("Is Trashed", default=False)
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
     box_type: str = StringField("Box Type")
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
+    message_count: Optional[int] = IntegerField("Message Count")
+
+
+@resource("message-thread")
+class MessageThreadQuery(DomainQueryResource):
+    """Query resource for message thread."""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        profile_id = context.profile._id
+        return {
+            "archived": False,
+            "trashed": False,
+            "message_type": MessageTypeEnum.USER.value,
+            "thread_id": scope["thread_id"],
+            ".or": [
+                {"sender_id": profile_id},
+                {"recipient_id.ov": [profile_id]},
+            ],
+        }
+
+    class Meta:
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        scope_required = scope.ThreadIdScope
+        # allow_text_search = True
+        # allow_path_query = True
+
+        backend_model = "_message_thread"
+
+        default_order = ("_created.desc",)
+
+    sender_id: UUID_TYPE = UUIDField("Sender ID")
+    sender_profile: dict = JSONField("Sender Profile")
+    recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
+    recipient_profile: dict = JSONField("Recipient Profile")
+    sender_profile: dict = JSONField("Sender Profile")
+    subject: str = StringField("Subject")
+    content: str = StringField("Content")
+    content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
+    tags: Optional[List[str]] = ArrayField("Tags", default=[])
+    expirable: bool = BooleanField("Is Expirable")
+    priority: PriorityLevelEnum = EnumField("Priority Level", enum=PriorityLevelEnum)
+    message_type: Optional[MessageTypeEnum] = EnumField(
+        "Message Type", enum=MessageTypeEnum
+    )
+    category: MessageCategoryEnum = EnumField("Category", enum=MessageCategoryEnum)
+    recipient_read_at: Optional[str] = DatetimeField("Recipient Read At")
+    archived: bool = BooleanField("Is Archived", default=False)
+    trashed: bool = BooleanField("Is Trashed", default=False)
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
+    message_count: Optional[int] = IntegerField("Message Count")
