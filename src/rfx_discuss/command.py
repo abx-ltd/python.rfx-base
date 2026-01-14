@@ -42,6 +42,26 @@ class CreateComment(Command):
 
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
+class ReplyComment(Command):
+    """Reply to Comment - Creates a reply to an existing comment"""
+
+    class Meta:
+        key = "reply-comment"
+        resources = ("comment",)
+        tags = ["comment", "reply"]
+        auth_required = True
+        description = "Reply to an existing comment"
+        policy_required = True
+
+    Data = datadef.ReplyCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Reply to comment"""
+
+        result = await agg.reply_comment(data=payload)
+        await _handle_mentions(agg, stm, payload.content)
+
+        yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 class UpdateComment(Command):
     """Update Comment - Updates a comment"""
