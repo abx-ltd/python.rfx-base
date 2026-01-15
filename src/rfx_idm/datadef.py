@@ -248,6 +248,7 @@ class UpdateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
+    role_key: Optional[str] = 'VIEWER'  # To update profile role
 
     @model_validator(mode='after')
     def validate_at_least_one_field(self):
@@ -274,9 +275,8 @@ class SendInvitationPayload(DataModel):
 
 class AssignRolePayload(DataModel):
     """Payload for assigning roles to profiles."""
-    profile_id: Optional[UUID_TYPE] = None
     role_key: str = 'VIEWER'
-    role_source: str = 'SYSTEM'
+    role_source: Optional[str] = 'SYSTEM'
 
 class RevokeRolePayload(DataModel):
     """Payload for revoking roles from profiles."""
