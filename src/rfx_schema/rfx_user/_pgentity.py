@@ -94,17 +94,13 @@ user_profile_list_view = PGView(
         profile.user_id,
         profile.current_profile,
         organization.name AS organization_name,
-        COALESCE(role_list.role_keys, '{{}}'::character varying[]) AS role_keys
+        profile_role.role_key AS profile_role
     FROM "{config.RFX_USER_SCHEMA}".profile AS profile
     LEFT JOIN "{config.RFX_USER_SCHEMA}".organization AS organization
         ON profile.organization_id = organization._id
-    LEFT JOIN LATERAL (
-        SELECT
-            array_agg(DISTINCT profile_role.role_key)
-                FILTER (WHERE profile_role.role_key IS NOT NULL) AS role_keys
-        FROM "{config.RFX_USER_SCHEMA}".profile_role AS profile_role
-        WHERE profile_role.profile_id = profile._id
-    ) AS role_list ON true;
+    LEFT JOIN "{config.RFX_USER_SCHEMA}".profile_role AS profile_role
+        ON profile._id = profile_role.profile_id
+        AND profile_role._deleted IS NULL;
     """
 )
 
