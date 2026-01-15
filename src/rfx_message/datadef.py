@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from pydantic import Field, model_validator
 from datetime import datetime
-
+from .types import MessageCategoryEnum
 from fluvius.data import DataModel, UUID_TYPE
 
 
@@ -61,6 +61,9 @@ class SendMessagePayload(DataModel):
     expiration_date: Optional[datetime] = Field(
         None, description="Message expiration time"
     )
+    category: Optional[MessageCategoryEnum] = Field(
+        None, description="Message category"
+    )
 
     @model_validator(mode="after")
     def validate_content_source(self):
@@ -76,6 +79,85 @@ class SendMessagePayload(DataModel):
             self.template_data = {}
 
         return self
+
+
+class ReplyMessagePayload(DataModel):
+    """
+    Enhanced payload for sending notification messages.
+    Supports both template-based and direct content messages.
+    """
+
+    # Message metadata
+    message_type: str = Field("NOTIFICATION", description="Type of message")
+    priority: str = Field("MEDIUM", description="Message priority")
+
+    # Content source (one of these must be provided)
+    content: Optional[str] = Field(
+        None, description="Direct message content (no template)"
+    )
+    content_type: Optional[str] = Field("TEXT", description="Content type")
+
+    # Template-based content
+    template_key: Optional[str] = Field(None, description="Template key for rendering")
+    template_data: Optional[Dict[str, Any]] = Field(
+        None, description="Data for template rendering"
+    )
+    template_version: Optional[int] = Field(
+        None, description="Specific template version"
+    )
+
+    # Rendering control
+    render_strategy: Optional[str] = Field(
+        None, description="Override rendering strategy"
+    )
+
+    # Context for template resolution
+    template_locale: Optional[str] = Field(
+        "en", description="Locale for template resolution"
+    )
+    template_channel: Optional[str] = Field(
+        None, description="Channel for template resolution"
+    )
+    tenant_id: Optional[UUID_TYPE] = Field(
+        None, description="Tenant ID for scoped templates"
+    )
+    app_id: Optional[str] = Field(None, description="App ID for scoped templates")
+
+    # Additional metadata
+    tags: Optional[List[str]] = Field([], description="Message tags")
+    data: Optional[Dict[str, Any]] = Field(
+        None, description="Additional data for the message"
+    )
+    expiration_date: Optional[datetime] = Field(
+        None, description="Message expiration time"
+    )
+    category: Optional[MessageCategoryEnum] = Field(
+        None, description="Message category"
+    )
+
+    @model_validator(mode="after")
+    def validate_content_source(self):
+        """Ensure either content or template_key is provided."""
+        if not self.content and not self.template_key:
+            raise ValueError("Either 'content' or 'template_key' must be provided")
+
+        if self.content and self.template_key:
+            raise ValueError("Cannot provide both 'content' and 'template_key'")
+
+        if self.template_key and not self.template_data:
+            # Allow empty template_data but warn
+            self.template_data = {}
+
+        return self
+
+
+class SetMessageCategoryPayload(DataModel):
+    """Payload for setting the category of a message."""
+
+    recipient_id: UUID_TYPE = Field(None, description="Recipient ID")
+    category: MessageCategoryEnum = Field(
+        default=MessageCategoryEnum.INFORMATION, description="Message category"
+    )
 
 
 class CreateTemplatePayload(DataModel):
@@ -159,3 +241,15 @@ class Notification(DataModel):
     render_strategy: Optional[str] = Field(
         None, description="Rendering strategy for the template"
     )
+
+
+class ArchiveMessagePayload(DataModel):
+    """Payload for archiving a message."""
+
+    recipient_id: Optional[UUID_TYPE] = Field(default=None, description="Recipient ID")
+
+
+class TrashMessagePayload(DataModel):
+    """Payload for trashing a message."""
+
+    recipient_id: Optional[UUID_TYPE] = Field(default=None, description="Recipient ID")
