@@ -152,7 +152,7 @@ async def switch_profile(query_manager: UserProfileQueryManager, request: Reques
                     current_profile=False
                 )
 
-    redirect_url = config.REALM_URL_MAPPER.get(profile._realm, '/')
+    redirect_url = config.REALM_URL_MAPPER.get(profile.realm, '/')
     return RedirectResponse(redirect_url, status_code=303)
 
 @resource('user')
