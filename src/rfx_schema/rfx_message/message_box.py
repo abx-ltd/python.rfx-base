@@ -1,13 +1,3 @@
-"""
-Message Service ORM Mapping (Schema Layer)
-==========================================
-
-Schema-only SQLAlchemy models mirroring the runtime definitions in
-``src/rfx_message/model.py``. These models are used for Alembic autogenerate
-and lightweight metadata introspection without importing the full message
-service stack.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -37,8 +27,8 @@ class MessageBox(TableBase):
     __tablename__ = "message_box"
 
     _txt: Mapped[Optional[str]] = mapped_column(TSVECTOR)
+    key: Mapped[Optional[str]] = mapped_column(String(1024))
     name: Mapped[Optional[str]] = mapped_column(String(1024))
-    email_alias: Mapped[Optional[str]] = mapped_column(Text)
     type: Mapped[Optional[BoxTypeEnum]] = mapped_column(
         SQLEnum(BoxTypeEnum, name="boxtypeenum", schema=SCHEMA)
     )

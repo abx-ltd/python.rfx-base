@@ -38,9 +38,8 @@ class DeliveryStatusEnum(Enum):
 
 
 class DirectionTypeEnum(Enum):
-    INCOMING = "INCOMING"
-    OUTGOING = "OUTGOING"
-    SYSTEM = "SYSTEM"
+    INBOUND = "INBOUND"
+    OUTBOUND = "OUTBOUND"
 
 
 class ActionTypeEnum(Enum):

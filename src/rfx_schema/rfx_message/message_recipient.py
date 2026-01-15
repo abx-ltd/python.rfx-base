@@ -1,13 +1,3 @@
-"""
-Message Service ORM Mapping (Schema Layer)
-==========================================
-
-Schema-only SQLAlchemy models mirroring the runtime definitions in
-``src/rfx_message/model.py``. These models are used for Alembic autogenerate
-and lightweight metadata introspection without importing the full message
-service stack.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -26,7 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA
 from .types import (
-    MessageTypeEnum,
+    DirectionTypeEnum,
 )
 
 if TYPE_CHECKING:
@@ -59,8 +49,8 @@ class MessageRecipient(TableBase):
     label: Mapped[Optional[List[uuid.UUID]]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), default=list
     )
-    direction: Mapped[Optional[MessageTypeEnum]] = mapped_column(
-        SQLEnum(MessageTypeEnum, name="messagetypeenum", schema=SCHEMA)
+    direction: Mapped[Optional[DirectionTypeEnum]] = mapped_column(
+        SQLEnum(DirectionTypeEnum, name="directiontypeenum", schema=SCHEMA)
     )
 
     message: Mapped["Message"] = relationship(

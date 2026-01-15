@@ -5,8 +5,13 @@ Commands for the RFX messaging domain.
 from fluvius.data import serialize_mapping
 
 from .domain import RFXMessageServiceDomain
-from .helper import extract_template_context, determine_processing_mode
-from .types import MessageTypeEnum, ProcessingModeEnum
+from .helper import (
+    notify_recipients,
+    set_message_category_if_provided,
+    determine_and_process_message,
+    get_processing_mode_and_client,
+    create_message_response,
+)
 from . import datadef
 
 processor = RFXMessageServiceDomain.command_processor
@@ -30,39 +35,6 @@ class SendMessage(Command):
         auth_required = True
         policy_required = False
 
-    async def _process_message(self, agg, message_id, payload, mode):
-        processed_message = await agg.process_message_content(
-            message_id=message_id, context=extract_template_context(payload), mode=mode
-        )
-
-        await agg.mark_ready_for_delivery(message_id)
-        return processed_message
-
-    def _notify_recipient(
-        self,
-        client,
-        recipients: list,
-        kind: str,
-        target: str,
-        msg: dict,
-        mode: ProcessingModeEnum,
-    ):
-        if not client:
-            return ValueError("Client is not available")
-        channels = []
-        for profile_id in recipients:
-            msg["recipient_id"] = profile_id
-            channel = client.notify(
-                profile_id=profile_id,
-                kind=kind,
-                target=target,
-                msg=msg,
-                batch_id=mode.value,
-            )
-            channels.append(channel)
-        client.send(mode.value)
-        return channels
-
     async def _process(self, agg, stm, payload):
         message_payload = serialize_mapping(payload)
         recipients = message_payload.pop("recipients", None)
@@ -82,32 +54,25 @@ class SendMessage(Command):
         await agg.add_recipients(data=recipients, message_id=message_id)
 
         # 2.2. Set message category
-        if message_category:
-            await agg.set_message_category(
-                resource="message", resource_id=message_id, category=message_category
-            )
+        await set_message_category_if_provided(agg, message_id, message_category)
 
-        # 3. Determine processing mode
-        message_type = MessageTypeEnum(
-            message_payload.get("message_type", "NOTIFICATION")
-        )
-        processing_mode = await determine_processing_mode(
-            message_type=message_type, payload=message_payload
+        # 3. Determine processing mode and get client
+        processing_mode, client = await get_processing_mode_and_client(
+            agg, message_payload
         )
 
-        context = agg.get_context()
-        client = context.service_proxy.mqtt_client
-        message = await self._process_message(
+        # 4. Process message content
+        message = await determine_and_process_message(
             agg, message_id, message_payload, processing_mode
         )
-        self._notify_recipient(
+
+        # 5. Notify recipients
+        notify_recipients(
             client, recipients, "message", message_id, message, processing_mode
         )
 
-        # Serialize message result and add category
-        response_data = serialize_mapping(message_result)
-        if message_category:
-            response_data["category"] = message_category
+        # 6. Create response
+        response_data = create_message_response(message_result, message_category)
 
         yield agg.create_response(
             response_data,
@@ -127,39 +92,6 @@ class ReplyMessage(Command):
         auth_required = True
         policy_required = False
 
-    async def _process_message(self, agg, message_id, payload, mode):
-        processed_message = await agg.process_message_content(
-            message_id=message_id, context=extract_template_context(payload), mode=mode
-        )
-
-        await agg.mark_ready_for_delivery(message_id)
-        return processed_message
-
-    def _notify_recipient(
-        self,
-        client,
-        recipients: list,
-        kind: str,
-        target: str,
-        msg: dict,
-        mode: ProcessingModeEnum,
-    ):
-        if not client:
-            return ValueError("Client is not available")
-        channels = []
-        for profile_id in recipients:
-            msg["recipient_id"] = profile_id
-            channel = client.notify(
-                profile_id=profile_id,
-                kind=kind,
-                target=target,
-                msg=msg,
-                batch_id=mode.value,
-            )
-            channels.append(channel)
-        client.send(mode.value)
-        return channels
-
     async def _process(self, agg, stm, payload):
         message_payload = serialize_mapping(payload)
 
@@ -169,38 +101,31 @@ class ReplyMessage(Command):
         message_result = await agg.reply_message(data=message_payload)
         message_id = message_result._id
 
-        # 2.2. Set message category
-        if message_category:
-            await agg.set_message_category(
-                resource="message", resource_id=message_id, category=message_category
-            )
+        # 2. Set message category
+        await set_message_category_if_provided(agg, message_id, message_category)
 
-        # 3. Determine processing mode
-        message_type = MessageTypeEnum(
-            message_payload.get("message_type", "NOTIFICATION")
-        )
-        processing_mode = await determine_processing_mode(
-            message_type=message_type, payload=message_payload
+        # 3. Determine processing mode and get client
+        processing_mode, client = await get_processing_mode_and_client(
+            agg, message_payload
         )
 
-        context = agg.get_context()
-        client = context.service_proxy.mqtt_client
-        message = await self._process_message(
+        # 4. Process message content
+        message = await determine_and_process_message(
             agg, message_id, message_payload, processing_mode
         )
 
+        # 5. Get recipients from root message and add them
         rootmsg = agg.get_rootobj()
         recipients = [rootmsg.sender_id]
         await agg.add_recipients(data=recipients, message_id=message_id)
 
-        self._notify_recipient(
+        # 6. Notify recipients
+        notify_recipients(
             client, recipients, "message", message_id, message, processing_mode
         )
 
-        # Serialize message result and add category
-        response_data = serialize_mapping(message_result)
-        if message_category:
-            response_data["category"] = message_category
+        # 7. Create response
+        response_data = create_message_response(message_result, message_category)
 
         yield agg.create_response(
             response_data,
@@ -222,10 +147,13 @@ class SetMessageCategory(Command):
     Data = datadef.SetMessageCategoryPayload
 
     async def _process(self, agg, stm, payload):
+        message_recipient = await agg.get_message_recipient(
+            message_id=agg.get_aggroot().identifier
+        )
         if payload.recipient_id:
             await agg.set_message_category(
                 resource="message_recipient",
-                resource_id=payload.recipient_id,
+                resource_id=message_recipient._id,
                 category=payload.category,
             )
         else:
