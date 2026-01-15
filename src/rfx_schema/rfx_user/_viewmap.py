@@ -157,6 +157,7 @@ class OrgMemberView(Base):
     name__family: Mapped[Optional[str]] = mapped_column(String(1024))
     telecom__email: Mapped[Optional[str]] = mapped_column(String(1024))
     telecom__phone: Mapped[Optional[str]] = mapped_column(String(1024))
+    realm: Mapped[Optional[str]] = mapped_column(String(1024))
     profile_status: Mapped[ProfileStatusEnum] = mapped_column(
         SQLEnum(
             ProfileStatusEnum,

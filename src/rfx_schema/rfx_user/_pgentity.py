@@ -129,6 +129,7 @@ org_member_view = PGView(
         profile.name__family,
         profile.telecom__email,
         profile.telecom__phone,
+        profile.realm,
         profile.status AS profile_status,
         profile_role.role_key AS profile_role,
         COALESCE(policy_counts.policy_count, 0) AS policy_count
@@ -138,25 +139,10 @@ org_member_view = PGView(
     JOIN "{config.RFX_USER_SCHEMA}".profile_role AS profile_role
         ON profile._id = profile_role.profile_id
     LEFT JOIN LATERAL (
-        SELECT (
-            (
-                SELECT COUNT(*)
-                FROM "{config.RFX_USER_SCHEMA}".profile AS profile_g
-                WHERE profile_g.organization_id = organization._id
-                    AND profile_g._deleted IS NULL
-                    AND profile_g.user_id IS NOT NULL
-            ) * 2
-            +
-            (
-                SELECT COUNT(*)
-                FROM "{config.RFX_USER_SCHEMA}".profile_role AS profile_role_g2
-                JOIN "{config.RFX_USER_SCHEMA}".profile AS profile_g2
-                    ON profile_g2._id = profile_role_g2.profile_id
-                WHERE profile_g2.organization_id = organization._id
-                    AND profile_g2._deleted IS NULL
-                    AND profile_role_g2._deleted IS NULL
-            )
-        ) AS policy_count
+        SELECT COUNT(*) AS policy_count
+        FROM "{config.RFX_POLICY_SCHEMA}"._policy__user_profile AS policy
+        WHERE policy.org = organization._id::character varying(255)
+            AND policy._deleted IS NULL
     ) AS policy_counts ON true;
     """
 )

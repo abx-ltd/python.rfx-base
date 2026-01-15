@@ -211,6 +211,7 @@ class UserProfileQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     user_id: UUID_TYPE = UUIDField("User ID")
     organization_name: str = StringField("Organization Name")
+    profile_role: str = StringField("Role")
     realm: Optional[str] = StringField("Realm")
 
 
@@ -232,6 +233,7 @@ class ProfileListQuery(DomainQueryResource):
     name__given: str = StringField("Given Name")
     telecom__email: str = StringField("Email")
     telecom__phone: str = StringField("Phone")
+    realm: Optional[str] = StringField("Realm")
 
     user_id: UUID_TYPE = UUIDField("User ID")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
