@@ -211,7 +211,7 @@ class UserProfileQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     user_id: UUID_TYPE = UUIDField("User ID")
     organization_name: str = StringField("Organization Name")
-    profile_role: str = StringField("Role")
+    role_keys: str = StringField("Role")
     realm: Optional[str] = StringField("Realm")
 
 
