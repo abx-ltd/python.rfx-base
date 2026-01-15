@@ -256,12 +256,17 @@ class MarkAllMessagesRead(Command):
     class Meta:
         key = "mark-all-message-read"
         resources = ("message",)
+        new_resource = True
         tags = ["messages", "read"]
         auth_required = True
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        await agg.mark_all_messages_read()
+        read_count = await agg.mark_all_messages_read()
+        yield agg.create_response(
+            serialize_mapping(read_count),
+            _type="message-service-response",
+        )
 
 
 class ArchiveMessage(Command):
