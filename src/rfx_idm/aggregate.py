@@ -450,7 +450,7 @@ class IDMAggregate(Aggregate):
     async def update_profile(self, data):
         """Update profile information. Tracks status changes if updated."""
         item = self.rootobj
-        await self.statemgr.update(item, data)
+        await self.statemgr.update(item, **data)
         if getattr(data, "status", None) and item.status != data.status:
             await self.set_profile_status(item, data.status)
 
