@@ -1,8 +1,7 @@
 from .domain import RFXMediaDomain
-from pydantic import BaseModel
-from fluvius.data import UUID_TYPE
+from fluvius.data import UUID_TYPE, logger
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
+from fluvius.query.field import StringField, UUIDField, IntegerField, DatetimeField
 from datetime import datetime
 from . import scope
 from fluvius.media import MediaManager
@@ -20,7 +19,7 @@ resource = RFXMediaQueryManager.register_resource
 endpoint = RFXMediaQueryManager.register_endpoint
 
 
-@resource('media')
+@resource("media")
 class MediaQuery(DomainQueryResource):
     """Media queries"""
 
@@ -29,12 +28,14 @@ class MediaQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        scope_required = scope.ResourceScope
 
         backend_model = "media-entry"
 
     @classmethod
     def base_query(cls, context, scope):
-        return {"resource": "organization", "resource__id": context.organization._id}
+        logger.info(f"Scope: {scope}")
+        return {"resource": scope["resource"], "resource__id": scope["resource_id"]}
 
     filename: str = StringField("Filename")
     filehash: str = StringField("File Hash")
