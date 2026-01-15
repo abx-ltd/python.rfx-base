@@ -157,21 +157,21 @@ class MessageAggregate(Aggregate):
             message_recipient, read=True, mark_as_read=timestamp()
         )
 
-    @action("all-messages-read", resources="message_recipient")
+    @action("all-messages-read", resources="message")
     async def mark_all_messages_read(self):
         """Action to mark all messages as read for a user."""
-        profile_id = self.context.profile_id
-        message_recipients = await self.statemgr.find_one(
+        message_recipients = await self.statemgr.find_all(
             "message_recipient",
             where={"recipient_id": self.context.profile_id},
         )
 
-        updated_count = 0
+        read_count = 0
         for recipient in message_recipients:
             await self.statemgr.update(recipient, read=True, mark_as_read=timestamp())
-            updated_count += 1
-        return {"updated_count": updated_count}
-        
+            if not recipient.read:
+                read_count += 1
+        return {"read_count": read_count}
+
     @action("message-archived", resources="message")
     async def archive_message(self, /, data):
         """Action to archive a message for a specific user."""
