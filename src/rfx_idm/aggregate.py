@@ -450,7 +450,7 @@ class IDMAggregate(Aggregate):
     async def update_profile(self, data):
         """Update profile information. Tracks status changes if updated."""
         item = self.rootobj
-        await self.statemgr.update(item, **serialize_mapping(data))
+        await self.statemgr.update(item, data)
         if getattr(data, "status", None) and item.status != data.status:
             await self.set_profile_status(item, data.status)
 
@@ -482,7 +482,7 @@ class IDMAggregate(Aggregate):
     async def assign_role_to_profile(self, data):
         """Assign system role to profile. Prevents duplicate role assignments."""
         role_key = data.get("role_key", "VIEWER")
-        profile_id = data.get("profile_id", self.aggroot.identifier)
+        profile_id = self.aggroot.identifier
 
         # Fetch the system role
         role = await self.statemgr.exist('ref__system_role', where=dict(key=role_key))

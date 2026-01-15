@@ -656,7 +656,10 @@ class UpdateProfile(Command):
     Data = datadef.UpdateProfilePayload
 
     async def _process(self, agg, stm, payload):
+        payload = serialize_mapping(payload)
+        new_role = payload.pop("role_key", 'VIEWER')
         await agg.update_profile(payload)
+        await agg.assign_role_to_profile({"role_key": new_role})
 
 
 class DeactivateProfile(Command):
