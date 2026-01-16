@@ -7,7 +7,6 @@ from sqlalchemy import (
     Enum as SQLEnum,
     ForeignKey,
     String,
-    Text,
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -19,6 +18,7 @@ from .types import (
 
 if TYPE_CHECKING:
     from .message_recipient import MessageRecipient
+    from .message_sender import MessageSender
 
 
 class MessageBox(TableBase):
@@ -37,6 +37,9 @@ class MessageBox(TableBase):
         back_populates="box", cascade="all, delete-orphan"
     )
     recipients: Mapped[List["MessageRecipient"]] = relationship(
+        back_populates="box", cascade="all"
+    )
+    senders: Mapped[List["MessageSender"]] = relationship(
         back_populates="box", cascade="all"
     )
 

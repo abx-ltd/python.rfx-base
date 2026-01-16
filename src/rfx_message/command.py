@@ -50,7 +50,10 @@ class SendMessage(Command):
         )
         message_id = message_result._id
 
-        # 2. Add recipients and set message category
+        # 2. Add sender to message_sender
+        await agg.add_sender(message_id=message_id, sender_id=profile_id)
+
+        # 3. Add recipients and set message category
         await agg.add_recipients(data=recipients, message_id=message_id)
 
         # 2.2. Set message category
@@ -61,17 +64,17 @@ class SendMessage(Command):
             agg, message_payload
         )
 
-        # 4. Process message content
+        # 5. Process message content
         message = await determine_and_process_message(
             agg, message_id, message_payload, processing_mode
         )
 
-        # 5. Notify recipients
+        # 6. Notify recipients
         notify_recipients(
             client, recipients, "message", message_id, message, processing_mode
         )
 
-        # 6. Create response
+        # 7. Create response
         response_data = create_message_response(message_result, message_category)
 
         yield agg.create_response(
@@ -101,30 +104,35 @@ class ReplyMessage(Command):
         message_result = await agg.reply_message(data=message_payload)
         message_id = message_result._id
 
-        # 2. Set message category
+        # 2. Add sender to message_sender
+        await agg.add_sender(
+            message_id=message_id, sender_id=agg.get_context().profile_id
+        )
+
+        # 3. Set message category
         await set_message_category_if_provided(agg, message_id, message_category)
 
-        # 3. Determine processing mode and get client
+        # 4. Determine processing mode and get client
         processing_mode, client = await get_processing_mode_and_client(
             agg, message_payload
         )
 
-        # 4. Process message content
+        # 5. Process message content
         message = await determine_and_process_message(
             agg, message_id, message_payload, processing_mode
         )
 
-        # 5. Get recipients from root message and add them
+        # 6. Get recipients from root message and add them
         rootmsg = agg.get_rootobj()
         recipients = [rootmsg.sender_id]
         await agg.add_recipients(data=recipients, message_id=message_id)
 
-        # 6. Notify recipients
+        # 7. Notify recipients
         notify_recipients(
             client, recipients, "message", message_id, message, processing_mode
         )
 
-        # 7. Create response
+        # 8. Create response
         response_data = create_message_response(message_result, message_category)
 
         yield agg.create_response(

@@ -138,12 +138,20 @@ class MessageAggregate(Aggregate):
     async def add_recipients(self, *, data, message_id):
         """Action to add recipients to a message."""
         recipients = data
+        # Get the inbox box
+        inbox = await self.statemgr.find_one(
+            "message_box",
+            where={"key": "inbox"},
+        )
+
         records = []
         for recipient_id in recipients:
             recipient_data = {
                 "message_id": message_id,
                 "recipient_id": recipient_id,
                 "read": False,
+                "box_id": inbox._id,
+                "direction": "INBOUND",
             }
 
             recipient = self.init_resource("message_recipient", recipient_data)
@@ -152,6 +160,27 @@ class MessageAggregate(Aggregate):
         await self.statemgr.insert_data("message_recipient", *records)
 
         return {"message_id": message_id, "recipients_count": len(recipients)}
+
+    @action("sender-added", resources=("message", "message_sender"))
+    async def add_sender(self, *, message_id, sender_id):
+        """Action to add sender to a message."""
+        # Get the outbox box
+        outbox = await self.statemgr.find_one(
+            "message_box",
+            where={"key": "outbox"},
+        )
+
+        sender_data = {
+            "message_id": message_id,
+            "sender_id": sender_id,
+            "box_id": outbox._id,
+            "direction": "OUTBOUND",
+        }
+
+        sender = self.init_resource("message_sender", sender_data)
+        await self.statemgr.insert(sender)
+
+        return {"message_id": message_id, "sender_id": sender_id}
 
     @action("message-read", resources="message")
     async def mark_message_read(self):

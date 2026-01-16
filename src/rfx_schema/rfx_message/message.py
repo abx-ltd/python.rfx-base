@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from .message_embedded import MessageEmbedded
     from .message_recipient import MessageRecipient
     from .message_reference import MessageReference
+    from .message_sender import MessageSender
 
 
 class Message(TableBase):
@@ -48,7 +49,6 @@ class Message(TableBase):
 
     __tablename__ = "message"
 
-    sender_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     subject: Mapped[Optional[str]] = mapped_column(String(1024))
@@ -107,6 +107,12 @@ class Message(TableBase):
 
     actions: Mapped[List["MessageAction"]] = relationship(
         back_populates="message", cascade="all, delete-orphan"
+    )
+    senders: Mapped[List["MessageSender"]] = relationship(
+        "MessageSender",
+        back_populates="message",
+        cascade="all, delete-orphan",
+        foreign_keys="MessageSender.message_id",
     )
     recipients: Mapped[List["MessageRecipient"]] = relationship(
         "MessageRecipient",

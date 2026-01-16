@@ -50,7 +50,8 @@ class MessageRecipient(TableBase):
         ARRAY(UUID(as_uuid=True)), default=list
     )
     direction: Mapped[Optional[DirectionTypeEnum]] = mapped_column(
-        SQLEnum(DirectionTypeEnum, name="directiontypeenum", schema=SCHEMA)
+        SQLEnum(DirectionTypeEnum, name="directiontypeenum", schema=SCHEMA),
+        default=DirectionTypeEnum.INBOUND,
     )
 
     message: Mapped["Message"] = relationship(

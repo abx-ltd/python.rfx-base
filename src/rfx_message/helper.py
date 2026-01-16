@@ -165,7 +165,7 @@ def notify_recipients(
     for profile_id in recipients:
         msg["recipient_id"] = profile_id
         channel = client.notify(
-            profile_id=profile_id,
+            profile_id,
             kind=kind,
             target=target,
             msg=msg,

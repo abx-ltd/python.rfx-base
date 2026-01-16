@@ -21,6 +21,7 @@ from .types import (
     MessageTypeEnum,
     RenderStrategyEnum,
     MessageCategoryEnum,
+    BoxTypeEnum,
 )
 from . import scope
 
@@ -117,9 +118,9 @@ class MessageInboxQuery(DomainQueryResource):
     def base_query(cls, context, scope):
         profile_id = context.profile._id
         return {
-            "recipient_id": profile_id,
-            "archived": False,
-            "trashed": False,
+            "target_profile_id": profile_id,
+            "root_type": "RECIPIENT",
+            "box_key": "inbox",
             "message_type": MessageTypeEnum.USER.value,
         }
 
@@ -131,37 +132,44 @@ class MessageInboxQuery(DomainQueryResource):
         # allow_text_search = True
         # allow_path_query = True
 
-        backend_model = "_message_inbox"
+        backend_model = "_message_box"
 
         # policy_required = True  # Enable access control
         # scope_optional = ResourceScope
 
         default_order = ("_created.desc",)
 
-    # Fields mapped from _message_inbox view
+    # Fields mapped from _message_box view
     message_id: UUID_TYPE = UUIDField("Message ID")
-    thread_id: UUID_TYPE = UUIDField("Thread ID")
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
     sender_id: UUID_TYPE = UUIDField("Sender ID")
-    recipient_id: UUID_TYPE = UUIDField("Recipient ID")
-    # Sender profile fields
-    sender_profile: dict = JSONField("Sender Profile")
-
-    # Recipient profile fields
-    recipient_profile: dict = JSONField("Recipient Profile")
-    subject: str = StringField("Subject")
-    content: str = StringField("Content")
-    content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
+    sender_profile: Optional[dict] = JSONField("Sender Profile")
+    recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
+    recipient_profile: Optional[dict] = JSONField("Recipient Profile")
+    subject: Optional[str] = StringField("Subject")
+    content: Optional[str] = StringField("Content")
+    content_type: Optional[ContentTypeEnum] = EnumField(
+        "Content Type", enum=ContentTypeEnum
+    )
     tags: Optional[List[str]] = ArrayField("Tags", default=[])
-    expirable: bool = BooleanField("Is Expirable")
-    priority: PriorityLevelEnum = EnumField("Priority Level", enum=PriorityLevelEnum)
-    category: MessageCategoryEnum = EnumField("Category", enum=MessageCategoryEnum)
+    expirable: Optional[bool] = BooleanField("Is Expirable")
+    priority: Optional[PriorityLevelEnum] = EnumField(
+        "Priority Level", enum=PriorityLevelEnum
+    )
     message_type: Optional[MessageTypeEnum] = EnumField(
         "Message Type", enum=MessageTypeEnum
     )
-    is_read: bool = BooleanField("Is Read", default=False)
+    category: Optional[MessageCategoryEnum] = EnumField(
+        "Category", enum=MessageCategoryEnum
+    )
+    is_read: Optional[bool] = BooleanField("Is Read", default=False)
     recipient_read_at: Optional[str] = DatetimeField("Recipient Read At")
-    archived: bool = BooleanField("Is Archived", default=False)
-    trashed: bool = BooleanField("Is Trashed", default=False)
+    box_key: Optional[str] = StringField("Box Key")
+    box_name: Optional[str] = StringField("Box Name")
+    box_type_enum: Optional[BoxTypeEnum] = EnumField("Box Type", enum=BoxTypeEnum)
+    target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
+    message_count: Optional[int] = IntegerField("Message Count")
+    root_type: str = StringField("Root Type")
 
 
 @resource("message-outbox")
@@ -172,59 +180,9 @@ class MessageOutboxQuery(DomainQueryResource):
     def base_query(cls, context, scope):
         profile_id = context.profile._id
         return {
-            "sender_id": profile_id,
-            "archived": False,
-            "trashed": False,
-            "message_type": MessageTypeEnum.USER.value,
-        }
-
-    class Meta(DomainQueryResource.Meta):
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-        # allow_text_search = True
-        # allow_path_query = True
-
-        backend_model = "_message_outbox"
-
-        # policy_required = True  # Enable access control
-        # scope_optional = ResourceScope
-
-        default_order = ("_created.desc",)
-
-    sender_id: UUID_TYPE = UUIDField("Sender ID")
-    sender_profile: dict = JSONField("Sender Profile")
-    recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
-    recipient_profile: dict = JSONField("Recipient Profile")
-    subject: str = StringField("Subject")
-    content: str = StringField("Content")
-    content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
-    tags: Optional[List[str]] = ArrayField("Tags", default=[])
-    expirable: bool = BooleanField("Is Expirable")
-    priority: PriorityLevelEnum = EnumField("Priority Level", enum=PriorityLevelEnum)
-    message_type: Optional[MessageTypeEnum] = EnumField(
-        "Message Type", enum=MessageTypeEnum
-    )
-    category: MessageCategoryEnum = EnumField("Category", enum=MessageCategoryEnum)
-    recipient_read_at: Optional[str] = DatetimeField("Recipient Read At")
-    archived: bool = BooleanField("Is Archived", default=False)
-    trashed: bool = BooleanField("Is Trashed", default=False)
-    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
-    message_count: Optional[int] = IntegerField("Message Count")
-
-
-@resource("message-archived")
-class MessageArchivedQuery(DomainQueryResource):
-    """Query resource for message box."""
-
-    @classmethod
-    def base_query(cls, context, scope):
-        profile_id = context.profile._id
-        return {
             "target_profile_id": profile_id,
-            "archived": True,
-            "trashed": False,
+            "root_type": "SENDER",
+            "box_key": "outbox",
             "message_type": MessageTypeEnum.USER.value,
         }
 
@@ -244,26 +202,95 @@ class MessageArchivedQuery(DomainQueryResource):
         default_order = ("_created.desc",)
 
     message_id: UUID_TYPE = UUIDField("Message ID")
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
     sender_id: UUID_TYPE = UUIDField("Sender ID")
+    sender_profile: Optional[dict] = JSONField("Sender Profile")
     recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
-    recipient_profile: dict = JSONField("Recipient Profile")
-    subject: str = StringField("Subject")
-    content: str = StringField("Content")
-    content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
+    recipient_profile: Optional[dict] = JSONField("Recipient Profile")
+    subject: Optional[str] = StringField("Subject")
+    content: Optional[str] = StringField("Content")
+    content_type: Optional[ContentTypeEnum] = EnumField(
+        "Content Type", enum=ContentTypeEnum
+    )
     tags: Optional[List[str]] = ArrayField("Tags", default=[])
-    expirable: bool = BooleanField("Is Expirable")
-    priority: PriorityLevelEnum = EnumField("Priority Level", enum=PriorityLevelEnum)
+    expirable: Optional[bool] = BooleanField("Is Expirable")
+    priority: Optional[PriorityLevelEnum] = EnumField(
+        "Priority Level", enum=PriorityLevelEnum
+    )
     message_type: Optional[MessageTypeEnum] = EnumField(
         "Message Type", enum=MessageTypeEnum
     )
-    category: MessageCategoryEnum = EnumField("Category", enum=MessageCategoryEnum)
+    category: Optional[MessageCategoryEnum] = EnumField(
+        "Category", enum=MessageCategoryEnum
+    )
+    is_read: Optional[bool] = BooleanField("Is Read", default=False)
     recipient_read_at: Optional[str] = DatetimeField("Recipient Read At")
-    archived: bool = BooleanField("Is Archived", default=False)
-    trashed: bool = BooleanField("Is Trashed", default=False)
+    box_key: Optional[str] = StringField("Box Key")
+    box_name: Optional[str] = StringField("Box Name")
+    box_type_enum: Optional[BoxTypeEnum] = EnumField("Box Type", enum=BoxTypeEnum)
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
-    box_type: str = StringField("Box Type")
-    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
     message_count: Optional[int] = IntegerField("Message Count")
+    root_type: str = StringField("Root Type")
+
+
+@resource("message-archived")
+class MessageArchivedQuery(DomainQueryResource):
+    """Query resource for message archived."""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        profile_id = context.profile._id
+        return {
+            "target_profile_id": profile_id,
+            "box_key": "archived",
+            "message_type": MessageTypeEnum.USER.value,
+        }
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        # allow_text_search = True
+        # allow_path_query = True
+
+        backend_model = "_message_box"
+
+        # policy_required = True  # Enable access control
+        # scope_optional = ResourceScope
+
+        default_order = ("_created.desc",)
+
+    message_id: UUID_TYPE = UUIDField("Message ID")
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
+    sender_id: UUID_TYPE = UUIDField("Sender ID")
+    sender_profile: Optional[dict] = JSONField("Sender Profile")
+    recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
+    recipient_profile: Optional[dict] = JSONField("Recipient Profile")
+    subject: Optional[str] = StringField("Subject")
+    content: Optional[str] = StringField("Content")
+    content_type: Optional[ContentTypeEnum] = EnumField(
+        "Content Type", enum=ContentTypeEnum
+    )
+    tags: Optional[List[str]] = ArrayField("Tags", default=[])
+    expirable: Optional[bool] = BooleanField("Is Expirable")
+    priority: Optional[PriorityLevelEnum] = EnumField(
+        "Priority Level", enum=PriorityLevelEnum
+    )
+    message_type: Optional[MessageTypeEnum] = EnumField(
+        "Message Type", enum=MessageTypeEnum
+    )
+    category: Optional[MessageCategoryEnum] = EnumField(
+        "Category", enum=MessageCategoryEnum
+    )
+    is_read: Optional[bool] = BooleanField("Is Read", default=False)
+    recipient_read_at: Optional[str] = DatetimeField("Recipient Read At")
+    box_key: Optional[str] = StringField("Box Key")
+    box_name: Optional[str] = StringField("Box Name")
+    box_type_enum: Optional[BoxTypeEnum] = EnumField("Box Type", enum=BoxTypeEnum)
+    target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
+    message_count: Optional[int] = IntegerField("Message Count")
+    root_type: str = StringField("Root Type")
 
 
 @resource("message-trashed")
@@ -275,7 +302,7 @@ class MessageTrashedQuery(DomainQueryResource):
         profile_id = context.profile._id
         return {
             "target_profile_id": profile_id,
-            "trashed": True,
+            "box_key": "trashed",
             "message_type": MessageTypeEnum.USER.value,
         }
 
@@ -295,27 +322,35 @@ class MessageTrashedQuery(DomainQueryResource):
         default_order = ("_created.desc",)
 
     message_id: UUID_TYPE = UUIDField("Message ID")
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
     sender_id: UUID_TYPE = UUIDField("Sender ID")
-    sender_profile: dict = JSONField("Sender Profile")
+    sender_profile: Optional[dict] = JSONField("Sender Profile")
     recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
-    recipient_profile: dict = JSONField("Recipient Profile")
-    subject: str = StringField("Subject")
-    content: str = StringField("Content")
-    content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
+    recipient_profile: Optional[dict] = JSONField("Recipient Profile")
+    subject: Optional[str] = StringField("Subject")
+    content: Optional[str] = StringField("Content")
+    content_type: Optional[ContentTypeEnum] = EnumField(
+        "Content Type", enum=ContentTypeEnum
+    )
     tags: Optional[List[str]] = ArrayField("Tags", default=[])
-    expirable: bool = BooleanField("Is Expirable")
-    priority: PriorityLevelEnum = EnumField("Priority Level", enum=PriorityLevelEnum)
+    expirable: Optional[bool] = BooleanField("Is Expirable")
+    priority: Optional[PriorityLevelEnum] = EnumField(
+        "Priority Level", enum=PriorityLevelEnum
+    )
     message_type: Optional[MessageTypeEnum] = EnumField(
         "Message Type", enum=MessageTypeEnum
     )
-    category: MessageCategoryEnum = EnumField("Category", enum=MessageCategoryEnum)
+    category: Optional[MessageCategoryEnum] = EnumField(
+        "Category", enum=MessageCategoryEnum
+    )
+    is_read: Optional[bool] = BooleanField("Is Read", default=False)
     recipient_read_at: Optional[str] = DatetimeField("Recipient Read At")
-    archived: bool = BooleanField("Is Archived", default=False)
-    trashed: bool = BooleanField("Is Trashed", default=False)
+    box_key: Optional[str] = StringField("Box Key")
+    box_name: Optional[str] = StringField("Box Name")
+    box_type_enum: Optional[BoxTypeEnum] = EnumField("Box Type", enum=BoxTypeEnum)
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
-    box_type: str = StringField("Box Type")
-    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
     message_count: Optional[int] = IntegerField("Message Count")
+    root_type: str = StringField("Root Type")
 
 
 @resource("message-thread")
@@ -326,13 +361,11 @@ class MessageThreadQuery(DomainQueryResource):
     def base_query(cls, context, scope):
         profile_id = context.profile._id
         return {
-            "archived": False,
-            "trashed": False,
             "message_type": MessageTypeEnum.USER.value,
             "thread_id": scope["thread_id"],
             ".or": [
-                {"sender_id": profile_id},
-                {"recipient_id.ov": [profile_id]},
+                {"target_profile_id": profile_id, "root_type": "SENDER"},
+                {"target_profile_id": profile_id, "root_type": "RECIPIENT"},
             ],
         }
 
@@ -345,27 +378,37 @@ class MessageThreadQuery(DomainQueryResource):
         # allow_text_search = True
         # allow_path_query = True
 
-        backend_model = "_message_thread"
+        backend_model = "_message_box"
 
         default_order = ("_created.desc",)
 
+    message_id: UUID_TYPE = UUIDField("Message ID")
+    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
     sender_id: UUID_TYPE = UUIDField("Sender ID")
-    sender_profile: dict = JSONField("Sender Profile")
+    sender_profile: Optional[dict] = JSONField("Sender Profile")
     recipient_id: List[UUID_TYPE] = ArrayField("Recipient ID", default=[])
-    recipient_profile: dict = JSONField("Recipient Profile")
-    sender_profile: dict = JSONField("Sender Profile")
-    subject: str = StringField("Subject")
-    content: str = StringField("Content")
-    content_type: ContentTypeEnum = EnumField("Content Type", enum=ContentTypeEnum)
+    recipient_profile: Optional[dict] = JSONField("Recipient Profile")
+    subject: Optional[str] = StringField("Subject")
+    content: Optional[str] = StringField("Content")
+    content_type: Optional[ContentTypeEnum] = EnumField(
+        "Content Type", enum=ContentTypeEnum
+    )
     tags: Optional[List[str]] = ArrayField("Tags", default=[])
-    expirable: bool = BooleanField("Is Expirable")
-    priority: PriorityLevelEnum = EnumField("Priority Level", enum=PriorityLevelEnum)
+    expirable: Optional[bool] = BooleanField("Is Expirable")
+    priority: Optional[PriorityLevelEnum] = EnumField(
+        "Priority Level", enum=PriorityLevelEnum
+    )
     message_type: Optional[MessageTypeEnum] = EnumField(
         "Message Type", enum=MessageTypeEnum
     )
-    category: MessageCategoryEnum = EnumField("Category", enum=MessageCategoryEnum)
+    category: Optional[MessageCategoryEnum] = EnumField(
+        "Category", enum=MessageCategoryEnum
+    )
+    is_read: Optional[bool] = BooleanField("Is Read", default=False)
     recipient_read_at: Optional[str] = DatetimeField("Recipient Read At")
-    archived: bool = BooleanField("Is Archived", default=False)
-    trashed: bool = BooleanField("Is Trashed", default=False)
-    thread_id: Optional[UUID_TYPE] = UUIDField("Thread ID")
+    box_key: Optional[str] = StringField("Box Key")
+    box_name: Optional[str] = StringField("Box Name")
+    box_type_enum: Optional[BoxTypeEnum] = EnumField("Box Type", enum=BoxTypeEnum)
+    target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
     message_count: Optional[int] = IntegerField("Message Count")
+    root_type: str = StringField("Root Type")
