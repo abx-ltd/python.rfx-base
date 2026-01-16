@@ -53,7 +53,7 @@ class SendMessage(Command):
         for profile_id in recipients:
             msg["recipient_id"] = profile_id
             channel = client.notify(
-                profile_id=profile_id,
+                scope_id=profile_id,
                 kind=kind,
                 target=target,
                 msg=msg,
@@ -150,7 +150,7 @@ class ReplyMessage(Command):
         for profile_id in recipients:
             msg["recipient_id"] = profile_id
             channel = client.notify(
-                profile_id=profile_id,
+                scope_id=profile_id,
                 kind=kind,
                 target=target,
                 msg=msg,
