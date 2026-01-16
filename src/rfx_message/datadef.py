@@ -241,15 +241,3 @@ class Notification(DataModel):
     render_strategy: Optional[str] = Field(
         None, description="Rendering strategy for the template"
     )
-
-
-class ArchiveMessagePayload(DataModel):
-    """Payload for archiving a message."""
-
-    recipient_id: Optional[UUID_TYPE] = Field(default=None, description="Recipient ID")
-
-
-class TrashMessagePayload(DataModel):
-    """Payload for trashing a message."""
-
-    recipient_id: Optional[UUID_TYPE] = Field(default=None, description="Recipient ID")

@@ -214,59 +214,129 @@ class MessageAggregate(Aggregate):
     async def archive_message(self, /, data):
         """Action to archive a message for a specific user."""
         message = self.rootobj
-        message_recipient = await self.statemgr.find_one(
-            "message_recipient",
-            where={"message_id": message._id, "recipient_id": self.context.profile_id},
+        profile_id = self.context.profile_id
+
+        # Get archived box
+        archived_box = await self.statemgr.find_one(
+            "message_box",
+            where={"key": "archived"},
         )
-        if data.recipient_id:
-            message_archived = self.init_resource(
-                "message_archived",
-                {
-                    "resource": "message_recipient",
-                    "resource_id": message_recipient._id,
-                    "archived": True,
-                },
+        message_box_record = await self.statemgr.find_one(
+            "_message_box",
+            where={"message_id": message._id, "target_profile_id": profile_id},
+        )
+
+        if message_box_record.root_type == "RECIPIENT":
+            message_recipient = await self.statemgr.fetch(
+                "message_recipient", message_box_record._id
             )
-            await self.statemgr.insert(message_archived)
-        else:
-            message_archived = self.init_resource(
-                "message_archived",
-                {
-                    "resource": "message",
-                    "resource_id": message._id,
-                    "archived": True,
-                },
-            )
-            await self.statemgr.insert(message_archived)
+            if message_recipient:
+                await self.statemgr.update(
+                    message_recipient, box_id=archived_box._id
+                )
+                message_archived = self.init_resource(
+                    "message_archived",
+                    {
+                        "resource": "message_recipient",
+                        "resource_id": message_recipient._id,
+                        "archived": True,
+                    },
+                )
+                await self.statemgr.insert(message_archived)
+        elif message_box_record.root_type == "SENDER":
+            message_sender = await self.statemgr.fetch("message_sender", message_box_record._id)
+            if message_sender:
+                await self.statemgr.update(message_sender, box_id=archived_box._id)
+                message_archived = self.init_resource(
+                    "message_archived",
+                    {
+                        "resource": "message",
+                        "resource_id": message._id,
+                        "archived": True,
+                    },
+                )
+                await self.statemgr.insert(message_archived)
 
     @action("message-trashed", resources="message")
     async def trash_message(self, /, data):
         """Action to trash a message for a specific user."""
         message = self.rootobj
-        message_recipient = await self.statemgr.find_one(
-            "message_recipient",
-            where={"message_id": message._id, "recipient_id": self.context.profile_id},
+        profile_id = self.context.profile_id
+
+        # Get trashed box
+        trashed_box = await self.statemgr.find_one(
+            "message_box",
+            where={"key": "trashed"},
         )
-        if data.recipient_id:
-            message_trashed = self.init_resource(
-                "message_trashed",
-                {
-                    "resource": "message_recipient",
-                    "resource_id": message_recipient._id,
-                    "trashed": True,
-                },
+
+        message_box_record = await self.statemgr.find_one(
+            "_message_box",
+            where={"message_id": message._id, "target_profile_id": profile_id},
+        )
+
+
+        if message_box_record.root_type == "RECIPIENT":
+            message_recipient = await self.statemgr.fetch(
+                "message_recipient", message_box_record._id
             )
-            await self.statemgr.insert(message_trashed)
-        else:
-            message_trashed = self.init_resource(
-                "message_trashed",
-                {
-                    "resource": "message",
-                    "resource_id": message._id,
-                    "trashed": True,
-                },
+            if message_recipient:
+                await self.statemgr.update(
+                    message_recipient, box_id=trashed_box._id
+                )
+                message_trashed = self.init_resource(
+                    "message_trashed",
+                    {
+                        "resource": "message_recipient",
+                        "resource_id": message_recipient._id,
+                        "trashed": True,
+                    },
+                )
+                await self.statemgr.insert(message_trashed)
+        elif message_box_record.root_type == "SENDER":
+            message_sender = await self.statemgr.fetch("message_sender", message_box_record._id)
+            if message_sender:
+                await self.statemgr.update(message_sender, box_id=trashed_box._id)
+                message_trashed = self.init_resource(
+                    "message_trashed",
+                    {
+                        "resource": "message",
+                        "resource_id": message._id,
+                        "trashed": True,
+                    },
+                )
+                await self.statemgr.insert(message_trashed)
+
+    @action("message-restored", resources="message")
+    async def restore_message(self, /, data):
+        """Action to restore a message to inbox/outbox for a specific user."""
+        message = self.rootobj
+        profile_id = self.context.profile_id
+
+        message_box_record = await self.statemgr.find_one(
+            "_message_box",
+            where={"message_id": message._id, "target_profile_id": profile_id},
+        )
+
+        if message_box_record.root_type == "RECIPIENT":
+            inbox_box = await self.statemgr.find_one(
+                "message_box",
+                where={"key": "inbox"},
             )
-            await self.statemgr.insert(message_trashed)
+            message_recipient = await self.statemgr.fetch(
+                "message_recipient", message_box_record._id
+            )
+            if message_recipient:
+                await self.statemgr.update(message_recipient, box_id=inbox_box._id)
+        elif message_box_record.root_type == "SENDER":
+            outbox_box = await self.statemgr.find_one(
+                "message_box",
+                where={"key": "outbox"},
+            )
+            message_sender = await self.statemgr.fetch(
+                "message_sender", message_box_record._id
+            )
+            if message_sender:
+                await self.statemgr.update(message_sender, box_id=outbox_box._id)
 
     # ========================================================================
     # TEMPLATE OPERATIONS

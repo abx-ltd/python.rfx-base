@@ -363,10 +363,7 @@ class MessageThreadQuery(DomainQueryResource):
         return {
             "message_type": MessageTypeEnum.USER.value,
             "thread_id": scope["thread_id"],
-            ".or": [
-                {"target_profile_id": profile_id, "root_type": "SENDER"},
-                {"target_profile_id": profile_id, "root_type": "RECIPIENT"},
-            ],
+            "target_profile_id": profile_id,
         }
 
     class Meta:

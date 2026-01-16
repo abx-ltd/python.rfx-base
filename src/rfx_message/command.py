@@ -215,8 +215,6 @@ class ArchiveMessage(Command):
         auth_required = True
         policy_required = False
 
-    Data = datadef.ArchiveMessagePayload
-
     async def _process(self, agg, stm, payload):
         await agg.archive_message(payload)
 
@@ -231,10 +229,22 @@ class TrashMessage(Command):
         auth_required = True
         policy_required = False
 
-    Data = datadef.TrashMessagePayload
-
     async def _process(self, agg, stm, payload):
         await agg.trash_message(payload)
+
+
+class RestoreMessage(Command):
+    """Restore a message to inbox/outbox for the current user."""
+
+    class Meta:
+        key = "restore-message"
+        resources = ("message",)
+        tags = ["messages", "restore"]
+        auth_required = True
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        await agg.restore_message(payload)
 
 
 # Template management commands
