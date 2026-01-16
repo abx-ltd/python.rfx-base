@@ -22,6 +22,7 @@ from .types import (
     RenderStrategyEnum,
     MessageCategoryEnum,
     BoxTypeEnum,
+    DirectionTypeEnum,
 )
 from . import scope
 
@@ -291,6 +292,9 @@ class MessageArchivedQuery(DomainQueryResource):
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
     message_count: Optional[int] = IntegerField("Message Count")
     root_type: str = StringField("Root Type")
+    direction: Optional[DirectionTypeEnum] = EnumField(
+        "Direction", enum=DirectionTypeEnum
+    )
 
 
 @resource("message-trashed")
@@ -351,6 +355,9 @@ class MessageTrashedQuery(DomainQueryResource):
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
     message_count: Optional[int] = IntegerField("Message Count")
     root_type: str = StringField("Root Type")
+    direction: Optional[DirectionTypeEnum] = EnumField(
+        "Direction", enum=DirectionTypeEnum
+    )
 
 
 @resource("message-thread")
@@ -409,3 +416,6 @@ class MessageThreadQuery(DomainQueryResource):
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
     message_count: Optional[int] = IntegerField("Message Count")
     root_type: str = StringField("Root Type")
+    direction: Optional[DirectionTypeEnum] = EnumField(
+        "Direction", enum=DirectionTypeEnum
+    )

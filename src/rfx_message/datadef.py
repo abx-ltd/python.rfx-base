@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from pydantic import Field, model_validator
 from datetime import datetime
-from .types import MessageCategoryEnum
+from .types import MessageCategoryEnum, DirectionTypeEnum
 from fluvius.data import DataModel, UUID_TYPE
 
 
@@ -240,4 +240,15 @@ class Notification(DataModel):
     )
     render_strategy: Optional[str] = Field(
         None, description="Rendering strategy for the template"
+    )
+
+
+class MoveToBoxPayload(DataModel):
+    """Payload for moving a message to a specific box."""
+
+    box_key: Optional[str] = Field(
+        None,
+    )
+    direction: DirectionTypeEnum = Field(
+        default=DirectionTypeEnum.INBOUND,
     )

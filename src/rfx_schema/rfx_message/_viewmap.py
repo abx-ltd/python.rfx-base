@@ -12,6 +12,7 @@ from . import Base, SCHEMA
 from .types import (
     BoxTypeEnum,
     ContentTypeEnum,
+    DirectionTypeEnum,
     MessageCategoryEnum,
     MessageTypeEnum,
     PriorityLevelEnum,
@@ -68,6 +69,9 @@ class MessageBoxView(Base):
     target_profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     message_count: Mapped[Optional[int]] = mapped_column(Integer)
     root_type: Mapped[str] = mapped_column(String)
+    direction: Mapped[Optional[DirectionTypeEnum]] = mapped_column(
+        SQLEnum(DirectionTypeEnum, name="directiontypeenum", schema=SCHEMA)
+    )
 
     def __repr__(self) -> str:
         return (

@@ -72,7 +72,8 @@ SELECT
 
     r.recipient_id AS target_profile_id,
     ta.message_count,
-    'RECIPIENT' AS root_type
+    'RECIPIENT' AS root_type,
+    r.direction
 
 FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient r
 JOIN {config.RFX_MESSAGE_SCHEMA}.message m
@@ -101,7 +102,13 @@ LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp
     ON rp._id = r.recipient_id
    AND rp._deleted IS NULL
 
-WHERE r._deleted IS NULL
+WHERE
+    r._deleted IS NULL
+    -- self-send + same box => hide RECIPIENT
+    AND NOT (
+        s.sender_id = r.recipient_id
+        AND s.box_id = r.box_id
+    )
 
 
 UNION ALL
@@ -168,7 +175,8 @@ SELECT
 
     s.sender_id AS target_profile_id,
     ta.message_count,
-    'SENDER' AS root_type
+    'SENDER' AS root_type,
+    s.direction
 
 FROM {config.RFX_MESSAGE_SCHEMA}.message_sender s
 JOIN {config.RFX_MESSAGE_SCHEMA}.message m

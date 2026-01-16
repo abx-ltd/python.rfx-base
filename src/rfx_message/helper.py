@@ -7,8 +7,10 @@ from .types import (
     ProcessingModeEnum,
     ContentTypeEnum,
     PriorityLevelEnum,
+    DirectionTypeEnum,
 )
 
+from fluvius.error import BadRequestError
 
 MESSAGE_RENDERING_MAP = {
     MessageTypeEnum.NOTIFICATION: RenderStrategyEnum.CACHED,  # High volume, can use cached templates
@@ -247,3 +249,23 @@ def create_message_response(message_result, message_category=None):
     if message_category:
         response_data["category"] = message_category
     return response_data
+
+
+def validate_box_key(box_key: str, direction: DirectionTypeEnum):
+    """
+    Validate box key.
+
+    Args:
+        box_key: The box key to validate
+        direction: The direction of the message
+    """
+    if (
+        direction == DirectionTypeEnum.INBOUND
+        and box_key == "outbox"
+    ):
+        raise BadRequestError("M00.004", "Cannot move INBOUND message to outbox")
+    if (
+        direction == DirectionTypeEnum.OUTBOUND
+        and box_key == "inbox"
+    ):
+        raise BadRequestError("M00.005", "Cannot move OUTBOUND message to inbox")

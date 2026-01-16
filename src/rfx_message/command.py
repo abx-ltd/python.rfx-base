@@ -13,6 +13,7 @@ from .helper import (
     create_message_response,
 )
 from . import datadef
+from .types import DirectionTypeEnum
 
 processor = RFXMessageServiceDomain.command_processor
 Command = RFXMessageServiceDomain.Command
@@ -205,49 +206,82 @@ class MarkAllMessagesRead(Command):
         )
 
 
-class ArchiveMessage(Command):
-    """Archive a message for the current user."""
+# class MoveToBox(Command):
+#     """Move a message to a specific box (inbox, outbox, archived, or trashed)."""
 
-    class Meta:
-        key = "archive-message"
-        resources = ("message",)
-        tags = ["messages", "archived"]
-        auth_required = True
-        policy_required = False
+#     Data = datadef.MoveToBoxPayload
 
-    async def _process(self, agg, stm, payload):
-        await agg.archive_message(payload)
+#     class Meta:
+#         key = "move-to-box"
+#         resources = ("message",)
+#         tags = ["messages", "move"]
+#         auth_required = True
+#         policy_required = False
 
+#     async def _process(self, agg, stm, payload):
+#         from fluvius.data import logger
 
-class TrashMessage(Command):
-    """Trash a message for the current user."""
+#         box_key = payload.box_key
+#         direction = payload.direction
+#         message_id = agg.get_aggroot().identifier
+#         profile_id = agg.get_context().profile_id
 
-    class Meta:
-        key = "trash-message"
-        resources = ("message",)
-        tags = ["messages", "trashed"]
-        auth_required = True
-        policy_required = False
+#         target_box = None
+#         send_to_themselves = False
+#         if direction == DirectionTypeEnum.OUTBOUND:
+#             send_to_themselves = await agg.check_message_recipient(
+#                 message_id, profile_id
+#             )
+#         else:
+#             send_to_themselves = await agg.check_message_sender(message_id, profile_id)
 
-    async def _process(self, agg, stm, payload):
-        await agg.trash_message(payload)
+#         if box_key:
+#             target_box = await agg.get_message_box(box_key)
 
+#         if send_to_themselves:
+#             if box_key:
+#                 logger.info(f"Sending to themselves and box key provided: {box_key}")
+#                 logger.info(f"Target box: {target_box._id}")
+#                 await agg.change_sender_box_id(
+#                     message_id=message_id, box_id=target_box._id
+#                 )
+#                 await agg.change_recipient_box_id(
+#                     message_id=message_id, box_id=target_box._id
+#                 )
+#             else:
+#                 logger.info("Sending to themselves and no box key provided")
+#                 logger.info(f"Direction: {direction}")
+#                 if direction == DirectionTypeEnum.INBOUND:
+#                     inbox_id = await agg.get_message_box("inbox")
+#                     await agg.change_recipient_box_id(
+#                         message_id=message_id, box_id=inbox_id._id
+#                     )
+#                     outbox_id = await agg.get_message_box("outbox")
+#                     await agg.change_sender_box_id(
+#                         message_id=message_id, box_id=outbox_id._id
+#                     )
 
-class RestoreMessage(Command):
-    """Restore a message to inbox/outbox for the current user."""
-
-    class Meta:
-        key = "restore-message"
-        resources = ("message",)
-        tags = ["messages", "restore"]
-        auth_required = True
-        policy_required = False
-
-    async def _process(self, agg, stm, payload):
-        await agg.restore_message(payload)
-
-
-# Template management commands
+#         if not send_to_themselves:
+#             if box_key:
+#                 if direction == DirectionTypeEnum.INBOUND:
+#                     await agg.change_recipient_box_id(
+#                         message_id=message_id, box_id=target_box._id
+#                     )
+#                 else:
+#                     await agg.change_sender_box_id(
+#                         message_id=message_id, box_id=target_box._id
+#                     )
+#             else:
+#                 if direction == DirectionTypeEnum.OUTBOUND:
+#                     outbox_id = await agg.get_message_box("outbox")
+#                     await agg.change_sender_box_id(
+#                         message_id=message_id, box_id=outbox_id._id
+#                     )
+#                 else:
+#                     inbox_id = await agg.get_message_box("inbox")
+#                     await agg.change_sender_box_id(
+#                         message_id=message_id, box_id=inbox_id._id
+#                     )
 
 
 class CreateTemplate(Command):
