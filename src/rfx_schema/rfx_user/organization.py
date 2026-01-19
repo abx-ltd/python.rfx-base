@@ -37,6 +37,7 @@ class Organization(TableBase):
     """Tenant record for the `rfx_user.organization` table."""
 
     __tablename__ = "organization"
+    __ts_index__ = ["name", "status", "organization_code"]
 
     description: Mapped[Optional[str]] = mapped_column(Text)
     name: Mapped[Optional[str]] = mapped_column(String(255))
