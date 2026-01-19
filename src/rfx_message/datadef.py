@@ -87,6 +87,7 @@ class ReplyMessagePayload(DataModel):
     Supports both template-based and direct content messages.
     """
 
+    subject: Optional[str] = Field(None, description="Message subject")
     # Message metadata
     message_type: str = Field("NOTIFICATION", description="Type of message")
     priority: str = Field("MEDIUM", description="Message priority")
@@ -284,3 +285,25 @@ class RemoveMessagePayload(DataModel):
         default=DirectionTypeEnum.INBOUND,
         description="Direction to remove: INBOUND (inbox) or OUTBOUND (outbox). If None, remove both if user sent to themselves.",
     )
+
+
+class CreateTagPayload(DataModel):
+    """Payload for creating a new tag."""
+
+    name: str = Field(..., description="Name of the tag")
+    background_color: Optional[str] = Field(
+        None, description="Background color of the tag"
+    )
+    font_color: Optional[str] = Field(None, description="Font color of the tag")
+    description: Optional[str] = Field(None, description="Description of the tag")
+
+
+class UpdateTagPayload(DataModel):
+    """Payload for updating a tag."""
+
+    name: Optional[str] = Field(None, description="Name of the tag")
+    background_color: Optional[str] = Field(
+        None, description="Background color of the tag"
+    )
+    font_color: Optional[str] = Field(None, description="Font color of the tag")
+    description: Optional[str] = Field(None, description="Description of the tag")

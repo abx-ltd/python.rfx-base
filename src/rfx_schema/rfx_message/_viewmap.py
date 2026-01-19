@@ -40,7 +40,6 @@ class MessageBoxView(Base):
     content_type: Mapped[Optional[ContentTypeEnum]] = mapped_column(
         SQLEnum(ContentTypeEnum, name="contenttypeenum", schema=SCHEMA)
     )
-    tags: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     expirable: Mapped[Optional[bool]] = mapped_column(Boolean)
     priority: Mapped[Optional[PriorityLevelEnum]] = mapped_column(
         SQLEnum(PriorityLevelEnum, name="prioritylevelenum", schema=SCHEMA)
@@ -94,6 +93,7 @@ class MessageThreadView(Base):
     thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     # Profile information
+    sender_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     sender_profile: Mapped[Optional[dict]] = mapped_column(JSON)
     recipient_id: Mapped[List[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)))
     recipient_profile: Mapped[Optional[dict]] = mapped_column(JSON)
@@ -105,7 +105,6 @@ class MessageThreadView(Base):
     content_type: Mapped[Optional[ContentTypeEnum]] = mapped_column(
         SQLEnum(ContentTypeEnum, name="contenttypeenum", schema=SCHEMA)
     )
-    tags: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     is_important: Mapped[Optional[bool]] = mapped_column(Boolean)
     expirable: Mapped[Optional[bool]] = mapped_column(Boolean)
     expiration_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -138,15 +137,6 @@ class MessageThreadView(Base):
     visible_profile_ids: Mapped[Optional[List[uuid.UUID]]] = mapped_column(
         ARRAY(UUID(as_uuid=True))
     )
-
-    # Metadata fields
-    _realm: Mapped[Optional[str]] = mapped_column(String(1024))
-    _created: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    _updated: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    _creator: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    _updater: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    _deleted: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    _etag: Mapped[Optional[str]] = mapped_column(String(1024))
 
     def __repr__(self) -> str:
         return (

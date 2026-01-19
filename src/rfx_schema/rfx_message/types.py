@@ -59,11 +59,6 @@ class HTTPTargetEnum(Enum):
     IFRAME = "IFRAME"
 
 
-class TagGroupEnum(Enum):
-    APPLICATION = "APPLICATION"
-    FUNCTION = "FUNCTION"
-
-
 class BoxTypeEnum(Enum):
     GROUP = "GROUP"
     SINGLE = "SINGLE"

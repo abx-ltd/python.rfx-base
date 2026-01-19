@@ -15,7 +15,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
-    ARRAY,
     Boolean,
     DateTime,
     Enum as SQLEnum,
@@ -64,7 +63,6 @@ class Message(TableBase):
         )
     )
 
-    tags: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     is_important: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
     expirable: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
     expiration_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

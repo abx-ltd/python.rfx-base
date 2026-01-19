@@ -63,7 +63,6 @@ class MessageAggregate(Aggregate):
             _id=UUID_GENR(),
             thread_id=message.thread_id,
             sender_id=self.context.profile_id,
-            subject=f"Re: {message.subject}",
         )
 
         await self.statemgr.insert(reply_message)
@@ -366,3 +365,26 @@ class MessageAggregate(Aggregate):
             "version": template.version,
             "status": "PUBLISHED",
         }
+
+    # ========================================================================
+    # TAG OPERATIONS
+    # ========================================================================
+
+    @action("tag-created", resources="tag")
+    async def create_tag(self, *, data):
+        """Create a new tag."""
+        tag = self.init_resource("tag", serialize_mapping(data), _id=UUID_GENR())
+        await self.statemgr.insert(tag)
+        return tag
+
+    @action("tag-updated", resources="tag")
+    async def update_tag(self, *, data):
+        """Update a tag."""
+        tag = self.rootobj
+        await self.statemgr.update(tag, **serialize_mapping(data))
+
+    @action("tag-removed", resources="tag")
+    async def remove_tag(self):
+        """Remove a tag."""
+        tag = self.rootobj
+        await self.statemgr.invalidate(tag)

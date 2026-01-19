@@ -92,15 +92,6 @@ class HTTPTargetEnum(Enum):
     IFRAME = "IFRAME"  # Open in an iframe
 
 
-class TagGroupEnum(Enum):
-    """
-    Tag groups for organizing and categorizing tags.
-    """
-
-    APPLICATION = "APPLICATION"  # Tags related to application functionality
-    FUNCTION = "FUNCTION"  # Tags related to specific functions or features
-
-
 class BoxTypeEnum(Enum):
     """
     Message box types for categorizing message boxes.

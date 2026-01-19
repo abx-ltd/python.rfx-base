@@ -12,8 +12,7 @@ from . import (
     message_sender,
     message_template,
     message_category,
-    message_archived,
-    message_trashed,
+    message_tag,
 )
 
 __all__ = [
@@ -30,6 +29,5 @@ __all__ = [
     "message_sender",
     "message_template",
     "message_category",
-    "message_archived",
-    "message_trashed",
+    "message_tag",
 ]
