@@ -33,7 +33,7 @@ SELECT
         'suffix', sp.name__suffix
     ) AS sender_profile,
 
-    ARRAY[r.recipient_id]::uuid[] AS recipient_id,
+    ARRAY[r.recipient_id] AS recipient_id,
 
     jsonb_build_object(
         'id', rp._id,
@@ -72,7 +72,7 @@ SELECT
 
     r.recipient_id AS target_profile_id,
     ta.message_count,
-    'RECIPIENT' AS root_type,
+    'RECIPIENT'::text AS root_type,
     r.direction
 
 FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient r
@@ -104,15 +104,13 @@ LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp
 
 WHERE
     r._deleted IS NULL
-    -- self-send + same box => hide RECIPIENT
+    -- hide recipient when self-send + same box
     AND NOT (
         s.sender_id = r.recipient_id
         AND s.box_id = r.box_id
     )
 
-
 UNION ALL
-
 
 -- ======================================================
 -- ROOT: MESSAGE_SENDER
@@ -175,7 +173,7 @@ SELECT
 
     s.sender_id AS target_profile_id,
     ta.message_count,
-    'SENDER' AS root_type,
+    'SENDER'::text AS root_type,
     s.direction
 
 FROM {config.RFX_MESSAGE_SCHEMA}.message_sender s
@@ -194,8 +192,8 @@ LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb
    AND mb._deleted IS NULL
 
 LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_category mc
-    ON mc.resource = 'message'
-   AND mc.resource_id = m._id
+    ON mc.resource = 'message_sender'
+   AND mc.resource_id = s._id
    AND mc._deleted IS NULL
 
 LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp

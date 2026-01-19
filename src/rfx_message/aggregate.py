@@ -88,15 +88,6 @@ class MessageAggregate(Aggregate):
         )
         await self.statemgr.insert(message_category)
 
-    @action("message-recipient-get", resources="message")
-    async def get_message_recipient(self, *, message_id: str):
-        """Action to get a message recipient."""
-        message_recipient = await self.statemgr.find_one(
-            "message_recipient",
-            where={"message_id": message_id, "recipient_id": self.context.profile_id},
-        )
-        return message_recipient
-
     @action("message-content-processed", resources="message")
     async def process_message_content(
         self,
@@ -228,15 +219,9 @@ class MessageAggregate(Aggregate):
     @action("sender-box-changed", resources="message")
     async def change_sender_box_id(self, /, message_id, box_id):
         """Change box_id for message_sender."""
-        from fluvius.data import logger
-
         message_sender = await self.statemgr.find_one(
             "message_sender",
             where={"message_id": message_id},
-        )
-
-        logger.info(
-            f"Changing sender box id {message_sender._id} for message {message_id} to {box_id}"
         )
         await self.statemgr.update(message_sender, box_id=box_id)
 
@@ -258,20 +243,55 @@ class MessageAggregate(Aggregate):
         )
 
     @action("check-message-recipient", resources="message")
-    async def check_message_recipient(self, message_id, recipient_id):
+    async def check_message_recipient(self, message_id):
         """Check if message recipient exists."""
         return await self.statemgr.exist(
             "message_recipient",
-            where={"message_id": message_id, "recipient_id": recipient_id},
+            where={"message_id": message_id, "recipient_id": self.context.profile_id},
         )
 
     @action("check-message-sender", resources="message")
-    async def check_message_sender(self, message_id, sender_id):
+    async def check_message_sender(self, message_id):
         """Check if message sender exists."""
         return await self.statemgr.exist(
             "message_sender",
-            where={"message_id": message_id, "sender_id": sender_id},
+            where={"message_id": message_id, "sender_id": self.context.profile_id},
         )
+
+    @action("get-message-sender", resources="message")
+    async def get_message_sender(self, message_id):
+        """Get message sender."""
+        return await self.statemgr.find_one(
+            "message_sender",
+            where={"message_id": message_id, "sender_id": self.context.profile_id},
+        )
+
+    @action("get-message-recipient", resources="message")
+    async def get_message_recipient(self, message_id):
+        """Get message recipient."""
+        return await self.statemgr.find_one(
+            "message_recipient",
+            where={"message_id": message_id, "recipient_id": self.context.profile_id},
+        )
+
+    @action("remove-message-sender", resources="message")
+    async def remove_message_sender(self, message_id):
+        """Remove message sender."""
+        message_sender = await self.statemgr.find_one(
+            "message_sender",
+            where={"message_id": message_id, "sender_id": self.context.profile_id},
+        )
+        await self.statemgr.invalidate(message_sender)
+
+    @action("remove-message-recipient", resources="message")
+    async def remove_message_recipient(self, message_id):
+        """Remove message recipient."""
+
+        message_recipient = await self.statemgr.find_one(
+            "message_recipient",
+            where={"message_id": message_id, "recipient_id": self.context.profile_id},
+        )
+        await self.statemgr.invalidate(message_recipient)
 
     # ========================================================================
     # TEMPLATE OPERATIONS
