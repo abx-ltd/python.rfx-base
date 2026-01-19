@@ -8,4 +8,4 @@ POLICY_SCHEMA = "rfx_policy"
 POLICY_TABLE = "_policy__user_profile"
 NAMESPACE = "rfx-message"
 
-WORKER_QUEUE_NAME = "cpo_portal_worker"
+WORKER_QUEUE_NAME = "rfx_worker"

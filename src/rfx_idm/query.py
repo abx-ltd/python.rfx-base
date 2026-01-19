@@ -346,6 +346,7 @@ class OrganizationDetailQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
+        allow_text_search = True
         backend_model = "organization"
 
         resource = "organization"
