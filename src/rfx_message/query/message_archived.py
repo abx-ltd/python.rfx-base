@@ -82,3 +82,4 @@ class MessageArchivedQuery(DomainQueryResource):
     direction: Optional[DirectionTypeEnum] = EnumField(
         "Direction", enum=DirectionTypeEnum
     )
+    tags: Optional[List[str]] = ArrayField("Tags", default=[])

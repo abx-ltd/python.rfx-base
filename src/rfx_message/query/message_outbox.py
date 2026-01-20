@@ -79,3 +79,4 @@ class MessageOutboxQuery(DomainQueryResource):
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
     message_count: Optional[int] = IntegerField("Message Count")
     root_type: str = StringField("Root Type")
+    tags: Optional[List[str]] = ArrayField("Tags", default=[])

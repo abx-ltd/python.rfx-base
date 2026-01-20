@@ -71,6 +71,7 @@ class MessageBoxView(Base):
     direction: Mapped[Optional[DirectionTypeEnum]] = mapped_column(
         SQLEnum(DirectionTypeEnum, name="directiontypeenum", schema=SCHEMA)
     )
+    tags: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
 
     def __repr__(self) -> str:
         return (

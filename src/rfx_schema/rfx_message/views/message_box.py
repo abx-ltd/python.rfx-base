@@ -12,7 +12,9 @@ WITH thread_agg AS (
     FROM {config.RFX_MESSAGE_SCHEMA}.message m
     WHERE m._deleted IS NULL
     GROUP BY m.thread_id
-)
+),
+
+base AS (
 
 -- ======================================================
 -- ROOT: MESSAGE_RECIPIENT
@@ -72,7 +74,9 @@ SELECT
     r.recipient_id AS target_profile_id,
     ta.message_count,
     'RECIPIENT'::text AS root_type,
-    r.direction
+    r.direction,
+	ARRAY_REMOVE(ARRAY[mt.key], NULL) AS tags
+
 
 FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient r
 JOIN {config.RFX_MESSAGE_SCHEMA}.message m
@@ -92,18 +96,21 @@ LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_category mc
     ON mc.resource = 'message_recipient'
    AND mc.resource_id = r._id
    AND mc._deleted IS NULL
+LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt
+    ON mt.resource = 'message_recipient'
+   AND mt.resource_id = r._id
+   AND mt._deleted IS NULL
 
-LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp
+LEFT JOIN ncs_user.profile sp
     ON sp._id = s.sender_id
    AND sp._deleted IS NULL
 
-LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp
+LEFT JOIN ncs_user.profile rp
     ON rp._id = r.recipient_id
    AND rp._deleted IS NULL
 
 WHERE
     r._deleted IS NULL
-    -- hide recipient when self-send + same box
     AND NOT (
         s.sender_id = r.recipient_id
         AND s.box_id = r.box_id
@@ -172,7 +179,9 @@ SELECT
     s.sender_id AS target_profile_id,
     ta.message_count,
     'SENDER'::text AS root_type,
-    s.direction
+    s.direction,
+    ARRAY_REMOVE(ARRAY[mt.key], NULL) AS tags
+
 
 FROM {config.RFX_MESSAGE_SCHEMA}.message_sender s
 JOIN {config.RFX_MESSAGE_SCHEMA}.message m
@@ -194,11 +203,16 @@ LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_category mc
    AND mc.resource_id = s._id
    AND mc._deleted IS NULL
 
-LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp
+LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt
+    ON mt.resource = 'message_sender'
+   AND mt.resource_id = s._id
+   AND mt._deleted IS NULL
+
+LEFT JOIN ncs_user.profile sp
     ON sp._id = s.sender_id
    AND sp._deleted IS NULL
 
-LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp
+LEFT JOIN ncs_user.profile rp
     ON rp._id = r.recipient_id
    AND rp._deleted IS NULL
 
@@ -229,6 +243,29 @@ GROUP BY
     s._updater,
     s._deleted,
     s._etag,
-    ta.message_count;
+    ta.message_count,
+    tags
+),
+ranked AS (
+    SELECT
+        b.*,
+
+        CASE
+            WHEN b.direction = 'OUTBOUND' THEN
+                ROW_NUMBER() OVER (
+                    PARTITION BY b.thread_id, b.box_key
+                    ORDER BY b._created ASC
+                )
+            ELSE 1
+        END AS rn
+
+    FROM base b
+)
+
+SELECT *
+FROM ranked
+WHERE
+    (direction = 'OUTBOUND' AND rn = 1)
+    OR direction = 'INBOUND';
     """,
 )

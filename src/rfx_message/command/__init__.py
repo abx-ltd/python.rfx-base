@@ -16,3 +16,4 @@ from .restore_message import *
 from .remove_message import *
 from .template import *
 from .tag import *
+from .message_tag import *
