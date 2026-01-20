@@ -14,15 +14,12 @@ class MessageCategoryMixin:
         self, *, resource: str, resource_id: str, category: MessageCategoryEnum
     ):
         """Action to set the category of a message."""
-        message_category = await self.statemgr.exists(
+        message_category = await self.statemgr.exist(
             "message_category",
-            {
-                "resource": resource,
-                "resource_id": resource_id,
-            },
+            where={"resource": resource, "resource_id": resource_id},
         )
         if message_category:
-            await self.statemgr.update(message_category, {"category": category})
+            await self.statemgr.update(message_category, category=category)
         else:
             new_message_category = self.init_resource(
                 "message_category",
