@@ -19,7 +19,7 @@ class SetMessageCategory(Command):
         direction = payload.direction
         if direction == types.DirectionTypeEnum.OUTBOUND:
             message_sender = await agg.get_message_sender(
-                message_id=agg.get_aggroot().identifier
+                message_id=agg.get_aggroot().identifier,
             )
             await agg.set_message_category(
                 resource="message_sender",
@@ -28,7 +28,8 @@ class SetMessageCategory(Command):
             )
         elif direction == types.DirectionTypeEnum.INBOUND:
             message_recipient = await agg.get_message_recipient(
-                message_id=agg.get_aggroot().identifier
+                message_id=agg.get_aggroot().identifier,
+                profile_id=agg.get_context().profile_id
             )
             await agg.set_message_category(
                 resource="message_recipient",
@@ -53,7 +54,7 @@ class RemoveMessageCategory(Command):
         direction = payload.direction
         if direction == types.DirectionTypeEnum.OUTBOUND:
             message_sender = await agg.get_message_sender(
-                message_id=agg.get_aggroot().identifier
+                message_id=agg.get_aggroot().identifier,
             )
             await agg.remove_message_category(
                 resource="message_sender",
@@ -61,7 +62,8 @@ class RemoveMessageCategory(Command):
             )
         elif direction == types.DirectionTypeEnum.INBOUND:
             message_recipient = await agg.get_message_recipient(
-                message_id=agg.get_aggroot().identifier
+                message_id=agg.get_aggroot().identifier,
+                profile_id=agg.get_context().profile_id
             )
             await agg.remove_message_category(
                 resource="message_recipient",

@@ -22,7 +22,7 @@ class TrashMessage(Command):
 
         send_to_themselves = False
         if direction == types.DirectionTypeEnum.OUTBOUND:
-            send_to_themselves = await agg.check_message_recipient(message_id)
+            send_to_themselves = await agg.check_message_recipient(message_id, agg.get_context().profile_id)
         elif direction == types.DirectionTypeEnum.INBOUND:
             send_to_themselves = await agg.check_message_sender(message_id)
 

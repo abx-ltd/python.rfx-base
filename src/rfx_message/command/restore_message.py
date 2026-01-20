@@ -20,7 +20,7 @@ class RestoreMessage(Command):
 
         send_to_themselves = False
         if direction == types.DirectionTypeEnum.OUTBOUND:
-            send_to_themselves = await agg.check_message_recipient(message_id)
+            send_to_themselves = await agg.check_message_recipient(message_id, agg.get_context().profile_id)
 
         inbox_box = await agg.get_message_box("inbox")
         outbox_box = await agg.get_message_box("outbox")
