@@ -101,11 +101,11 @@ LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt
    AND mt.resource_id = r._id
    AND mt._deleted IS NULL
 
-LEFT JOIN ncs_user.profile sp
+LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp
     ON sp._id = s.sender_id
    AND sp._deleted IS NULL
 
-LEFT JOIN ncs_user.profile rp
+LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp
     ON rp._id = r.recipient_id
    AND rp._deleted IS NULL
 
@@ -208,11 +208,11 @@ LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt
    AND mt.resource_id = s._id
    AND mt._deleted IS NULL
 
-LEFT JOIN ncs_user.profile sp
+LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp
     ON sp._id = s.sender_id
    AND sp._deleted IS NULL
 
-LEFT JOIN ncs_user.profile rp
+LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp
     ON rp._id = r.recipient_id
    AND rp._deleted IS NULL
 

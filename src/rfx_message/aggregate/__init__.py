@@ -15,6 +15,7 @@ from .read_message import ReadMessageMixin
 from .template import TemplateMixin
 from .tag import TagMixin
 from .message_tag import MessageTagMixin
+from .message_category import MessageCategoryMixin
 
 
 class MessageAggregate(
@@ -27,6 +28,7 @@ class MessageAggregate(
     TemplateMixin,
     TagMixin,
     MessageTagMixin,
+    MessageCategoryMixin,
 ):
     """
     Aggregate for managing message-related operations.

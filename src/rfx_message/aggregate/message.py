@@ -44,23 +44,6 @@ class MessageMixin:
 
         return reply_message
 
-    @action(
-        "message-category-set",
-        resources=("message", "message_recipient", "message_category"),
-    )
-    async def set_message_category(
-        self, *, resource: str, resource_id: str, category: MessageCategoryEnum
-    ):
-        """Action to set the category of a message."""
-        message_category = self.init_resource(
-            "message_category",
-            {
-                "resource": resource,
-                "resource_id": resource_id,
-                "category": category,
-            },
-        )
-        await self.statemgr.insert(message_category)
 
     @action("message-content-processed", resources="message")
     async def process_message_content(
