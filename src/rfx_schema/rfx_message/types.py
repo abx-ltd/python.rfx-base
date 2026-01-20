@@ -38,9 +38,8 @@ class DeliveryStatusEnum(Enum):
 
 
 class DirectionTypeEnum(Enum):
-    INCOMING = "INCOMING"
-    OUTGOING = "OUTGOING"
-    SYSTEM = "SYSTEM"
+    INBOUND = "INBOUND"
+    OUTBOUND = "OUTBOUND"
 
 
 class ActionTypeEnum(Enum):
@@ -58,11 +57,6 @@ class HTTPMethodEnum(Enum):
 class HTTPTargetEnum(Enum):
     BLANK = "BLANK"
     IFRAME = "IFRAME"
-
-
-class TagGroupEnum(Enum):
-    APPLICATION = "APPLICATION"
-    FUNCTION = "FUNCTION"
 
 
 class BoxTypeEnum(Enum):

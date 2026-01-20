@@ -1,8 +1,8 @@
 from typing import Optional, List, Dict, Any
 from pydantic import Field, model_validator
 from datetime import datetime
-from .types import MessageCategoryEnum
 from fluvius.data import DataModel, UUID_TYPE
+from ..types import MessageCategoryEnum
 
 
 class SendMessagePayload(DataModel):
@@ -87,6 +87,7 @@ class ReplyMessagePayload(DataModel):
     Supports both template-based and direct content messages.
     """
 
+    subject: Optional[str] = Field(None, description="Message subject")
     # Message metadata
     message_type: str = Field("NOTIFICATION", description="Type of message")
     priority: str = Field("MEDIUM", description="Message priority")
@@ -151,58 +152,6 @@ class ReplyMessagePayload(DataModel):
         return self
 
 
-class SetMessageCategoryPayload(DataModel):
-    """Payload for setting the category of a message."""
-
-    recipient_id: UUID_TYPE = Field(None, description="Recipient ID")
-    category: MessageCategoryEnum = Field(
-        default=MessageCategoryEnum.INFORMATION, description="Message category"
-    )
-
-
-class CreateTemplatePayload(DataModel):
-    """Payload for creating message templates."""
-
-    key: str = Field(..., description="Template key identifier")
-    name: Optional[str] = Field(None, description="Human-readable template name")
-    context: str = Field(..., description="Template body/source code")
-
-    # Template configuration
-    engine: str = Field("jinja2", description="Template engine")
-    locale: str = Field("en", description="Template locale")
-    channel: Optional[str] = Field(None, description="Template channel")
-    version: Optional[int] = Field(None, description="Template version number")
-
-    # Multi-tenant scoping
-    tenant_id: Optional[UUID_TYPE] = Field(None, description="Tenant ID")
-    app_id: Optional[str] = Field(None, description="App ID")
-
-    # Template metadata
-    description: Optional[str] = Field(None, description="Template description")
-    variables_schema: Optional[Dict[str, Any]] = Field(
-        {}, description="JSON schema for template variables"
-    )
-    # sample_data: Optional[Dict[str, Any]] = Field({}, description="Sample data for testing")
-
-    # Rendering control
-    render_strategy: Optional[str] = Field(
-        None, description="Default rendering strategy"
-    )
-
-
-# class PublishTemplatePayload(DataModel):
-#     """Payload for publishing templates."""
-
-#     template_id: UUID_TYPE = Field(..., description="Template ID to publish")
-
-# class ProcessContentPayload(DataModel):
-#     """Payload for processing message content."""
-
-#     message_id: UUID_TYPE = Field(..., description="Message ID to process")
-#     mode: str = Field("SYNC", description="Processing mode: SYNC, ASYNC, IMMEDIATE")
-#     context: Optional[Dict[str, Any]] = Field({}, description="Additional context for processing")
-
-
 # DTO for response Message
 class Notification(DataModel):
     message_id: UUID_TYPE = Field(..., description="ID of the message")
@@ -242,14 +191,3 @@ class Notification(DataModel):
         None, description="Rendering strategy for the template"
     )
 
-
-class ArchiveMessagePayload(DataModel):
-    """Payload for archiving a message."""
-
-    recipient_id: Optional[UUID_TYPE] = Field(default=None, description="Recipient ID")
-
-
-class TrashMessagePayload(DataModel):
-    """Payload for trashing a message."""
-
-    recipient_id: Optional[UUID_TYPE] = Field(default=None, description="Recipient ID")

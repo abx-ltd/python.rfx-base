@@ -1,13 +1,3 @@
-"""
-Message Service ORM Mapping (Schema Layer)
-==========================================
-
-Schema-only SQLAlchemy models mirroring the runtime definitions in
-``src/rfx_message/model.py``. These models are used for Alembic autogenerate
-and lightweight metadata introspection without importing the full message
-service stack.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -17,7 +7,6 @@ from sqlalchemy import (
     Enum as SQLEnum,
     ForeignKey,
     String,
-    Text,
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -29,6 +18,7 @@ from .types import (
 
 if TYPE_CHECKING:
     from .message_recipient import MessageRecipient
+    from .message_sender import MessageSender
 
 
 class MessageBox(TableBase):
@@ -37,8 +27,8 @@ class MessageBox(TableBase):
     __tablename__ = "message_box"
 
     _txt: Mapped[Optional[str]] = mapped_column(TSVECTOR)
+    key: Mapped[Optional[str]] = mapped_column(String(1024))
     name: Mapped[Optional[str]] = mapped_column(String(1024))
-    email_alias: Mapped[Optional[str]] = mapped_column(Text)
     type: Mapped[Optional[BoxTypeEnum]] = mapped_column(
         SQLEnum(BoxTypeEnum, name="boxtypeenum", schema=SCHEMA)
     )
@@ -47,6 +37,9 @@ class MessageBox(TableBase):
         back_populates="box", cascade="all, delete-orphan"
     )
     recipients: Mapped[List["MessageRecipient"]] = relationship(
+        back_populates="box", cascade="all"
+    )
+    senders: Mapped[List["MessageSender"]] = relationship(
         back_populates="box", cascade="all"
     )
 

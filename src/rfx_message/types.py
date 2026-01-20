@@ -55,15 +55,9 @@ class DeliveryStatusEnum(Enum):
     FAILED = "FAILED"
 
 
-class DirectionTypeEnum(Enum):
-    """
-    Message direction classifications for routing and processing.
-    Determines the flow of messages within the system.
-    """
-
-    INCOMING = "INCOMING"  # Message received from external source
-    OUTGOING = "OUTGOING"  # Message sent to external recipient
-    SYSTEM = "SYSTEM"  # System-generated message, not user-initiated
+class DirectionTypeEnum(str, Enum):
+    INBOUND = "INBOUND"
+    OUTBOUND = "OUTBOUND"
 
 
 class ActionTypeEnum(Enum):
@@ -96,15 +90,6 @@ class HTTPTargetEnum(Enum):
 
     BLANK = "BLANK"  # Open in new tab/window
     IFRAME = "IFRAME"  # Open in an iframe
-
-
-class TagGroupEnum(Enum):
-    """
-    Tag groups for organizing and categorizing tags.
-    """
-
-    APPLICATION = "APPLICATION"  # Tags related to application functionality
-    FUNCTION = "FUNCTION"  # Tags related to specific functions or features
 
 
 class BoxTypeEnum(Enum):

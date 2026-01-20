@@ -10,19 +10,18 @@ service stack.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
-    Enum as SQLEnum,
     String,
+    Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import TableBase, SCHEMA
-from .types import (
-    TagGroupEnum,
-)
+
+if TYPE_CHECKING:
+    pass
 
 
 class Tag(TableBase):
@@ -31,18 +30,8 @@ class Tag(TableBase):
     __tablename__ = "tag"
     __table_args__ = {"schema": SCHEMA}
 
-    name: Mapped[str] = mapped_column(String(255), primary_key=True, unique=True)
-    background_color: Mapped[Optional[str]] = mapped_column(String(7))
-    font_color: Mapped[Optional[str]] = mapped_column(String(7))
-    description: Mapped[Optional[str]] = mapped_column(String(1024))
-    group: Mapped[Optional[TagGroupEnum]] = mapped_column(
-        SQLEnum(TagGroupEnum, name="taggroupenum", schema=SCHEMA)
-    )
-
-
-class TagPreference(TableBase):
-    """User preferences for how tags behave or render."""
-
-    __tablename__ = "tag_preference"
-
-    option: Mapped[dict] = mapped_column(JSONB, default=dict)
+    key: Mapped[str] = mapped_column(String(255), nullable=True, unique=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=True)
+    background_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    font_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

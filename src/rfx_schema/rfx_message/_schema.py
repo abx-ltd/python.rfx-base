@@ -9,10 +9,10 @@ from . import (
     message_embedded,
     message_reference,
     message_recipient,
+    message_sender,
     message_template,
     message_category,
-    message_archived,
-    message_trashed,
+    message_tag,
 )
 
 __all__ = [
@@ -26,8 +26,8 @@ __all__ = [
     "message_embedded",
     "message_reference",
     "message_recipient",
+    "message_sender",
     "message_template",
     "message_category",
-    "message_archived",
-    "message_trashed",
+    "message_tag",
 ]
