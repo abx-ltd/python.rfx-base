@@ -1,8 +1,8 @@
 from typing import Optional, List, Dict, Any
 from pydantic import Field, model_validator
 from datetime import datetime
-from .types import MessageCategoryEnum, DirectionTypeEnum
 from fluvius.data import DataModel, UUID_TYPE
+from ..types import MessageCategoryEnum
 
 
 class SendMessagePayload(DataModel):
@@ -152,61 +152,6 @@ class ReplyMessagePayload(DataModel):
         return self
 
 
-class SetMessageCategoryPayload(DataModel):
-    """Payload for setting the category of a message."""
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to set category: INBOUND (inbox) or OUTBOUND (outbox). If None, set category for both if user sent to themselves.",
-    )
-    category: MessageCategoryEnum = Field(
-        default=MessageCategoryEnum.INFORMATION, description="Message category"
-    )
-
-
-class CreateTemplatePayload(DataModel):
-    """Payload for creating message templates."""
-
-    key: str = Field(..., description="Template key identifier")
-    name: Optional[str] = Field(None, description="Human-readable template name")
-    context: str = Field(..., description="Template body/source code")
-
-    # Template configuration
-    engine: str = Field("jinja2", description="Template engine")
-    locale: str = Field("en", description="Template locale")
-    channel: Optional[str] = Field(None, description="Template channel")
-    version: Optional[int] = Field(None, description="Template version number")
-
-    # Multi-tenant scoping
-    tenant_id: Optional[UUID_TYPE] = Field(None, description="Tenant ID")
-    app_id: Optional[str] = Field(None, description="App ID")
-
-    # Template metadata
-    description: Optional[str] = Field(None, description="Template description")
-    variables_schema: Optional[Dict[str, Any]] = Field(
-        {}, description="JSON schema for template variables"
-    )
-    # sample_data: Optional[Dict[str, Any]] = Field({}, description="Sample data for testing")
-
-    # Rendering control
-    render_strategy: Optional[str] = Field(
-        None, description="Default rendering strategy"
-    )
-
-
-# class PublishTemplatePayload(DataModel):
-#     """Payload for publishing templates."""
-
-#     template_id: UUID_TYPE = Field(..., description="Template ID to publish")
-
-# class ProcessContentPayload(DataModel):
-#     """Payload for processing message content."""
-
-#     message_id: UUID_TYPE = Field(..., description="Message ID to process")
-#     mode: str = Field("SYNC", description="Processing mode: SYNC, ASYNC, IMMEDIATE")
-#     context: Optional[Dict[str, Any]] = Field({}, description="Additional context for processing")
-
-
 # DTO for response Message
 class Notification(DataModel):
     message_id: UUID_TYPE = Field(..., description="ID of the message")
@@ -246,84 +191,3 @@ class Notification(DataModel):
         None, description="Rendering strategy for the template"
     )
 
-
-class ArchiveMessagePayload(DataModel):
-    """Payload for archiving a message."""
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to archive: INBOUND (inbox) or OUTBOUND (outbox). If None, archive both if user sent to themselves.",
-    )
-
-
-class TrashMessagePayload(DataModel):
-    """Payload for trashing a message.
-
-    Note: Trash will move all records (both sender and recipient if user sent to themselves)
-    to trashed box. No direction needed.
-    """
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to trash: INBOUND (inbox) or OUTBOUND (outbox). If None, trash both if user sent to themselves.",
-    )
-
-
-class RestoreMessagePayload(DataModel):
-    """Payload for restoring a message from trashed/archived to inbox/outbox."""
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to restore: INBOUND (to inbox) or OUTBOUND (to outbox). If None, restore both if user sent to themselves.",
-    )
-
-
-class RemoveMessagePayload(DataModel):
-    """Payload for removing a message."""
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to remove: INBOUND (inbox) or OUTBOUND (outbox). If None, remove both if user sent to themselves.",
-    )
-
-
-class CreateTagPayload(DataModel):
-    """Payload for creating a new tag."""
-
-    name: str = Field(..., description="Name of the tag")
-    background_color: Optional[str] = Field(
-        None, description="Background color of the tag"
-    )
-    font_color: Optional[str] = Field(None, description="Font color of the tag")
-    description: Optional[str] = Field(None, description="Description of the tag")
-
-
-class UpdateTagPayload(DataModel):
-    """Payload for updating a tag."""
-
-    name: Optional[str] = Field(None, description="Name of the tag")
-    background_color: Optional[str] = Field(
-        None, description="Background color of the tag"
-    )
-    font_color: Optional[str] = Field(None, description="Font color of the tag")
-    description: Optional[str] = Field(None, description="Description of the tag")
-
-
-class AddMessageTagPayload(DataModel):
-    """Payload for adding a tag to a message."""
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to add tag: INBOUND (inbox) or OUTBOUND (outbox). If None, add tag for both if user sent to themselves.",
-    )
-    key: str = Field(..., description="Key of the tag")
-
-
-class RemoveMessageTagPayload(DataModel):
-    """Payload for removing a tag from a message."""
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to remove tag: INBOUND (inbox) or OUTBOUND (outbox). If None, remove tag for both if user sent to themselves.",
-    )
-    key: str = Field(..., description="Key of the tag")
