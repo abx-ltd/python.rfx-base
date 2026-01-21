@@ -40,7 +40,7 @@ class RFXClientQueryManager(DomainQueryManager):
     __policymgr__ = RFXClientPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXClientDomain.Meta.prefix
+        prefix = RFXClientDomain.Meta.namespace
         tags = RFXClientDomain.Meta.tags
 
 
@@ -253,7 +253,9 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     work_package_name: str = StringField("Work Package Name")
     work_package_description: str = StringField("Work Package Description")
-    work_package_example_description: str = StringField("Work Package Example Description")
+    work_package_example_description: str = StringField(
+        "Work Package Example Description"
+    )
     work_package_complexity_level: int = IntegerField("Work Package Complexity Level")
     work_package_estimate: str = StringField("Work Package Estimate")
     work_package_is_custom: bool = BooleanField("Work Package Is Custom")
@@ -1017,7 +1019,9 @@ class OrganizationWeeklyCreditUsageQuery(DomainQueryResource):
     op_credits: float = FloatField("Operation Credits", sortable=True)
 
     # Work Package Stats
-    work_packages_completed: int = IntegerField("Work Packages Completed", sortable=True)
+    work_packages_completed: int = IntegerField(
+        "Work Packages Completed", sortable=True
+    )
 
 
 @resource("document")
