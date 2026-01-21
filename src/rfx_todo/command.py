@@ -18,7 +18,7 @@ class CreateTodo(Command):
         tags = ["todo", "create"]
         auth_required = True
         policy_required = False
-        new_resource = True
+        resource_init = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_todo(payload)
@@ -108,5 +108,3 @@ class DeleteTodo(Command):
     async def _process(self, agg, stm, payload):
         result = await agg.delete_todo()
         yield agg.create_response(serialize_mapping(result), _type="todo-response")
-
-

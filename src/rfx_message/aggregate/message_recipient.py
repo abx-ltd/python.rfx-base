@@ -53,7 +53,7 @@ class MessageRecipientMixin:
                 "direction": "INBOUND",
             }
 
-            if self.aggroot.get_context().profile_id == recipient_id:
+            if self.get_context().profile_id == recipient_id:
                 recipient_data["read"] = True
                 recipient_data["box_id"] = outbox._id
 

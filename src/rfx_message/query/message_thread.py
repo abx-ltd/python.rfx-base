@@ -27,7 +27,6 @@ class MessageThreadQuery(DomainQueryResource):
     def base_query(cls, context, scope):
         profile_id = context.profile._id
         return {
-            "message_type": MessageTypeEnum.USER.value,
             "thread_id": scope["thread_id"],
             "visible_profile_ids.ov": [profile_id],
             ".or": [

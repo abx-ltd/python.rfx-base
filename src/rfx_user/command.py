@@ -23,11 +23,11 @@ Integration Points:
 """
 
 from datetime import datetime
-from fluvius.data import serialize_mapping, DataModel, UUID_GENR
+from fluvius.data import serialize_mapping, UUID_GENR
 
 from .domain import UserProfileDomain
 from .integration import kc_admin
-from . import datadef, config, logger
+from . import datadef
 
 processor = UserProfileDomain.command_processor
 Command = UserProfileDomain.Command
@@ -44,7 +44,7 @@ Command = UserProfileDomain.Command
 #         key = "create-user"
 #         resources = ("user",)
 #         tags = ["user"]
-#         new_resource = True
+#         resource_init = True
 #         auth_required = True
 
 # class UpdateUser(Command):
@@ -142,6 +142,7 @@ class SyncUser(Command):
     Implements intelligent sync with rate limiting (5-minute minimum interval)
     unless force flag is used. Retrieves user profile, roles, and verification status.
     """
+
     class Meta:
         key = "sync-user"
         resources = ("user",)
@@ -158,7 +159,10 @@ class SyncUser(Command):
             if user.last_sync:
                 # Don't sync if last sync was less than 5 minutes ago
                 if (datetime.utcnow() - user.last_sync).total_seconds() < 300:
-                    yield agg.create_response({"status": "skipped", "reason": "Recently synced"}, _type="user-profile-response")
+                    yield agg.create_response(
+                        {"status": "skipped", "reason": "Recently synced"},
+                        _type="user-profile-response",
+                    )
                     return
 
         # Get user info from Keycloak
@@ -177,12 +181,12 @@ class SyncUser(Command):
             "realm_access": kc_user.realmRoles,
             "resource_access": kc_user.clientRoles,
             "verified_email": kc_user.emailVerified and kc_user.email,
-            "last_sync": datetime.utcnow()
+            "last_sync": datetime.utcnow(),
         }
 
         # Get required actions
         required_actions = []
-        if hasattr(kc_user, 'requiredActions'):
+        if hasattr(kc_user, "requiredActions"):
             required_actions = kc_user.requiredActions
 
         # Create sync payload with Keycloak data
@@ -190,12 +194,14 @@ class SyncUser(Command):
             force=payload.force,
             sync_actions=payload.sync_actions,
             user_data=user_data,
-            required_actions=required_actions
+            required_actions=required_actions,
         )
 
         # Perform sync
         user = await agg.sync_user(sync_payload)
-        yield agg.create_response(serialize_mapping(user), _type="user-profile-response")
+        yield agg.create_response(
+            serialize_mapping(user), _type="user-profile-response"
+        )
 
 
 # ==========================================================================
@@ -203,17 +209,19 @@ class SyncUser(Command):
 # Multi-tenant organization management with automatic profile creation
 # ==========================================================================
 
+
 class CreateOrganization(Command):
     """
     Create new organization with creator as initial admin profile.
     Automatically generates profile for organization creator with full permissions
     and sets up organizational context for multi-tenant operations.
     """
+
     Data = datadef.CreateOrganizationPayload
 
     class Meta:
         key = "create-organization"
-        new_resource = True
+        resource_init = True
         resources = ("organization",)
         tags = ["organization", "create"]
         auth_required = True
@@ -238,15 +246,13 @@ class CreateOrganization(Command):
             name__suffix=user.name__suffix,
             telecom__email=user.telecom__email,
             telecom__phone=user.telecom__phone,
-            status='ACTIVE',
-            current_profile=False
+            status="ACTIVE",
+            current_profile=False,
         )
         await agg.create_profile(profile_data)
 
         profile_role = dict(
-            profile_id=profile_id,
-            role_key='OWNER',
-            role_source='SYSTEM'
+            profile_id=profile_id, role_key="OWNER", role_source="SYSTEM"
         )
         await agg.assign_role_to_profile(data=profile_role)
         yield agg.create_response(serialize_mapping(org), _type="user-profile-response")
@@ -257,6 +263,7 @@ class UpdateOrganization(Command):
     Update organization information and settings.
     Modifies organizational metadata while preserving structural relationships.
     """
+
     Data = datadef.UpdateOrganizationPayload
 
     class Meta:
@@ -276,6 +283,7 @@ class DeactivateOrganization(Command):
     Deactivate organization and all associated profiles.
     Soft deletion that preserves data while preventing active operations.
     """
+
     class Meta:
         key = "deactivate-organization"
         resources = ("organization",)
@@ -292,12 +300,13 @@ class CreateOrgRole(Command):
     Create custom organization-specific role with defined permissions.
     Enables fine-grained access control within organizational boundaries.
     """
+
     class Meta:
         key = "create-org-role"
         resources = ("organization",)
         tags = ["organization"]
         auth_required = True
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateOrgRolePayload
@@ -312,6 +321,7 @@ class UpdateOrgRole(Command):
     Update organization role permissions and metadata.
     Modifies role definition while maintaining existing assignments.
     """
+
     class Meta:
         key = "update-org-role"
         resources = ("organization",)
@@ -325,11 +335,13 @@ class UpdateOrgRole(Command):
         result = await agg.update_org_role(serialize_mapping(payload))
         return agg.create_response(result, _type="user-profile-response")
 
+
 class RemoveOrgRole(Command):
     """
     Remove organization role and revoke from all profiles.
     Cascades removal to prevent orphaned role assignments.
     """
+
     class Meta:
         key = "remove-org-role"
         resources = ("organization",)
@@ -341,6 +353,7 @@ class RemoveOrgRole(Command):
     async def _process(self, agg, stm, payload):
         await agg.remove_org_role(payload)
 
+
 # class CreateOrgType(Command):
 #     """
 #     Create new organization type for categorization and management.
@@ -348,7 +361,7 @@ class RemoveOrgRole(Command):
 #     """
 #     class Meta:
 #         key = "create-org-type"
-#         new_resource = True
+#         resource_init = True
 #         resources = ("organization",)
 #         tags = ["organization-type"]
 #         auth_required = True
@@ -385,12 +398,13 @@ class SendInvitation(Command):
     Send secure invitation to join organization.
     Generates unique token with expiration and handles existing user detection.
     """
+
     class Meta:
         key = "send-invitation"
         resources = ("invitation",)
         tags = ["invitation"]
         auth_required = True
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.SendInvitationPayload
@@ -405,6 +419,7 @@ class ResendInvitation(Command):
     Resend invitation with new token and extended expiry.
     Refreshes invitation security while maintaining original invitation context.
     """
+
     class Meta:
         key = "resend-invitation"
         resources = ("invitation",)
@@ -421,6 +436,7 @@ class RevokeInvitation(Command):
     Cancel pending invitation to prevent acceptance.
     Invalidates invitation token while preserving audit trail.
     """
+
     class Meta:
         key = "revoke-invitation"
         resources = ("invitation",)
@@ -430,6 +446,8 @@ class RevokeInvitation(Command):
     async def _process(self, agg, stm, payload):
         result = await agg.revoke_invitation()
         yield agg.create_response(result, _type="user-profile-response")
+
+
 # ---------- Profile Context ----------
 
 
@@ -438,28 +456,31 @@ class CreateProfile(Command):
     Create user profile within organizational context.
     Establishes user presence and permissions within specific organization.
     """
+
     class Meta:
         key = "create-profile"
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateProfilePayload
 
     async def _process(self, agg, stm, payload):
         data = serialize_mapping(payload)
-        profile_role_key = data.pop("profile_role_key", 'VIEWER')
-        profile_role_source = data.pop("profile_role_source", 'SYSTEM')
+        profile_role_key = data.pop("profile_role_key", "VIEWER")
+        profile_role_source = data.pop("profile_role_source", "SYSTEM")
         profile = await agg.create_profile(data)
         profile_role = dict(
             profile_id=profile._id,
             role_key=profile_role_key,
-            role_source=profile_role_source
+            role_source=profile_role_source,
         )
         await agg.assign_role_to_profile(profile_role)
-        yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
+        yield agg.create_response(
+            serialize_mapping(profile), _type="user-profile-response"
+        )
 
 
 class SwitchProfile(Command):
@@ -478,11 +499,13 @@ class SwitchProfile(Command):
     async def _process(self, agg, stm, payload):
         await agg.switch_profile()
 
+
 class UpdateProfile(Command):
     """
     Update profile information and organizational settings.
     Modifies profile metadata while maintaining organizational relationships.
     """
+
     class Meta:
         key = "update-profile"
         resources = ("profile",)
@@ -501,6 +524,7 @@ class DeactivateProfile(Command):
     Deactivate profile within organization.
     Removes profile access while preserving organizational history.
     """
+
     class Meta:
         key = "deactivate-profile"
         resources = ("profile",)
@@ -511,11 +535,13 @@ class DeactivateProfile(Command):
     async def _process(self, agg, stm, payload):
         await agg.deactivate_profile()
 
+
 class ActivateProfile(Command):
     """
     Reactivate previously deactivated profile.
     Restores profile access within organizational context.
     """
+
     class Meta:
         key = "activate-profile"
         resources = ("profile",)
@@ -529,11 +555,13 @@ class ActivateProfile(Command):
 
 # ---------- Profile Role ----------
 
+
 class AssignRoleToProfile(Command):
     """
     Assign system or organization role to profile.
     Grants specific permissions within organizational context.
     """
+
     class Meta:
         key = "assign-role-to-profile"
         resources = ("profile",)
@@ -553,6 +581,7 @@ class RevokeRoleFromProfile(Command):
     Revoke specific role from profile.
     Removes individual role assignment while maintaining other permissions.
     """
+
     class Meta:
         key = "revoke-role-from-profile"
         resources = ("profile",)
@@ -570,6 +599,7 @@ class ClearAllRoleFromProfile(Command):
     Remove all roles assigned to profile.
     Clears all role assignments while maintaining profile structure.
     """
+
     class Meta:
         key = "clear-role-from-profile"
         resources = ("profile",)
@@ -586,6 +616,7 @@ class AddGroupToProfile(Command):
     Add profile to security group.
     Associates profile with group for permissions and organization structure.
     """
+
     class Meta:
         key = "add-group-to-profile"
         resources = ("profile",)
@@ -604,6 +635,7 @@ class RemoveGroupFromProfile(Command):
     Remove profile from security group.
     Removes group association while preserving other group memberships.
     """
+
     class Meta:
         key = "remove-group-from-profile"
         resources = ("profile",)
@@ -616,6 +648,7 @@ class RemoveGroupFromProfile(Command):
     async def _process(self, agg, stm, payload):
         await agg.remove_group_from_profile(payload)
 
+
 # ============ Group Context =============
 
 
@@ -624,6 +657,7 @@ class AssignGroupToProfile(Command):
     Assign security group to profile with permissions validation.
     Creates group membership within organizational security model.
     """
+
     class Meta:
         key = "assign-group-to-profile"
         resources = ("profile",)
@@ -635,7 +669,9 @@ class AssignGroupToProfile(Command):
 
     async def _process(self, agg, stm, payload):
         group = await agg.assign_group_to_profile(payload)
-        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
+        yield agg.create_response(
+            serialize_mapping(group), _type="user-profile-response"
+        )
 
 
 class RevokeGroupFromProfile(Command):
@@ -643,6 +679,7 @@ class RevokeGroupFromProfile(Command):
     Revoke group membership from profile.
     Removes specific group association while maintaining other memberships.
     """
+
     class Meta:
         key = "revoke-group-from-profile"
         resources = ("profile",)
@@ -662,6 +699,7 @@ class ClearAllGroupFromProfile(Command):
     Remove all group memberships from profile.
     Clears all group associations while preserving profile structure.
     """
+
     class Meta:
         key = "clear-group-from-profile"
         resources = ("profile",)
@@ -679,9 +717,10 @@ class CreateGroup(Command):
     Create new security group with organizational scope.
     Establishes group structure for permissions and access management.
     """
+
     class Meta:
         key = "create-group"
-        new_resource = True
+        resource_init = True
         resources = ("group",)
         tags = ["group"]
         auth_required = True
@@ -692,7 +731,9 @@ class CreateGroup(Command):
 
     async def _process(self, agg, stm, payload):
         group = await agg.create_group(payload)
-        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
+        yield agg.create_response(
+            serialize_mapping(group), _type="user-profile-response"
+        )
 
 
 class UpdateGroup(Command):
@@ -700,6 +741,7 @@ class UpdateGroup(Command):
     Update security group metadata and permissions.
     Modifies group definition while maintaining existing memberships.
     """
+
     class Meta:
         key = "update-group"
         resources = ("group",)
@@ -712,7 +754,9 @@ class UpdateGroup(Command):
 
     async def _process(self, agg, stm, payload):
         group = await agg.update_group(payload)
-        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
+        yield agg.create_response(
+            serialize_mapping(group), _type="user-profile-response"
+        )
 
 
 class DeleteGroup(Command):
@@ -720,6 +764,7 @@ class DeleteGroup(Command):
     Soft delete security group and remove all profile associations.
     Deactivates group while preserving audit trail and historical memberships.
     """
+
     class Meta:
         key = "delete-group"
         resources = ("group",)

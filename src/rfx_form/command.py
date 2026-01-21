@@ -7,13 +7,13 @@ Command = FormManagementDomain.Command
 
 
 class SubmitForm(Command):
-    """ Submit and lock the form """
+    """Submit and lock the form"""
 
     class Meta(Command.Meta):
-        key = 'submit-form'
-        name = 'Submit Form'
-        new_resource = True
-        resource_desc = 'Resource key. e.g. `user`'
+        key = "submit-form"
+        name = "Submit Form"
+        resource_init = True
+        resource_desc = "Resource key. e.g. `user`"
 
     class Data(DataModel):
         name__given: str
@@ -32,52 +32,54 @@ class SubmitForm(Command):
 
 
 class UnsubmitForm(Command):
-    """ Unlock the form """
+    """Unlock the form"""
 
     class Meta(Command.Meta):
-        key = 'unsubmit-form'
-        name = 'Unsubmit Form'
-        new_resource = True
-        resource_desc = 'Resource key. e.g. `user`'
+        key = "unsubmit-form"
+        name = "Unsubmit Form"
+        resource_init = True
+        resource_desc = "Resource key. e.g. `user`"
 
 
 class SaveForm(Command):
-    """ Submit and lock the form """
+    """Submit and lock the form"""
 
     class Meta(Command.Meta):
-        key = 'save-form'
-        name = 'Save Form'
-        new_resource = True
-        resource_desc = 'Resource key. e.g. `user`'
+        key = "save-form"
+        name = "Save Form"
+        resource_init = True
+        resource_desc = "Resource key. e.g. `user`"
 
 
 class DeleteForm(Command):
-    """ Submit and lock the form """
+    """Submit and lock the form"""
 
     class Meta(Command.Meta):
-        key = 'delete-form'
+        key = "delete-form"
+
 
 class SaveElement(Command):
-    """ Submit and lock the form """
+    """Submit and lock the form"""
 
     class Meta(Command.Meta):
-        key = 'save-element'
-        name = 'Save Element'
-        new_resource = True
-        resource_desc = 'Resource key. e.g. `user`'
+        key = "save-element"
+        name = "Save Element"
+        resource_init = True
+        resource_desc = "Resource key. e.g. `user`"
 
 
 class DeleteElemenet(Command):
-    """ Submit and lock the form """
+    """Submit and lock the form"""
 
     class Meta(Command.Meta):
-        key = 'delete-form'
+        key = "delete-form"
+
 
 class CreatePackage(Command):
-    """ Submit and lock the form """
+    """Submit and lock the form"""
 
     class Meta(Command.Meta):
-        key = 'save-element'
-        name = 'Save Element'
-        new_resource = True
-        resource_desc = 'Resource key. e.g. `user`'
+        key = "save-element"
+        name = "Save Element"
+        resource_init = True
+        resource_desc = "Resource key. e.g. `user`"

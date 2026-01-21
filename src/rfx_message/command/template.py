@@ -10,7 +10,7 @@ class CreateTemplate(Command):
 
     class Meta:
         key = "create-template"
-        new_resource = True
+        resource_init = True
         resources = ("message_template",)
         tags = ["template", "create"]
         auth_required = True

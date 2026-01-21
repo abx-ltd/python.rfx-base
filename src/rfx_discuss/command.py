@@ -2,7 +2,7 @@ from fluvius.data import serialize_mapping
 
 from .domain import RFXDiscussDomain
 from . import datadef
-from .helper import _handle_mentions, _notify_subscribers
+from .helper import _handle_mentions
 
 processor = RFXDiscussDomain.command_processor
 Command = RFXDiscussDomain.Command
@@ -30,7 +30,7 @@ class CreateComment(Command):
         auth_required = True
         description = "Create a new comment"
         policy_required = True
-        new_resource = True
+        resource_init = True
 
     Data = datadef.CreateCommentPayload
 
@@ -41,6 +41,7 @@ class CreateComment(Command):
         await _handle_mentions(agg, stm, payload.content)
 
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
 
 class ReplyComment(Command):
     """Reply to Comment - Creates a reply to an existing comment"""
@@ -62,6 +63,7 @@ class ReplyComment(Command):
         await _handle_mentions(agg, stm, payload.content)
 
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
 
 class UpdateComment(Command):
     """Update Comment - Updates a comment"""
@@ -98,7 +100,6 @@ class DeleteComment(Command):
     async def _process(self, agg, stm, payload):
         """Delete comment"""
         await agg.delete_comment()
-
 
 
 class AttachFileToComment(Command):

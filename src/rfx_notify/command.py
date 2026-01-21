@@ -1,6 +1,7 @@
 """
 Commands for the RFX notification domain.
 """
+
 from fluvius.data import serialize_mapping
 
 from .domain import NotifyServiceDomain
@@ -22,7 +23,7 @@ class SendNotification(Command):
 
     class Meta:
         key = "send-notification"
-        new_resource = True
+        resource_init = True
         resources = ("notification",)
         tags = ["notification", "send"]
         auth_required = True
@@ -52,16 +53,18 @@ class SendNotification(Command):
                     raise ValueError("Recipients list cannot be empty")
 
                 content_processor = NotificationContentProcessor(stm)
-                rendered_payloads = await content_processor.prepare_notification_with_template(
-                    channel=channel,
-                    template_key=template_key,
-                    template_data=template_data,
-                    recipients=recipients,
-                    template_version=template_version,
-                    recipient_id=notification_payload.get("recipient_id"),
-                    sender_id=notification_payload.get("sender_id"),
-                    priority=notification_payload.get("priority", "NORMAL"),
-                    context=context
+                rendered_payloads = (
+                    await content_processor.prepare_notification_with_template(
+                        channel=channel,
+                        template_key=template_key,
+                        template_data=template_data,
+                        recipients=recipients,
+                        template_version=template_version,
+                        recipient_id=notification_payload.get("recipient_id"),
+                        sender_id=notification_payload.get("sender_id"),
+                        priority=notification_payload.get("priority", "NORMAL"),
+                        context=context,
+                    )
                 )
 
                 results = []
@@ -76,21 +79,23 @@ class SendNotification(Command):
                     raise ValueError("Recipients list cannot be empty")
                 send_result = await agg.send_notification(data=notification_payload)
 
-            yield agg.create_response({
-                "status": "success",
-                "notification_id": send_result.get("notification_id"),
-                "delivery_status": send_result.get("status"),
-                "provider_message_id": send_result.get("provider_message_id"),
-                "results": send_result.get("results"),
-                "count": send_result.get("count")
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {
+                    "status": "success",
+                    "notification_id": send_result.get("notification_id"),
+                    "delivery_status": send_result.get("status"),
+                    "provider_message_id": send_result.get("provider_message_id"),
+                    "results": send_result.get("results"),
+                    "count": send_result.get("count"),
+                },
+                _type="notify-service-response",
+            )
 
         except Exception as e:
             logger.error(f"SendNotification failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="notify-service-response"
+            )
             raise
 
 
@@ -110,19 +115,21 @@ class RetryNotification(Command):
 
             result = await agg.retry_notification(notification_id=notification_id)
 
-            yield agg.create_response({
-                "status": "success",
-                "notification_id": notification_id,
-                "attempt": result["attempt"],
-                "delivery_status": result["status"]
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {
+                    "status": "success",
+                    "notification_id": notification_id,
+                    "attempt": result["attempt"],
+                    "delivery_status": result["status"],
+                },
+                _type="notify-service-response",
+            )
 
         except Exception as e:
             logger.error(f"RetryNotification failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="notify-service-response"
+            )
             raise
 
 
@@ -144,40 +151,41 @@ class UpdateNotificationStatus(Command):
     async def _process(self, agg, stm, payload):
         try:
             notification_id = self.aggroot.identifier
-            status = payload.get('status')
+            status = payload.get("status")
 
             if not status:
                 raise ValueError("Status is required")
 
             result = await agg.update_notification_status(
-                notification_id=notification_id,
-                status=status,
-                **payload
+                notification_id=notification_id, status=status, **payload
             )
 
-            yield agg.create_response({
-                "status": "success",
-                "notification_id": notification_id,
-                "new_status": result["status"]
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {
+                    "status": "success",
+                    "notification_id": notification_id,
+                    "new_status": result["status"],
+                },
+                _type="notify-service-response",
+            )
 
         except Exception as e:
             logger.error(f"UpdateNotificationStatus failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="notify-service-response"
+            )
             raise
 
 
 # User Preference Commands
+
 
 class UpdateNotificationPreference(Command):
     """Update user notification preferences."""
 
     class Meta:
         key = "update-notification-preference"
-        new_resource = True
+        resource_init = True
         resources = ("notification_preference",)
         tags = ["preference", "update"]
         auth_required = True
@@ -189,31 +197,34 @@ class UpdateNotificationPreference(Command):
         try:
             result = await agg.update_user_preference(data=serialize_mapping(payload))
 
-            yield agg.create_response({
-                "status": "success",
-                "user_id": result["user_id"],
-                "channel": result["channel"],
-                "updated": result.get("updated", False),
-                "created": result.get("created", False)
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {
+                    "status": "success",
+                    "user_id": result["user_id"],
+                    "channel": result["channel"],
+                    "updated": result.get("updated", False),
+                    "created": result.get("created", False),
+                },
+                _type="notify-service-response",
+            )
 
         except Exception as e:
             logger.error(f"UpdateNotificationPreference failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="notify-service-response"
+            )
             raise
 
 
 # Template Management Commands
+
 
 class CreateNotificationTemplate(Command):
     """Create a new notification template."""
 
     class Meta:
         key = "create-notification-template"
-        new_resource = True
+        resource_init = True
         resources = ("notification_template",)
         tags = ["template", "create"]
         auth_required = True
@@ -223,21 +234,25 @@ class CreateNotificationTemplate(Command):
 
     async def _process(self, agg, stm, payload):
         try:
-            result = await agg.create_notification_template(data=serialize_mapping(payload))
+            result = await agg.create_notification_template(
+                data=serialize_mapping(payload)
+            )
 
-            yield agg.create_response({
-                "status": "success",
-                "template_id": result["template_id"],
-                "key": result["key"],
-                "version": result["version"]
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {
+                    "status": "success",
+                    "template_id": result["template_id"],
+                    "key": result["key"],
+                    "version": result["version"],
+                },
+                _type="notify-service-response",
+            )
 
         except Exception as e:
             logger.error(f"CreateNotificationTemplate failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="notify-service-response"
+            )
             raise
 
 
@@ -255,18 +270,20 @@ class ActivateNotificationTemplate(Command):
         try:
             result = await agg.activate_notification_template()
 
-            yield agg.create_response({
-                "status": "success",
-                "template_id": result["template_id"],
-                "is_active": result["is_active"]
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {
+                    "status": "success",
+                    "template_id": result["template_id"],
+                    "is_active": result["is_active"],
+                },
+                _type="notify-service-response",
+            )
 
         except Exception as e:
             logger.error(f"ActivateNotificationTemplate failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="notify-service-response"
+            )
             raise
 
 
@@ -284,16 +301,18 @@ class DeactivateNotificationTemplate(Command):
         try:
             result = await agg.deactivate_notification_template()
 
-            yield agg.create_response({
-                "status": "success",
-                "template_id": result["template_id"],
-                "is_active": result["is_active"]
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {
+                    "status": "success",
+                    "template_id": result["template_id"],
+                    "is_active": result["is_active"],
+                },
+                _type="notify-service-response",
+            )
 
         except Exception as e:
             logger.error(f"DeactivateNotificationTemplate failed: {e}")
-            yield agg.create_response({
-                "status": "error",
-                "error": str(e)
-            }, _type="notify-service-response")
+            yield agg.create_response(
+                {"status": "error", "error": str(e)}, _type="notify-service-response"
+            )
             raise

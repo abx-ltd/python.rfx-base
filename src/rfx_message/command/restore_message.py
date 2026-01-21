@@ -43,7 +43,7 @@ class RestoreMessage(Command):
                 outbox_box._id, agg.get_context().profile_id
             )
             await agg.change_all_recipient_box_id_of_same_thread(
-                inbox_box._id, agg.get_context().profile_id
+                outbox_box._id, agg.get_context().profile_id
             )
         else:
             if direction == types.DirectionTypeEnum.OUTBOUND:

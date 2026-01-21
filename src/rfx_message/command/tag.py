@@ -2,6 +2,7 @@ from . import datadef
 from . import Command
 from fluvius.data import serialize_mapping
 
+
 class CreateTag(Command):
     """Create a new tag."""
 
@@ -9,7 +10,7 @@ class CreateTag(Command):
 
     class Meta:
         key = "create-tag"
-        new_resource = True
+        resource_init = True
         resources = ("tag",)
         tags = ["tag", "create"]
         auth_required = True

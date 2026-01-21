@@ -15,7 +15,7 @@ class SendMessage(Command):
 
     class Meta:
         key = "send-message"
-        new_resource = True
+        resource_init = True
         resources = ("message",)
         tags = ["message"]
         auth_required = True
