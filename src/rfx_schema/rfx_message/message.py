@@ -49,6 +49,7 @@ class Message(TableBase):
     __tablename__ = "message"
 
     thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     subject: Mapped[Optional[str]] = mapped_column(String(1024))
     content: Mapped[Optional[str]] = mapped_column(Text)

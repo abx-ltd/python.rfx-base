@@ -39,7 +39,7 @@ class MessageCategoryMixin:
         """Action to remove the category of a message."""
         message_category = await self.statemgr.find_one(
             "message_category",
-            {
+            where={
                 "resource": resource,
                 "resource_id": resource_id,
             },

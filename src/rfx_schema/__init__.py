@@ -17,6 +17,7 @@ from .rfx_notify import RFXNotifyConnector
 from .rfx_client import RFXClientConnector
 from .rfx_discuss import RFXDiscussConnector
 from .rfx_qr import RFXQRConnector
+from .rfx_todo import RFXTodoConnector
 
 DOMAIN_CONNECTORS = {
     "user": IDMConnector,
@@ -27,4 +28,5 @@ DOMAIN_CONNECTORS = {
     "client": RFXClientConnector,
     "discuss": RFXDiscussConnector,
     "qr": RFXQRConnector,
+    "todo": RFXTodoConnector,
 }

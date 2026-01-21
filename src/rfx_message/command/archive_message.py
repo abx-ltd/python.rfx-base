@@ -23,9 +23,24 @@ class ArchiveMessage(Command):
 
         if direction == types.DirectionTypeEnum.OUTBOUND:
             await agg.change_sender_box_id(
-                message_id=message_id, box_id=archived_box._id
+                message_id=message_id,
+                box_id=archived_box._id,
+                profile_id=agg.get_context().profile_id,
             )
+
+            # archive all message sender in the thread
+            await agg.change_all_sender_box_id_of_same_thread(
+                archived_box._id, agg.get_context().profile_id
+            )
+            # for message in serialize_mapping(messages):
+            #     await agg.change_sender_box_id_if_exist(
+            #         message_id=message._id,
+            #         box_id=archived_box._id,
+            #         profile_id=agg.get_context().profile_id,
+            #     )
         elif direction == types.DirectionTypeEnum.INBOUND:
             await agg.change_recipient_box_id(
-                message_id=message_id, box_id=archived_box._id
+                message_id=message_id,
+                box_id=archived_box._id,
+                profile_id=agg.get_context().profile_id,
             )
