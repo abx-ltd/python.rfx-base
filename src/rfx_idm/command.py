@@ -3,7 +3,7 @@ from fluvius.data import serialize_mapping, UUID_GENR
 
 from .domain import IDMDomain
 from .integration import kc_admin
-from . import datadef, config, logger
+from . import datadef, config
 
 processor = IDMDomain.command_processor
 Command = IDMDomain.Command
@@ -13,11 +13,11 @@ Command = IDMDomain.Command
 
 
 DEFAULT_REALM_ACCESS = {
-        "roles": [
-            "offline_access",
-            "default-roles-id.neucares.com",
-            "uma_authorization",
-        ]
+    "roles": [
+        "offline_access",
+        "default-roles-id.neucares.com",
+        "uma_authorization",
+    ]
 }
 
 
@@ -37,9 +37,10 @@ class CreateUser(Command):
     Create new user in Keycloak and local system.
     Establishes user account with initial settings and verification status.
     """
+
     class Meta:
         key = "create-user"
-        new_resource = True
+        resource_init = True
         resources = ("user",)
         tags = ["user", "create"]
         auth_required = True
@@ -67,11 +68,13 @@ class CreateUser(Command):
 
         # Add password credentials if provided
         if payload.password:
-            kc_user_data["credentials"] = [{
-                "value": payload.password,
-                "temporary": False,
-                "type": "password",
-            }]
+            kc_user_data["credentials"] = [
+                {
+                    "value": payload.password,
+                    "temporary": False,
+                    "type": "password",
+                }
+            ]
         else:
             # If no password provided, require user to update password
             kc_user_data["requiredActions"].append("UPDATE_PASSWORD")
@@ -90,25 +93,20 @@ class CreateUser(Command):
             "username": payload.username,
             "active": payload.is_active,
             "is_super_admin": payload.is_superuser,
-
             # Name fields (with double underscore prefix)
             "name__given": payload.first_name,
             "name__family": payload.last_name,
             "name__middle": payload.middle_name,
             "name__prefix": payload.name_prefix,
             "name__suffix": payload.name_suffix,
-
             # Telecom fields (with double underscore prefix)
             "telecom__email": payload.email,
             "telecom__phone": payload.phone,
-
             # Verification fields
             "verified_email": (
-                payload.verified_email
-                or (payload.email if email_verified else None)
+                payload.verified_email or (payload.email if email_verified else None)
             ),
             "verified_phone": payload.verified_phone,
-
             # Access control (JSON fields)
             "realm_access": realm_access,
             "resource_access": resource_access,
@@ -124,6 +122,7 @@ class UpdateUser(Command):
     Update user attributes in Keycloak and local datastore.
     Synchronizes identity information, status, and verification metadata.
     """
+
     class Meta:
         key = "update-user"
         resources = ("user",)
@@ -182,7 +181,9 @@ class UpdateUser(Command):
         set_update(payload.verified_phone, "verified_phone")
         set_update(payload.realm_access, "realm_access")
         set_update(payload.resource_access, "resource_access")
-        set_update(payload.status, "status", lambda v: v.value if hasattr(v, "value") else v)
+        set_update(
+            payload.status, "status", lambda v: v.value if hasattr(v, "value") else v
+        )
         set_update(payload.last_verified_request, "last_verified_request")
 
         if payload.verified_email is not None:
@@ -196,7 +197,9 @@ class UpdateUser(Command):
         if user_updates:
             updated_user = await agg.update_user(user_updates)
 
-        update_performed = bool(kc_payload) or bool(payload.password) or bool(user_updates)
+        update_performed = (
+            bool(kc_payload) or bool(payload.password) or bool(user_updates)
+        )
 
         sync_requested = payload.sync_remote or payload.force_sync
         sync_only = sync_requested and not update_performed
@@ -205,9 +208,7 @@ class UpdateUser(Command):
         sync_status = None
         if sync_requested:
             synced_user, sync_status = await self._sync_from_keycloak(
-                agg,
-                force_sync=payload.force_sync,
-                sync_actions=payload.sync_actions
+                agg, force_sync=payload.force_sync, sync_actions=payload.sync_actions
             )
 
             if sync_status and sync_only:
@@ -244,22 +245,23 @@ class UpdateUser(Command):
             "realm_access": kc_user.realmRoles,
             "resource_access": kc_user.clientRoles,
             "verified_email": kc_user.emailVerified and kc_user.email,
-            "last_sync": datetime.utcnow()
+            "last_sync": datetime.utcnow(),
         }
 
         required_actions = []
-        if hasattr(kc_user, 'requiredActions'):
+        if hasattr(kc_user, "requiredActions"):
             required_actions = kc_user.requiredActions
 
         sync_payload = datadef.SyncUserPayload(
             force=force_sync,
             sync_actions=sync_actions,
             user_data=user_data,
-            required_actions=required_actions
+            required_actions=required_actions,
         )
 
         synced_user = await agg.sync_user(sync_payload)
         return synced_user, None
+
 
 class SendAction(Command):
     """
@@ -267,6 +269,7 @@ class SendAction(Command):
     Manages user action requirements and integrates with Keycloak's action execution system.
     Updates user's required actions list if marked as required for enforcement.
     """
+
     class Meta:
         key = "send-action"
         resources = ("user",)
@@ -280,16 +283,21 @@ class SendAction(Command):
         rootobj = agg.get_rootobj()
         user_id = rootobj._id
 
-        await kc_admin.execute_actions(user_id=user_id, actions=payload.actions, redirect_uri=config.REDIRECT_URL)
+        await kc_admin.execute_actions(
+            user_id=user_id, actions=payload.actions, redirect_uri=config.REDIRECT_URL
+        )
         await agg.track_user_action(payload)
 
         if payload.required:
             kc_user = await kc_admin.get_user(user_id)
             required_action = kc_user.requiredActions
             actions = [
-                action for action in payload.actions if action not in required_action]
+                action for action in payload.actions if action not in required_action
+            ]
             required_action.extend(actions)
-            await kc_admin.update_user(user_id=user_id, payload={"requiredActions": required_action})
+            await kc_admin.update_user(
+                user_id=user_id, payload={"requiredActions": required_action}
+            )
 
 
 class SendVerification(Command):
@@ -297,6 +305,7 @@ class SendVerification(Command):
     Send email verification request to user through Keycloak.
     Updates user record with verification request timestamp for tracking.
     """
+
     class Meta:
         key = "send-verification"
         resources = ("user",)
@@ -315,6 +324,7 @@ class DeactivateUser(Command):
     Deactivate user account in both local system and Keycloak.
     Disables user login while preserving account data for potential reactivation.
     """
+
     class Meta:
         key = "deactivate-user"
         resources = ("user",)
@@ -338,7 +348,7 @@ class DeactivateUser(Command):
             "enabled": False,
             "emailVerified": kc_user.emailVerified,
         }
-        if hasattr(kc_user, 'requiredActions'):
+        if hasattr(kc_user, "requiredActions"):
             user_data["requiredActions"] = kc_user.requiredActions
 
         await kc_admin.update_user(rootobj._id, user_data)
@@ -350,6 +360,7 @@ class ActivateUser(Command):
     Reactivate previously deactivated user account.
     Enables user login in both Keycloak and local system state.
     """
+
     class Meta:
         key = "activate-user"
         resources = ("user",)
@@ -372,7 +383,7 @@ class ActivateUser(Command):
             "enabled": True,
             "emailVerified": kc_user.emailVerified,
         }
-        if hasattr(kc_user, 'requiredActions'):
+        if hasattr(kc_user, "requiredActions"):
             user_data["requiredActions"] = kc_user.requiredActions
 
         await kc_admin.update_user(rootobj._id, user_data)
@@ -388,11 +399,12 @@ class CreateOrganization(Command):
     Automatically generates profile for organization creator with full permissions
     and sets up organizational context for multi-tenant operations.
     """
+
     Data = datadef.CreateOrganizationPayload
 
     class Meta:
         key = "create-organization"
-        new_resource = True
+        resource_init = True
         resources = ("organization",)
         tags = ["organization", "create"]
         auth_required = True
@@ -411,6 +423,7 @@ class UpdateOrganization(Command):
     Update organization metadata and settings.
     Modifies organizational attributes while preserving structural integrity.
     """
+
     class Meta:
         key = "update-organization"
         resources = ("organization",)
@@ -430,6 +443,7 @@ class ActivateOrganization(Command):
     Reactivate previously deactivated organization.
     Restores organizational operations and access for all associated profiles.
     """
+
     class Meta:
         key = "activate-organization"
         resources = ("organization",)
@@ -441,11 +455,13 @@ class ActivateOrganization(Command):
         result = await agg.activate_organization()
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
+
 class DeactivateOrganization(Command):
     """
     Deactivate organization and cascade to all profiles.
     Suspends organizational operations while maintaining data for audit.
     """
+
     class Meta:
         key = "deactivate-organization"
         resources = ("organization",)
@@ -463,6 +479,7 @@ class CreateOrgRole(Command):
     Create custom role within organization scope.
     Defines organization-specific permissions and access controls.
     """
+
     class Meta:
         key = "create-org-role"
         resources = ("organization",)
@@ -482,6 +499,7 @@ class UpdateOrgRole(Command):
     Update organization role permissions and metadata.
     Modifies role definition while preserving existing assignments.
     """
+
     class Meta:
         key = "update-org-role"
         resources = ("organization",)
@@ -501,6 +519,7 @@ class RemoveOrgRole(Command):
     Remove organization role and revoke from all profiles.
     Deletes role definition and cascades to remove all assignments.
     """
+
     class Meta:
         key = "remove-org-role"
         resources = ("organization",)
@@ -521,12 +540,13 @@ class SendInvitation(Command):
     Send secure invitation to join organization.
     Generates unique token with expiration and handles existing user detection.
     """
+
     class Meta:
         key = "send-invitation"
         resources = ("invitation",)
         tags = ["invitation"]
         auth_required = True
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.SendInvitationPayload
@@ -541,6 +561,7 @@ class ResendInvitation(Command):
     Resend invitation with new token and extended expiry.
     Refreshes invitation security while maintaining original invitation context.
     """
+
     class Meta:
         key = "resend-invitation"
         resources = ("invitation",)
@@ -557,6 +578,7 @@ class RevokeInvitation(Command):
     Cancel pending invitation to prevent acceptance.
     Invalidates invitation token while preserving audit trail.
     """
+
     class Meta:
         key = "revoke-invitation"
         resources = ("invitation",)
@@ -576,12 +598,13 @@ class CreateProfile(Command):
     Create user profile within organizational context.
     Establishes user presence and permissions within specific organization.
     """
+
     class Meta:
         key = "create-profile"
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateProfilePayload
@@ -589,9 +612,7 @@ class CreateProfile(Command):
     async def _process(self, agg, stm, payload):
         profile = await agg.create_profile(serialize_mapping(payload))
         profile_role = dict(
-            profile_id=profile._id,
-            role_key='VIEWER',
-            role_source='SYSTEM'
+            profile_id=profile._id, role_key="VIEWER", role_source="SYSTEM"
         )
         await agg.assign_role_to_profile(profile_role)
         yield agg.create_response(serialize_mapping(profile), _type="idm-response")
@@ -602,12 +623,13 @@ class CreateProfileInOrg(Command):
     Create user profile directly within specified organization.
     Bypasses invitation process for streamlined profile creation.
     """
+
     class Meta:
         key = "create-profile-in-org"
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateProfileInOrgPayload
@@ -625,11 +647,13 @@ class CreateProfileInOrg(Command):
         await agg.assign_role_to_profile(profile_role)
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
+
 class SwitchProfile(Command):
     """
     Switch active organization for user profile.
     Updates current profile's organization context for multi-tenant operations.
     """
+
     class Meta:
         key = "switch-profile"
         resources = ("profile",)
@@ -646,6 +670,7 @@ class UpdateProfile(Command):
     Update profile information and organizational settings.
     Modifies profile metadata while maintaining organizational relationships.
     """
+
     class Meta:
         key = "update-profile"
         resources = ("profile",)
@@ -657,7 +682,7 @@ class UpdateProfile(Command):
 
     async def _process(self, agg, stm, payload):
         payload = serialize_mapping(payload)
-        new_role = payload.pop("role_key", 'VIEWER')
+        new_role = payload.pop("role_key", "VIEWER")
         await agg.update_profile(payload)
         await agg.assign_role_to_profile({"role_key": new_role})
 
@@ -667,6 +692,7 @@ class DeactivateProfile(Command):
     Deactivate profile within organization.
     Removes profile access while preserving organizational history.
     """
+
     class Meta:
         key = "deactivate-profile"
         resources = ("profile",)
@@ -683,6 +709,7 @@ class ActivateProfile(Command):
     Reactivate previously deactivated profile.
     Restores profile access within organizational context.
     """
+
     class Meta:
         key = "activate-profile"
         resources = ("profile",)
@@ -693,11 +720,13 @@ class ActivateProfile(Command):
     async def _process(self, agg, stm, payload):
         await agg.activate_profile()
 
+
 class DeleteProfile(Command):
     """
     Delete user profile within organization.
     Removes profile and associated data from system.
     """
+
     class Meta:
         key = "delete-profile"
         resources = ("profile",)
@@ -717,6 +746,7 @@ class AssignRoleToProfile(Command):
     Assign system or organization role to profile.
     Grants specific permissions within organizational context.
     """
+
     class Meta:
         key = "assign-role-to-profile"
         resources = ("profile",)
@@ -736,6 +766,7 @@ class RevokeRoleFromProfile(Command):
     Revoke specific role from profile.
     Removes individual role assignment while maintaining other permissions.
     """
+
     class Meta:
         key = "revoke-role-from-profile"
         resources = ("profile",)
@@ -753,6 +784,7 @@ class ClearAllRoleFromProfile(Command):
     Remove all roles assigned to profile.
     Clears all role assignments while maintaining profile structure.
     """
+
     class Meta:
         key = "clear-role-from-profile"
         resources = ("profile",)
@@ -769,6 +801,7 @@ class AddGroupToProfile(Command):
     Add profile to security group.
     Associates profile with group for permissions and organization structure.
     """
+
     class Meta:
         key = "add-group-to-profile"
         resources = ("profile",)
@@ -787,6 +820,7 @@ class RemoveGroupFromProfile(Command):
     Remove profile from security group.
     Removes group association while preserving other group memberships.
     """
+
     class Meta:
         key = "remove-group-from-profile"
         resources = ("profile",)
@@ -808,6 +842,7 @@ class AssignGroupToProfile(Command):
     Assign security group to profile with permissions validation.
     Creates group membership within organizational security model.
     """
+
     class Meta:
         key = "assign-group-to-profile"
         resources = ("profile",)
@@ -827,6 +862,7 @@ class RevokeGroupFromProfile(Command):
     Revoke group membership from profile.
     Removes specific group association while maintaining other memberships.
     """
+
     class Meta:
         key = "revoke-group-from-profile"
         resources = ("profile",)
@@ -846,6 +882,7 @@ class ClearAllGroupFromProfile(Command):
     Remove all group memberships from profile.
     Clears all group associations while preserving profile structure.
     """
+
     class Meta:
         key = "clear-group-from-profile"
         resources = ("profile",)
@@ -863,9 +900,10 @@ class CreateGroup(Command):
     Create new security group with organizational scope.
     Establishes group structure for permissions and access management.
     """
+
     class Meta:
         key = "create-group"
-        new_resource = True
+        resource_init = True
         resources = ("group",)
         tags = ["group"]
         auth_required = True
@@ -884,6 +922,7 @@ class UpdateGroup(Command):
     Update security group metadata and permissions.
     Modifies group definition while maintaining existing memberships.
     """
+
     class Meta:
         key = "update-group"
         resources = ("group",)
@@ -904,6 +943,7 @@ class DeleteGroup(Command):
     Soft delete security group and remove all profile associations.
     Deactivates group while preserving audit trail and historical memberships.
     """
+
     class Meta:
         key = "delete-group"
         resources = ("group",)

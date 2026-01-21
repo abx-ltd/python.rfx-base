@@ -38,6 +38,10 @@ class MessageRecipientMixin:
             "message_box",
             where={"key": "inbox"},
         )
+        outbox = await self.statemgr.find_one(
+            "message_box",
+            where={"key": "outbox"},
+        )
 
         records = []
         for recipient_id in recipients:
@@ -48,6 +52,10 @@ class MessageRecipientMixin:
                 "box_id": inbox._id,
                 "direction": "INBOUND",
             }
+
+            if self.get_context().profile_id == recipient_id:
+                recipient_data["read"] = True
+                recipient_data["box_id"] = outbox._id
 
             recipient = self.init_resource("message_recipient", recipient_data)
             records.append(serialize_mapping(recipient))

@@ -34,7 +34,6 @@ class MessageInboxQuery(DomainQueryResource):
             "target_profile_id": profile_id,
             "root_type": "RECIPIENT",
             "box_key": "inbox",
-            "message_type": MessageTypeEnum.USER.value,
         }
 
     class Meta(DomainQueryResource.Meta):
@@ -82,4 +81,3 @@ class MessageInboxQuery(DomainQueryResource):
     target_profile_id: UUID_TYPE = UUIDField("Target Profile ID")
     message_count: Optional[int] = IntegerField("Message Count")
     root_type: str = StringField("Root Type")
-    

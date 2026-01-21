@@ -5,7 +5,6 @@ from typing import Optional, Dict, Any
 from ..types import (
     ProcessingModeEnum,
     RenderStatusEnum,
-    MessageCategoryEnum,
 )
 
 
@@ -38,12 +37,12 @@ class MessageMixin:
             _id=UUID_GENR(),
             thread_id=message.thread_id,
             sender_id=self.context.profile_id,
+            parent_id=message._id,
         )
 
         await self.statemgr.insert(reply_message)
 
         return reply_message
-
 
     @action("message-content-processed", resources="message")
     async def process_message_content(
@@ -85,3 +84,45 @@ class MessageMixin:
         await self.statemgr.update(message, delivery_status="PENDING")
 
         return {"message_id": message_id, "status": "PENDING"}
+
+    # @action("get-all-message-in-thread-from-message", resources="message")
+    # async def get_all_message_view_in_thread_from_message(self, message_id):
+    #     """Get all messages in a thread."""
+    #     message = self.rootobj
+    #     return await self.statemgr.find_all(
+    #         "_message_box",
+    #         where={"thread_id": message.thread_id},
+    #     )
+
+    @action("change-all-sender-box-id-of-same-thread", resources="message")
+    async def change_all_sender_box_id_of_same_thread(self, box_id, profile_id):
+        """Change all sender box id of same thread."""
+
+        message = self.rootobj
+        messages = await self.statemgr.find_all(
+            "message",
+            where={"thread_id": message.thread_id},
+        )
+        for message in messages:
+            sender = await self.statemgr.exist(
+                "message_sender",
+                where={"message_id": message._id, "sender_id": profile_id},
+            )
+            if sender:
+                await self.statemgr.update(sender, box_id=box_id)
+
+    @action("change-all-recipient-box-id-of-same-thread", resources="message")
+    async def change_all_recipient_box_id_of_same_thread(self, box_id, profile_id):
+        """Change all recipient box id of same thread."""
+        message = self.rootobj
+        messages = await self.statemgr.find_all(
+            "message",
+            where={"thread_id": message.thread_id},
+        )
+        for message in messages:
+            recipient = await self.statemgr.exist(
+                "message_recipient",
+                where={"message_id": message._id, "recipient_id": profile_id},
+            )
+            if recipient:
+                await self.statemgr.update(recipient, box_id=box_id)

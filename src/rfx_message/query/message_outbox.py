@@ -32,7 +32,6 @@ class MessageOutboxQuery(DomainQueryResource):
             "target_profile_id": profile_id,
             "root_type": "SENDER",
             "box_key": "outbox",
-            "message_type": MessageTypeEnum.USER.value,
         }
 
     class Meta(DomainQueryResource.Meta):

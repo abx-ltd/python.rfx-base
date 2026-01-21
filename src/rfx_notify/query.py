@@ -1,27 +1,14 @@
-from pydantic import BaseModel
-from fluvius.data import UUID_TYPE
-from fluvius.query import DomainQueryManager, DomainQueryResource
-from fluvius.query.field import (
-    StringField, BooleanField, DatetimeField, UUIDField, EnumField, IntegerField, JSONField
-)
-from typing import Optional, List
+from fluvius.query import DomainQueryManager
 
 from .state import NotifyStateManager
 from .domain import NotifyServiceDomain
-from .types import (
-    NotificationChannelEnum,
-    NotificationStatusEnum,
-    NotificationPriorityEnum,
-    ContentTypeEnum
-)
-from . import logger
 
 
 class NotifyServiceQueryManager(DomainQueryManager):
     __data_manager__ = NotifyStateManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = NotifyServiceDomain.Meta.prefix
+        prefix = NotifyServiceDomain.Meta.namespace
         tags = NotifyServiceDomain.Meta.tags
 
 

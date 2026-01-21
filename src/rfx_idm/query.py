@@ -23,7 +23,7 @@ class IDMQueryManager(DomainQueryManager):
     __policymgr__ = IDMPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = IDMDomain.Meta.prefix
+        prefix = IDMDomain.Meta.namespace
         tags = IDMDomain.Meta.tags
 
 
@@ -429,9 +429,10 @@ class RealmQuery(DomainQueryResource):
     description: Optional[str] = StringField("Description")
     active: Optional[bool] = BooleanField("Active")
 
-@resource('role')
+
+@resource("role")
 class RoleQuery(DomainQueryResource):
-    """ Query role information """
+    """Query role information"""
 
     class Meta(DomainQueryResource.Meta):
         include_all = False
