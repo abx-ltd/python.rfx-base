@@ -6,7 +6,6 @@ from fastapi.responses import JSONResponse
 from fluvius.data import UUID_GENR
 from fluvius.error import BadRequestError
 from fluvius.fastapi.helper import generate_client_token, generate_session_id
-from fluvius.fastapi._meta import defaults as fastapi_config
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 from . import config, logger
@@ -245,10 +244,10 @@ class IDMGuestAuth:
                 request.session.update(old_data)
 
                 # Remove regular user session if exists
-                request.session.pop(fastapi_config.SES_USER_FIELD, None)
+                request.session.pop(config.SES_USER_FIELD, None)
 
                 # Store guest session
-                request.session[fastapi_config.SES_GUEST_FIELD] = guest_payload
+                request.session[config.SES_GUEST_FIELD] = guest_payload
 
                 # Create response
                 session_expires_at = current_time + timedelta(hours=config.GUEST_SESSION_TTL_HOURS)
@@ -264,11 +263,11 @@ class IDMGuestAuth:
 
                 # Set secure cookie
                 response.set_cookie(
-                    fastapi_config.SES_ID_TOKEN_FIELD,
+                    config.SES_ID_TOKEN_FIELD,
                     "guest",
                     httponly=True,
-                    secure=fastapi_config.COOKIE_HTTPS_ONLY,
-                    samesite=fastapi_config.COOKIE_SAME_SITE_POLICY,
+                    secure=config.COOKIE_HTTPS_ONLY,
+                    samesite=config.COOKIE_SAME_SITE_POLICY,
                     max_age=config.GUEST_SESSION_TTL_HOURS * 3600
                 )
 
