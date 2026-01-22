@@ -52,4 +52,6 @@ class RemoveTag(Command):
         policy_required = False
 
     async def _process(self, agg, stm, payload):
+        tag = await agg.find_tag(tag_id=agg.get_aggroot().identifier)
         await agg.remove_tag()
+        await agg.remove_message_tag_from_tag(key=tag.key)

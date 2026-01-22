@@ -24,7 +24,6 @@ class SendMessage(Command):
     async def _process(self, agg, stm, payload):
         message_payload = serialize_mapping(payload)
         recipients = message_payload.pop("recipients", None)
-        message_category = message_payload.pop("category", None)
         if not recipients:
             raise ValueError("Recipients list cannot be empty")
 
@@ -42,9 +41,6 @@ class SendMessage(Command):
         # 3. Add recipients and set message category
         await agg.add_recipients(data=recipients, message_id=message_id)
 
-        # 2.2. Set message category
-        await helper.set_message_category_if_provided(agg, message_id, message_category)
-
         # 3. Determine processing mode and get client
         processing_mode, client = await helper.get_processing_mode_and_client(
             agg, message_payload
@@ -61,7 +57,7 @@ class SendMessage(Command):
         )
 
         # 7. Create response
-        response_data = helper.create_message_response(message_result, message_category)
+        response_data = serialize_mapping(message_result)
 
         yield agg.create_response(
             response_data,

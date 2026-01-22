@@ -38,73 +38,67 @@ class UpdateTodo(Command):
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        result = await agg.update_todo(payload)
-        yield agg.create_response(serialize_mapping(result), _type="todo-response")
+        await agg.update_todo(data=payload)
 
 
-class SetTodoCompleted(Command):
-    """Set todo completed status."""
-
-    Data = datadef.SetTodoCompletedPayload
+class RemoveTodo(Command):
+    """Remove todo (soft delete)."""
 
     class Meta:
-        key = "set-todo-completed"
+        key = "remove-todo"
         resources = ("todo",)
-        tags = ["todo", "complete"]
+        tags = ["todo", "remove"]
         auth_required = True
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        result = await agg.set_todo_completed(payload.completed)
-        yield agg.create_response(serialize_mapping(result), _type="todo-response")
+        await agg.remove_todo()
 
 
-class AssignTodo(Command):
-    """Assign todo to a user/profile."""
+class CreateTodoItem(Command):
+    """Create a todo item."""
 
-    Data = datadef.AssignTodoPayload
+    Data = datadef.CreateTodoItemPayload
 
     class Meta:
-        key = "assign-todo"
+        key = "create-todo-item"
         resources = ("todo",)
-        tags = ["todo", "assign"]
+        tags = ["todo", "todo-item", "create"]
         auth_required = True
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        result = await agg.assign_todo(payload.assignee_id)
+        result = await agg.create_todo_item(payload)
         yield agg.create_response(serialize_mapping(result), _type="todo-response")
 
 
-class UnassignTodo(Command):
-    """Unassign todo."""
+class UpdateTodoItem(Command):
+    """Update a todo item."""
 
-    Data = datadef.UnassignTodoPayload
+    Data = datadef.UpdateTodoItemPayload
 
     class Meta:
-        key = "unassign-todo"
+        key = "update-todo-item"
         resources = ("todo",)
-        tags = ["todo", "unassign"]
+        tags = ["todo-item", "update"]
         auth_required = True
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        result = await agg.unassign_todo()
-        yield agg.create_response(serialize_mapping(result), _type="todo-response")
+        await agg.update_todo_item(data=payload)
 
 
-class DeleteTodo(Command):
-    """Delete todo (soft delete)."""
+class RemoveTodoItem(Command):
+    """Delete todo item (soft delete)."""
 
-    Data = datadef.DeleteTodoPayload
+    Data = datadef.RemoveTodoItemPayload
 
     class Meta:
-        key = "delete-todo"
+        key = "remove-todo-item"
         resources = ("todo",)
-        tags = ["todo", "delete"]
+        tags = ["todo-item", "delete"]
         auth_required = True
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        result = await agg.delete_todo()
-        yield agg.create_response(serialize_mapping(result), _type="todo-response")
+        await agg.remove_todo_item(data=payload)

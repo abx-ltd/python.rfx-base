@@ -1,6 +1,7 @@
 from typing import Optional
 from pydantic import Field
 from fluvius.data import DataModel
+from typing import List
 from ..types import DirectionTypeEnum
 
 
@@ -35,7 +36,7 @@ class AddMessageTagPayload(DataModel):
         default=DirectionTypeEnum.INBOUND,
         description="Direction to add tag: INBOUND (inbox) or OUTBOUND (outbox). If None, add tag for both if user sent to themselves.",
     )
-    key: str = Field(..., description="Key of the tag")
+    keys: List[str] = Field(..., description="Keys of the tags")
 
 
 class RemoveMessageTagPayload(DataModel):
@@ -45,4 +46,14 @@ class RemoveMessageTagPayload(DataModel):
         default=DirectionTypeEnum.INBOUND,
         description="Direction to remove tag: INBOUND (inbox) or OUTBOUND (outbox). If None, remove tag for both if user sent to themselves.",
     )
-    key: str = Field(..., description="Key of the tag")
+    keys: List[str] = Field(..., description="Keys of the tags")
+
+
+class UpdateAllMessageTagsPayload(DataModel):
+    """Payload for updating all tags for a message."""
+
+    direction: Optional[DirectionTypeEnum] = Field(
+        default=DirectionTypeEnum.INBOUND,
+        description="Direction to update tags: INBOUND (inbox) or OUTBOUND (outbox). If None, update tags for both if user sent to themselves.",
+    )
+    keys: List[str] = Field(..., description="Keys of the tags")

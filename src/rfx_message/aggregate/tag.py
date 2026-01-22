@@ -1,8 +1,18 @@
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
+from uuid import UUID
 
 
 class TagMixin:
+    @action("tag-find")
+    async def find_tag(self, *, tag_id: UUID):
+        """Find a tag."""
+        tag = await self.statemgr.find_one(
+            "tag",
+            where=dict(_id=tag_id),
+        )
+        return tag
+
     @action("tag-created", resources="tag")
     async def create_tag(self, *, data):
         """Create a new tag."""
