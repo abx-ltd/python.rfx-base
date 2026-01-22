@@ -134,13 +134,49 @@ class GuestVerification(TableBase):
 
     __tablename__ = "guest_verification"
 
-    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(50))
+    guest_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("rfx_user.guest_user._id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="Reference to guest user if they've signed in before"
+    )
+    method: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default=text("'email'"),
+        comment="Verification method: 'email' or 'sms'"
+    )
+    value: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True,
+        comment="Email address or phone number where code was sent"
+    )
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     code: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )
     verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when code was successfully verified"
+    )
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        String(45),
+        nullable=True,
+        comment="IP address of the request"
+    )
+    attempt: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+        comment="Number of verification attempts for this code"
+    )
+
 
 class UserIdentity(TableBase):
     """External identity providers linked to a user."""
