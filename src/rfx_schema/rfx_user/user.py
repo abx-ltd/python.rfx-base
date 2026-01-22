@@ -135,7 +135,7 @@ class GuestVerification(TableBase):
     __tablename__ = "guest_verification"
 
     guest_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("rfx_user.guest_user._id", ondelete="CASCADE"),
+        ForeignKey(f"{SCHEMA}.guest_user._id", ondelete="CASCADE"),
         nullable=True,
         index=True,
         comment="Reference to guest user if they've signed in before"

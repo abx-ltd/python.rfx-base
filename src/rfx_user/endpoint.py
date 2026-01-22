@@ -1,11 +1,15 @@
 import secrets
 from datetime import datetime, timezone, timedelta
+from time import time
 from pipe import Pipe
 from fastapi import HTTPException, FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fluvius.data import UUID_GENR
 from fluvius.error import BadRequestError
-from fluvius.fastapi.helper import generate_client_token, generate_session_id
+from fluvius.fastapi.helper import generate_client_token, generate_session_id, validate_direct_url
+from fluvius.fastapi.auth import validate_csrf_token
+from fluvius.auth import event as auth_event
+from authlib.jose import jwt
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 from . import config, logger
@@ -73,69 +77,115 @@ class IDMGuestAuth:
         )
         logger.info(f"[GUEST AUTH] Verification code sent to {email}")
 
+    def generate_guest_payload(self, guest_user_id: str, email: str, fullname: str, session_id: str, phone: Optional[str] = None) -> dict:
+        current_time = int(time())
+        expiration_time = current_time + (config.GUEST_SESSION_TTL_HOURS * 3600)
+
+        issuer = config.GUEST_JWT_ISSUER
+        if not issuer.startswith(("http://", "https://")):
+            issuer = f"https://{issuer}"
+        # Create JWT payload (similar to Keycloak ID token structure)
+        payload = {
+            # Standard JWT claims
+            "iss": issuer,
+            "sub": guest_user_id,             # Subject (user ID)
+            "aud": "guest-client",            # Audience
+            "exp": expiration_time,           # Expiration time
+            "iat": current_time,              # Issued at
+            "auth_time": current_time,        # Authentication time
+            "jti": guest_user_id,             # JWT ID (same as user ID for guests)
+
+            "nonce": str(UUID_GENR()),
+            "sid": str(UUID_GENR()),
+
+            # User info claims
+            "email": email,
+            "email_verified": True,
+            "name": fullname,
+            "preferred_username": "guest",
+            "given_name": fullname.split()[0] if fullname else "Guest",
+            "family_name": fullname.split()[-1] if fullname and len(fullname.split()) > 1 else "User",
+
+            # Guest-specific claims
+            "typ": "ID",
+            "azp": "guest-client",
+            "session_state": guest_user_id,
+            "realm_access": {"roles": ["guest"]},
+            "resource_access": {}
+        }
+
+        return payload
+
+    def generate_guest_jwt(self, guest_payload: dict) -> str:
+        header = {"alg": config.GUEST_JWT_ALGORITHM}
+        token = jwt.encode(header, guest_payload, config.GUEST_JWT_SECRET)
+        return token.decode('utf-8') if isinstance(token, bytes) else token
+
     def setup_app(self):
         """Register all guest authentication endpoints"""
 
         @self.app.post("/auth/guest/sign-in-request")
         async def sign_in_request(request: Request, payload: SignInRequestPayload):
             try:
-                email = payload.email.lower().strip()
-                phone_number = payload.phone_number.strip() if payload.phone_number else None
-                full_name = payload.full_name.strip() if payload.full_name else None
+                async with self.statemgr.transaction():
+                    email = payload.email.lower().strip()
+                    phone_number = payload.phone_number.strip() if payload.phone_number else None
+                    full_name = payload.full_name.strip() if payload.full_name else None
 
-                # Check rate limiting - count recent requests from this email
-                rate_limit_cutoff = datetime.now(timezone.utc) - timedelta(minutes=config.RATE_LIMIT_WINDOW_MINUTES)
-                recent_requests = await self.statemgr.find_all(
-                    "guest_verification",
-                    where={
-                        "email": email,
-                        "created_at__gte": rate_limit_cutoff
-                    }
-                )
-
-                if len(recent_requests) >= config.MAX_REQUESTS_PER_WINDOW:
-                    raise BadRequestError(
-                        "G200-403",
-                        f"Too many verification requests. Please try again in {config.RATE_LIMIT_WINDOW_MINUTES} minutes."
+                    # Check rate limiting - count recent requests from this email
+                    rate_limit_cutoff = datetime.now(timezone.utc) - timedelta(minutes=config.RATE_LIMIT_WINDOW_MINUTES)
+                    recent_requests = await self.statemgr.find_all(
+                        "guest_verification",
+                        where={
+                            "email": email,
+                            "_created.gte": rate_limit_cutoff
+                        }
                     )
 
-                # Generate verification code
-                code = generate_verification_code()
-                expires_at = datetime.now(timezone.utc) + timedelta(minutes=config.VERIFICATION_TTL_MINUTES)
+                    if len(recent_requests) >= config.MAX_REQUESTS_PER_WINDOW:
+                        raise BadRequestError(
+                            "G200-403",
+                            f"Too many verification requests. Please try again in {config.RATE_LIMIT_WINDOW_MINUTES} minutes."
+                        )
 
-                # Get client IP address
-                client_ip = request.client.host if request.client else None
+                    # Generate verification code
+                    code = generate_verification_code()
+                    expires_at = datetime.now(timezone.utc) + timedelta(minutes=config.VERIFICATION_TTL_MINUTES)
 
-                # Store verification record with new schema fields
-                verification_record = self.statemgr.create(
-                    "guest_verification",
-                    _id=UUID_GENR(),
-                    method="email",
-                    value=email,
-                    email=email,
-                    phone=phone_number,
-                    code=code,
-                    expires_at=expires_at,
-                    verified=False,
-                    verified_at=None,
-                    ip_address=client_ip,
-                    attempt=0
-                )
-                await self.statemgr.insert(verification_record)
+                    # Get client IP address
+                    client_ip = request.client.host if request.client else None
 
-                # Send verification email
-                await self.send_guest_verification_email(email, code, full_name)
+                    # Store verification record with new schema fields
+                    verification_record = self.statemgr.create(
+                        "guest_verification",
+                        _id=UUID_GENR(),
+                        method="email",
+                        value=email,
+                        email=email,
+                        phone=phone_number,
+                        code=code,
+                        expires_at=expires_at,
+                        verified=False,
+                        verified_at=None,
+                        ip_address=client_ip,
+                        attempt=0
+                    )
+                    await self.statemgr.insert(verification_record)
 
-                logger.info(f"[GUEST AUTH] Verification code sent to {email}")
+                    # Send verification email
+                    await self.send_guest_verification_email(email, code, full_name)
 
-                return JSONResponse(
-                    status_code=200,
-                    content={
-                        "status": "verification_sent",
-                        "email": email,
-                        "expires_in": config.VERIFICATION_TTL_MINUTES * 60  # seconds
-                    }
-                )
+                    logger.info(f"[GUEST AUTH] Verification code sent to {email}")
+                    logger.info(f"CODE: {code}")
+
+                    return JSONResponse(
+                        status_code=200,
+                        content={
+                            "status": "verification_sent",
+                            "email": email,
+                            "expires_in": config.VERIFICATION_TTL_MINUTES * 60  # seconds
+                        }
+                    )
 
             except BadRequestError as e:
                 # Re-raise BadRequestError as-is
@@ -157,123 +207,123 @@ class IDMGuestAuth:
                 payload: Email address in request body
             """
             try:
-                email = payload.email.lower().strip()
-                code = code.strip()
+                async with self.statemgr.transaction():
+                    email = payload.email.lower().strip()
+                    code = code.strip()
 
-                # Validate code format
-                if not code.isdigit() or len(code) != 6:
-                    raise BadRequestError("G200-400", "Invalid code format. Code must be 6 digits.")
+                    # Validate code format
+                    if not code.isdigit() or len(code) != 6:
+                        raise BadRequestError("G200-400", "Invalid code format. Code must be 6 digits.")
 
-                # Find verification record
-                verification = await self.statemgr.find_one(
-                    "guest_verification",
-                    where={
-                        "value": email,
-                        "code": code,
-                        "verified": False
-                    }
-                )
-
-                if not verification:
-                    # Increment failed attempts
-                    await self._increment_failed_attempts(email, code)
-                    raise BadRequestError("G200-401", "Invalid or expired verification code")
-
-                # Check expiration
-                current_time = datetime.now(timezone.utc)
-                if verification.expires_at < current_time:
-                    await self.statemgr.update(verification, verified=False)
-                    raise BadRequestError("G200-402", "Verification code has expired")
-
-                # Check attempt limit
-                if verification.attempt >= config.MAX_VERIFICATION_ATTEMPTS:
-                    raise BadRequestError(
-                        "G200-404",
-                        "Too many failed attempts. Please request a new code."
+                    # Find verification record
+                    verification = await self.statemgr.exist(
+                        "guest_verification",
+                        where={
+                            "value": email,
+                            "code": code,
+                            "verified": False
+                        }
                     )
 
-                # Mark code as verified
-                await self.statemgr.update(
-                    verification,
-                    verified=True,
-                    verified_at=current_time
-                )
+                    if not verification:
+                        # Increment failed attempts
+                        await self._increment_failed_attempts(email, code)
+                        raise BadRequestError("G200-401", "Invalid or expired verification code")
 
-                # Create or update guest user
-                guest_user = await self.statemgr.find_one(
-                    "guest_user",
-                    where={"email": email}
-                )
+                    # Check expiration
+                    current_time = datetime.now(timezone.utc)
+                    if verification.expires_at < current_time:
+                        await self.statemgr.update(verification, verified=False)
+                        raise BadRequestError("G200-402", "Verification code has expired")
 
-                if guest_user:
-                    # Update existing user
+                    # Check attempt limit
+                    if verification.attempt >= config.MAX_VERIFICATION_ATTEMPTS:
+                        raise BadRequestError(
+                            "G200-404",
+                            "Too many failed attempts. Please request a new code."
+                        )
+
+                    # Mark code as verified
                     await self.statemgr.update(
-                        guest_user,
-                        last_active_at=current_time,
-                        email_verified=True
+                        verification,
+                        verified=True,
+                        verified_at=current_time
                     )
-                else:
-                    # Create new guest user
-                    session_id = generate_session_id(request.session)
-                    guest_user = self.statemgr.create(
+
+                    # Create or update guest user
+                    guest_user = await self.statemgr.exist(
                         "guest_user",
-                        _id=UUID_GENR(),
-                        email=email,
-                        phone=verification.phone,
-                        full_name=verification.email or "Guest",
-                        session_id=session_id,
-                        email_verified=True,
-                        last_active_at=current_time
+                        where={"email": email}
                     )
-                    await self.statemgr.insert(guest_user)
 
-                # Create guest payload (mimic Keycloak token structure)
-                guest_payload = {
-                    "guest_id": str(guest_user._id),
-                    "email": email,
-                    "fullname": verification.email or "Guest",
-                    "phone": verification.phone,
-                    "session_id": generate_session_id(request.session),
-                    "client_token": generate_client_token(request.session),
-                    "verified_at": current_time.isoformat()
-                }
+                    session_id = generate_session_id(request.session)
+                    if guest_user:
+                        # Update existing user
+                        await self.statemgr.update(
+                            guest_user,
+                            last_active_at=current_time,
+                            email_verified=True
+                        )
+                    else:
+                        # Create new guest user
+                        guest_user = self.statemgr.create(
+                            "guest_user",
+                            _id=UUID_GENR(),
+                            email=email,
+                            phone=verification.phone,
+                            full_name=verification.email or "Guest",
+                            session_id=session_id,
+                            email_verified=True,
+                            last_active_at=current_time
+                        )
+                        await self.statemgr.insert(guest_user)
 
-                # Regenerate session to prevent session fixation
-                old_data = dict(request.session)
-                request.session.clear()
-                request.session.update(old_data)
+                    # Create guest payload (mimic Keycloak token structure)
+                    guest_payload = self.generate_guest_payload(
+                        guest_user_id=str(guest_user._id),
+                        email=email,
+                        fullname=guest_user.full_name or "Guest",
+                        session_id=session_id,
+                        phone=guest_user.phone
+                    )
 
-                # Remove regular user session if exists
-                request.session.pop(config.SES_USER_FIELD, None)
+                    guest_jwt_token = self.generate_guest_jwt(guest_payload)
 
-                # Store guest session
-                request.session[config.SES_GUEST_FIELD] = guest_payload
+                    # Regenerate session to prevent session fixation
+                    old_data = dict(request.session)
+                    request.session.clear()
+                    request.session.update(old_data)
 
-                # Create response
-                session_expires_at = current_time + timedelta(hours=config.GUEST_SESSION_TTL_HOURS)
-                response = JSONResponse(
-                    status_code=200,
-                    content={
-                        "status": "authenticated",
-                        "guest_id": str(guest_user._id),
-                        "email": email,
-                        "session_expires_at": session_expires_at.isoformat()
-                    }
-                )
+                    # Remove regular user session if exists
+                    request.session.pop(config.SES_USER_FIELD, None)
 
-                # Set secure cookie
-                response.set_cookie(
-                    config.SES_ID_TOKEN_FIELD,
-                    "guest",
-                    httponly=True,
-                    secure=config.COOKIE_HTTPS_ONLY,
-                    samesite=config.COOKIE_SAME_SITE_POLICY,
-                    max_age=config.GUEST_SESSION_TTL_HOURS * 3600
-                )
+                    # Store guest session
+                    request.session[config.SES_USER_FIELD] = guest_payload
 
-                logger.info(f"[GUEST AUTH] Guest user {email} signed in successfully")
-                return response
+                    # Create response
+                    session_expires_at = current_time + timedelta(hours=config.GUEST_SESSION_TTL_HOURS)
+                    response = JSONResponse(
+                        status_code=200,
+                        content={
+                            "status": "authenticated",
+                            "guest_id": str(guest_user._id),
+                            "email": email,
+                            "session_expires_at": session_expires_at.isoformat()
+                        }
+                    )
 
+                    # Set secure cookie with JWT token (like Keycloak)
+                    response.set_cookie(
+                        config.SES_ID_TOKEN_FIELD,
+                        guest_jwt_token,
+                        httponly=True,
+                        secure=config.COOKIE_HTTPS_ONLY,
+                        samesite=config.COOKIE_SAME_SITE_POLICY,
+                        max_age=config.GUEST_SESSION_TTL_HOURS * 3600
+                    )
+
+                    logger.info(f"[GUEST AUTH] Guest user {email} signed in successfully")
+                    return response
             except BadRequestError:
                 raise
             except Exception as e:
@@ -283,21 +333,56 @@ class IDMGuestAuth:
                     detail="Sign-in failed. Please try again later."
                 )
 
+        @self.app.get("/guest/sign-out")
+        async def sign_out(request: Request):
+            async with self.statemgr.transaction():
+                params = request.query_params
+                headers = request.headers
+
+                redirect_uri = validate_direct_url(
+                    params.get('redirect_uri'),
+                    config.DEFAULT_LOGOUT_REDIRECT_URI
+                )
+
+                if config.VALIDATE_CSRF_TOKEN:
+                    csrf_token = params.get('csrf_token') or headers.get('X-CSRF-Token')
+                    if not validate_csrf_token(request, csrf_token):
+                        raise HTTPException(status_code=403, detail="Invalid CSRF token")
+
+                guest_payload = request.session.get(config.SES_USER_FIELD)
+                if guest_payload:
+                    try:
+                        guest_user = await self.statemgr.fetch("guest_user", guest_payload["sub"])
+                        current_time = datetime.now(timezone.utc)
+                        await self.statemgr.update(guest_user, last_active_at=current_time)
+                    except Exception as e:
+                        logger.warn(f"[GUEST AUTH] Failed to update logout time: {e}")
+
+                request.session.clear()
+                response = RedirectResponse(url=redirect_uri)
+                response.delete_cookie(
+                    config.SES_ID_TOKEN_FIELD,
+                    httponly=True,
+                    secure=config.COOKIE_HTTPS_ONLY,
+                    samesite=config.COOKIE_SAME_SITE_POLICY
+                )
+                return response
+
         return self.app
 
     async def _increment_failed_attempts(self, email: str, code: str):
         """Increment attempt counter for failed verification"""
-        verification = await self.statemgr.find_one(
-            "guest_verification",
-            where={"value": email, "code": code}
-        )
-
-        if verification:
-            await self.statemgr.update(
-                verification,
-                attempt=verification.attempt + 1
+        async with self.statemgr.transaction():
+            verification = await self.statemgr.exist(
+                "guest_verification",
+                where={"value": email, "code": code}
             )
 
+            if verification:
+                await self.statemgr.update(
+                    verification,
+                    attempt=verification.attempt + 1
+                )
 
 # ============================================================================
 # Configuration
