@@ -1,12 +1,17 @@
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
- 
+
 
 class TagMixin:
     @action("tag-created", resources="tag")
     async def create_tag(self, *, data):
         """Create a new tag."""
-        tag = self.init_resource("tag", serialize_mapping(data), _id=UUID_GENR())
+        tag = self.init_resource(
+            "tag",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+            profile_id=self.get_context().profile_id,
+        )
         await self.statemgr.insert(tag)
         return tag
 

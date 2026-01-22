@@ -13,7 +13,7 @@ class RFXTodoQueryManager(DomainQueryManager):
     __data_manager__ = RFXTodoStateManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXTodoDomain.Meta.prefix
+        prefix = RFXTodoDomain.Meta.namespace
         tags = RFXTodoDomain.Meta.tags
 
 
@@ -44,10 +44,7 @@ class TodoQuery(DomainQueryResource):
         backend_model = "todo"
         scope_optional = scope.TodoScopeSchema
 
-    id: UUID_TYPE = UUIDField("Todo ID", filterable=True)
-    title: str = StringField("Title", filterable=True)
+    title: str = StringField("Title")
     description: str = StringField("Description")
-    completed: bool = BooleanField("Completed", filterable=True)
-    assignee_id: Optional[UUID_TYPE] = UUIDField("Assignee ID", filterable=True)
-
-
+    completed: bool = BooleanField("Completed")
+    assignee_id: Optional[UUID_TYPE] = UUIDField("Assignee ID")

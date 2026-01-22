@@ -54,7 +54,7 @@ SELECT
     m.priority,
     m.message_type,
 
-    mc.category,
+    m.category,
 
     r.read         AS is_read,
     r.mark_as_read AS recipient_read_at,
@@ -92,10 +92,6 @@ LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb
     ON mb._id = r.box_id
    AND mb._deleted IS NULL
 
-LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_category mc
-    ON mc.resource = 'message_recipient'
-   AND mc.resource_id = r._id
-   AND mc._deleted IS NULL
 LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt
     ON mt.resource = 'message_recipient'
    AND mt.resource_id = r._id
@@ -159,7 +155,7 @@ SELECT
     m.priority,
     m.message_type,
 
-    mc.category,
+    m.category,
 
     BOOL_OR(r.read)      AS is_read,
     MAX(r.mark_as_read) AS recipient_read_at,
@@ -198,11 +194,6 @@ LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb
     ON mb._id = s.box_id
    AND mb._deleted IS NULL
 
-LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_category mc
-    ON mc.resource = 'message_sender'
-   AND mc.resource_id = s._id
-   AND mc._deleted IS NULL
-
 LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt
     ON mt.resource = 'message_sender'
    AND mt.resource_id = s._id
@@ -232,7 +223,7 @@ GROUP BY
     m.expirable,
     m.priority,
     m.message_type,
-    mc.category,
+    m.category,
     mb.key,
     mb.name,
     mb.type,

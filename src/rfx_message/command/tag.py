@@ -52,4 +52,4 @@ class RemoveTag(Command):
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        await agg.remove_tag(data=payload)
+        await agg.remove_tag()

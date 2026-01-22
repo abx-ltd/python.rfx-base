@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 from ..types import (
     ProcessingModeEnum,
     RenderStatusEnum,
+    MessageCategoryEnum,
 )
 
 
@@ -126,3 +127,4 @@ class MessageMixin:
             )
             if recipient:
                 await self.statemgr.update(recipient, box_id=box_id)
+

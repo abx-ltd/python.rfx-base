@@ -86,6 +86,7 @@ class Message(TableBase):
 
     data: Mapped[dict] = mapped_column(JSONB, default=dict)
     context: Mapped[dict] = mapped_column(JSONB, default=dict)
+    category: Mapped[Optional[str]] = mapped_column(String(255))
 
     template_key: Mapped[Optional[str]] = mapped_column(String(255))
     template_version: Mapped[Optional[int]]

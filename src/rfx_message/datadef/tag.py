@@ -7,6 +7,7 @@ from ..types import DirectionTypeEnum
 class CreateTagPayload(DataModel):
     """Payload for creating a new tag."""
 
+    key: str = Field(..., description="Key of the tag")
     name: str = Field(..., description="Name of the tag")
     background_color: Optional[str] = Field(
         None, description="Background color of the tag"
@@ -18,6 +19,7 @@ class CreateTagPayload(DataModel):
 class UpdateTagPayload(DataModel):
     """Payload for updating a tag."""
 
+    key: str = Field(..., description="Key of the tag")
     name: Optional[str] = Field(None, description="Name of the tag")
     background_color: Optional[str] = Field(
         None, description="Background color of the tag"
@@ -44,4 +46,3 @@ class RemoveMessageTagPayload(DataModel):
         description="Direction to remove tag: INBOUND (inbox) or OUTBOUND (outbox). If None, remove tag for both if user sent to themselves.",
     )
     key: str = Field(..., description="Key of the tag")
-
