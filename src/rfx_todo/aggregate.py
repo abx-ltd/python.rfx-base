@@ -29,35 +29,36 @@ class RFXTodoAggregate(Aggregate):
         await self.statemgr.update(self.rootobj, completed=completed)
         return self.rootobj
 
-    @action("todo-deleted", resources="todo")
-    async def delete_todo(self, /):
+    @action("todo-removed", resources="todo")
+    async def remove_todo(self, /):
         await self.statemgr.invalidate(self.rootobj)
-        return {"status": "deleted"}
 
-    @action("todo-item-created", resources="todo_item")
+    @action("todo-item-created", resources="todo")
     async def create_todo_item(self, /, data):
         data = serialize_mapping(data)
         record = self.init_resource(
             "todo_item",
             data,
-            id=UUID_GENR(),
-            completed=False if data.get("completed") is None else data.get("completed"),
+            _id=UUID_GENR(),
+            todo_id=self.rootobj._id,
         )
         await self.statemgr.insert(record)
         return record
 
-    @action("todo-item-updated", resources="todo_item")
+    @action("todo-item-updated", resources="todo")
     async def update_todo_item(self, /, data):
-        data = {k: v for k, v in serialize_mapping(data).items() if v is not None}
-        await self.statemgr.update(self.rootobj, **data)
-        return self.rootobj
+        todo = self.rootobj
+        todo_item = await self.statemgr.find_one(
+            "todo_item", where=dict(todo_id=todo._id, _id=data.item_id)
+        )
+        data = serialize_mapping(data)
+        data.pop("item_id")
+        await self.statemgr.update(todo_item, **data)
 
-    @action("todo-item-completed-set", resources="todo_item")
-    async def set_todo_item_completed(self, /, completed: bool):
-        await self.statemgr.update(self.rootobj, completed=completed)
-        return self.rootobj
-
-    @action("todo-item-deleted", resources="todo_item")
-    async def delete_todo_item(self, /):
-        await self.statemgr.invalidate(self.rootobj)
-        return {"status": "deleted"}
+    @action("todo-item-removed", resources="todo")
+    async def remove_todo_item(self, /, data):
+        todo = self.rootobj
+        todo_item = await self.statemgr.find_one(
+            "todo_item", where=dict(todo_id=todo._id, _id=data.item_id)
+        )
+        self.statemgr.invalidate(todo_item)

@@ -21,16 +21,7 @@ class UpdateTodoPayload(DataModel):
     completed: Optional[bool] = Field(default=None, description="Completed status")
 
 
-class SetTodoCompletedPayload(DataModel):
-    completed: bool = Field(..., description="Completed status")
-
-
-class DeleteTodoPayload(DataModel):
-    pass
-
-
 class CreateTodoItemPayload(DataModel):
-    todo_id: UUID_TYPE = Field(..., description="Todo ID")
     type: str = Field(..., description="Todo item type")
     name: str = Field(..., description="Todo item name")
     description: str = Field(..., description="Todo item description")
@@ -39,7 +30,7 @@ class CreateTodoItemPayload(DataModel):
 
 
 class UpdateTodoItemPayload(DataModel):
-    todo_id: Optional[UUID_TYPE] = Field(default=None, description="Todo ID")
+    item_id: UUID_TYPE = Field(..., description="Todo item ID")
     type: Optional[str] = Field(default=None, description="Todo item type")
     name: Optional[str] = Field(default=None, description="Todo item name")
     description: Optional[str] = Field(
@@ -49,9 +40,5 @@ class UpdateTodoItemPayload(DataModel):
     due_date: Optional[datetime] = Field(default=None, description="Due date")
 
 
-class SetTodoItemCompletedPayload(DataModel):
-    completed: bool = Field(..., description="Completed status")
-
-
-class DeleteTodoItemPayload(DataModel):
-    pass
+class RemoveTodoItemPayload(DataModel):
+    item_id: UUID_TYPE = Field(..., description="Todo item ID")

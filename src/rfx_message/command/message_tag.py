@@ -59,7 +59,7 @@ class RemoveMessageTag(Command):
                 message_id=agg.get_aggroot().identifier,
             )
             for key in payload.keys:
-                await agg.remove_message_tag(
+                await agg.remove_message_tag_from_resource(
                     resource="message_sender",
                     resource_id=message_sender._id,
                     key=key,
@@ -70,7 +70,7 @@ class RemoveMessageTag(Command):
                 profile_id=agg.get_context().profile_id,
             )
             for key in payload.keys:
-                await agg.remove_message_tag(
+                await agg.remove_message_tag_from_resource(
                     resource="message_recipient",
                     resource_id=message_recipient._id,
                     key=key,
@@ -94,28 +94,16 @@ class UpdateAllMessageTags(Command):
             message_sender = await agg.get_message_sender_by_message_id(
                 message_id=agg.get_aggroot().identifier
             )
-            await agg.remove_all_message_tags(
+            await agg.remove_all_message_tags_from_resource(
                 resource="message_sender",
                 resource_id=message_sender._id,
             )
-            for key in payload.keys:
-                await agg.add_message_tag(
-                    resource="message_sender",
-                    resource_id=message_sender._id,
-                    key=key,
-                )
         elif direction == types.DirectionTypeEnum.INBOUND:
             message_recipient = await agg.get_message_recipient(
                 message_id=agg.get_aggroot().identifier,
                 profile_id=agg.get_context().profile_id,
             )
-            await agg.remove_all_message_tags(
+            await agg.remove_all_message_tags_from_resource(
                 resource="message_recipient",
                 resource_id=message_recipient._id,
             )
-            for key in payload.keys:
-                await agg.add_message_tag(
-                    resource="message_recipient",
-                    resource_id=message_recipient._id,
-                    key=key,
-                )

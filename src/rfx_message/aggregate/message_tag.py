@@ -22,8 +22,10 @@ class MessageTagMixin:
         )
         await self.statemgr.insert(message_tag)
 
-    @action("message-tag-removed", resources="message")
-    async def remove_message_tag(self, *, resource: str, resource_id: str, key: str):
+    @action("message-tag-removed-from-resource", resources="message")
+    async def remove_message_tag_from_resource(
+        self, *, resource: str, resource_id: str, key: str
+    ):
         """Action to remove a tag from a message."""
         message_tag = await self.statemgr.find_one(
             "message_tag",
@@ -31,12 +33,24 @@ class MessageTagMixin:
         )
         await self.statemgr.invalidate(message_tag)
 
-    @action("message-tag-remove-all", resources="message")
-    async def remove_all_message_tags(self, *, resource: str, resource_id: str):
+    @action("message-tag-remove-all-from-resource", resources="message")
+    async def remove_all_message_tags_from_resource(
+        self, *, resource: str, resource_id: str
+    ):
         """Action to remove all tags from a message."""
         message_tags = await self.statemgr.find_all(
             "message_tag",
             where={"resource": resource, "resource_id": resource_id},
+        )
+        for message_tag in message_tags:
+            await self.statemgr.invalidate(message_tag)
+
+    @action("message-tag-removed-from-tag", resources=("message", "tag"))
+    async def remove_message_tag_from_tag(self, *, key: str):
+        """Action to remove a tag from a message."""
+        message_tags = await self.statemgr.find_all(
+            "message_tag",
+            where=dict(key=key),
         )
         for message_tag in message_tags:
             await self.statemgr.invalidate(message_tag)
