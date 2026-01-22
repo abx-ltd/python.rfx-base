@@ -30,3 +30,13 @@ class MessageTagMixin:
             where={"resource": resource, "resource_id": resource_id, "key": key},
         )
         await self.statemgr.invalidate(message_tag)
+
+    @action("message-tag-remove-all", resources="message")
+    async def remove_all_message_tags(self, *, resource: str, resource_id: str):
+        """Action to remove all tags from a message."""
+        message_tags = await self.statemgr.find_all(
+            "message_tag",
+            where={"resource": resource, "resource_id": resource_id},
+        )
+        for message_tag in message_tags:
+            await self.statemgr.invalidate(message_tag)

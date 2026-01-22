@@ -47,3 +47,13 @@ class RemoveMessageTagPayload(DataModel):
         description="Direction to remove tag: INBOUND (inbox) or OUTBOUND (outbox). If None, remove tag for both if user sent to themselves.",
     )
     keys: List[str] = Field(..., description="Keys of the tags")
+
+
+class UpdateAllMessageTagsPayload(DataModel):
+    """Payload for updating all tags for a message."""
+
+    direction: Optional[DirectionTypeEnum] = Field(
+        default=DirectionTypeEnum.INBOUND,
+        description="Direction to update tags: INBOUND (inbox) or OUTBOUND (outbox). If None, update tags for both if user sent to themselves.",
+    )
+    keys: List[str] = Field(..., description="Keys of the tags")

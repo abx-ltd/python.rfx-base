@@ -57,11 +57,12 @@ populate:
 
 # Generate alembic migration for specific schema(s)
 # Usage: just mig-autogen "message description" [schema] [REGISTER_ENTITIES=true|false]
-# Schema options: user, policy, message, or "all" (default)
+# Schema options: user, policy, message, todo, or "all" (default)
 # Examples:
 #   just mig-autogen "add new field"           # All schemas
 #   just mig-autogen "add user field" user     # Only user schema
 #   just mig-autogen "update tables" user,message  # Multiple schemas
+#   just mig-autogen "todo" todo               # Only todo schema
 [no-cd]
 mig-autogen MESSAGE SCHEMA="all" REGISTER_ENTITIES="1":
     @echo "🔍 Generating migration for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"

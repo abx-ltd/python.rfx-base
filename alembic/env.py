@@ -39,6 +39,7 @@ DOMAIN_SCHEMAS = {
     "client": base_config.RFX_CLIENT_SCHEMA,
     "discuss": base_config.RFX_DISCUSS_SCHEMA,
     "qr": base_config.RFX_QR_SCHEMA,
+    "todo": base_config.RFX_TODO_SCHEMA,
 }
 
 # Get schema filter from environment variable

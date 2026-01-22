@@ -45,6 +45,8 @@ class Tag(TableBase):
     # Ensure (profile_id, key) is unique per profile; the name is the constraint name,
     # not a column name.
     __table_args__ = (
-        UniqueConstraint("profile_id", "key", name="idx_tag_profile_id_key"),
+        UniqueConstraint(
+            "profile_id", "key", "_deleted", name="idx_tag_profile_id_key_deleted"
+        ),
         {"schema": SCHEMA},
     )

@@ -29,19 +29,35 @@ class RFXTodoAggregate(Aggregate):
         await self.statemgr.update(self.rootobj, completed=completed)
         return self.rootobj
 
-    @action("todo-assigned", resources="todo")
-    async def assign_todo(self, /, assignee_id):
-        await self.statemgr.update(self.rootobj, assignee_id=assignee_id)
-        return self.rootobj
-
-    @action("todo-unassigned", resources="todo")
-    async def unassign_todo(self, /):
-        await self.statemgr.update(self.rootobj, assignee_id=None)
-        return self.rootobj
-
     @action("todo-deleted", resources="todo")
     async def delete_todo(self, /):
         await self.statemgr.invalidate(self.rootobj)
         return {"status": "deleted"}
 
+    @action("todo-item-created", resources="todo_item")
+    async def create_todo_item(self, /, data):
+        data = serialize_mapping(data)
+        record = self.init_resource(
+            "todo_item",
+            data,
+            id=UUID_GENR(),
+            completed=False if data.get("completed") is None else data.get("completed"),
+        )
+        await self.statemgr.insert(record)
+        return record
 
+    @action("todo-item-updated", resources="todo_item")
+    async def update_todo_item(self, /, data):
+        data = {k: v for k, v in serialize_mapping(data).items() if v is not None}
+        await self.statemgr.update(self.rootobj, **data)
+        return self.rootobj
+
+    @action("todo-item-completed-set", resources="todo_item")
+    async def set_todo_item_completed(self, /, completed: bool):
+        await self.statemgr.update(self.rootobj, completed=completed)
+        return self.rootobj
+
+    @action("todo-item-deleted", resources="todo_item")
+    async def delete_todo_item(self, /):
+        await self.statemgr.invalidate(self.rootobj)
+        return {"status": "deleted"}
