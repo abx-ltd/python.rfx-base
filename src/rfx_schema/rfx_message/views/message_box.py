@@ -53,7 +53,6 @@ SELECT
     m.expirable,
     m.priority,
     m.message_type,
-
     m.category,
 
     r.read         AS is_read,
@@ -75,8 +74,9 @@ SELECT
     ta.message_count,
     'RECIPIENT'::text AS root_type,
     r.direction,
-	ARRAY_REMOVE(ARRAY[mt.key], NULL) AS tags
 
+    ARRAY_AGG(DISTINCT mt.key)
+        FILTER (WHERE mt.key IS NOT NULL) AS tags
 
 FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient r
 JOIN {config.RFX_MESSAGE_SCHEMA}.message m
@@ -111,6 +111,47 @@ WHERE
         s.sender_id = r.recipient_id
         AND s.box_id = r.box_id
     )
+
+GROUP BY
+    r._id,
+    m._id,
+    m.thread_id,
+    s.sender_id,
+
+    sp._id, sp.preferred_name, sp.name__given,
+    sp.name__middle, sp.name__family,
+    sp.name__prefix, sp.name__suffix,
+
+    r.recipient_id,
+    rp._id, rp.preferred_name, rp.name__given,
+    rp.name__middle, rp.name__family,
+    rp.name__prefix, rp.name__suffix,
+
+    m.subject,
+    m.content,
+    m.content_type,
+    m.expirable,
+    m.priority,
+    m.message_type,
+    m.category,
+
+    r.read,
+    r.mark_as_read,
+
+    mb.key,
+    mb.name,
+    mb.type,
+
+    r._realm,
+    r._created,
+    r._updated,
+    r._creator,
+    r._updater,
+    r._deleted,
+    r._etag,
+
+    ta.message_count,
+    r.direction
 
 UNION ALL
 
@@ -154,7 +195,6 @@ SELECT
     m.expirable,
     m.priority,
     m.message_type,
-
     m.category,
 
     BOOL_OR(r.read)      AS is_read,
@@ -176,8 +216,9 @@ SELECT
     ta.message_count,
     'SENDER'::text AS root_type,
     s.direction,
-    ARRAY_REMOVE(ARRAY[mt.key], NULL) AS tags
 
+    ARRAY_AGG(DISTINCT mt.key)
+        FILTER (WHERE mt.key IS NOT NULL) AS tags
 
 FROM {config.RFX_MESSAGE_SCHEMA}.message_sender s
 JOIN {config.RFX_MESSAGE_SCHEMA}.message m
@@ -214,9 +255,11 @@ GROUP BY
     m._id,
     m.thread_id,
     s.sender_id,
+
     sp._id, sp.preferred_name, sp.name__given,
     sp.name__middle, sp.name__family,
     sp.name__prefix, sp.name__suffix,
+
     m.subject,
     m.content,
     m.content_type,
@@ -224,9 +267,11 @@ GROUP BY
     m.priority,
     m.message_type,
     m.category,
+
     mb.key,
     mb.name,
     mb.type,
+
     s._realm,
     s._created,
     s._updated,
@@ -234,13 +279,14 @@ GROUP BY
     s._updater,
     s._deleted,
     s._etag,
+
     ta.message_count,
-    tags
+    s.direction
 ),
+
 ranked AS (
     SELECT
         b.*,
-
         CASE
             WHEN b.direction = 'OUTBOUND' THEN
                 ROW_NUMBER() OVER (
@@ -249,7 +295,6 @@ ranked AS (
                 )
             ELSE 1
         END AS rn
-
     FROM base b
 )
 

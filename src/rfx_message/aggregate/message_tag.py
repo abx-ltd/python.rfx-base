@@ -5,6 +5,13 @@ class MessageTagMixin:
     @action("message-tag-added", resources="message")
     async def add_message_tag(self, *, resource: str, resource_id: str, key: str):
         """Action to add a tag to a message."""
+        existing_tag = await self.statemgr.exist(
+            "message_tag",
+            where={"resource": resource, "resource_id": resource_id, "key": key},
+        )
+        if existing_tag:
+            return
+
         message_tag = self.init_resource(
             "message_tag",
             {
