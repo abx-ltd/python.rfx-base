@@ -47,7 +47,7 @@ class MessageTemplateQuery(DomainQueryResource):
 
         backend_model = "message_template"
         resource = "message_template"
-        policy_required = "id"
+        policy_required = True
         scope_optional = TemplateScope
 
         default_order = ("key", "-version")
