@@ -75,7 +75,7 @@ class ProjectDraftQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
-        policy_required = "id"
+        policy_required = True
 
     status: str = StringField("Status")
     name: str = StringField("Project Name")
@@ -109,7 +109,7 @@ class ProjectQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
-        policy_required = "id"
+        policy_required = True
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -138,7 +138,7 @@ class ProjectBDMContactQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        policy_required = "project_id"
+        policy_required = True
         scope_required = scope.ProjectBDMContactScopeSchema
 
     contact_method: list[ContactMethodEnum] = ArrayField("Contact Method")
@@ -159,7 +159,7 @@ class ProjectMilestoneQuery(DomainQueryResource):
         allow_meta_view = True
         allow_text_search = True
 
-        policy_required = "project_id"
+        policy_required = True
         scope_required = scope.ProjectMilestoneScopeSchema
 
     name: str = StringField("Milestone Name")
@@ -182,7 +182,7 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "_project_estimate_summary"
-        policy_required = "id"
+        policy_required = True
 
     architectural_credits: float = FloatField("Architectural Credits")
     development_credits: float = FloatField("Development Credits")
@@ -247,7 +247,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
 
         backend_model = "_project_work_package"
         scope_required = scope.ProjectWorkPackageScopeSchema
-        policy_required = "project_id"
+        policy_required = True
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
@@ -485,7 +485,7 @@ class InquiryQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "_inquiry"
-        policy_required = "id"
+        policy_required = True
 
     type: str = StringField("Type")
     type_icon_color: str = StringField("Type Icon Color")
@@ -514,7 +514,7 @@ class TicketQuery(DomainQueryResource):
 
         backend_model = "_ticket"
         scope_required = scope.TicketScopeSchema
-        policy_required = "id"
+        policy_required = True
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     title: str = StringField("Title")
@@ -668,7 +668,7 @@ class CreditSummaryQuery(DomainQueryResource):
 
         backend_model = "_credit_summary"
         # scope_required = scope.OrganizationScopeSchema
-        # policy_required = "organization_id"
+        # policy_required = True
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     current_ar_credits: float = FloatField("Current AR Credits")
@@ -700,7 +700,7 @@ class WorkPackageCreditUsageQuery(DomainQueryResource):
 
         backend_model = "_work_package_credit_usage"
         scope_required = scope.ProjectWorkPackageScopeSchema
-        policy_required = "project_id"
+        policy_required = True
 
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     project_id: UUID_TYPE = UUIDField("Project ID")
@@ -737,7 +737,7 @@ class CreditPurchaseHistoryQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "_credit_purchase_history"
-        policy_required = "organization_id"
+        policy_required = True
 
     purchase_id: UUID_TYPE = UUIDField("Purchase ID")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
@@ -798,7 +798,7 @@ class CreditBalanceQuery(DomainQueryResource):
         allow_list_view = False
         allow_meta_view = False
 
-        policy_required = "organization_id"
+        policy_required = True
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     ar_credits: float = FloatField("AR Credits")
@@ -829,7 +829,7 @@ class CreditUsageLogQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        policy_required = "organization_id"
+        policy_required = True
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     project_id: UUID_TYPE = UUIDField("Project ID")
@@ -961,7 +961,7 @@ class ProjectQueryDetail(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project_detail"
-        # policy_required = "id"
+        # policy_required = True
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
