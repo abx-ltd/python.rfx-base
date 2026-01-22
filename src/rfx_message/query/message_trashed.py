@@ -32,7 +32,6 @@ class MessageTrashedQuery(DomainQueryResource):
         return {
             "target_profile_id": profile_id,
             "box_key": "trashed",
-            "message_type": MessageTypeEnum.USER.value,
         }
 
     class Meta(DomainQueryResource.Meta):

@@ -8,7 +8,7 @@ Command = RFXMessageServiceDomain.Command
 
 from .send_message import *
 from .reply_message import *
-from .set_message_category import *
+from .message_category import *
 from .read_message import *
 from .archive_message import *
 from .trash_message import *

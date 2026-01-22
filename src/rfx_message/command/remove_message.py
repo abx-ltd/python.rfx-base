@@ -20,6 +20,10 @@ class RemoveMessage(Command):
         direction = payload.direction
 
         if direction == types.DirectionTypeEnum.OUTBOUND:
-            await agg.remove_message_sender(message_id=message_id)
+            await agg.remove_message_sender(
+                message_id=message_id, profile_id=agg.get_context().profile_id
+            )
         elif direction == types.DirectionTypeEnum.INBOUND:
-            await agg.remove_message_recipient(message_id=message_id)
+            await agg.remove_message_recipient(
+                message_id=message_id, profile_id=agg.get_context().profile_id
+            )

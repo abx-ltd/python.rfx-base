@@ -23,7 +23,7 @@ class IDMQueryManager(DomainQueryManager):
     __policymgr__ = IDMPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = IDMDomain.Meta.prefix
+        prefix = IDMDomain.Meta.namespace
         tags = IDMDomain.Meta.tags
 
 
@@ -154,7 +154,7 @@ class UserQuery(DomainQueryResource):
         backend_model = "user"
 
         resource = "user"
-        policy_required = "id"
+        policy_required = True
 
     id: UUID_TYPE = PrimaryID("User ID")
     name__family: str = StringField("Family Name")
@@ -197,7 +197,7 @@ class UserProfileQuery(DomainQueryResource):
 
         backend_model = "_profile_list"
         resource = "profile"
-        policy_required = "id"
+        policy_required = True
         scope_required = scope.ProfileListScopeSchema
 
     name__family: str = StringField("Family Name")
@@ -225,7 +225,7 @@ class ProfileListQuery(DomainQueryResource):
 
         backend_model = "_org_member"
         resource = "profile"
-        policy_required = "id"
+        policy_required = True
         scope_required = scope.OrgProfileListScopeSchema
 
     name__family: str = StringField("Family Name")
@@ -253,7 +253,7 @@ class ProfileDetailQuery(DomainQueryResource):
         backend_model = "profile"
 
         resource = "profile"
-        policy_required = "id"
+        policy_required = True
 
     user_id: UUID_TYPE = UUIDField("User ID")
     name__family: str = StringField("Family Name")
@@ -307,7 +307,7 @@ class ProfileRole(DomainQueryResource):
         backend_model = "profile_role"
 
         resource = "profile"
-        policy_required = "profile_id"
+        policy_required = True
         scope_required = scope.ProfileRoleScopeSchema
 
     id: UUID_TYPE = PrimaryID("Profile ID")
@@ -325,7 +325,7 @@ class OrganizationRoleQuery(DomainQueryResource):
         allow_meta_view = True
 
         resource = "organization"
-        policy_required = "organization_id"
+        policy_required = True
 
     user_id: UUID_TYPE = UUIDField("User ID")
     address__city: str = StringField("City")
@@ -350,7 +350,7 @@ class OrganizationDetailQuery(DomainQueryResource):
         backend_model = "organization"
 
         resource = "organization"
-        policy_required = "id"
+        policy_required = True
 
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
@@ -376,7 +376,7 @@ class SentInvitationQuery(DomainQueryResource):
 
         resource = "invitation"
         backend_model = "invitation"
-        policy_required = "id"
+        policy_required = True
         # scope_required = scope.SentInvitationScopeSchema
 
     id: UUID_TYPE = PrimaryID("Invitation ID")
@@ -399,7 +399,7 @@ class ReceivedInvitationQuery(DomainQueryResource):
 
         backend_model = "invitation"
         resource = "invitation"
-        policy_required = "id"
+        policy_required = True
 
     id: UUID_TYPE = PrimaryID("Invitation ID")
     sender_id: UUID_TYPE = UUIDField("Sender User ID")
@@ -429,9 +429,10 @@ class RealmQuery(DomainQueryResource):
     description: Optional[str] = StringField("Description")
     active: Optional[bool] = BooleanField("Active")
 
-@resource('role')
+
+@resource("role")
 class RoleQuery(DomainQueryResource):
-    """ Query role information """
+    """Query role information"""
 
     class Meta(DomainQueryResource.Meta):
         include_all = False

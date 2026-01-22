@@ -11,7 +11,7 @@ class RFXMediaQueryManager(DomainQueryManager):
     __data_manager__ = MediaManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXMediaDomain.Meta.prefix
+        prefix = RFXMediaDomain.Meta.namespace
         tags = RFXMediaDomain.Meta.tags
 
 

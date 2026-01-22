@@ -49,6 +49,7 @@ class Message(TableBase):
     __tablename__ = "message"
 
     thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     subject: Mapped[Optional[str]] = mapped_column(String(1024))
     content: Mapped[Optional[str]] = mapped_column(Text)
@@ -85,6 +86,7 @@ class Message(TableBase):
 
     data: Mapped[dict] = mapped_column(JSONB, default=dict)
     context: Mapped[dict] = mapped_column(JSONB, default=dict)
+    category: Mapped[Optional[str]] = mapped_column(String(255))
 
     template_key: Mapped[Optional[str]] = mapped_column(String(255))
     template_version: Mapped[Optional[int]]

@@ -38,6 +38,7 @@ SELECT
 
     m.subject,
     m.content,
+    m.category,
     m.rendered_content,
     m.content_type,
     m.is_important,
@@ -157,6 +158,7 @@ GROUP BY
 
     m.subject,
     m.content,
+    m.category,
     m.rendered_content,
     m.content_type,
     m.is_important,

@@ -3,17 +3,15 @@ from .state import RFXCqrsStateManager
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
-from datetime import datetime
+from fluvius.query.field import StringField, UUIDField, IntegerField, DictField
 from . import scope
-from .state import RFXCqrsStateManager
 
 
 class RFXCqrsQueryManager(DomainQueryManager):
     __data_manager__ = RFXCqrsStateManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXCqrsDomain.Meta.prefix
+        prefix = RFXCqrsDomain.Meta.namespace
         tags = RFXCqrsDomain.Meta.tags
 
 
@@ -26,7 +24,7 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
-@resource('activity')
+@resource("activity")
 class ProjectActivityLogQuery(DomainQueryResource):
     """Activity log queries"""
 

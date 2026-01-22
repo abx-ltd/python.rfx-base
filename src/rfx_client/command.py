@@ -36,7 +36,7 @@ class CreateEstimator(Command):
         tags = ["project", "estimator"]
         auth_required = True
         description = "Create a new estimator (project draft)"
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateProjectEstimatorPayload
@@ -585,7 +585,7 @@ class CreatePromotion(Command):
         tags = ["promotion", "code"]
         auth_required = True
         description = "Create a new promotion code"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreatePromotionPayload
@@ -781,7 +781,7 @@ class AddTicketToProject(Command):
         tags = ["project", "ticket"]
         auth_required = True
         description = "Add ticket to project"
-        new_resource = True
+        resource_init = True
         internal = True
         policy_required = False
 
@@ -1317,7 +1317,7 @@ class CreateProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Create a new project category"
-        new_resource = False
+        resource_init = False
 
     Data = datadef.CreateProjectCategoryPayload
 
@@ -1338,7 +1338,7 @@ class UpdateProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Update project category"
-        new_resource = False
+        resource_init = False
         policy_required = False
 
     Data = datadef.UpdateProjectCategoryPayload
@@ -1357,7 +1357,7 @@ class DeleteProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Delete project category"
-        new_resource = False
+        resource_init = False
         policy_required = False
 
     Data = datadef.DeleteProjectCategoryPayload
@@ -1375,7 +1375,7 @@ class CreateWorkPackage(Command):
         key = "create-work-package"
         resources = ("work_package",)
         tags = ["work-package", "create"]
-        new_resource = True
+        resource_init = True
         auth_required = True
         description = "Create new work package"
         policy_required = True
@@ -1449,7 +1449,7 @@ class CreateWorkItem(Command):
         key = "create-work-item"
         resources = ("work_item",)
         tags = ["work-item", "create"]
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateWorkItemPayload
@@ -1501,7 +1501,7 @@ class CreateWorkItemType(Command):
         key = "create-work-item-type"
         resources = ("work_item",)
         tags = ["work-item", "type", "reference"]
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateWorkItemTypePayload
@@ -1523,7 +1523,7 @@ class UpdateWorkItemType(Command):
         tags = ["work-item", "type", "update"]
         auth_required = True
         description = "Update work item type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.UpdateWorkItemTypePayload
@@ -1542,7 +1542,7 @@ class DeleteWorkItemType(Command):
         tags = ["work-item", "type", "delete"]
         auth_required = True
         description = "Delete work item type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.DeleteWorkItemTypePayload
@@ -1559,7 +1559,7 @@ class CreateWorkItemDeliverable(Command):
         key = "create-work-item-deliverable"
         resources = ("work_item",)
         tags = ["work-item", "deliverable", "create"]
-        new_resource = True
+        resource_init = True
         auth_required = True
         description = "Create new work package deliverable"
         policy_required = False
@@ -2077,7 +2077,7 @@ class CreditUsageSummary(Command):
         tags = ["project", "credit", "usage", "summary"]
         auth_required = True
         description = "Get credit usage summary"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreditUsageSummaryPayload
@@ -2147,7 +2147,7 @@ class RemoveProjectIntegration(Command):
         description = "Remove a project integration"
         policy_required = False
         internal = False
-        new_resource = True
+        resource_init = True
 
     Data = datadef.RemoveProjectIntegrationPayload
 
@@ -2251,7 +2251,7 @@ class CreateInquiry(Command):
         tags = ["ticket", "inquiry"]
         auth_required = True
         description = "Create a new inquiry"
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateInquiryPayload
@@ -2290,7 +2290,7 @@ class CreateInquiryDraft(Command):
         tags = ["ticket", "inquiry", "draft"]
         auth_required = True
         description = "Create a new inquiry draft"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateInquiryPayload
@@ -2377,7 +2377,7 @@ class CreateTicket(Command):
         tags = ["ticket"]
         auth_required = True
         description = "Create a new ticket in project"
-        new_resource = True
+        resource_init = True
         internal = False
         policy_required = False
 
@@ -2719,7 +2719,7 @@ class CreateTag(Command):
         tags = ["tag"]
         auth_required = True
         description = "Create a new tag in project"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateTagPayload
@@ -2774,7 +2774,7 @@ class CreateTicketType(Command):
         tags = ["ticket", "ticket-type", "reference"]
         auth_required = True
         description = "Create a new ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateTicketTypePayload
@@ -2796,7 +2796,7 @@ class UpdateTicketType(Command):
         tags = ["ticket", "ticket-type", "update"]
         auth_required = True
         description = "Update a ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.UpdateTicketTypePayload
@@ -2815,7 +2815,7 @@ class DeleteTicketType(Command):
         tags = ["ticket", "ticket-type", "delete"]
         auth_required = True
         description = "Delete a ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.DeleteTicketTypePayload
@@ -2901,7 +2901,7 @@ class CreateStatus(Command):
         tags = ["status"]
         auth_required = True
         description = "Create a new status"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateStatusPayload
@@ -3400,7 +3400,7 @@ class SyncCommentFromWebhook(Command):
         description = "Sync comment from webhook event"
         policy_required = False
         internal = True
-        new_resource = True
+        resource_init = True
 
     Data = datadef.SyncCommentFromWebhookPayload
 
@@ -3511,7 +3511,7 @@ class SyncCommentFromWebhookChange(Command):
         description = "Sync comment from webhook event"
         policy_required = False
         internal = True
-        new_resource = False
+        resource_init = False
 
     Data = datadef.SyncCommentFromWebhookPayload
 
@@ -3625,7 +3625,7 @@ class UploadDocument(Command):
         tags = ["document", "upload"]
         auth_required = True
         description = "Upload a global organization document"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.UploadDocumentPayload

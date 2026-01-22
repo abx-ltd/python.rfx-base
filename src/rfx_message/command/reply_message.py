@@ -45,8 +45,8 @@ class ReplyMessage(Command):
         )
 
         # 6. Get recipients from root message and add them
-        message_sender = await agg.get_message_sender(
-            message_id=agg.get_aggroot().identifier
+        message_sender = await agg.get_message_sender_by_message_id(
+            message_id=agg.get_aggroot().identifier,
         )
         recipients = [message_sender.sender_id]
         await agg.add_recipients(data=recipients, message_id=message_id)

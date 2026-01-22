@@ -22,7 +22,7 @@ class MarkAllMessagesRead(Command):
     class Meta:
         key = "mark-all-message-read"
         resources = ("message",)
-        new_resource = True
+        resource_init = True
         tags = ["messages", "read"]
         auth_required = True
         policy_required = False

@@ -3,36 +3,36 @@ from fluvius.domain.aggregate import action
 
 class MessageSenderMixin:
     @action("remove-message-sender", resources="message")
-    async def remove_message_sender(self, message_id):
+    async def remove_message_sender(self, message_id, profile_id):
         """Remove message sender."""
         message_sender = await self.statemgr.find_one(
             "message_sender",
-            where={"message_id": message_id, "sender_id": self.context.profile_id},
+            where={"message_id": message_id, "sender_id": profile_id},
         )
         await self.statemgr.invalidate(message_sender)
 
-    @action("get-message-recipient", resources="message")
-    async def get_message_recipient(self, message_id):
-        """Get message recipient."""
-        return await self.statemgr.find_one(
-            "message_recipient",
-            where={"message_id": message_id, "recipient_id": self.context.profile_id},
-        )
-
     @action("check-message-sender", resources="message")
-    async def check_message_sender(self, message_id):
+    async def check_message_sender(self, message_id, profile_id):
         """Check if message sender exists."""
         return await self.statemgr.exist(
             "message_sender",
-            where={"message_id": message_id, "sender_id": self.context.profile_id},
+            where={"message_id": message_id, "sender_id": profile_id},
+        )
+
+    @action("get-message-sender-by-message-id", resources="message")
+    async def get_message_sender_by_message_id(self, message_id):
+        """Get message sender by message id."""
+        return await self.statemgr.find_one(
+            "message_sender",
+            where={"message_id": message_id},
         )
 
     @action("get-message-sender", resources="message")
-    async def get_message_sender(self, message_id):
+    async def get_message_sender(self, message_id, profile_id):
         """Get message sender."""
         return await self.statemgr.find_one(
             "message_sender",
-            where={"message_id": message_id, "sender_id": self.context.profile_id},
+            where={"message_id": message_id, "sender_id": profile_id},
         )
 
     @action("sender-added", resources=("message", "message_sender"))

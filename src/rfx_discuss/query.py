@@ -29,7 +29,7 @@ class RFXDiscussQueryManager(DomainQueryManager):
     __policymgr__ = RFXDiscussPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXDiscussDomain.Meta.prefix
+        prefix = RFXDiscussDomain.Meta.namespace
         tags = RFXDiscussDomain.Meta.tags
 
 

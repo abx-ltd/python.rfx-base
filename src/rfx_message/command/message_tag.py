@@ -29,7 +29,8 @@ class AddMessageTag(Command):
             )
         elif direction == types.DirectionTypeEnum.INBOUND:
             message_recipient = await agg.get_message_recipient(
-                message_id=agg.get_aggroot().identifier
+                message_id=agg.get_aggroot().identifier,
+                profile_id=agg.get_context().profile_id,
             )
             await agg.add_message_tag(
                 resource="message_recipient",
@@ -53,7 +54,7 @@ class RemoveMessageTag(Command):
         direction = payload.direction
         if direction == types.DirectionTypeEnum.OUTBOUND:
             message_sender = await agg.get_message_sender(
-                message_id=agg.get_aggroot().identifier
+                message_id=agg.get_aggroot().identifier,
             )
             await agg.remove_message_tag(
                 resource="message_sender",
@@ -62,7 +63,8 @@ class RemoveMessageTag(Command):
             )
         elif direction == types.DirectionTypeEnum.INBOUND:
             message_recipient = await agg.get_message_recipient(
-                message_id=agg.get_aggroot().identifier
+                message_id=agg.get_aggroot().identifier,
+                profile_id=agg.get_context().profile_id,
             )
             await agg.remove_message_tag(
                 resource="message_recipient",

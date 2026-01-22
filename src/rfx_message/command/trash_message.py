@@ -2,6 +2,7 @@ from . import datadef
 from . import Command
 from .. import types
 
+
 class TrashMessage(Command):
     """Trash a message for the current user."""
 
@@ -22,24 +23,51 @@ class TrashMessage(Command):
 
         send_to_themselves = False
         if direction == types.DirectionTypeEnum.OUTBOUND:
-            send_to_themselves = await agg.check_message_recipient(message_id)
+            send_to_themselves = await agg.check_message_recipient(
+                message_id, agg.get_context().profile_id
+            )
         elif direction == types.DirectionTypeEnum.INBOUND:
-            send_to_themselves = await agg.check_message_sender(message_id)
+            send_to_themselves = await agg.check_message_sender(
+                message_id, agg.get_context().profile_id
+            )
 
         if send_to_themselves:
             await agg.change_sender_box_id(
-                message_id=message_id, box_id=trashed_box._id
+                message_id=message_id,
+                box_id=trashed_box._id,
+                profile_id=agg.get_context().profile_id,
             )
             await agg.change_recipient_box_id(
-                message_id=message_id, box_id=trashed_box._id
+                message_id=message_id,
+                box_id=trashed_box._id,
+                profile_id=agg.get_context().profile_id,
+            )
+
+            # trash all messages in the thread
+            await agg.change_all_sender_box_id_of_same_thread(
+                trashed_box._id, agg.get_context().profile_id
+            )
+            await agg.change_all_recipient_box_id_of_same_thread(
+                trashed_box._id, agg.get_context().profile_id
             )
         else:
             if direction == types.DirectionTypeEnum.OUTBOUND:
                 await agg.change_sender_box_id(
-                    message_id=message_id, box_id=trashed_box._id
+                    message_id=message_id,
+                    box_id=trashed_box._id,
+                    profile_id=agg.get_context().profile_id,
+                )
+
+                # trash all messages in the thread
+                await agg.change_all_sender_box_id_of_same_thread(
+                    trashed_box._id, agg.get_context().profile_id
+                )
+                await agg.change_all_recipient_box_id_of_same_thread(
+                    trashed_box._id, agg.get_context().profile_id
                 )
             elif direction == types.DirectionTypeEnum.INBOUND:
                 await agg.change_recipient_box_id(
-                    message_id=message_id, box_id=trashed_box._id
+                    message_id=message_id,
+                    box_id=trashed_box._id,
+                    profile_id=agg.get_context().profile_id,
                 )
-
