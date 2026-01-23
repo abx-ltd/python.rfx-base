@@ -1,4 +1,5 @@
 from fluvius.domain.aggregate import action
+from typing import List
 
 
 class MessageTagMixin:
@@ -54,3 +55,13 @@ class MessageTagMixin:
         )
         for message_tag in message_tags:
             await self.statemgr.invalidate(message_tag)
+
+    @action("message-tag-added-to-resource", resources="message")
+    async def add_message_tags_to_resource(
+        self, *, resource: str, resource_id: str, keys: List[str]
+    ):
+        """Action to add tags to a message."""
+        for key in keys:
+            await self.add_message_tag(
+                resource=resource, resource_id=resource_id, key=key
+            )
