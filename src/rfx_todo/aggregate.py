@@ -29,19 +29,36 @@ class RFXTodoAggregate(Aggregate):
         await self.statemgr.update(self.rootobj, completed=completed)
         return self.rootobj
 
-    @action("todo-assigned", resources="todo")
-    async def assign_todo(self, /, assignee_id):
-        await self.statemgr.update(self.rootobj, assignee_id=assignee_id)
-        return self.rootobj
-
-    @action("todo-unassigned", resources="todo")
-    async def unassign_todo(self, /):
-        await self.statemgr.update(self.rootobj, assignee_id=None)
-        return self.rootobj
-
-    @action("todo-deleted", resources="todo")
-    async def delete_todo(self, /):
+    @action("todo-removed", resources="todo")
+    async def remove_todo(self, /):
         await self.statemgr.invalidate(self.rootobj)
-        return {"status": "deleted"}
 
+    @action("todo-item-created", resources="todo")
+    async def create_todo_item(self, /, data):
+        data = serialize_mapping(data)
+        record = self.init_resource(
+            "todo_item",
+            data,
+            _id=UUID_GENR(),
+            todo_id=self.rootobj._id,
+        )
+        await self.statemgr.insert(record)
+        return record
 
+    @action("todo-item-updated", resources="todo")
+    async def update_todo_item(self, /, data):
+        todo = self.rootobj
+        todo_item = await self.statemgr.find_one(
+            "todo_item", where=dict(todo_id=todo._id, _id=data.item_id)
+        )
+        data = serialize_mapping(data)
+        data.pop("item_id")
+        await self.statemgr.update(todo_item, **data)
+
+    @action("todo-item-removed", resources="todo")
+    async def remove_todo_item(self, /, data):
+        todo = self.rootobj
+        todo_item = await self.statemgr.find_one(
+            "todo_item", where=dict(todo_id=todo._id, _id=data.item_id)
+        )
+        self.statemgr.invalidate(todo_item)

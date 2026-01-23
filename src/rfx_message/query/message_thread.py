@@ -16,6 +16,7 @@ from ..types import (
     PriorityLevelEnum,
     ContentTypeEnum,
     MessageTypeEnum,
+    MessageCategoryEnum,
 )
 
 
@@ -56,6 +57,9 @@ class MessageThreadQuery(DomainQueryResource):
     recipient_profile: Optional[dict] = JSONField("Recipient Profile")
     subject: Optional[str] = StringField("Subject")
     content: Optional[str] = StringField("Content")
+    category: Optional[MessageCategoryEnum] = EnumField(
+        "Message Category", enum=MessageCategoryEnum
+    )
     rendered_content: Optional[str] = StringField("Rendered Content")
     content_type: Optional[ContentTypeEnum] = EnumField(
         "Content Type", enum=ContentTypeEnum

@@ -87,6 +87,11 @@ class ReplyMessagePayload(DataModel):
     Supports both template-based and direct content messages.
     """
 
+    # Recipients (required)
+    recipients: List[UUID_TYPE] = Field(
+        default_factory=list, description="List of recipient user IDs"
+    )
+
     subject: Optional[str] = Field(None, description="Message subject")
     # Message metadata
     message_type: str = Field("NOTIFICATION", description="Type of message")
@@ -190,4 +195,3 @@ class Notification(DataModel):
     render_strategy: Optional[str] = Field(
         None, description="Rendering strategy for the template"
     )
-

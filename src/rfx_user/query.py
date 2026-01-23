@@ -426,6 +426,7 @@ class GuestUserQuery(DomainQueryResource):
     full_name: str = StringField("Full Name")
     email_verified: bool = BooleanField("Email Verified")
     phone: str = StringField("Phone")
+    session_id: str = StringField("Session ID")
 
 
 @resource("realm")

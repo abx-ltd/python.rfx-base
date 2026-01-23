@@ -1,6 +1,5 @@
 from typing import Dict, Any
 from .datadef import Notification
-from fluvius.data import serialize_mapping
 from .types import (
     MessageTypeEnum,
     RenderStrategyEnum,
@@ -178,21 +177,6 @@ def notify_recipients(
     return channels
 
 
-async def set_message_category_if_provided(agg, message_id, message_category):
-    """
-    Set message category if provided.
-
-    Args:
-        agg: The aggregate instance
-        message_id: The message ID
-        message_category: The category to set (optional)
-    """
-    if message_category:
-        await agg.set_message_category(
-            resource="message", resource_id=message_id, category=message_category
-        )
-
-
 async def determine_and_process_message(
     agg, message_id, message_payload, processing_mode
 ):
@@ -234,23 +218,6 @@ async def get_processing_mode_and_client(agg, message_payload):
     return processing_mode, client
 
 
-def create_message_response(message_result, message_category=None):
-    """
-    Create a serialized response for a message operation.
-
-    Args:
-        message_result: The message result object
-        message_category: Optional message category to include
-
-    Returns:
-        Serialized response data dictionary
-    """
-    response_data = serialize_mapping(message_result)
-    if message_category:
-        response_data["category"] = message_category
-    return response_data
-
-
 def validate_box_key(box_key: str, direction: DirectionTypeEnum):
     """
     Validate box key.
@@ -259,13 +226,7 @@ def validate_box_key(box_key: str, direction: DirectionTypeEnum):
         box_key: The box key to validate
         direction: The direction of the message
     """
-    if (
-        direction == DirectionTypeEnum.INBOUND
-        and box_key == "outbox"
-    ):
+    if direction == DirectionTypeEnum.INBOUND and box_key == "outbox":
         raise BadRequestError("M00.004", "Cannot move INBOUND message to outbox")
-    if (
-        direction == DirectionTypeEnum.OUTBOUND
-        and box_key == "inbox"
-    ):
+    if direction == DirectionTypeEnum.OUTBOUND and box_key == "inbox":
         raise BadRequestError("M00.005", "Cannot move OUTBOUND message to inbox")

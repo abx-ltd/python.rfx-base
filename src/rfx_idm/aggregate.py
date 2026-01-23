@@ -430,7 +430,7 @@ class IDMAggregate(Aggregate):
         if not user:
             return {"message": f"User with id {user_id} not found."}
 
-        role = data.get("role_key")
+        role = data.get("profile_role_key")
         if role == 'OWNER':
             raise ValueError("Cannot assign OWNER role via this action.")
 
@@ -482,7 +482,7 @@ class IDMAggregate(Aggregate):
     async def assign_role_to_profile(self, data):
         """Assign system role to profile. Prevents duplicate role assignments."""
         role_key = data.get("role_key", "VIEWER")
-        profile_id = self.aggroot.identifier
+        profile_id = data.get("profile_id", str(self.aggroot.identifier))
 
         # Fetch the system role
         role = await self.statemgr.exist('ref__system_role', where=dict(key=role_key))

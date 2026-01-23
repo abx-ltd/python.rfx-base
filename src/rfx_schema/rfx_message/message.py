@@ -32,6 +32,7 @@ from .types import (
     PriorityLevelEnum,
     RenderStatusEnum,
     RenderStrategyEnum,
+    MessageCategoryEnum,
 )
 
 if TYPE_CHECKING:
@@ -86,7 +87,9 @@ class Message(TableBase):
 
     data: Mapped[dict] = mapped_column(JSONB, default=dict)
     context: Mapped[dict] = mapped_column(JSONB, default=dict)
-    category: Mapped[Optional[str]] = mapped_column(String(255))
+    category: Mapped[Optional[MessageCategoryEnum]] = mapped_column(
+        SQLEnum(MessageCategoryEnum, name="messagecategoryenum", schema=SCHEMA)
+    )
 
     template_key: Mapped[Optional[str]] = mapped_column(String(255))
     template_version: Mapped[Optional[int]]

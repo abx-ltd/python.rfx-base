@@ -19,8 +19,9 @@ class ReplyMessage(Command):
 
     async def _process(self, agg, stm, payload):
         message_payload = serialize_mapping(payload)
-
-        message_category = message_payload.pop("category", None)
+        recipients = message_payload.pop("recipients", None)
+        if not recipients:
+            raise ValueError("Recipients list cannot be empty")
 
         # 1. Create reply message with same thread_id as parent
         message_result = await agg.reply_message(data=message_payload)
@@ -30,9 +31,6 @@ class ReplyMessage(Command):
         await agg.add_sender(
             message_id=message_id, sender_id=agg.get_context().profile_id
         )
-
-        # 3. Set message category
-        await helper.set_message_category_if_provided(agg, message_id, message_category)
 
         # 4. Determine processing mode and get client
         processing_mode, client = await helper.get_processing_mode_and_client(
@@ -45,10 +43,6 @@ class ReplyMessage(Command):
         )
 
         # 6. Get recipients from root message and add them
-        message_sender = await agg.get_message_sender_by_message_id(
-            message_id=agg.get_aggroot().identifier,
-        )
-        recipients = [message_sender.sender_id]
         await agg.add_recipients(data=recipients, message_id=message_id)
 
         # 7. Notify recipients
@@ -57,7 +51,7 @@ class ReplyMessage(Command):
         )
 
         # 8. Create response
-        response_data = helper.create_message_response(message_result, message_category)
+        response_data = serialize_mapping(message_result)
 
         yield agg.create_response(
             response_data,
