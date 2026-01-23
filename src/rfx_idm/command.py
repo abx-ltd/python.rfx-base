@@ -408,7 +408,7 @@ class CreateOrganization(Command):
         resources = ("organization",)
         tags = ["organization", "create"]
         auth_required = True
-        policy_required = False
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         profile_id = UUID_GENR()

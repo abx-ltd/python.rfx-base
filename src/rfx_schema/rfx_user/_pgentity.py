@@ -94,13 +94,17 @@ user_profile_list_view = PGView(
         profile.user_id,
         profile.current_profile,
         organization.name AS organization_name,
-        profile_role.role_key AS profile_role
+        COALESCE(profile_role.role_keys, ARRAY[]::varchar[]) AS profile_roles
     FROM "{config.RFX_USER_SCHEMA}".profile AS profile
     LEFT JOIN "{config.RFX_USER_SCHEMA}".organization AS organization
         ON profile.organization_id = organization._id
-    LEFT JOIN "{config.RFX_USER_SCHEMA}".profile_role AS profile_role
-        ON profile._id = profile_role.profile_id
-        AND profile_role._deleted IS NULL;
+    LEFT JOIN (
+        SELECT profile_id, array_agg(role_key) AS role_keys
+        FROM "{config.RFX_USER_SCHEMA}".profile_role
+        WHERE _deleted IS NULL
+        GROUP BY profile_id
+    ) AS profile_role
+        ON profile._id = profile_role.profile_id;
     """
 )
 
@@ -127,12 +131,17 @@ org_member_view = PGView(
         profile.telecom__phone,
         profile.realm,
         profile.status AS profile_status,
-        profile_role.role_key AS profile_role,
+        COALESCE(profile_role.role_keys, ARRAY[]::varchar[]) AS profile_roles,
         COALESCE(policy_counts.policy_count, 0) AS policy_count
     FROM "{config.RFX_USER_SCHEMA}".profile AS profile
     JOIN "{config.RFX_USER_SCHEMA}".organization AS organization
         ON profile.organization_id = organization._id
-    JOIN "{config.RFX_USER_SCHEMA}".profile_role AS profile_role
+    LEFT JOIN (
+        SELECT profile_id, array_agg(role_key) AS role_keys
+        FROM "{config.RFX_USER_SCHEMA}".profile_role
+        WHERE _deleted IS NULL
+        GROUP BY profile_id
+    ) AS profile_role
         ON profile._id = profile_role.profile_id
     LEFT JOIN LATERAL (
         SELECT COUNT(*) AS policy_count

@@ -28,3 +28,6 @@ VALIDATE_CSRF_TOKEN = fastapi_config.VALIDATE_CSRF_TOKEN
 GUEST_JWT_SECRET = None
 GUEST_JWT_ALGORITHM = "HS256"
 GUEST_JWT_ISSUER = "rfx-user-guest-auth"
+
+API_BASE_URL = None
+NAMESPACE = "user-profile"

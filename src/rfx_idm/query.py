@@ -212,7 +212,7 @@ class UserProfileQuery(DomainQueryResource):
     status: str = StringField("Status")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     organization_name: str = StringField("Organization Name")
-    profile_role: str = StringField("Role")
+    profile_roles: str = StringField("Roles", array=True)
 
 
 @resource("organization-member")
@@ -239,7 +239,7 @@ class ProfileListQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     organization_name: str = StringField("Organization Name")
     profile_status: str = StringField("Status")
-    profile_role: str = StringField("Role")
+    profile_roles: str = StringField("Roles", array=True)
     policy_count: int = StringField("Policy Count")
 
 

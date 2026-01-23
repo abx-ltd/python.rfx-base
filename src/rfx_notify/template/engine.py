@@ -55,6 +55,14 @@ class JinjaEngine(TemplateEngine):
         template = self.env.from_string(template_body)
         return template.render(**data)
 
+    def validate_syntax(self, template_body: str) -> bool:
+        try:
+            self.env.parse(template_body)
+            return True
+        except Exception as e:
+            logger.warning(f"Jinja2 syntax error: {e}")
+            return False
+
 
 class TextEngine(TemplateEngine):
     """Simple text template engine with basic variable substitution."""

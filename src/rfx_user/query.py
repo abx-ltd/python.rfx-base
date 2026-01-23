@@ -45,14 +45,15 @@ async def accept_invitation(
             return {"error": "Invitation not found"}
         if token != invitation.token:
             return {"error": "Invalid invitation token"}
-        if invitation.user_id != context.profile.user_id:
+        if invitation.user_id == context.profile.usr_id:
             return {"error": "Invitation does not belong to the current user"}
-        if invitation.status != InvitationStatusEnum.PENDING:
+        if invitation.status.value != InvitationStatusEnum.PENDING.value:
             return {"error": f"Invitation status is {invitation.status}, cannot accept"}
         existing_profile = await query_manager.data_manager.exist(
             "profile",
             where=dict(
-                user_id=invitation.user_id, organization_id=invitation.organization_id
+                user_id=str(invitation.user_id),
+                organization_id=str(invitation.organization_id)
             ),
         )
         if existing_profile:
@@ -60,7 +61,7 @@ async def accept_invitation(
         current_time = datetime.now(timezone(timedelta(hours=7)))
         if invitation.expires_at and invitation.expires_at < current_time:
             await query_manager.data_manager.update(
-                invitation, status=InvitationStatusEnum.EXPIRED
+                invitation, status=InvitationStatusEnum.EXPIRED.value
             )
             invitation_status_record = dict(
                 _id=UUID_GENR(),
@@ -74,19 +75,19 @@ async def accept_invitation(
             return {"error": "Invitation has expired"}
 
         await query_manager.data_manager.update(
-            invitation, status=InvitationStatusEnum.ACCEPTED
+            invitation, status=InvitationStatusEnum.ACCEPTED.value
         )
 
         invitation_status_record = dict(
             _id=UUID_GENR(),
             invitation_id=invitation._id,
-            src_state=InvitationStatusEnum.ACCEPTED,
-            dst_state=InvitationStatusEnum.ACCEPTED,
+            src_state=InvitationStatusEnum.ACCEPTED.value,
+            dst_state=InvitationStatusEnum.ACCEPTED.value,
         )
         await query_manager.data_manager.add_entry(
             "invitation_status", **invitation_status_record
         )
-        user = await query_manager.data_manager.fetch("user", context.profile.user_id)
+        user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
         if not user:
             return {"error": "User not found"}
         profile_record = dict(
@@ -113,6 +114,24 @@ async def accept_invitation(
         await query_manager.data_manager.add_entry(
             "profile_status", **profile_status_record
         )
+
+        # Assign VIEWER role to the new profile
+        viewer_role = await query_manager.data_manager.exist(
+            "ref__system_role", where=dict(key="VIEWER")
+        )
+        if not viewer_role:
+            return {"error": "System role 'VIEWER' not found"}
+
+        profile_role_record = dict(
+            _id=UUID_GENR(),
+            profile_id=profile_record["_id"],
+            role_key="VIEWER",
+            role_id=viewer_role._id,
+            role_source="system",
+        )
+        await query_manager.data_manager.add_entry(
+            "profile_role", **profile_role_record
+        )
         return {"success": True, "profile_id": str(profile_record["_id"])}
 
 
@@ -128,9 +147,9 @@ async def reject_invitation(
             return {"error": "Invitation not found"}
         if token != invitation.token:
             return {"error": "Invalid invitation token"}
-        if invitation.user_id != context.profile.user_id:
+        if invitation.user_id == context.profile.usr_id:
             return {"error": "Invitation does not belong to the current user"}
-        if invitation.status != "PENDING":
+        if invitation.status.value != "PENDING":
             return {"error": f"Invitation status is {invitation.status}, cannot reject"}
         await query_manager.data_manager.update(invitation, status="REJECTED")
         await query_manager.data_manager.add_entry(
@@ -475,7 +494,7 @@ class ProfileListQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     organization_name: str = StringField("Organization Name")
     profile_status: str = StringField("Status")
-    profile_role: str = StringField("Role")
+    profile_roles: str = StringField("Roles", array=True)
     policy_count: int = StringField("Policy Count")
 
 
