@@ -430,10 +430,6 @@ class IDMAggregate(Aggregate):
         if not user:
             return {"message": f"User with id {user_id} not found."}
 
-        role = data.get("profile_role_key")
-        if role == 'OWNER':
-            raise ValueError("Cannot assign OWNER role via this action.")
-
         record = self.init_resource(
             "profile",
             **data,

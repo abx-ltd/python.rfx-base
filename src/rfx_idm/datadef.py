@@ -194,8 +194,7 @@ class CreateProfilePayload(DataModel):
 class CreateProfileInOrgPayload(CreateProfilePayload):
     """Payload for creating user profiles within organizations."""
     organization_id: str
-    profile_role_key: str = 'VIEWER'  # Default role for new profile
-    profile_role_source: Optional[str] = 'SYSTEM'  # Default role source
+
 
 class UpdateProfilePayload(DataModel):
     """Payload for updating user profiles within organizations."""
@@ -248,7 +247,7 @@ class UpdateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
-    role_key: Optional[str] = 'VIEWER'  # To update profile role
+
 
     @model_validator(mode='after')
     def validate_at_least_one_field(self):

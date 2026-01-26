@@ -636,15 +636,7 @@ class CreateProfileInOrg(Command):
 
     async def _process(self, agg, stm, payload):
         profile_data = serialize_mapping(payload)
-        profile_data.pop("profile_role_key", None)
-        profile_data.pop("profile_role_source", None)
         result = await agg.create_profile_in_org(profile_data)
-        profile_role = dict(
-            profile_id=result.get("profile_id"),
-            role_key=payload.profile_role_key,
-            role_source=payload.profile_role_source,
-        )
-        await agg.assign_role_to_profile(profile_role)
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
 
@@ -682,9 +674,7 @@ class UpdateProfile(Command):
 
     async def _process(self, agg, stm, payload):
         payload = serialize_mapping(payload)
-        new_role = payload.pop("role_key", "VIEWER")
         await agg.update_profile(payload)
-        await agg.assign_role_to_profile({"role_key": new_role})
 
 
 class DeactivateProfile(Command):
