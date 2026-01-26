@@ -9,6 +9,7 @@ from datetime import date, datetime
 from typing import Optional, List
 from pydantic import Field, model_validator
 
+
 from fluvius.data import DataModel, UUID_TYPE
 
 from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum
@@ -190,6 +191,7 @@ class CreateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
+    role_keys: list[str] = Field(default_factory=lambda: ["VIEWER"])
 
 class CreateProfileInOrgPayload(CreateProfilePayload):
     """Payload for creating user profiles within organizations."""
@@ -247,6 +249,7 @@ class UpdateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
+    role_keys: Optional[list[str]] = None
 
 
     @model_validator(mode='after')

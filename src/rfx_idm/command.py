@@ -610,11 +610,15 @@ class CreateProfile(Command):
     Data = datadef.CreateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        profile = await agg.create_profile(serialize_mapping(payload))
-        profile_role = dict(
-            profile_id=profile._id, role_key="VIEWER", role_source="SYSTEM"
-        )
-        await agg.assign_role_to_profile(profile_role)
+        data = serialize_mapping(payload)
+        role_keys = data.pop("role_keys", ["VIEWER"])
+        profile = await agg.create_profile(data)
+
+        await agg.update_profile_roles({
+            "profile_id": profile._id,
+            "role_keys": role_keys
+        })
+
         yield agg.create_response(serialize_mapping(profile), _type="idm-response")
 
 
@@ -636,7 +640,15 @@ class CreateProfileInOrg(Command):
 
     async def _process(self, agg, stm, payload):
         profile_data = serialize_mapping(payload)
+        role_keys = profile_data.pop("role_keys", ["VIEWER"])
         result = await agg.create_profile_in_org(profile_data)
+
+        # Assign roles
+        await agg.update_profile_roles({
+            "profile_id": result.get("profile_id"),
+            "role_keys": role_keys
+        })
+
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
 
@@ -674,7 +686,14 @@ class UpdateProfile(Command):
 
     async def _process(self, agg, stm, payload):
         payload = serialize_mapping(payload)
+        role_keys = payload.pop("role_keys", None)
+
         await agg.update_profile(payload)
+
+        if role_keys is not None:
+            await agg.update_profile_roles({
+                "role_keys": role_keys
+            })
 
 
 class DeactivateProfile(Command):

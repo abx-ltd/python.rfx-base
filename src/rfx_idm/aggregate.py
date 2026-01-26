@@ -520,6 +520,69 @@ class IDMAggregate(Aggregate):
         await self.statemgr.insert(record)
         return {"message": f"Role {role_key} assigned to profile"}
 
+    @action("profile-roles-updated", resources=("organization", "profile"))
+    async def update_profile_roles(self, data):
+        """Sync profile roles with the provided list of role keys."""
+        role_keys = data.get("role_keys", [])
+        profile_id = data.get("profile_id", str(self.aggroot.identifier))
+
+        if not role_keys:
+             raise ValueError("Role keys list cannot be empty.")
+
+        # Unique keys
+        role_keys = list(set(role_keys))
+
+        # Validation for exclusive roles
+        if ('ADMIN' in role_keys or 'OWNER' in role_keys) and len(role_keys) > 1:
+            raise ValueError("ADMIN or OWNER roles cannot be combined with other roles.")
+
+        # Fetch all provided system roles
+        system_roles = {}
+        for key in role_keys:
+            role = await self.statemgr.exist('ref__system_role', where=dict(key=key))
+            if not role:
+                raise ValueError(f"System role '{key}' does not exist.")
+            system_roles[key] = role
+
+        # Fetch existing profile roles
+        existing_roles = await self.statemgr.find_all('profile_role', where=dict(
+            profile_id=profile_id,
+        ))
+        existing_keys = {r.role_key for r in existing_roles}
+
+        # Calculate roles to add and remove
+        to_add = [k for k in role_keys if k not in existing_keys]
+        to_remove = [r for r in existing_roles if r.role_key not in role_keys]
+
+        # Check OWNER constraints for new assignments
+        if 'OWNER' in to_add:
+            all_owner_roles = await self.statemgr.find_all('profile_role', where=dict(
+                role_key='OWNER'
+            ))
+            for owner_role in all_owner_roles:
+                # If checking against DB, ensure we filter by organization.
+                # However, statemgr.find_all doesn't join automatically.
+                # Must fetch profile.
+                if owner_role.profile_id != profile_id: # Ignore self if already owner (limit handled by to_add check)
+                    owner_profile = await self.statemgr.fetch('profile', owner_role.profile_id)
+                    if owner_profile and owner_profile.organization_id == self.context.organization_id:
+                         raise ValueError("Organization can have only one OWNER role assigned.")
+
+        # Perform updates
+        for role_record in to_remove:
+            await self.statemgr.invalidate_data('profile_role', role_record._id)
+
+        for key in to_add:
+            role = system_roles[key]
+            record = self.init_resource("profile_role",
+                                      profile_id=profile_id,
+                                      role_key=key,
+                                      role_id=role._id,
+                                      _id=UUID_GENR())
+            await self.statemgr.insert(record)
+
+        return {"message": "Profile roles updated", "added": to_add, "removed": [r.role_key for r in to_remove]}
+
 
     @action("role-revoked-from-profile", resources="profile")
     async def revoke_role_from_profile(self, data):
