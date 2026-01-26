@@ -184,6 +184,7 @@ class SendInvitationPayload(DataModel):
     email: str
     duration: Optional[int] = Field(default=10)
     message: str | None = None
+    realm: str
 
 class AssignRolePayload(DataModel):
     """Payload for assigning roles to profiles."""

@@ -243,9 +243,58 @@ class UserProfileAggregate(Aggregate):
         email = data.get("email")
         duration = data.get("duration")
         message = data.get("message", "")
+        realm = data.get("realm")
+        realm_exist = await self.statemgr.exist("realm", where=dict(key=realm))
+        if not realm_exist:
+            raise ValueError(f"realm {realm} is not existed")
         user = await self.statemgr.exist("user", where=dict(verified_email=email))
         if not user:
-            return {"error": f"User with email {email} not found."}
+            raise ValueError(f"User with email {email} not found!")
+        exist_profile = self.statemgr.exist(
+            "profile",
+            realm=realm,
+            organization_id=self.context.organization_id,
+            user_id=user_id,
+            status='ACTIVE'
+        )
+        if exist_profile:
+            raise ValueError(f"User already have an ACTIVE profile in the current organization")
+
+        # Check for existing pending invitations
+        existing_invitations = await self.statemgr.find_all(
+            "invitation",
+            where=dict(
+                user_id=user._id,
+                organization_id=self.context.organization_id,
+                realm=realm,
+                status=InvitationStatusEnum.PENDING.value
+            )
+        )
+
+        current_time = datetime.utcnow()
+        for inv in existing_invitations:
+            if inv.expires_at and inv.expires_at > current_time:
+                 raise ValueError("User already has a pending invitation for this organization and realm.")
+
+        # Rate limit check
+        window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
+        max_requests = config.INVITATION_MAX_REQUESTS_PER_WINDOW
+        window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+
+        # We need to fetch all invitations for this user to check the rate limit
+        # reusing existing_invitations is not enough because it only fetches PENDING ones
+        all_recent_invitations = await self.statemgr.find_all(
+            "invitation",
+            where=dict(
+                sender_id=self.context.user_id,
+                **{"_created.gt": window_start}
+            )
+        )
+
+        recent_count = len(all_recent_invitations)
+        if recent_count >= max_requests:
+            raise ValueError(f"Too many invitations sent. Please wait {window_minutes} minutes.")
+
         invitation_record = dict(
             _id=UUID_GENR(),
             sender_id=self.context.user_id,
@@ -256,11 +305,14 @@ class UserProfileAggregate(Aggregate):
             status=InvitationStatusEnum.PENDING.value,
             expires_at=datetime.utcnow() + timedelta(days=duration),
             message=message,
-            duration=duration
+            duration=duration,
+            realm=realm,
         )
+
         record = self.init_resource("invitation", invitation_record)
         await self.statemgr.insert(record)
         await self.set_invitation_status(record, InvitationStatusEnum.PENDING)
+
 
         # Send invitation email
         try:

@@ -43,6 +43,7 @@ class Invitation(TableBase):
     sender_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=False
     )
+    realm: Mapped[str] = mapped_column(String(255))
     profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id")
     )

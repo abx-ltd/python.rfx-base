@@ -45,19 +45,21 @@ async def accept_invitation(
             return {"error": "Invitation not found"}
         if token != invitation.token:
             return {"error": "Invalid invitation token"}
-        if invitation.user_id == context.profile.usr_id:
+        if str(invitation.user_id) != str(context.profile.usr_id):
             return {"error": "Invitation does not belong to the current user"}
         if invitation.status.value != InvitationStatusEnum.PENDING.value:
             return {"error": f"Invitation status is {invitation.status}, cannot accept"}
         existing_profile = await query_manager.data_manager.exist(
             "profile",
             where=dict(
-                user_id=str(invitation.user_id),
-                organization_id=str(invitation.organization_id)
+                user_id=context.profile.usr_id,
+                organization_id=invitation.organization_id,
+                realm=invitation.realm,
+                status='ACTIVE'
             ),
         )
         if existing_profile:
-            return {"error": "User already has a profile in this organization"}
+            return {"error": "User already has an active profile in this organization's realm"}
         current_time = datetime.now(timezone(timedelta(hours=7)))
         if invitation.expires_at and invitation.expires_at < current_time:
             await query_manager.data_manager.update(
@@ -90,6 +92,17 @@ async def accept_invitation(
         user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
         if not user:
             return {"error": "User not found"}
+        realm_profiles = await query_manager.data_manager.find_all(
+            "profile",
+            where=dict(
+                user_id=str(invitation.user_id),
+                realm=invitation.realm,
+                status='ACTIVE',
+                current_profile=True
+            )
+        )
+        for profile in realm_profiles:
+            await query_manager.data_manager.update(profile, current_profile=False)
         profile_record = dict(
             _id=UUID_GENR(),
             organization_id=invitation.organization_id,
@@ -102,7 +115,8 @@ async def accept_invitation(
             telecom__email=user.telecom__email,
             telecom__phone=user.telecom__phone,
             status="ACTIVE",
-            current_profile=False,
+            current_profile=True,
+            realm=invitation.realm
         )
         await query_manager.data_manager.add_entry("profile", **profile_record)
         profile_status_record = dict(
@@ -132,7 +146,9 @@ async def accept_invitation(
         await query_manager.data_manager.add_entry(
             "profile_role", **profile_role_record
         )
-        return {"success": True, "profile_id": str(profile_record["_id"])}
+
+        redirect_url = config.REALM_URL_MAPPER.get(invitation.realm, "/")
+        return RedirectResponse(redirect_url, status_code=303)
 
 
 @endpoint(".reject-invitation/{invitation_id}")
