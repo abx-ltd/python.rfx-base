@@ -469,15 +469,13 @@ class CreateProfile(Command):
 
     async def _process(self, agg, stm, payload):
         data = serialize_mapping(payload)
-        profile_role_key = data.pop("profile_role_key", "VIEWER")
-        profile_role_source = data.pop("profile_role_source", "SYSTEM")
+        role_keys = data.pop("role_keys", ["VIEWER"])
         profile = await agg.create_profile(data)
-        profile_role = dict(
-            profile_id=profile._id,
-            role_key=profile_role_key,
-            role_source=profile_role_source,
-        )
-        await agg.assign_role_to_profile(profile_role)
+
+        await agg.update_profile_roles({
+            "profile_id": profile._id,
+            "role_keys": role_keys
+        })
         yield agg.create_response(
             serialize_mapping(profile), _type="user-profile-response"
         )
@@ -516,7 +514,14 @@ class UpdateProfile(Command):
     Data = datadef.UpdateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        await agg.update_profile(payload)
+        data = serialize_mapping(payload)
+        role_keys = data.pop("role_keys", None)
+        await agg.update_profile(data)
+
+        if role_keys is not None:
+            await agg.update_profile_roles({
+                 "role_keys": role_keys
+            })
 # ---------- Profile Role ----------
 
 

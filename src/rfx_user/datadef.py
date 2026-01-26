@@ -104,11 +104,11 @@ class CreateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
+    role_keys: list[str] = Field(default_factory=lambda: ["VIEWER"])
 
 class CreateProfileInOrgPayload(CreateProfilePayload):
     """Payload for creating user profiles within organizations."""
-    profile_role_key: str = 'VIEWER'  # Default role for new profile
-    profile_role_source: Optional[str] = 'SYSTEM'  # Default role source
+    pass
 
 class UpdateProfilePayload(DataModel):
     """Payload for updating user profiles within organizations."""
@@ -161,6 +161,7 @@ class UpdateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
+    role_keys: Optional[list[str]] = None
 
     @model_validator(mode='after')
     def validate_at_least_one_field(self):
