@@ -1,7 +1,7 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
-
+from fluvius.domain.aggregate import Aggregate, action
 
 class RFXTodoAggregate(Aggregate):
     """Todo Aggregate - CRUD operations for todo items."""
@@ -12,7 +12,7 @@ class RFXTodoAggregate(Aggregate):
         record = self.init_resource(
             "todo",
             data,
-            id=UUID_GENR(),
+            _id=UUID_GENR(),
             completed=False if data.get("completed") is None else data.get("completed"),
         )
         await self.statemgr.insert(record)
@@ -61,4 +61,4 @@ class RFXTodoAggregate(Aggregate):
         todo_item = await self.statemgr.find_one(
             "todo_item", where=dict(todo_id=todo._id, _id=data.item_id)
         )
-        self.statemgr.invalidate(todo_item)
+        await self.statemgr.invalidate(todo_item)
