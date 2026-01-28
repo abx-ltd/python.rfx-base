@@ -42,13 +42,14 @@ WITH thread_agg AS (
             ta.message_count,
             'RECIPIENT'::text AS root_type,
             r.direction,
-            array_agg(DISTINCT mt.key) FILTER (WHERE mt.key IS NOT NULL) AS tags
+            array_agg(DISTINCT t.key) FILTER (WHERE t.key IS NOT NULL) AS tags
            FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient r
              JOIN {config.RFX_MESSAGE_SCHEMA}.message m ON m._id = r.message_id
              JOIN {config.RFX_MESSAGE_SCHEMA}.message_sender s ON s.message_id = m._id AND s._deleted IS NULL
              LEFT JOIN thread_agg ta ON ta.thread_id = m.thread_id
              LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb ON mb._id = r.box_id AND mb._deleted IS NULL
              LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt ON mt.resource::text = 'message_recipient'::text AND mt.resource_id = r._id AND mt._deleted IS NULL
+             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.tag t ON t._id = mt.tag_id AND t._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp ON sp._id = s.sender_id AND sp._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp ON rp._id = r.recipient_id AND rp._deleted IS NULL
           WHERE r._deleted IS NULL AND NOT (s.sender_id = r.recipient_id AND s.box_id = r.box_id)
@@ -84,13 +85,14 @@ WITH thread_agg AS (
             ta.message_count,
             'SENDER'::text AS root_type,
             s.direction,
-            array_agg(DISTINCT mt.key) FILTER (WHERE mt.key IS NOT NULL) AS tags
+            array_agg(DISTINCT t.key) FILTER (WHERE t.key IS NOT NULL) AS tags
            FROM {config.RFX_MESSAGE_SCHEMA}.message_sender s
              JOIN {config.RFX_MESSAGE_SCHEMA}.message m ON m._id = s.message_id
              LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_recipient r ON r.message_id = m._id AND r._deleted IS NULL
              LEFT JOIN thread_agg ta ON ta.thread_id = m.thread_id
              LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb ON mb._id = s.box_id AND mb._deleted IS NULL
              LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt ON mt.resource::text = 'message_sender'::text AND mt.resource_id = s._id AND mt._deleted IS NULL
+             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.tag t ON t._id = mt.tag_id AND t._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp ON sp._id = s.sender_id AND sp._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp ON rp._id = r.recipient_id AND rp._deleted IS NULL
           WHERE s._deleted IS NULL

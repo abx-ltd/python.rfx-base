@@ -20,8 +20,14 @@ class MessageTag(TableBase):
 
     resource: Mapped[str] = mapped_column(String(255))
     resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    key: Mapped[str] = mapped_column(String(255))
+    tag_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 
     __table_args__ = (
-        UniqueConstraint("resource", "resource_id", "key", "_deleted", name="uix_message_tag_deleted"),
+        UniqueConstraint(
+            "resource",
+            "resource_id",
+            "tag_id",
+            "_deleted",
+            name="uix_message_tag_deleted",
+        ),
     )

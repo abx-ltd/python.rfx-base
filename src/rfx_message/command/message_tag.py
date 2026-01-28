@@ -22,22 +22,22 @@ class AddMessageTag(Command):
             message_sender = await agg.get_message_sender_by_message_id(
                 message_id=agg.get_aggroot().identifier
             )
-            for key in payload.keys:
+            for tag_id in payload.tag_ids:
                 await agg.add_message_tag(
                     resource="message_sender",
                     resource_id=message_sender._id,
-                    key=key,
+                    tag_id=tag_id,
                 )
         elif direction == types.DirectionTypeEnum.INBOUND:
             message_recipient = await agg.get_message_recipient(
                 message_id=agg.get_aggroot().identifier,
                 profile_id=agg.get_context().profile_id,
             )
-            for key in payload.keys:
+            for tag_id in payload.tag_ids:
                 await agg.add_message_tag(
                     resource="message_recipient",
                     resource_id=message_recipient._id,
-                    key=key,
+                    tag_id=tag_id,
                 )
 
 
@@ -58,22 +58,22 @@ class RemoveMessageTag(Command):
             message_sender = await agg.get_message_sender_by_message_id(
                 message_id=agg.get_aggroot().identifier,
             )
-            for key in payload.keys:
+            for tag_id in payload.tag_ids:
                 await agg.remove_message_tag_from_resource(
                     resource="message_sender",
                     resource_id=message_sender._id,
-                    key=key,
+                    tag_id=tag_id,
                 )
         elif direction == types.DirectionTypeEnum.INBOUND:
             message_recipient = await agg.get_message_recipient(
                 message_id=agg.get_aggroot().identifier,
                 profile_id=agg.get_context().profile_id,
             )
-            for key in payload.keys:
+            for tag_id in payload.tag_ids:
                 await agg.remove_message_tag_from_resource(
                     resource="message_recipient",
                     resource_id=message_recipient._id,
-                    key=key,
+                    tag_id=tag_id,
                 )
 
 
@@ -101,7 +101,7 @@ class UpdateAllMessageTags(Command):
             await agg.add_message_tags_to_resource(
                 resource="message_sender",
                 resource_id=message_sender._id,
-                keys=payload.keys,
+                tag_ids=payload.tag_ids,
             )
         elif direction == types.DirectionTypeEnum.INBOUND:
             message_recipient = await agg.get_message_recipient(
@@ -115,5 +115,5 @@ class UpdateAllMessageTags(Command):
             await agg.add_message_tags_to_resource(
                 resource="message_recipient",
                 resource_id=message_recipient._id,
-                keys=payload.keys,
+                tag_ids=payload.tag_ids,
             )

@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import Field
-from fluvius.data import DataModel
+from fluvius.data import DataModel, UUID_TYPE
 from typing import List
 from ..types import DirectionTypeEnum
 
@@ -36,7 +36,7 @@ class AddMessageTagPayload(DataModel):
         default=DirectionTypeEnum.INBOUND,
         description="Direction to add tag: INBOUND (inbox) or OUTBOUND (outbox). If None, add tag for both if user sent to themselves.",
     )
-    keys: List[str] = Field(..., description="Keys of the tags")
+    tag_ids: List[UUID_TYPE] = Field(..., description="IDs of the tags")
 
 
 class RemoveMessageTagPayload(DataModel):
@@ -46,7 +46,7 @@ class RemoveMessageTagPayload(DataModel):
         default=DirectionTypeEnum.INBOUND,
         description="Direction to remove tag: INBOUND (inbox) or OUTBOUND (outbox). If None, remove tag for both if user sent to themselves.",
     )
-    keys: List[str] = Field(..., description="Keys of the tags")
+    tag_ids: List[UUID_TYPE] = Field(..., description="IDs of the tags")
 
 
 class UpdateAllMessageTagsPayload(DataModel):
@@ -56,4 +56,4 @@ class UpdateAllMessageTagsPayload(DataModel):
         default=DirectionTypeEnum.INBOUND,
         description="Direction to update tags: INBOUND (inbox) or OUTBOUND (outbox). If None, update tags for both if user sent to themselves.",
     )
-    keys: List[str] = Field(..., description="Keys of the tags")
+    tag_ids: List[UUID_TYPE] = Field(..., description="IDs of the tags")
