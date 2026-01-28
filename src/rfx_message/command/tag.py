@@ -53,5 +53,5 @@ class RemoveTag(Command):
 
     async def _process(self, agg, stm, payload):
         tag = await agg.find_tag(tag_id=agg.get_aggroot().identifier)
+        await agg.remove_message_tag_from_tag(tag_id=tag._id)
         await agg.remove_tag()
-        await agg.remove_message_tag_from_tag(key=tag.key)
