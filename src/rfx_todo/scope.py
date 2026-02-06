@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class TodoScopeSchema(BaseModel):
-    scope_id: Optional[UUID_TYPE] = None
+    profile_id: Optional[UUID_TYPE] = None
 
 
 class TodoItemScopeSchema(BaseModel):

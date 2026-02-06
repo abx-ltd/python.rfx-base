@@ -9,38 +9,29 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import (
-    Boolean,
     String,
     Text,
-    DateTime,
+    Enum as SQLEnum,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-from datetime import datetime
 from typing import Optional
 from . import TableBase, SCHEMA
+from .types import TodoStatusEnum
 
 
 class Todo(TableBase):
     __tablename__ = "todo"
     __table_args__ = {"schema": SCHEMA}
 
+    resource: Mapped[Optional[str]] = mapped_column(String(24))
+    resource_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    completed: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    scope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-
-
-class TodoItem(TableBase):
-    __tablename__ = "todo_item"
-    __table_args__ = {"schema": SCHEMA}
-
-    todo_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    type: Mapped[str] = mapped_column(String(255), nullable=False)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    due_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
+    status: Mapped[TodoStatusEnum] = mapped_column(
+        SQLEnum(TodoStatusEnum, name="todostatusenum", schema=SCHEMA),
+        default=TodoStatusEnum.NEW,
+        nullable=False,
     )
+    profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    data_payload: Mapped[dict] = mapped_column(JSONB, default=dict)
