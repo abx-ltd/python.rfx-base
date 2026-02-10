@@ -247,15 +247,9 @@ class ProfileQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
         backend_model = "_profile_list"
+        policy_required = False
 
-        excluded_fields = [
-            "_updated",
-            "_updater",
-            "_creator",
-            "_created",
-            "_deleted",
-            "_etag",
-        ]
+        excluded_fields = ["_updated", "_updater", "_creator", "_created", "_deleted", "_etag"]
 
     @classmethod
     def base_query(cls, context, scope):
@@ -541,3 +535,29 @@ class ProfileListQuery(DomainQueryResource):
 #     organization_id: UUID_TYPE = UUIDField("Organization ID")
 #     user_id: UUID_TYPE = UUIDField("User ID")
 #     organization_name: str = StringField("Organization Name")
+
+
+@resource('profile-domain')
+class ProfileDomainQuery(DomainQueryResource):
+    """List domains that a profile has access to"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"id": context.profile._id}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = False
+        resource = "profile"
+        backend_model = "_profile_domain"
+
+        policy_required = False
+
+    id: UUID_TYPE = PrimaryID("Profile ID")
+    user_id: UUID_TYPE = UUIDField("User ID")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    realm: Optional[str] = StringField("Realm")
+    is_super_admin: bool = BooleanField("Is Super Admin")
+    domains: Optional[str] = StringField("Domains", array=True)
+

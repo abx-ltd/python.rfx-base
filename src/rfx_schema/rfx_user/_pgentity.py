@@ -294,6 +294,56 @@ UNION ALL
     """
 )
 
+user_profile_domain_view = PGView(
+    schema=config.RFX_USER_SCHEMA,
+    signature="_profile_domain",
+    definition=f"""
+    SELECT
+        profile._created,
+        profile._creator,
+        profile._deleted,
+        profile._etag,
+        profile._id,
+        profile._updated,
+        profile._updater,
+        profile.user_id,
+        profile.organization_id,
+        profile.realm,
+        profile._realm,
+        COALESCE(
+            (usr.realm_access->'roles' @> '["sys_admin"]'::jsonb),
+            false
+        ) AS is_super_admin,
+        COALESCE(
+            array_agg(DISTINCT pol_res.domain) FILTER (WHERE pol_res.domain IS NOT NULL),
+            ARRAY[]::varchar[]
+        ) AS domains
+    FROM "{config.RFX_USER_SCHEMA}".profile AS profile
+    LEFT JOIN "{config.RFX_USER_SCHEMA}".user AS usr
+        ON profile.user_id = usr._id
+    LEFT JOIN "{config.RFX_USER_SCHEMA}".profile_role AS pro_rol
+        ON profile._id = pro_rol.profile_id AND pro_rol._deleted IS NULL
+    LEFT JOIN "{config.RFX_POLICY_SCHEMA}".policy_role AS pol_rol
+        ON pro_rol.role_key = pol_rol.role_key
+    LEFT JOIN "{config.RFX_POLICY_SCHEMA}".policy_resource AS pol_res
+        ON pol_rol.policy_key = pol_res.policy_key
+    WHERE profile._deleted IS NULL
+    GROUP BY
+        profile._id,
+        profile._created,
+        profile._creator,
+        profile._deleted,
+        profile._etag,
+        profile._updated,
+        profile._updater,
+        profile.user_id,
+        profile.organization_id,
+        profile.realm,
+        profile._realm,
+        usr.realm_access;
+    """
+)
+
 def register_pg_entities(allow):
     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
     if not allow_flag:
@@ -305,6 +355,7 @@ def register_pg_entities(allow):
         org_member_view,
         policy_user_profile_view,
         policy_idm_profile_view,
+        user_profile_domain_view,
     ])
 
 register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))

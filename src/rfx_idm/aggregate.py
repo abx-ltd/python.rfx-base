@@ -82,6 +82,11 @@ class IDMAggregate(Aggregate):
         # Use provided _id (from Keycloak) if available, otherwise generate new one
         user_id = data.get("_id", UUID_GENR())
 
+        existed_user = await self.statemgr.exist("user", where=dict(_id=user_id))
+        if existed_user:
+            raise ValueError("User Already Existed")
+
+
         record = self.init_resource(
             "user",
             data,
@@ -417,18 +422,20 @@ class IDMAggregate(Aggregate):
         """Create user profile within organization with role assignment."""
         user_id = data.get("user_id", None)
         if user_id is None or user_id == self.context.user_id:
-            return {"message": "Cannot create profile for current user."}
+            raise ValueError("Cannot create profile for current user.")
+
         existing_profiles = await self.statemgr.find_all("profile", where=dict(
             user_id=user_id,
             organization_id=data.get("organization_id"),
+            realm=data.get("realm"),
             status='ACTIVE'
         ))
         if existing_profiles:
-            return {"message": "Active profile already exists for user in this organization."}
+            raise ValueError("Active profile already exists for user in this organization.")
 
         user = await self.statemgr.fetch('user', user_id)
         if not user:
-            return {"message": f"User with id {user_id} not found."}
+            raise ValueError(f"User with id {user_id} not found.")
 
         record = self.init_resource(
             "profile",
@@ -506,14 +513,24 @@ class IDMAggregate(Aggregate):
 
         # If assigning OWNER, check no other OWNER exists in org
         if role_key == 'OWNER':
-            all_owner_roles = await self.statemgr.find_all('profile_role', where=dict(
-                role_key='OWNER'
-            ))
-            # Check if any owner is in the same organization
-            for owner_role in all_owner_roles:
-                owner_profile = await self.statemgr.fetch('profile', owner_role.profile_id)
-                if owner_profile and owner_profile.organization_id == self.context.organization_id:
-                    raise ValueError("Organization can have only one OWNER role assigned.")
+            current_profile = await self.statemgr.fetch("profile", profile_id)
+
+            # Find all OWNER roles in the system
+            existing_owner_roles = await self.statemgr.find_all(
+                "profile_role",
+                where=dict(role_key="OWNER")
+            )
+
+            # Check if any OWNER is in the same organization (excluding current profile)
+            for owner_role in existing_owner_roles:
+                owner_profile = await self.statemgr.fetch("profile", owner_role.profile_id)
+
+                # Check if it's in the same org, not the current profile, and is active
+                if (owner_profile and
+                    owner_profile.organization_id == current_profile.organization_id and
+                    owner_profile._id != profile_id and
+                    owner_profile.status == "ACTIVE"):
+                    raise ValueError(f"Organization can have only one OWNER role assigned. {owner_profile.name__family} {owner_profile.name__given}")
 
         # Create new role assignment (only add, never update)
         record = self.init_resource("profile_role", profile_id=profile_id, role_key=role_key, role_id=role._id, _id=UUID_GENR())
@@ -556,17 +573,21 @@ class IDMAggregate(Aggregate):
 
         # Check OWNER constraints for new assignments
         if 'OWNER' in to_add:
+            # Fetch the profile we're assigning to, to get its organization
+            current_profile = await self.statemgr.fetch('profile', profile_id)
+
             all_owner_roles = await self.statemgr.find_all('profile_role', where=dict(
                 role_key='OWNER'
             ))
             for owner_role in all_owner_roles:
-                # If checking against DB, ensure we filter by organization.
-                # However, statemgr.find_all doesn't join automatically.
-                # Must fetch profile.
-                if owner_role.profile_id != profile_id: # Ignore self if already owner (limit handled by to_add check)
+                # Ignore self if already owner (limit handled by to_add check)
+                if owner_role.profile_id != profile_id:
                     owner_profile = await self.statemgr.fetch('profile', owner_role.profile_id)
-                    if owner_profile and owner_profile.organization_id == self.context.organization_id:
-                         raise ValueError("Organization can have only one OWNER role assigned.")
+                    # Use the profile's organization_id, not context
+                    if (owner_profile and
+                        owner_profile.organization_id == current_profile.organization_id and
+                        owner_profile.status == "ACTIVE"):
+                        raise ValueError(f"Organization can have only one OWNER role assigned. {owner_profile.name__family} {owner_profile.name__given}")
 
         # Perform updates
         for role_record in to_remove:

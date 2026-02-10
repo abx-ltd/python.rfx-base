@@ -193,3 +193,19 @@ class PolicyIDMProfileView(PolicyBase, PolicySchema):
     """
     __tablename__ = "_policy__idm_profile"
     __table_args__ = {"schema": POLICY_SCHEMA, "info": {"is_view": True}}
+
+
+class UserProfileDomainView(Base):
+    """
+    ORM mapping for the materialized `_profile_domain` view that exposes
+    domains a user profile has access to based on their assigned roles/policies.
+    """
+
+    __tablename__ = "_profile_domain"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    realm: Mapped[Optional[str]] = mapped_column(String(1024))
+    is_super_admin: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    domains: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))

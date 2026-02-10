@@ -596,15 +596,21 @@ class UserProfileAggregate(Aggregate):
 
         # Check OWNER constraints for new assignments
         if 'OWNER' in to_add:
+            # Fetch the profile we're assigning to, to get its organization
+            current_profile = await self.statemgr.fetch('profile', profile_id)
+
             all_owner_roles = await self.statemgr.find_all('profile_role', where=dict(
                 role_key='OWNER'
             ))
             for owner_role in all_owner_roles:
-
+                # Ignore self if already owner (limit handled by to_add check)
                 if owner_role.profile_id != profile_id:
                     owner_profile = await self.statemgr.fetch('profile', owner_role.profile_id)
-                    if owner_profile and owner_profile.organization_id == self.context.organization_id:
-                         raise ValueError("Organization can have only one OWNER role assigned.")
+                    # Use the profile's organization_id, not context
+                    if (owner_profile and
+                        owner_profile.organization_id == current_profile.organization_id and
+                        owner_profile.status == "ACTIVE"):
+                        raise ValueError(f"Organization can have only one OWNER role assigned. {owner_profile.name__family} {owner_profile.name__given}")
 
         # Perform updates
         for role_record in to_remove:

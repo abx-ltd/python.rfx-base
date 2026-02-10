@@ -516,12 +516,63 @@ class UpdateProfile(Command):
     async def _process(self, agg, stm, payload):
         data = serialize_mapping(payload)
         role_keys = data.pop("role_keys", None)
+
+        profile = agg.get_rootobj()
+
+        # Check if realm is being changed - prevent duplicates
+        if "realm" in data and data["realm"] != profile.realm:
+            # Check if changing realm would create a duplicate profile
+            existing_profiles = await stm.find_all("profile", where=dict(
+                user_id=profile.user_id,
+                organization_id=profile.organization_id,
+                realm=data["realm"],
+                status='ACTIVE'
+            ))
+
+            # Filter out the current profile (in case it's in the results)
+            duplicates = [p for p in existing_profiles if p._id != profile._id]
+
+            if duplicates:
+                raise ValueError(
+                    f"Cannot change realm to '{data['realm']}': "
+                    f"User already has an active profile in this organization with that realm."
+                )
+
+        # Pre-validate OWNER role if being added
+        if role_keys is not None and "OWNER" in role_keys:
+            # Check if profile already has OWNER role
+            existing_roles = await stm.find_all('profile_role', where=dict(
+                profile_id=profile._id,
+            ))
+            existing_keys = {r.role_key for r in existing_roles}
+
+            # Only validate if OWNER is being newly added (not already assigned)
+            if "OWNER" not in existing_keys:
+                # Find all existing OWNER roles in the organization
+                all_owner_roles = await stm.find_all(
+                    "profile_role",
+                    where=dict(role_key="OWNER")
+                )
+
+                for owner_role in all_owner_roles:
+                    if owner_role.profile_id != profile._id:
+                        owner_profile = await stm.fetch("profile", owner_role.profile_id)
+                        if (owner_profile and
+                            owner_profile.organization_id == profile.organization_id and
+                            owner_profile.status == "ACTIVE"):
+                            raise ValueError(f"Organization can have only one OWNER role assigned. Current owner: {owner_profile.name__family} {owner_profile.name__given}")
+
         await agg.update_profile(data)
 
         if role_keys is not None:
-            await agg.update_profile_roles({
-                 "role_keys": role_keys
-            })
+            try:
+                await agg.update_profile_roles({
+                    "profile_id": str(agg.get_rootobj()._id),
+                    "role_keys": role_keys
+                })
+            except Exception as e:
+                # Re-raise to trigger transaction rollback
+                raise ValueError(f"Failed to update profile roles: {str(e)}")
 # ---------- Profile Role ----------
 
 

@@ -1,5 +1,6 @@
 from datetime import datetime
 from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.error import BadRequestError
 
 from .domain import IDMDomain
 from .integration import kc_admin
@@ -82,7 +83,50 @@ class CreateUser(Command):
             kc_user_data["requiredActions"].append("VERIFY_EMAIL")
 
         # Create user in Keycloak
-        kc_user = await kc_admin.create_user(kc_user_data)
+        try:
+            kc_user = await kc_admin.create_user(kc_user_data)
+        except BadRequestError as e:
+            # Check if error is due to user already existing
+            error_msg = str(e).lower()
+            if "exists" not in error_msg:
+                # Re-raise if it's a different error
+                raise
+
+            existing_users = await kc_admin.find_user(payload.username)
+
+            # Filter for exact username match
+            kc_user = None
+            for user in existing_users:
+                if user.username == payload.username:
+                    kc_user = user
+                    break
+
+            # If not found by username, try by email
+            if not kc_user and payload.email:
+                existing_users = await kc_admin.find_user(payload.email)
+                for user in existing_users:
+                    if user.email == payload.email:
+                        kc_user = user
+                        break
+
+            if not kc_user:
+                raise
+
+            update_payload = {
+                "email": payload.email,
+                "username": payload.username,
+                "firstName": payload.first_name or "",
+                "lastName": payload.last_name or "",
+                "enabled": payload.is_active,
+                "emailVerified": email_verified,
+            }
+
+            await kc_admin.update_user(kc_user.id, update_payload)
+
+            if payload.password:
+                await kc_admin.set_user_password(
+                    kc_user.id, payload.password, temporary=False
+                )
 
         realm_access = payload.realm_access or DEFAULT_REALM_ACCESS
         resource_access = payload.resource_access or DEFAULT_RESOURCE_ACCESS
@@ -641,13 +685,37 @@ class CreateProfileInOrg(Command):
     async def _process(self, agg, stm, payload):
         profile_data = serialize_mapping(payload)
         role_keys = profile_data.pop("role_keys", ["VIEWER"])
+
+        # Pre-validate OWNER role before creating profile to avoid orphaned records
+        if "OWNER" in role_keys:
+            organization_id = profile_data.get("organization_id")
+
+            # Find all existing OWNER roles
+            existing_owner_roles = await stm.find_all(
+                "profile_role",
+                where=dict(role_key="OWNER")
+            )
+
+            # Check if any OWNER exists in the target organization
+            for owner_role in existing_owner_roles:
+                owner_profile = await stm.fetch("profile", owner_role.profile_id)
+                if (owner_profile and
+                    owner_profile.organization_id == organization_id and
+                    owner_profile.status == "ACTIVE"):
+                    raise ValueError(f"Organization can have only one OWNER role assigned. Current owner: {owner_profile.name__family} {owner_profile.name__given}")
+
+        # Create the profile
         result = await agg.create_profile_in_org(profile_data)
 
-        # Assign roles
-        await agg.update_profile_roles({
-            "profile_id": result.get("profile_id"),
-            "role_keys": role_keys
-        })
+        # Assign roles - if this fails, the transaction will rollback the profile creation
+        try:
+            await agg.update_profile_roles({
+                "profile_id": result.get("profile_id"),
+                "role_keys": role_keys
+            })
+        except Exception as e:
+            # Re-raise to trigger transaction rollback
+            raise ValueError(f"Failed to assign roles to profile: {str(e)}")
 
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
@@ -688,12 +756,43 @@ class UpdateProfile(Command):
         payload = serialize_mapping(payload)
         role_keys = payload.pop("role_keys", None)
 
+        # Pre-validate OWNER role if being added
+        if role_keys is not None and "OWNER" in role_keys:
+            profile = agg.get_rootobj()
+
+            # Check if profile already has OWNER role
+            existing_roles = await stm.find_all('profile_role', where=dict(
+                profile_id=profile._id,
+            ))
+            existing_keys = {r.role_key for r in existing_roles}
+
+            # Only validate if OWNER is being newly added (not already assigned)
+            if "OWNER" not in existing_keys:
+                # Find all existing OWNER roles in the organization
+                all_owner_roles = await stm.find_all(
+                    "profile_role",
+                    where=dict(role_key="OWNER")
+                )
+
+                for owner_role in all_owner_roles:
+                    if owner_role.profile_id != profile._id:
+                        owner_profile = await stm.fetch("profile", owner_role.profile_id)
+                        if (owner_profile and
+                            owner_profile.organization_id == profile.organization_id and
+                            owner_profile.status == "ACTIVE"):
+                            raise ValueError(f"Organization can have only one OWNER role assigned. Current owner: {owner_profile.name__family} {owner_profile.name__given}")
+
         await agg.update_profile(payload)
 
         if role_keys is not None:
-            await agg.update_profile_roles({
-                "role_keys": role_keys
-            })
+            try:
+                await agg.update_profile_roles({
+                    "profile_id": str(agg.get_rootobj()._id),
+                    "role_keys": role_keys
+                })
+            except Exception as e:
+                # Re-raise to trigger transaction rollback
+                raise ValueError(f"Failed to update profile roles: {str(e)}")
 
 
 class DeactivateProfile(Command):
