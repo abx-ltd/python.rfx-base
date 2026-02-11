@@ -17,6 +17,7 @@ import secrets
 from datetime import datetime, timedelta
 from fluvius.domain.aggregate import Aggregate, action
 from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.data.exceptions import ItemNotFoundError
 from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum, InvitationStatusEnum
 
 
@@ -576,18 +577,22 @@ class IDMAggregate(Aggregate):
             # Fetch the profile we're assigning to, to get its organization
             current_profile = await self.statemgr.fetch('profile', profile_id)
 
-            all_owner_roles = await self.statemgr.find_all('profile_role', where=dict(
-                role_key='OWNER'
-            ))
-            for owner_role in all_owner_roles:
-                # Ignore self if already owner (limit handled by to_add check)
-                if owner_role.profile_id != profile_id:
-                    owner_profile = await self.statemgr.fetch('profile', owner_role.profile_id)
-                    # Use the profile's organization_id, not context
-                    if (owner_profile and
-                        owner_profile.organization_id == current_profile.organization_id and
-                        owner_profile.status == "ACTIVE"):
-                        raise ValueError(f"Organization can have only one OWNER role assigned. {owner_profile.name__family} {owner_profile.name__given}")
+            try:
+                all_owner_roles = await self.statemgr.find_all('profile_role', where=dict(
+                    role_key='OWNER'
+                ))
+                for owner_role in all_owner_roles:
+                    # Ignore self if already owner (limit handled by to_add check)
+                    if owner_role.profile_id != profile_id:
+                        owner_profile = await self.statemgr.fetch('profile', owner_role.profile_id)
+                        # Use the profile's organization_id, not context
+                        if (owner_profile and
+                            owner_profile.organization_id == current_profile.organization_id and
+                            owner_profile.status == "ACTIVE"):
+                            raise ValueError(f"Organization can have only one OWNER role assigned. {owner_profile.name__family} {owner_profile.name__given}")
+            except ItemNotFoundError:
+                # No OWNER exists yet, proceed with assignment
+                pass
 
         # Perform updates
         for role_record in to_remove:
