@@ -58,14 +58,66 @@ class MessageMixin:
         if not message:
             raise ValueError(f"Message not found: {message_id}")
 
-        processing_mode = ProcessingModeEnum(mode)
+        # If message has direct content, no template rendering needed
+        if message.content:
+            await self.statemgr.update(
+                message,
+                render_status=RenderStatusEnum.COMPLETED.value
+            )
+            return serialize_mapping(message)
 
-        # Process content
-        processed_message = await self.content_processor.process_message_content(
-            message, mode=processing_mode, context=context or {}
-        )
+        # If message has template_key, render via rfx-template domain
+        if message.template_key:
+            try:
+                template_client = self.context.service_proxy.ttp_client
 
-        return processed_message
+                # Call rfx-template:render-template
+                response = await template_client.request(
+                    "rfx-template:render-template",
+                    command="render-template",
+                    resource="template",
+                    payload={
+                        "key": message.template_key,
+                        "data": context or {},
+                        "tenant_id": str(self.context.tenant_id) if hasattr(self.context, 'tenant_id') else None,
+                        "app_id": getattr(self.context, 'app_id', None),
+                        "locale": message.locale or "en",
+                        "channel": message.channel,
+                    },
+                    _headers={},
+                    _context={
+                        "audit": {
+                            "user_id": str(self.context.user_id) if self.context.user_id else None,
+                            "profile_id": str(self.context.profile_id) if self.context.profile_id else None,
+                        },
+                        "source": "rfx-message",
+                    },
+                )
+
+                # Extract rendered content from template-service-response
+                service_response = response.get("template-service-response", response)
+                rendered_content = service_response.get('body', '')
+
+                # Update message with rendered content
+                await self.statemgr.update(
+                    message,
+                    content=rendered_content,
+                    render_status=RenderStatusEnum.COMPLETED.value
+                )
+
+                # Refetch updated message
+                message = await self.statemgr.fetch("message", message_id)
+
+            except Exception as e:
+                # Mark rendering as failed
+                await self.statemgr.update(
+                    message,
+                    render_status=RenderStatusEnum.FAILED.value,
+                    render_error=str(e)
+                )
+                raise ValueError(f"Template rendering failed: {str(e)}")
+
+        return serialize_mapping(message)
 
     @action("message-ready-for-delivery", resources="message")
     async def mark_ready_for_delivery(self, message_id):

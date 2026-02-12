@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, time
 from typing import List, Optional
 
+
 from sqlalchemy import ARRAY, Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, Time, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -113,44 +114,6 @@ class NotificationDeliveryLog(TableBase):
     duration_ms: Mapped[Optional[int]] = mapped_column(Integer)
 
     notification: Mapped["Notification"] = relationship(back_populates="delivery_logs")
-
-
-class NotificationTemplate(TableBase):
-    """Templates for notifications across different channels."""
-
-    __tablename__ = "notification_template"
-    __table_args__ = (
-        UniqueConstraint(
-            "tenant_id", "app_id", "key", "version", "channel", "locale",
-            name="uq_notify_template_scope"
-        ),
-        {"schema": SCHEMA}
-    )
-
-    key: Mapped[str] = mapped_column(String(255), nullable=False)
-    version: Mapped[int] = mapped_column(Integer, default=1)
-    name: Mapped[Optional[str]] = mapped_column(String(255))
-    description: Mapped[Optional[str]] = mapped_column(Text)
-
-    channel: Mapped[NotificationChannelEnum] = mapped_column(
-        SQLEnum(NotificationChannelEnum, name="notificationchannelenum", schema=SCHEMA),
-        nullable=False
-    )
-    locale: Mapped[str] = mapped_column(String(10), default="en")
-
-    subject_template: Mapped[Optional[str]] = mapped_column(String(512))
-    body_template: Mapped[str] = mapped_column(Text, nullable=False)
-    content_type: Mapped[Optional[ContentTypeEnum]] = mapped_column(
-        SQLEnum(ContentTypeEnum, name="contenttypeenum", schema=SCHEMA)
-    )
-
-    engine: Mapped[str] = mapped_column(String(32), default="jinja2")
-    variables_schema: Mapped[dict] = mapped_column(JSONB, default=dict)
-
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-
-    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    app_id: Mapped[Optional[str]] = mapped_column(String(64))
 
 
 class NotificationPreference(TableBase):

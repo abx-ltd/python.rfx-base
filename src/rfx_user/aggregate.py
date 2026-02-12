@@ -506,10 +506,28 @@ class UserProfileAggregate(Aggregate):
     async def activate_profile(self, data=None):
         """Activate profile to allow access."""
         item = self.rootobj
+
+        # Check for existing active profile in same org+realm
+        existing_active = await self.statemgr.exist(
+            "profile",
+            where=dict(
+                user_id=item.user_id,
+                organization_id=item.organization_id,
+                realm=item.realm,
+                status=ProfileStatusEnum.ACTIVE.value
+            )
+        )
+
+        if existing_active and existing_active._id != item._id:
+            raise ValueError(
+                "User already has an active profile in this organization and realm"
+            )
+
+        # Activate the profile
         await self.statemgr.update(
             item,
             status=ProfileStatusEnum.ACTIVE.value,
-            current_profile=True
+            current_profile=False
         )
         await self.set_profile_status(item, ProfileStatusEnum.ACTIVE.value)
 

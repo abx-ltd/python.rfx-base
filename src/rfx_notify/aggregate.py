@@ -4,8 +4,7 @@ RFX Notify Domain Aggregate - Business Logic and State Management
 from fluvius.domain.aggregate import Aggregate, action
 from fluvius.data import serialize_mapping, timestamp
 
-from .processor import NotificationContentProcessor
-from .template import NotificationTemplateService
+
 from .types import NotificationStatusEnum, ProviderTypeEnum
 from .service import NotificationService
 from . import logger
@@ -19,23 +18,7 @@ class NotifyAggregate(Aggregate):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._content_processor = None
-        self._template_service = None
         self._notification_service = None
-
-    @property
-    def content_processor(self) -> NotificationContentProcessor:
-        """Lazy-loaded content processor."""
-        if self._content_processor is None:
-            self._content_processor = NotificationContentProcessor(self.statemgr)
-        return self._content_processor
-
-    @property
-    def template_service(self) -> NotificationTemplateService:
-        """Lazy-loaded template service."""
-        if self._template_service is None:
-            self._template_service = NotificationTemplateService(self.statemgr)
-        return self._template_service
 
     @property
     def notification_service(self) -> NotificationService:
@@ -179,55 +162,5 @@ class NotifyAggregate(Aggregate):
                 "created": True
             }
 
-    # ========================================================================
-    # TEMPLATE OPERATIONS
-    # ========================================================================
 
-    @action("notification-template-created", resources="notification_template")
-    async def create_notification_template(self, *, data):
-        """Create a new notification template."""
-        template_data = serialize_mapping(data)
-
-        # Use template service to create
-        template = await self.template_service.create_template(
-            key=template_data['key'],
-            channel=template_data['channel'],
-            body_template=template_data['body_template'],
-            subject_template=template_data.get('subject_template'),
-            name=template_data.get('name'),
-            engine=template_data.get('engine', 'jinja2'),
-            locale=template_data.get('locale', 'en'),
-            content_type=template_data.get('content_type', 'TEXT'),
-            tenant_id=template_data.get('tenant_id'),
-            app_id=template_data.get('app_id'),
-            variables_schema=template_data.get('variables_schema'),
-        )
-
-        return {
-            "template_id": template._id,
-            "key": template.key,
-            "version": template.version
-        }
-
-    @action("notification-template-activated", resources="notification_template")
-    async def activate_notification_template(self):
-        """Activate a notification template."""
-        template_id = self.aggroot.identifier
-        template = await self.template_service.activate_template(template_id)
-
-        return {
-            "template_id": template._id,
-            "is_active": template.is_active
-        }
-
-    @action("notification-template-deactivated", resources="notification_template")
-    async def deactivate_notification_template(self):
-        """Deactivate a notification template."""
-        template_id = self.aggroot.identifier
-        template = await self.template_service.deactivate_template(template_id)
-
-        return {
-            "template_id": template._id,
-            "is_active": template.is_active
-        }
 

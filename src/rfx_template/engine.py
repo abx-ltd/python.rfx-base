@@ -1,11 +1,11 @@
 """
-Template Engine Registry for Notification Templates
+Template Engine Registry for Generic Templates
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from jinja2 import Environment, StrictUndefined, select_autoescape
 
-from .. import logger
+from . import logger
 
 
 class TemplateEngine(ABC):
@@ -42,10 +42,6 @@ class JinjaEngine(TemplateEngine):
             trim_blocks=True,
             lstrip_blocks=True
         )
-
-        # Add custom filters if needed
-        # self.env.filters['currency'] = lambda x: f"${x:,.2f}"
-        # self.env.filters['datetime'] = lambda x, fmt='%Y-%m-%d %H:%M': x.strftime(fmt)
 
     @property
     def name(self) -> str:

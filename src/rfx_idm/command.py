@@ -720,21 +720,21 @@ class CreateProfileInOrg(Command):
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
 
-class SwitchProfile(Command):
-    """
-    Switch active organization for user profile.
-    Updates current profile's organization context for multi-tenant operations.
-    """
+# class SwitchProfile(Command):
+#     """
+#     Switch active organization for user profile.
+#     Updates current profile's organization context for multi-tenant operations.
+#     """
 
-    class Meta:
-        key = "switch-profile"
-        resources = ("profile",)
-        tags = ["profile", "switch"]
-        auth_required = True
-        policy_required = True
+#     class Meta:
+#         key = "switch-profile"
+#         resources = ("profile",)
+#         tags = ["profile", "switch"]
+#         auth_required = True
+#         policy_required = True
 
-    async def _process(self, agg, stm, payload):
-        await agg.switch_profile()
+#     async def _process(self, agg, stm, payload):
+#         await agg.switch_profile()
 
 
 class UpdateProfile(Command):

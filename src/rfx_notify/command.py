@@ -7,7 +7,7 @@ from fluvius.data import serialize_mapping
 from .domain import NotifyServiceDomain
 from . import datadef, logger
 from .types import NotificationChannelEnum
-from .processor import NotificationContentProcessor
+
 
 processor = NotifyServiceDomain.command_processor
 Command = NotifyServiceDomain.Command
@@ -52,23 +52,53 @@ class SendNotification(Command):
                 if not recipients:
                     raise ValueError("Recipients list cannot be empty")
 
-                content_processor = NotificationContentProcessor(stm)
-                rendered_payloads = (
-                    await content_processor.prepare_notification_with_template(
-                        channel=channel,
-                        template_key=template_key,
-                        template_data=template_data,
-                        recipients=recipients,
-                        template_version=template_version,
-                        recipient_id=notification_payload.get("recipient_id"),
-                        sender_id=notification_payload.get("sender_id"),
-                        priority=notification_payload.get("priority", "NORMAL"),
-                        context=context,
-                    )
+                # Render template via rfx-template domain
+                template_client = self.context.service_proxy.ttp_client
+
+                response = await template_client.request(
+                    "rfx-template:render-template",
+                    command="render-template",
+                    resource="template",
+                    payload={
+                        "key": template_key,
+                        "data": template_data,
+                        "tenant_id": context.get("tenant_id"),
+                        "app_id": context.get("app_id"),
+                        "locale": context.get("locale", "en"),
+                        "channel": channel.value,
+                        "version": template_version,
+                    },
+                    _headers={},
+                    _context={
+                        "audit": {
+                            "user_id": str(self.context.user_id) if self.context.user_id else None,
+                            "profile_id": str(self.context.profile_id) if self.context.profile_id else None,
+                        },
+                        "source": "rfx-notify",
+                    },
                 )
 
+                # Extract rendered content from template-service-response
+                service_response = response.get("template-service-response", response)
+                rendered_body = service_response.get('body', '')
+                rendered_subject = service_response.get('subject')  # May be None
+
+                # Create notification payload for each recipient
                 results = []
-                for rendered_payload in rendered_payloads:
+                for recipient in recipients:
+                    rendered_payload = {
+                        **notification_payload,
+                        "body": rendered_body,
+                        "recipients": [recipient],
+                    }
+                    if rendered_subject:
+                        rendered_payload["subject"] = rendered_subject
+
+                    # Remove template fields as we now have rendered content
+                    rendered_payload.pop("template_key", None)
+                    rendered_payload.pop("template_data", None)
+                    rendered_payload.pop("template_version", None)
+
                     send_result = await agg.send_notification(data=rendered_payload)
                     results.append(send_result)
 
@@ -217,102 +247,3 @@ class UpdateNotificationPreference(Command):
 
 
 # Template Management Commands
-
-
-class CreateNotificationTemplate(Command):
-    """Create a new notification template."""
-
-    class Meta:
-        key = "create-notification-template"
-        resource_init = True
-        resources = ("notification_template",)
-        tags = ["template", "create"]
-        auth_required = True
-        policy_required = True  # Admins only
-
-    Data = datadef.NotificationTemplatePayload
-
-    async def _process(self, agg, stm, payload):
-        try:
-            result = await agg.create_notification_template(
-                data=serialize_mapping(payload)
-            )
-
-            yield agg.create_response(
-                {
-                    "status": "success",
-                    "template_id": result["template_id"],
-                    "key": result["key"],
-                    "version": result["version"],
-                },
-                _type="notify-service-response",
-            )
-
-        except Exception as e:
-            logger.error(f"CreateNotificationTemplate failed: {e}")
-            yield agg.create_response(
-                {"status": "error", "error": str(e)}, _type="notify-service-response"
-            )
-            raise
-
-
-class ActivateNotificationTemplate(Command):
-    """Activate a notification template."""
-
-    class Meta:
-        key = "activate-notification-template"
-        resources = ("notification_template",)
-        tags = ["template", "activate"]
-        auth_required = True
-        policy_required = True  # Admins only
-
-    async def _process(self, agg, stm, payload):
-        try:
-            result = await agg.activate_notification_template()
-
-            yield agg.create_response(
-                {
-                    "status": "success",
-                    "template_id": result["template_id"],
-                    "is_active": result["is_active"],
-                },
-                _type="notify-service-response",
-            )
-
-        except Exception as e:
-            logger.error(f"ActivateNotificationTemplate failed: {e}")
-            yield agg.create_response(
-                {"status": "error", "error": str(e)}, _type="notify-service-response"
-            )
-            raise
-
-
-class DeactivateNotificationTemplate(Command):
-    """Deactivate a notification template."""
-
-    class Meta:
-        key = "deactivate-notification-template"
-        resources = ("notification_template",)
-        tags = ["template", "deactivate"]
-        auth_required = True
-        policy_required = True  # Admins only
-
-    async def _process(self, agg, stm, payload):
-        try:
-            result = await agg.deactivate_notification_template()
-
-            yield agg.create_response(
-                {
-                    "status": "success",
-                    "template_id": result["template_id"],
-                    "is_active": result["is_active"],
-                },
-                _type="notify-service-response",
-            )
-
-        except Exception as e:
-            logger.error(f"DeactivateNotificationTemplate failed: {e}")
-            yield agg.create_response(
-                {"status": "error", "error": str(e)}, _type="notify-service-response"
-            )
-            raise

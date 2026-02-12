@@ -6,3 +6,4 @@ from .rfx_notify import _schema
 from .rfx_client import _schema
 from .rfx_discuss import _schema
 from .rfx_qr import _schema
+from .rfx_template import _schema

@@ -398,25 +398,32 @@ class IDMAggregate(Aggregate):
         return record
 
 
-    @action("profile-switched", resources="profile")
-    async def switch_profile(self):
-        """Switch active profile in user context."""
-        profile_id = self.aggroot.identifier
-        if profile_id == self.context.profile_id:
-            return {"switched": False, "message": "Already using the specified profile."}
+    # @action("profile-switched", resources="profile")
+    # async def switch_profile(self):
+    #     """Switch active profile in user context."""
+    #     profile_id = self.aggroot.identifier
+    #     if profile_id == self.context.profile_id:
+    #         return {"switched": False, "message": "Already using the specified profile."}
 
-        profiles = await self.statemgr.find_all("profile", where=dict(
-            user_id=self.context.user_id,
-            status=ProfileStatusEnum.ACTIVE
-        ))
+    #     # Fetch the target profile to get its realm
+    #     target_profile = await self.statemgr.fetch("profile", profile_id)
+    #     if not target_profile:
+    #         raise ValueError(f"Profile {profile_id} not found")
 
-        for profile in profiles:
-            if profile._id == profile_id:
-                await self.statemgr.update(profile, current_profile=True)
-            else:
-                await self.statemgr.update(profile, current_profile=False)
+    #     # Find all ACTIVE profiles for user in the SAME REALM
+    #     profiles = await self.statemgr.find_all("profile", where=dict(
+    #         user_id=self.context.user_id,
+    #         realm=target_profile.realm,
+    #         status=ProfileStatusEnum.ACTIVE
+    #     ))
 
-        return {"message": f"Switched to profile {profile_id}", "switched": True}
+    #     for profile in profiles:
+    #         if profile._id == profile_id:
+    #             await self.statemgr.update(profile, current_profile=True)
+    #         else:
+    #             await self.statemgr.update(profile, current_profile=False)
+
+    #     return {"message": f"Switched to profile {profile_id}", "switched": True}
 
     @action("profile-created-in-org", resources=("profile", "organization"))
     async def create_profile_in_org(self, data):
@@ -475,10 +482,28 @@ class IDMAggregate(Aggregate):
     async def activate_profile(self, data=None):
         """Activate profile to allow access."""
         item = self.rootobj
+
+        # Check for existing active profile in same org+realm
+        existing_active = await self.statemgr.exist(
+            "profile",
+            where=dict(
+                user_id=item.user_id,
+                organization_id=item.organization_id,
+                realm=item.realm,
+                status=ProfileStatusEnum.ACTIVE.value
+            )
+        )
+
+        if existing_active and existing_active._id != item._id:
+            raise ValueError(
+                "User already has an active profile in this organization and realm"
+            )
+
+        # Activate the profile
         await self.statemgr.update(
             item,
             status=ProfileStatusEnum.ACTIVE.value,
-            current_profile=True
+            current_profile=False
         )
         await self.set_profile_status(item, ProfileStatusEnum.ACTIVE.value)
 
@@ -576,23 +601,22 @@ class IDMAggregate(Aggregate):
         if 'OWNER' in to_add:
             # Fetch the profile we're assigning to, to get its organization
             current_profile = await self.statemgr.fetch('profile', profile_id)
+            all_profile_in_orgs = await self.statemgr.find_all('profile', where=dict(
+                organization_id=current_profile.organization_id,
+                status=ProfileStatusEnum.ACTIVE.value
+            ))
 
-            try:
-                all_owner_roles = await self.statemgr.find_all('profile_role', where=dict(
+            for profile in all_profile_in_orgs:
+                # Skip the current profile being updated
+                if profile._id == profile_id:
+                    continue
+
+                profile_role = await self.statemgr.exist('profile_role', where=dict(
+                    profile_id=profile._id,
                     role_key='OWNER'
                 ))
-                for owner_role in all_owner_roles:
-                    # Ignore self if already owner (limit handled by to_add check)
-                    if owner_role.profile_id != profile_id:
-                        owner_profile = await self.statemgr.fetch('profile', owner_role.profile_id)
-                        # Use the profile's organization_id, not context
-                        if (owner_profile and
-                            owner_profile.organization_id == current_profile.organization_id and
-                            owner_profile.status == "ACTIVE"):
-                            raise ValueError(f"Organization can have only one OWNER role assigned. {owner_profile.name__family} {owner_profile.name__given}")
-            except ItemNotFoundError:
-                # No OWNER exists yet, proceed with assignment
-                pass
+                if profile_role:
+                    raise ValueError(f"Organization already has an owner: {profile.name__family} {profile.name__given}")
 
         # Perform updates
         for role_record in to_remove:

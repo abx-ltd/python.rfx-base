@@ -40,6 +40,7 @@ DOMAIN_SCHEMAS = {
     "discuss": base_config.RFX_DISCUSS_SCHEMA,
     "qr": base_config.RFX_QR_SCHEMA,
     "todo": base_config.RFX_TODO_SCHEMA,
+    "template": base_config.RFX_TEMPLATE_SCHEMA,
 }
 
 # Get schema filter from environment variable
