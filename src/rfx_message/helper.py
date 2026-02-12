@@ -138,6 +138,7 @@ async def process_message_content(agg, message_id, payload, mode):
 def notify_recipients(
     client,
     recipients: list,
+    user_ids: list,
     kind: str,
     target: str,
     msg: dict,
@@ -165,14 +166,24 @@ def notify_recipients(
     channels = []
     for profile_id in recipients:
         msg["recipient_id"] = profile_id
-        channel = client.notify(
+        channel_profile = client.notify(
             profile_id,
             kind=kind,
             target=target,
             msg=msg,
             batch_id=mode.value,
         )
-        channels.append(channel)
+        channels.append(channel_profile)
+
+        for user_id in user_ids:
+            channel_user = client.notify(
+                user_id,
+                kind=kind,
+                target=target,
+                msg=msg,
+                batch_id=mode.value,
+            )
+            channels.append(channel_user)
     client.send(mode.value)
     return channels
 

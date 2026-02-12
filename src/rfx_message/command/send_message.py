@@ -51,9 +51,17 @@ class SendMessage(Command):
             agg, message_id, message_payload, processing_mode
         )
 
+        user_ids = await stm.get_user_ids_from_profile_ids(recipients)
+
         # 6. Notify recipients
         helper.notify_recipients(
-            client, recipients, "message", message_id, message, processing_mode
+            client,
+            recipients,
+            user_ids,
+            "message",
+            message_id,
+            message,
+            processing_mode,
         )
 
         # 7. Create response

@@ -46,8 +46,8 @@ class ReplyMessage(Command):
         await agg.add_recipients(data=recipients, message_id=message_id)
 
         # 7. Notify recipients
-        helper.notify_recipients(
-            client, recipients, "message", message_id, message, processing_mode
+        await helper.notify_recipients(
+            client, recipients, "message", message_id, message, processing_mode, stm
         )
 
         # 8. Create response
