@@ -65,7 +65,15 @@ class RenderTemplate(Command):
         data = serialize_mapping(payload)
         rendered_result = await agg.render_template(data)
 
-        yield agg.create_response(
-            rendered_result,  # Dict with 'body' and optional metadata fields like 'subject'
-            _type="template-service-response"
-        )
+        if payload.format == "html":
+            # Return raw HTML content
+            yield agg.create_response(
+                rendered_result.get("body", ""),
+                _type="html-response",
+                content_type="text/html"
+            )
+        else:
+            yield agg.create_response(
+                rendered_result,  # Dict with 'body' and optional metadata fields like 'subject'
+                _type="template-service-response"
+            )

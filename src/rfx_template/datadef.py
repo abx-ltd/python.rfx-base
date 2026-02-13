@@ -33,3 +33,4 @@ class RenderTemplatePayload(DataModel):
     locale: Optional[str] = None
     channel: Optional[str] = None
     version: Optional[int] = None
+    format: Optional[str] = Field("json", description="Output format: json, html")
