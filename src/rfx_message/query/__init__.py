@@ -5,7 +5,8 @@ from .message_outbox import MessageOutboxQuery
 from .message_archived import MessageArchivedQuery
 from .message_trashed import MessageTrashedQuery
 from .message_thread import MessageThreadQuery
-from .message_template import MessageTemplateQuery
+
+# from .message_template import MessageTemplateQuery
 from .tag import TagQuery
 
 __all__ = [
@@ -15,6 +16,6 @@ __all__ = [
     "MessageArchivedQuery",
     "MessageTrashedQuery",
     "MessageThreadQuery",
-    "MessageTemplateQuery",
+    # "MessageTemplateQuery",
     "TagQuery",
 ]
