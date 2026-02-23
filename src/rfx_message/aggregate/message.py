@@ -69,7 +69,10 @@ class MessageMixin:
         # If message has template_key, render via rfx-template domain
         if message.template_key:
             try:
-                template_client = self.context.service_proxy.ttp_client
+                from rfx_user import config as userconf
+                template_client = getattr(self.context.service_proxy, userconf.SERVICE_CLIENT, None)
+                if not template_client:
+                    raise RuntimeError("Template client not found")
 
                 # Call rfx-template:render-template
                 response = await template_client.request(

@@ -434,6 +434,66 @@ class ActivateUser(Command):
         await agg.activate_user()
 
 
+class SendChangePasswordAction(Command):
+    """
+    Send change password action to the user email
+    """
+
+    class Meta:
+        key = "send-change-password-action"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+        description = "Send a change password action to the user email"
+
+    Data = datadef.ChangePasswordActionPayload
+
+    async def _process(self, agg, stm, payload):
+        notify_service = getattr(agg.context.service_proxy, config.SERVICE_CLIENT, None)
+
+        if not notify_service:
+            raise RuntimeError("Notification service client is not found")
+
+        user = await stm.fetch("user", agg.context.user_id)
+
+        # Record the action to get its ID before sending
+        result = await agg.record_password_action(serialize_mapping(payload))
+
+        from rfx_user import config as userconf
+        base_url = userconf.API_BASE_URL or ""
+        # Assuming the frontend or API follows a pattern like <namespace>.path/<action_id>
+        action_link = f"{base_url}/{config.IDM_NAMESPACE}.complete-password-change/{result._id}"
+
+        await notify_service.send(
+            "rfx-notify:send-notification",
+            command="send-notification",
+            resource="notification",
+            payload={
+                "channel": "EMAIL",
+                "recipients": [user.verified_email],
+                "template_key": "password-change-action",
+                "content_type": "HTML",
+                "template_data": {
+                    "action_link": action_link,
+                    "user_name": user.name__given or user.username or "User",
+                },
+            },
+            identifier=UUID_GENR(),
+            _headers={},
+            _context={
+                "audit": {
+                    "user_id": str(agg.context.user_id) if agg.context.user_id else None,
+                    "profile_id": str(agg.context.profile_id) if agg.context.profile_id else None,
+                    "organization_id": str(agg.context.organization_id),
+                    "realm": agg.context.realm,
+                },
+                "source": "rfx-idm",
+            },
+        )
+
+        yield agg.create_response(serialize_mapping(result), _type="idm-response")
+
+
 # ============ Organization Context =============
 
 
@@ -1063,3 +1123,4 @@ class DeleteGroup(Command):
     async def _process(self, agg, stm, payload):
         await agg.delete_group()
         yield agg.create_response({"status": "success"}, _type="idm-response")
+

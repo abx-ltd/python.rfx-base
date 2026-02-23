@@ -340,3 +340,6 @@ class SyncUserPayload(DataModel):
     sync_actions: bool = True  # Whether to sync required actions
     user_data: dict = Field(default_factory=dict)  # User data from Keycloak
     required_actions: List[str] = Field(default_factory=list)  # Required actions from Keycloak
+
+class ChangePasswordActionPayload(DatgaModel):
+    password: str = Field(max_length=1024)

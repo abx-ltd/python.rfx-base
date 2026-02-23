@@ -62,3 +62,7 @@ class UserActionStatusEnum(Enum):
     PENDING    = "PENDING"
     COMPLETED  = "COMPLETED"
     CANCELLED  = "CANCELLED"
+
+class UserActionTypeEnum(Enum):
+    """Types of user actions."""
+    PASSWORD_CHANGE = "PASSWORD_CHANGE"

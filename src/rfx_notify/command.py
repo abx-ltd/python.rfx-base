@@ -45,6 +45,7 @@ class SendNotification(Command):
             }
 
             if template_key:
+                from rfx_user import config as userconf
                 channel = NotificationChannelEnum(notification_payload["channel"])
                 template_data = notification_payload.get("template_data", {}) or {}
                 template_version = notification_payload.get("template_version")
@@ -53,7 +54,9 @@ class SendNotification(Command):
                     raise ValueError("Recipients list cannot be empty")
 
                 # Render template via rfx-template domain
-                template_client = self.context.service_proxy.ttp_client
+                template_client = getattr(agg.context.service_proxy, userconf.SERVICE_CLIENT, None)
+                if not template_client:
+                    raise RuntimeError("Template service not found")
 
                 response = await template_client.request(
                     "rfx-template:render-template",

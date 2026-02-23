@@ -29,6 +29,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 # Import from local types to avoid rfx_user module initialization
 from .types import (
     UserActionStatusEnum,
+    UserActionTypeEnum,
     UserSourceEnum,
     UserStatusEnum,
 )
@@ -290,6 +291,15 @@ class UserAction(TableBase):
         String(255), ForeignKey(f"{SCHEMA}.ref__action.key")
     )
     name: Mapped[Optional[str]] = mapped_column(String(1024))
+    action_type: Mapped[Optional[UserActionTypeEnum]] = mapped_column(
+        SQLEnum(
+            UserActionTypeEnum,
+            name="useractiontypeenum",
+            schema=SCHEMA,
+        ),
+        nullable=True
+    )
+    action_data: Mapped[dict] = mapped_column(JSONB, default=dict)
     status: Mapped[UserActionStatusEnum] = mapped_column(
         SQLEnum(
             UserActionStatusEnum,

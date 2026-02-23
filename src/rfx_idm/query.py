@@ -141,6 +141,51 @@ async def reject_invitation(
         return {"success": True}
 
 
+@endpoint(".complete-password-change/{action_id}")
+async def complete_password_change(
+    query_manager: IDMQueryManager, request: Request, action_id: str
+):
+    from .integration import kc_admin
+
+    async with query_manager.data_manager.transaction():
+        user_action = await query_manager.data_manager.fetch("user_action", action_id)
+
+        if not user_action:
+            return {"error": "Password change action not found"}
+
+        if user_action.name != "password-change-action" or getattr(user_action.action_type, "value", user_action.action_type) != "PASSWORD_CHANGE":
+            return {"error": "Invalid action type"}
+
+        if getattr(user_action.status, "value", user_action.status) != "PENDING":
+            return {"error": f"Action status is {user_action.status}, cannot complete"}
+
+        action_data = user_action.action_data or {}
+        encrypted_password = action_data.get("password")
+        if not encrypted_password:
+            return {"error": "No password found in action record"}
+
+        from .security import decrypt_password
+        try:
+            new_password = decrypt_password(encrypted_password)
+        except Exception:
+            return {"error": "Invalid or corrupted password data"}
+
+        # Use the stored password from the UserAction to update Keycloak
+        await kc_admin.set_user_password(
+            str(user_action.user_id), new_password, temporary=False
+        )
+
+        # Mark the action as COMPLETED and blank out the action data for security
+        await query_manager.data_manager.update(
+            user_action, status="COMPLETED", action_data={}
+        )
+
+        return {
+            "success": True,
+            "user_id": str(user_action.user_id)
+        }
+
+
 @resource("user")
 class UserQuery(DomainQueryResource):
     """List current user's basic info"""

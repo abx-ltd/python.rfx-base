@@ -33,3 +33,5 @@ GUEST_JWT_ISSUER = "rfx-user-guest-auth"
 
 API_BASE_URL = None
 NAMESPACE = "user-profile"
+
+SERVICE_CLIENT="rfx"

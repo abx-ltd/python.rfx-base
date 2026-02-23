@@ -224,6 +224,25 @@ class IDMAggregate(Aggregate):
 
         return user
 
+    @action("password-action-recorded", resources=("user", "user_action"))
+    async def record_password_action(self, data):
+        from .security import encrypt_password
+
+        raw_password = data.get("password")
+        enc_password = encrypt_password(raw_password) if raw_password else None
+
+        record = self.init_resource(
+            "user_action",
+            name="password-change-action",
+            action_type="PASSWORD_CHANGE",
+            status='PENDING',
+            user_id=self.context.user_id,
+            action_data={"password": enc_password}
+        )
+        await self.statemgr.insert(record)
+        return record
+
+
     # ==========================================================================
     # ORGANIZATION OPERATIONS
     # ==========================================================================
