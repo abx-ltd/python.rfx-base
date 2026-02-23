@@ -66,9 +66,6 @@ class SendNotification(Command):
                     payload={
                         "key": template_key,
                         "data": template_data,
-                        "tenant_id": context.get("tenant_id"),
-                        "app_id": context.get("app_id"),
-                        "locale": context.get("locale", "en"),
                         "channel": channel.value,
                         "version": template_version,
                     },

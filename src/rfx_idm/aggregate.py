@@ -237,10 +237,13 @@ class IDMAggregate(Aggregate):
             action_type="PASSWORD_CHANGE",
             status='PENDING',
             user_id=self.context.user_id,
-            action_data={"password": enc_password}
+            action_data={"password": enc_password},
+            _id=UUID_GENR()
         )
         await self.statemgr.insert(record)
-        return record
+        return {
+            "action_id": record._id
+        }
 
 
     # ==========================================================================

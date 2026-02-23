@@ -153,7 +153,7 @@ async def complete_password_change(
 
         if not user_action:
             return {"error": "Password change action not found"}
-        if user_action.user_id != context.profile.user_id:
+        if user_action.user_id != context.user.id:
             return {"error": "Wrong user"}
 
         if user_action.name != "password-change-action" or getattr(user_action.action_type, "value", user_action.action_type) != "PASSWORD_CHANGE":

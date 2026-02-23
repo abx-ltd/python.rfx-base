@@ -462,10 +462,15 @@ class SendChangePasswordAction(Command):
         max_requests = userconf.MAX_REQUESTS_PER_WINDOW
         window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
 
+        recipient_email = payload.user_email
+        try:
+            user = await stm.find_one("user", where=dict(verified_email=recipient_email))
+        except ItemNotFoundError:
+            raise ValueError(f"No user with {recipient_email} existed")
         all_recent_actions = await stm.find_all(
             "user_action",
             where=dict(
-                user_id=context.user_id,
+                user_id=user._id,
                 name="password-change-action",
                 **{"_created.gt": window_start}
             )
@@ -477,11 +482,6 @@ class SendChangePasswordAction(Command):
         if any(getattr(a.status, "value", a.status) == "PENDING" for a in all_recent_actions):
             raise ValueError("A password change request is already pending. Please complete or cancel it before requesting a new one.")
 
-        user = await stm.fetch("user", context.user_id)
-
-        recipient_email = user.verified_email or user.telecom__email
-        if not recipient_email:
-            raise ValueError("User does not have an email address associated with their account to receive password change instructions.")
 
         # Record the action to get its ID before sending
         result = await agg.record_password_action(serialize_mapping(payload))
@@ -489,7 +489,7 @@ class SendChangePasswordAction(Command):
         from rfx_user import config as userconf
         base_url = userconf.API_BASE_URL or ""
         # Assuming the frontend or API follows a pattern like <namespace>.path/<action_id>
-        action_link = f"{base_url}/{config.IDM_NAMESPACE}.complete-password-change/{result._id}"
+        action_link = f"{base_url}/{config.IDM_NAMESPACE}.complete-password-change/{result.get('action_id')}"
 
         await notify_service.send(
             "rfx-notify:send-notification",

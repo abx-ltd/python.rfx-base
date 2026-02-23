@@ -343,3 +343,4 @@ class SyncUserPayload(DataModel):
 
 class ChangePasswordActionPayload(DataModel):
     password: str = Field(max_length=1024)
+    user_email: str = Field(..., description="User email to reset")
