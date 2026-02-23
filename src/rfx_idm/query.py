@@ -149,9 +149,12 @@ async def complete_password_change(
 
     async with query_manager.data_manager.transaction():
         user_action = await query_manager.data_manager.fetch("user_action", action_id)
+        context = request.state.auth_context
 
         if not user_action:
             return {"error": "Password change action not found"}
+        if user_action.user_id != context.profile.user_id:
+            return {"error": "Wrong user"}
 
         if user_action.name != "password-change-action" or getattr(user_action.action_type, "value", user_action.action_type) != "PASSWORD_CHANGE":
             return {"error": "Invalid action type"}

@@ -449,12 +449,39 @@ class SendChangePasswordAction(Command):
     Data = datadef.ChangePasswordActionPayload
 
     async def _process(self, agg, stm, payload):
-        notify_service = getattr(agg.context.service_proxy, config.SERVICE_CLIENT, None)
+        context = agg.get_context()
+        notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
 
         if not notify_service:
             raise RuntimeError("Notification service client is not found")
 
-        user = await stm.fetch("user", agg.context.user_id)
+        from datetime import datetime, timedelta
+        from rfx_user import config as userconf
+
+        window_minutes = userconf.RATE_LIMIT_WINDOW_MINUTES
+        max_requests = userconf.MAX_REQUESTS_PER_WINDOW
+        window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+
+        all_recent_actions = await stm.find_all(
+            "user_action",
+            where=dict(
+                user_id=context.user_id,
+                name="password-change-action",
+                **{"_created.gt": window_start}
+            )
+        )
+
+        if len(all_recent_actions) >= max_requests:
+            raise ValueError(f"Too many password change requests. Please wait {window_minutes} minutes.")
+
+        if any(getattr(a.status, "value", a.status) == "PENDING" for a in all_recent_actions):
+            raise ValueError("A password change request is already pending. Please complete or cancel it before requesting a new one.")
+
+        user = await stm.fetch("user", context.user_id)
+
+        recipient_email = user.verified_email or user.telecom__email
+        if not recipient_email:
+            raise ValueError("User does not have an email address associated with their account to receive password change instructions.")
 
         # Record the action to get its ID before sending
         result = await agg.record_password_action(serialize_mapping(payload))
@@ -470,7 +497,7 @@ class SendChangePasswordAction(Command):
             resource="notification",
             payload={
                 "channel": "EMAIL",
-                "recipients": [user.verified_email],
+                "recipients": [recipient_email],
                 "template_key": "password-change-action",
                 "content_type": "HTML",
                 "template_data": {
@@ -482,10 +509,10 @@ class SendChangePasswordAction(Command):
             _headers={},
             _context={
                 "audit": {
-                    "user_id": str(agg.context.user_id) if agg.context.user_id else None,
-                    "profile_id": str(agg.context.profile_id) if agg.context.profile_id else None,
-                    "organization_id": str(agg.context.organization_id),
-                    "realm": agg.context.realm,
+                    "user_id": str(context.user_id) if context.user_id else None,
+                    "profile_id": str(context.profile_id) if context.profile_id else None,
+                    "organization_id": str(context.organization_id),
+                    "realm": context.realm,
                 },
                 "source": "rfx-idm",
             },

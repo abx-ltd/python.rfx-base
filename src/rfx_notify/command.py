@@ -54,7 +54,8 @@ class SendNotification(Command):
                     raise ValueError("Recipients list cannot be empty")
 
                 # Render template via rfx-template domain
-                template_client = getattr(agg.context.service_proxy, userconf.SERVICE_CLIENT, None)
+                context = agg.get_context()
+                template_client = getattr(context.service_proxy, userconf.SERVICE_CLIENT, None)
                 if not template_client:
                     raise RuntimeError("Template service not found")
 
@@ -74,8 +75,8 @@ class SendNotification(Command):
                     _headers={},
                     _context={
                         "audit": {
-                            "user_id": str(self.context.user_id) if self.context.user_id else None,
-                            "profile_id": str(self.context.profile_id) if self.context.profile_id else None,
+                            "user_id": str(context.user_id) if context.user_id else None,
+                            "profile_id": str(context.profile_id) if context.profile_id else None,
                         },
                         "source": "rfx-notify",
                     },
