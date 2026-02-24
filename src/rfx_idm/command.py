@@ -875,19 +875,22 @@ class UpdateProfile(Command):
 
             # Only validate if OWNER is being newly added (not already assigned)
             if "OWNER" not in existing_keys:
-                # Find all existing OWNER roles in the organization
-                all_owner_roles = await stm.find_all(
-                    "profile_role",
-                    where=dict(role_key="OWNER")
-                )
+                all_profile_in_orgs = await stm.find_all('profile', where=dict(
+                    organization_id=profile.organization_id,
+                    status="ACTIVE"
+                ))
 
-                for owner_role in all_owner_roles:
-                    if owner_role.profile_id != profile._id:
-                        owner_profile = await stm.fetch("profile", owner_role.profile_id)
-                        if (owner_profile and
-                            owner_profile.organization_id == profile.organization_id and
-                            owner_profile.status == "ACTIVE"):
-                            raise ValueError(f"Organization can have only one OWNER role assigned. Current owner: {owner_profile.name__family} {owner_profile.name__given}")
+                for p in all_profile_in_orgs:
+                    # Skip the current profile being updated
+                    if p._id == profile._id:
+                        continue
+
+                    profile_role = await stm.exist('profile_role', where=dict(
+                        profile_id=p._id,
+                        role_key='OWNER'
+                    ))
+                    if profile_role:
+                        raise ValueError(f"Organization already has an owner: {p.name__family} {p.name__given}")
 
         await agg.update_profile(payload)
 
