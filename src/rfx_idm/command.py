@@ -885,11 +885,12 @@ class UpdateProfile(Command):
                     if p._id == profile._id:
                         continue
 
-                    profile_role = await stm.exist('profile_role', where=dict(
-                        profile_id=p._id,
-                        role_key='OWNER'
-                    ))
-                    if profile_role:
+                    try:
+                        profile_role = await stm.find_one('profile_role', where=dict(
+                            profile_id=p._id,
+                            role_key='OWNER'
+                        ))
+                    except ItemNotFoundError:
                         raise ValueError(f"Organization already has an owner: {p.name__family} {p.name__given}")
 
         await agg.update_profile(payload)
