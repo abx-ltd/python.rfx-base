@@ -542,34 +542,7 @@ class UserProfileAggregate(Aggregate):
         )
         await self.set_profile_status(item, ProfileStatusEnum.DEACTIVATED.value)
 
-    @action("profile-activated", resources="profile")
-    async def activate_profile(self, data=None):
-        """Activate profile to allow access."""
-        item = self.rootobj
 
-        # Check for existing active profile in same org+realm
-        existing_active = await self.statemgr.exist(
-            "profile",
-            where=dict(
-                user_id=item.user_id,
-                organization_id=item.organization_id,
-                realm=item.realm,
-                status=ProfileStatusEnum.ACTIVE.value
-            )
-        )
-
-        if existing_active and existing_active._id != item._id:
-            raise ValueError(
-                "User already has an active profile in this organization and realm"
-            )
-
-        # Activate the profile
-        await self.statemgr.update(
-            item,
-            status=ProfileStatusEnum.ACTIVE.value,
-            current_profile=False
-        )
-        await self.set_profile_status(item, ProfileStatusEnum.ACTIVE.value)
 
     # @action("role-assigned-to-profile", resources=("organization", "profile"))
     # async def assign_role_to_profile(self, data):
@@ -738,6 +711,45 @@ class UserProfileAggregate(Aggregate):
     async def activate_profile(self, data=None):
         """Activate profile to allow access."""
         item = self.rootobj
+
+        # Check for existing active profile in same org+realm
+        existing_active = await self.statemgr.exist(
+            "profile",
+            where=dict(
+                user_id=item.user_id,
+                organization_id=item.organization_id,
+                realm=item.realm,
+                status=ProfileStatusEnum.ACTIVE.value
+            )
+        )
+
+        if existing_active and existing_active._id != item._id:
+            raise ValueError(
+                "User already has an active profile in this organization and realm"
+            )
+
+        # Check if this profile has an OWNER role
+        is_owner = await self.statemgr.exist('profile_role', where=dict(
+            profile_id=item._id,
+            role_key='OWNER'
+        ))
+
+        if is_owner:
+            # Look for any other active profile in the org that is an OWNER
+            all_active_profiles = await self.statemgr.find_all('profile', where=dict(
+                organization_id=item.organization_id,
+                status=ProfileStatusEnum.ACTIVE.value
+            ))
+            for p in all_active_profiles:
+                if p._id == item._id:
+                    continue
+                other_owner = await self.statemgr.exist('profile_role', where=dict(
+                    profile_id=p._id,
+                    role_key='OWNER'
+                ))
+                if other_owner:
+                    raise ValueError(f"Organization already has an owner: {p.name__family} {p.name__given}")
+
         await self.statemgr.update(
             item,
             status=ProfileStatusEnum.ACTIVE.value,

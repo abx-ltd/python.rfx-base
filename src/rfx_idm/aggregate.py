@@ -523,6 +523,28 @@ class IDMAggregate(Aggregate):
                 "User already has an active profile in this organization and realm"
             )
 
+        # Check if this profile has an OWNER role
+        is_owner = await self.statemgr.exist('profile_role', where=dict(
+            profile_id=item._id,
+            role_key='OWNER'
+        ))
+
+        if is_owner:
+            # Look for any other active profile in the org that is an OWNER
+            all_active_profiles = await self.statemgr.find_all('profile', where=dict(
+                organization_id=item.organization_id,
+                status=ProfileStatusEnum.ACTIVE.value
+            ))
+            for p in all_active_profiles:
+                if p._id == item._id:
+                    continue
+                other_owner = await self.statemgr.exist('profile_role', where=dict(
+                    profile_id=p._id,
+                    role_key='OWNER'
+                ))
+                if other_owner:
+                    raise ValueError(f"Organization already has an owner: {p.name__family} {p.name__given}")
+
         # Activate the profile
         await self.statemgr.update(
             item,
