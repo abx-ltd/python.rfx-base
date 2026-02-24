@@ -11,8 +11,8 @@ from fluvius.query.field import (
     EnumField,
     PrimaryID,
 )
-
-from . import config
+from . import datadef
+from . import config, logger
 from .state import IDMStateManager
 from .domain import UserProfileDomain
 from .policy import UserProfilePolicyManager
@@ -209,6 +209,56 @@ async def switch_profile(
 
     redirect_url = config.REALM_URL_MAPPER.get(profile.realm, "/")
     return RedirectResponse(redirect_url, status_code=303)
+
+
+@endpoint(".verify-password-change/{action_id}/{code}")
+async def verify_password_change(
+    query_manager: UserProfileQueryManager, request: Request, action_id: str, code: str
+):
+    from .security import decrypt_password
+    from .integration import kc_admin
+
+    async with query_manager.data_manager.transaction():
+        user_action = await query_manager.data_manager.fetch("user_action", action_id)
+
+        if not user_action:
+            return {"error": "Password change action not found"}
+
+        if getattr(user_action.status, "value", user_action.status) != "PENDING":
+             return {"error": "Action is no longer pending"}
+
+        action_data = user_action.action_data or {}
+        stored_code = action_data.get("code")
+
+        if not stored_code or stored_code != code:
+            # Optionally increment a failed attempt counter here like in guest.py
+            return {"error": "Invalid verification code"}
+
+        code_expires_at = action_data.get("code_expires_at")
+        if code_expires_at and datetime.fromisoformat(code_expires_at) < datetime.utcnow():
+            return {"error": "Verification code has expired"}
+
+        encrypted_password = action_data.get("password")
+        if not encrypted_password:
+            return {"error": "No password found to update"}
+
+        try:
+            new_password = decrypt_password(encrypted_password)
+        except Exception:
+            return {"error": "Invalid or corrupted password data"}
+
+        # Update Keycloak
+        await kc_admin.set_user_password(user_action.user_id, new_password, temporary=False)
+
+        # Mark action as COMPLETED and blank out data for security
+        await query_manager.data_manager.update(user_action, status="COMPLETED", action_data={})
+
+        # Return success with user identifier
+        return {
+            "success": True,
+            "message": "Password updated successfully",
+            "user_id": str(user_action.user_id)
+        }
 
 
 @resource("user")

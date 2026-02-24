@@ -257,3 +257,13 @@ class SyncUserPayload(DataModel):
 class SwitchProfilePayload(DataModel):
     """Payload for switching active user profiles."""
     profile_id: UUID_TYPE
+
+class UpdatePasswordPayload(DataModel):
+    """Payload for a user securely inputting a new password to be verified."""
+    action_id: Optional[str] = Field(None, description="Action ID from the token link (if initiated by admin)")
+    new_password: str = Field(..., description="The user's new plaintext password")
+
+class VerifyPasswordChangePayload(DataModel):
+    """Payload for verifying the newly set password via code."""
+    action_id: str = Field(..., description="Action ID from the token link")
+    code: str = Field(..., description="The 6-digit confirmation code")

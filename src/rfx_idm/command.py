@@ -1,10 +1,13 @@
 from datetime import datetime
 from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.data.exceptions import ItemNotFoundError
 from fluvius.error import BadRequestError
 
+from datetime import datetime, timedelta
 from .domain import IDMDomain
 from .integration import kc_admin
 from . import datadef, config
+from rfx_user import config as userconf
 
 processor = IDMDomain.command_processor
 Command = IDMDomain.Command
@@ -429,24 +432,23 @@ class ActivateUser(Command):
         }
         if hasattr(kc_user, "requiredActions"):
             user_data["requiredActions"] = kc_user.requiredActions
-
         await kc_admin.update_user(rootobj._id, user_data)
         await agg.activate_user()
 
 
-class SendChangePasswordAction(Command):
+class SendUserAction(Command):
     """
-    Send change password action to the user email
+    Send a user action to the user email (e.g. password change).
     """
 
     class Meta:
-        key = "send-change-password-action"
+        key = "send-user-action"
         resources = ("user",)
         tags = ["user"]
         auth_required = True
-        description = "Send a change password action to the user email"
+        description = "Send a user action to the user email"
 
-    Data = datadef.ChangePasswordActionPayload
+    Data = datadef.ChangeActionPayload
 
     async def _process(self, agg, stm, payload):
         context = agg.get_context()
@@ -455,41 +457,59 @@ class SendChangePasswordAction(Command):
         if not notify_service:
             raise RuntimeError("Notification service client is not found")
 
-        from datetime import datetime, timedelta
-        from rfx_user import config as userconf
 
         window_minutes = userconf.RATE_LIMIT_WINDOW_MINUTES
         max_requests = userconf.MAX_REQUESTS_PER_WINDOW
         window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
 
-        recipient_email = payload.user_email
-        try:
-            user = await stm.find_one("user", where=dict(verified_email=recipient_email))
-        except ItemNotFoundError:
-            raise ValueError(f"No user with {recipient_email} existed")
+        user = agg.get_rootobj()
+        if not user:
+            raise ValueError("No user aggregate found")
+
+        recipient_email = user.verified_email or user.telecom__email
+        if not recipient_email:
+            raise ValueError("User does not have an email address associated with their account to receive action instructions.")
+
         all_recent_actions = await stm.find_all(
             "user_action",
             where=dict(
                 user_id=user._id,
-                name="password-change-action",
+                name=f"{payload.action_type.lower().replace('_', '-')}-action",
                 **{"_created.gt": window_start}
             )
         )
 
         if len(all_recent_actions) >= max_requests:
-            raise ValueError(f"Too many password change requests. Please wait {window_minutes} minutes.")
+            raise ValueError(f"Too many action requests. Please wait {window_minutes} minutes.")
 
         if any(getattr(a.status, "value", a.status) == "PENDING" for a in all_recent_actions):
-            raise ValueError("A password change request is already pending. Please complete or cancel it before requesting a new one.")
+            raise ValueError("A user action request is already pending. Please complete or cancel it before requesting a new one.")
 
 
         # Record the action to get its ID before sending
-        result = await agg.record_password_action(serialize_mapping(payload))
+        action_data = serialize_mapping(payload)
+        action_data["user_id"] = user._id
+        result = await agg.record_user_action(action_data)
 
-        from rfx_user import config as userconf
-        base_url = userconf.API_BASE_URL or ""
-        # Assuming the frontend or API follows a pattern like <namespace>.path/<action_id>
-        action_link = f"{base_url}/{config.IDM_NAMESPACE}.complete-password-change/{result.get('action_id')}"
+
+        list_profile = await stm.find_all(
+            "profile",
+            where=dict(user_id=user._id, status='ACTIVE', current_profile=True)
+        )
+
+        if not list_profile:
+             raise ValueError("No active profile found for this user to determine target application")
+
+        realm_accesses = set([profile.realm for profile in list_profile])
+        target_realm = next(iter(realm_accesses), None)
+        base_url = userconf.REALM_URL_MAPPER.get(target_realm, "/") if target_realm else "/"
+
+        if payload.action_type == "PASSWORD_CHANGE":
+            change_password_route = getattr(userconf, "CHANGE_PASSWORD_PATH", "/change-password")
+            action_link = f"{base_url.rstrip('/')}{change_password_route}?action_id={result.get('action_id')}"
+            template_key = "password-change-action"
+        else:
+            raise ValueError(f"Unsupported action type {payload.action_type}")
 
         await notify_service.send(
             "rfx-notify:send-notification",
@@ -498,7 +518,7 @@ class SendChangePasswordAction(Command):
             payload={
                 "channel": "EMAIL",
                 "recipients": [recipient_email],
-                "template_key": "password-change-action",
+                "template_key": template_key,
                 "content_type": "HTML",
                 "template_data": {
                     "action_link": action_link,
@@ -933,27 +953,27 @@ class DeleteProfile(Command):
         await agg.delete_profile()
 
 
-# ============ Profile Role Management =============
+# # ============ Profile Role Management =============
 
 
-class AssignRoleToProfile(Command):
-    """
-    Assign system or organization role to profile.
-    Grants specific permissions within organizational context.
-    """
+# class AssignRoleToProfile(Command):
+#     """
+#     Assign system or organization role to profile.
+#     Grants specific permissions within organizational context.
+#     """
 
-    class Meta:
-        key = "assign-role-to-profile"
-        resources = ("profile",)
-        tags = ["profile"]
-        auth_required = True
-        policy_required = True
+#     class Meta:
+#         key = "assign-role-to-profile"
+#         resources = ("profile",)
+#         tags = ["profile"]
+#         auth_required = True
+#         policy_required = True
 
-    Data = datadef.AssignRolePayload
+#     Data = datadef.AssignRolePayload
 
-    async def _process(self, agg, stm, payload):
-        role = await agg.assign_role_to_profile(serialize_mapping(payload))
-        agg.create_response(role, _type="idm-response")
+#     async def _process(self, agg, stm, payload):
+#         role = await agg.assign_role_to_profile(serialize_mapping(payload))
+#         agg.create_response(role, _type="idm-response")
 
 
 class RevokeRoleFromProfile(Command):

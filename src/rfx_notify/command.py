@@ -7,6 +7,7 @@ from fluvius.data import serialize_mapping
 from .domain import NotifyServiceDomain
 from . import datadef, logger
 from .types import NotificationChannelEnum
+from rfx_user import config as userconf
 
 
 processor = NotifyServiceDomain.command_processor
@@ -45,7 +46,6 @@ class SendNotification(Command):
             }
 
             if template_key:
-                from rfx_user import config as userconf
                 channel = NotificationChannelEnum(notification_payload["channel"])
                 template_data = notification_payload.get("template_data", {}) or {}
                 template_version = notification_payload.get("template_version")

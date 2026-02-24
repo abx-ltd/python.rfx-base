@@ -28,6 +28,8 @@ from fluvius.data import serialize_mapping, UUID_GENR
 from .domain import UserProfileDomain
 from .integration import kc_admin
 from . import datadef
+from . import config, logger
+import secrets
 
 processor = UserProfileDomain.command_processor
 Command = UserProfileDomain.Command
@@ -256,6 +258,96 @@ Command = UserProfileDomain.Command
 #         )
 #         await agg.assign_role_to_profile(data=profile_role)
 #         yield agg.create_response(serialize_mapping(org), _type="user-profile-response")
+
+
+class UpdatePassword(Command):
+    """
+    Update password command, which takes the new password, hashes it then stores it in user action
+    and creates a random number code to verify the user via email.
+    """
+    class Meta:
+        key = "update-password"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+        policy_required = True
+
+    Data = datadef.UpdatePasswordPayload
+
+    async def _process(self, agg, stm, payload):
+        user = agg.get_rootobj()
+        context = agg.get_context()
+        if not user:
+            raise ValueError("No user aggregate found")
+        if user._id != context.user_id:
+            raise ValueError("Wrong user id")
+
+        from .security import encrypt_password
+        encrypted_password = encrypt_password(payload.new_password)
+
+        code = "".join(str(secrets.randbelow(10)) for _ in range(6))
+
+        from datetime import datetime, timedelta
+        expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+
+        action_data_update = {
+            "password": encrypted_password,
+            "code": code,
+            "code_expires_at": expires_at
+        }
+
+        if payload.action_id:
+            user_action = await agg.update_user_action({
+                "action_id": payload.action_id,
+                "action_data": action_data_update
+            })
+        else:
+            user_action = await agg.record_user_action({
+                "action_type": "PASSWORD_CHANGE",
+                "action_data": action_data_update
+            })
+
+        # Get the email
+        email = user.verified_email or user.telecom__email
+
+        notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+        if notify_service:
+            # Send the confirmation code using rfx-notify standard email templates
+            recipient_name = user.name__given or user.username or "User"
+
+            await notify_service.send(
+                "rfx-notify:send-notification",
+                command="send-notification",
+                resource="notification",
+                payload={
+                    "channel": "EMAIL",
+                    "recipients": [email],
+                    "template_key": "password-change-verification",
+                    "content_type": "HTML",
+                    "template_data": {
+                        "user_name": recipient_name,
+                        "code": code,
+                        "current_year": datetime.utcnow().year,
+                    },
+                },
+                identifier=UUID_GENR(),
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    },
+                    "source": "rfx_user",
+                },
+            )
+
+        yield agg.create_response({
+            "status": "verification_sent",
+            "email": email,
+            "action_id": user_action._id
+        }, _type="user-profile-response")
 
 
 class UpdateOrganization(Command):

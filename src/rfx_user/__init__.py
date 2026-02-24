@@ -4,5 +4,5 @@ from ._meta import config, logger
 from .domain import UserProfileDomain
 from .query import UserProfileQueryManager
 from .provider import RFXAuthProfileProvider
-from .endpoint import configure_guest_auth
+from .guest import configure_guest_auth
 from . import command

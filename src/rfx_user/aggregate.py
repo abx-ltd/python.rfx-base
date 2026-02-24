@@ -140,6 +140,42 @@ class UserProfileAggregate(Aggregate):
     #                     ))
     #                     await self.statemgr.insert(record)
 
+    @action("user-action-recorded", resources=("user", "user_action"))
+    async def record_user_action(self, data):
+        user = self.rootobj
+        action_type = data.get("action_type")
+
+        record = self.init_resource(
+            "user_action",
+            name=f"{action_type.lower().replace('_', '-')}-action",
+            action_type=action_type,
+            status='PENDING',
+            user_id=user._id,
+            action_data=data.get("action_data", {}),
+            _id=UUID_GENR()
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("user-action-updated", resources=("user", "user_action"))
+    async def update_user_action(self, data):
+        user = self.rootobj
+        action_id = data.get("action_id")
+
+        user_action = await self.statemgr.fetch("user_action", action_id)
+        if not user_action:
+            raise ValueError("Invalid action ID")
+        if getattr(user_action.status, "value", user_action.status) != "PENDING":
+            raise ValueError("Action is no longer pending")
+        if str(user_action.user_id) != str(user._id):
+            raise ValueError("Action does not belong to this user")
+
+        action_data = user_action.action_data or {}
+        action_data.update(data.get("action_data", {}))
+
+        await self.statemgr.update(user_action, action_data=action_data)
+        return user_action
+
     #             # Any current actions not in required_actions should be marked as completed
     #             for action in current_actions:
     #                 if action._id not in processed_actions:
