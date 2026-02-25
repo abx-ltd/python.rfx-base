@@ -797,19 +797,21 @@ class CreateProfileInOrg(Command):
         if "OWNER" in role_keys:
             organization_id = profile_data.get("organization_id")
 
-            # Find all existing OWNER roles
-            existing_owner_roles = await stm.find_all(
-                "profile_role",
-                where=dict(role_key="OWNER")
-            )
+            all_profile_in_orgs = await stm.find_all('profile', where=dict(
+                organization_id=organization_id,
+                status="ACTIVE"
+            ))
 
-            # Check if any OWNER exists in the target organization
-            for owner_role in existing_owner_roles:
-                owner_profile = await stm.fetch("profile", owner_role.profile_id)
-                if (owner_profile and
-                    owner_profile.organization_id == organization_id and
-                    owner_profile.status == "ACTIVE"):
-                    raise ValueError(f"Organization can have only one OWNER role assigned. Current owner: {owner_profile.name__family} {owner_profile.name__given}")
+            for p in all_profile_in_orgs:
+                try:
+                    profile_role = await stm.find_one('profile_role', where=dict(
+                        profile_id=p._id,
+                        role_key='OWNER'
+                    ))
+                    # If.find_one succeeds, an OWNER role exists
+                    raise ValueError(f"Organization already has an owner: {p.name__family} {p.name__given}")
+                except ItemNotFoundError:
+                    pass
 
         # Create the profile
         result = await agg.create_profile_in_org(profile_data)
@@ -890,8 +892,10 @@ class UpdateProfile(Command):
                             profile_id=p._id,
                             role_key='OWNER'
                         ))
-                    except ItemNotFoundError:
+                        # If find_one succeeds, an OWNER role exists
                         raise ValueError(f"Organization already has an owner: {p.name__family} {p.name__given}")
+                    except ItemNotFoundError:
+                        pass
 
         await agg.update_profile(payload)
 

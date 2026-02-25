@@ -655,8 +655,10 @@ class UpdateProfile(Command):
                             profile_id=p._id,
                             role_key='OWNER'
                         ))
-                    except ItemNotFoundError:
+                        # If find_one succeeds, an OWNER role exists
                         raise ValueError(f"Organization already has an owner: {p.name__family} {p.name__given}")
+                    except ItemNotFoundError:
+                        pass
 
         await agg.update_profile(data)
 
