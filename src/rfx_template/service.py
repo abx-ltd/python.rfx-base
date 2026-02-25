@@ -78,37 +78,67 @@ class BaseTemplateService:
 
         for loc in locales:
             for scope in unique_scopes:
-                query = {
-                    **scope,
-                    "key": key,
-                    "is_active": True,
-                }
-
-                # Filter out explicitly None values if that's how your DB query works
-                # But here we explicitly want to match NULLs if the scope has None.
-                # Assuming query builder handles None as IS NULL.
-
-                if loc is not None:
-                    query["locale"] = loc
-                # If loc is None, we might check for 'en' or rely on default in DB,
-                # but usually we want to query locale=loc.
-                # If logic allows locale=NULL in DB, then query["locale"] = None is fine.
-
-                if version is not None:
-                    query["version"] = version
-
-                try:
-                    # We use find_one with specific query
-                    template = await self.stm.find_one(self.table_name, where=query)
-                    if template:
-                        logger.info(f"Resolved template {key} with scope: {query}")
-                        return serialize_mapping(template)
-                except ItemNotFoundError:
-                    continue
+                template = await self._find_template_for_scope(key, scope, loc, version)
+                if template:
+                    return template
 
         logger.warning(
             f"Template not found: {key} (tenant={tenant_id}, app={app_id}, locale={locale}, channel={channel})"
         )
+        return None
+
+    async def _find_template_for_scope(
+        self,
+        key: str,
+        scope: Dict[str, Any],
+        loc: Optional[str],
+        version: Optional[int],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Fetch template candidates using only non-None scope fields in the DB query,
+        then verify in Python that fields which are None in the scope are also None
+        on the returned record.
+
+        The query builder does not translate Python None -> SQL IS NULL (it generates
+        `col = NULL` which never matches). By omitting None-valued fields from the DB
+        query and checking them in Python afterwards, we correctly handle NULL columns.
+        """
+        # Build DB query with non-None fields only; track which fields must be NULL.
+        query: Dict[str, Any] = {"key": key, "is_active": True}
+        none_fields: List[str] = []
+
+        for field_name, value in scope.items():
+            if value is not None:
+                query[field_name] = value
+            else:
+                none_fields.append(field_name)
+
+        if loc is not None:
+            query["locale"] = loc
+        # When loc is None: omit locale from both the DB query and none_fields.
+        # This is the "any locale" last-resort fallback — accept any matching record
+        # regardless of locale. (locale is NOT NULL so checking IS NULL would never match.)
+
+        if version is not None:
+            query["version"] = version
+
+        try:
+            candidates = await self.stm.find_all(self.table_name, where=query)
+        except ItemNotFoundError:
+            return None
+
+        if not candidates:
+            return None
+
+        # Post-filter in Python: only accept a candidate where every field that
+        # should be NULL is actually NULL on the record.
+        for candidate in candidates:
+            if all(getattr(candidate, f, None) is None for f in none_fields):
+                logger.info(
+                    f"Resolved template {key} with scope: {query}, null_fields: {none_fields}"
+                )
+                return serialize_mapping(candidate)
+
         return None
 
     def _get_locale_fallbacks(self, locale: Optional[str]) -> List[Optional[str]]:
@@ -124,8 +154,8 @@ class BaseTemplateService:
         if 'en' not in locales:
             locales.append('en')
 
-        # Optional: Add None to try getting a template with no locale specified?
-        # locales.append(None)
+        # Add None to try getting a template with no locale specified, or fallback to any layout
+        locales.append(None)
 
         return locales
 
