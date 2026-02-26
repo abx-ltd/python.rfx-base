@@ -222,30 +222,30 @@ async def verify_password_change(
         user_action = await query_manager.data_manager.fetch("user_action", action_id)
 
         if not user_action:
-            return {"error": "Password change action not found"}
+            raise ValueError("Password change action not found")
 
         if getattr(user_action.status, "value", user_action.status) != "PENDING":
-             return {"error": "Action is no longer pending"}
+             raise ValueError("Action is no longer pending")
 
         action_data = user_action.action_data or {}
         stored_code = action_data.get("code")
 
         if not stored_code or stored_code != code:
             # Optionally increment a failed attempt counter here like in guest.py
-            return {"error": "Invalid verification code"}
+            raise ValueError("Invalid verification code")
 
         code_expires_at = action_data.get("code_expires_at")
         if code_expires_at and datetime.fromisoformat(code_expires_at) < datetime.utcnow():
-            return {"error": "Verification code has expired"}
+            raise ValueError("Verification code has expired")
 
         encrypted_password = action_data.get("password")
         if not encrypted_password:
-            return {"error": "No password found to update"}
+            raise ValueError("No password found to update")
 
         try:
             new_password = decrypt_password(encrypted_password)
         except Exception:
-            return {"error": "Invalid or corrupted password data"}
+            raise ValueError("Invalid or corrupted password data")
 
         # Update Keycloak
         await kc_admin.set_user_password(user_action.user_id, new_password, temporary=False)
