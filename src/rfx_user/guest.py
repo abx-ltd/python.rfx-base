@@ -97,6 +97,7 @@ class IDMGuestAuth:
 
             "nonce": str(UUID_GENR()),
             "sid": str(UUID_GENR()),
+            "session_id": session_id,
 
             # User info claims
             "email": email,
@@ -176,6 +177,7 @@ class IDMGuestAuth:
                         verified=False,
                         verified_at=None,
                         ip_address=client_ip,
+                        full_name=full_name,
                         attempt=0
                     )
                     await self.statemgr.insert(verification_record)
@@ -284,7 +286,7 @@ class IDMGuestAuth:
                             _id=UUID_GENR(),
                             email=email,
                             phone=verification.phone,
-                            full_name=verification.email or "Guest",
+                            full_name=verification.full_name or "Guest",
                             session_id=session_id,
                             email_verified=True,
                             last_active_at=current_time
@@ -352,11 +354,6 @@ class IDMGuestAuth:
                 params = request.query_params
                 headers = request.headers
 
-                # redirect_uri = validate_direct_url(
-                    # params.get('redirect_uri'),
-                    # config.DEFAULT_LOGOUT_REDIRECT_URI
-                # )
-
                 if config.VALIDATE_CSRF_TOKEN:
                     csrf_token = params.get('csrf_token') or headers.get('X-CSRF-Token')
                     if not validate_csrf_token(request, csrf_token):
@@ -372,14 +369,17 @@ class IDMGuestAuth:
                         logger.warn(f"[GUEST AUTH] Failed to update logout time: {e}")
 
                 request.session.clear()
-                # response = RedirectResponse(url=redirect_uri)
+                response = JSONResponse(
+                    status_code=200,
+                    content={"status": "signed_out", "message": "Successfully signed out"}
+                )
                 response.delete_cookie(
                     config.SES_ID_TOKEN_FIELD,
                     httponly=True,
                     secure=config.COOKIE_HTTPS_ONLY,
                     samesite=config.COOKIE_SAME_SITE_POLICY
                 )
-                # return response
+                return response
 
         return self.app
 

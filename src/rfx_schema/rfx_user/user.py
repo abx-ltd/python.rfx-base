@@ -155,6 +155,7 @@ class GuestVerification(TableBase):
     )
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     code: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
