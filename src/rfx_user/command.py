@@ -299,8 +299,8 @@ class UpdatePassword(Command):
         if len(all_recent_actions) >= max_requests:
             raise ValueError(f"Too many password update requests. Please wait {window_minutes} minutes.")
 
-        if any(getattr(a.status, "value", a.status) == "PENDING" for a in all_recent_actions):
-            raise ValueError("A password change request is already pending. Please complete or cancel it before requesting a new one.")
+        # if any(getattr(a.status, "value", a.status) == "PENDING" for a in all_recent_actions):
+        #     raise ValueError("A password change request is already pending. Please complete or cancel it before requesting a new one.")
         # --- End rate limit check ---
 
         from .security import encrypt_password

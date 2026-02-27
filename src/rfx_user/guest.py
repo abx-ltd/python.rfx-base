@@ -155,6 +155,14 @@ class IDMGuestAuth:
                     # Get client IP address
                     client_ip = request.client.host if request.client else None
 
+                    # Invalidate previous unverified requests
+                    active_requests = await self.statemgr.find_all(
+                        "guest_verification",
+                        where={"value": email, "verified": False}
+                    )
+                    for req in active_requests:
+                        await self.statemgr.update(req, verified=True)
+
                     # Store verification record with new schema fields
                     verification_record = self.statemgr.create(
                         "guest_verification",
@@ -216,25 +224,19 @@ class IDMGuestAuth:
                         raise BadRequestError("G200-400", "Invalid code format. Code must be 6 digits.")
 
                     # Find verification record
-                    verification = await self.statemgr.exist(
+                    verifications = await self.statemgr.find_all(
                         "guest_verification",
                         where={
                             "value": email,
-                            "code": code,
                             "verified": False
                         }
                     )
 
-                    if not verification:
-                        # Increment failed attempts
-                        await self._increment_failed_attempts(email, code)
-                        raise BadRequestError("G200-401", "Invalid or expired verification code")
+                    if not verifications:
+                        raise BadRequestError("G200-401", "No active verification request found")
 
-                    # Check expiration
-                    current_time = datetime.now(timezone.utc)
-                    if verification.expires_at < current_time:
-                        await self.statemgr.update(verification, verified=False)
-                        raise BadRequestError("G200-402", "Verification code has expired")
+                    # Get the most recently created verification record
+                    verification = sorted(verifications, key=lambda x: x.expires_at, reverse=True)[0]
 
                     # Check attempt limit
                     if verification.attempt >= config.MAX_VERIFICATION_ATTEMPTS:
@@ -242,6 +244,17 @@ class IDMGuestAuth:
                             "G200-404",
                             "Too many failed attempts. Please request a new code."
                         )
+
+                    # Check expiration
+                    current_time = datetime.now(timezone.utc)
+                    if verification.expires_at < current_time:
+                        await self.statemgr.update(verification, verified=False)
+                        raise BadRequestError("G200-402", "Verification code has expired")
+
+                    # Check code validity
+                    if verification.code != code:
+                        await self.statemgr.update(verification, attempt=verification.attempt + 1)
+                        raise BadRequestError("G200-401", "Invalid verification code")
 
                     # Mark code as verified
                     await self.statemgr.update(
@@ -339,10 +352,10 @@ class IDMGuestAuth:
                 params = request.query_params
                 headers = request.headers
 
-                redirect_uri = validate_direct_url(
-                    params.get('redirect_uri'),
-                    config.DEFAULT_LOGOUT_REDIRECT_URI
-                )
+                # redirect_uri = validate_direct_url(
+                    # params.get('redirect_uri'),
+                    # config.DEFAULT_LOGOUT_REDIRECT_URI
+                # )
 
                 if config.VALIDATE_CSRF_TOKEN:
                     csrf_token = params.get('csrf_token') or headers.get('X-CSRF-Token')
@@ -359,30 +372,16 @@ class IDMGuestAuth:
                         logger.warn(f"[GUEST AUTH] Failed to update logout time: {e}")
 
                 request.session.clear()
-                response = RedirectResponse(url=redirect_uri)
+                # response = RedirectResponse(url=redirect_uri)
                 response.delete_cookie(
                     config.SES_ID_TOKEN_FIELD,
                     httponly=True,
                     secure=config.COOKIE_HTTPS_ONLY,
                     samesite=config.COOKIE_SAME_SITE_POLICY
                 )
-                return response
+                # return response
 
         return self.app
-
-    async def _increment_failed_attempts(self, email: str, code: str):
-        """Increment attempt counter for failed verification"""
-        async with self.statemgr.transaction():
-            verification = await self.statemgr.exist(
-                "guest_verification",
-                where={"value": email, "code": code}
-            )
-
-            if verification:
-                await self.statemgr.update(
-                    verification,
-                    attempt=verification.attempt + 1
-                )
 
 # ============================================================================
 # Configuration
