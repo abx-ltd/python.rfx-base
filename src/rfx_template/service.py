@@ -216,7 +216,7 @@ class BaseTemplateService:
         existing = await self.stm.find_all(
             self.table_name,
             where=where_clause,
-            order_by=["-version"],
+            sort=["-version"],
             limit=1
         )
 
