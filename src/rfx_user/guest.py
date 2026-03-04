@@ -53,7 +53,7 @@ class IDMGuestAuth:
         recipient_name = full_name or "Guest"
 
         # Get ttp_client from app state
-        client = self.app.state.ttp_client
+        client = getattr(self.app.state, config.SERVICE_CLIENT, None)
         if not client:
             logger.warning("[GUEST AUTH] ttp_client not available, logging code instead")
             logger.info(f"[GUEST AUTH] Verification code for {email}: {code}")
