@@ -105,3 +105,9 @@ class InquiryStatusEnum(str, Enum):
     OPEN = "OPEN"
     DISCUSSION = "DISCUSSION"
     CLOSED = "CLOSED"
+
+class MethodCalculatedEnum(str, Enum):
+    """ Method calculated enum for work package credits calculation"""
+    WORKPACKAGE = "WORKPACKAGE"
+    WORKITEM = "WORKITEM"
+    PROJECT = "PROJECT"

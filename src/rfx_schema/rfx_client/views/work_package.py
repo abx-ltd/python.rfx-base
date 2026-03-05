@@ -31,22 +31,41 @@ work_package_view = PGView(
         wp.organization_id,
         wp.work_package_name,
         wp.description,
+        wp.category,
         wp.example_description,
         wp.complexity_level,
         wp.estimate,
         wp.organization_id IS NOT NULL AS is_custom,
         array_agg(DISTINCT wi.type_alias)::character varying(50)[] AS type_list,
         count(DISTINCT wi.work_item_id) AS work_item_count,
-        round(COALESCE(sum(wi.calculated_credits), 0::numeric), 2) AS credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'ARCHITECTURE'::text), 0::numeric), 2) AS architectural_credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'DEVELOPMENT'::text), 0::numeric), 2) AS development_credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'OPERATION'::text), 0::numeric), 2) AS operation_credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = ANY (ARRAY['ARCHITECTURE'::text, 'DEVELOPMENT'::text])), 0::numeric) * 30.0, 2) AS upfront_cost,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'OPERATION'::text), 0::numeric) * 30.0, 2) AS monthly_cost
+        CASE 
+            WHEN wp.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp.total_credits, 0::numeric), 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits), 0::numeric), 2)
+        END AS credits,
+        CASE 
+            WHEN wp.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp.total_ar_credits, 0::numeric), 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'ARCHITECTURE'::text), 0::numeric), 2)
+        END AS architectural_credits,
+        CASE 
+            WHEN wp.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp.total_de_credits, 0::numeric), 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'DEVELOPMENT'::text), 0::numeric), 2)
+        END AS development_credits,
+        CASE 
+            WHEN wp.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp.total_op_credits, 0::numeric), 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'OPERATION'::text), 0::numeric), 2)
+        END AS operation_credits,
+        CASE 
+            WHEN wp.method_calculated = 'WORKPACKAGE' THEN round((COALESCE(wp.total_ar_credits, 0::numeric) + COALESCE(wp.total_de_credits, 0::numeric)) * 30.0, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = ANY (ARRAY['ARCHITECTURE'::text, 'DEVELOPMENT'::text])), 0::numeric) * 30.0, 2)
+        END AS upfront_cost,
+        CASE 
+            WHEN wp.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp.total_op_credits, 0::numeric) * 30.0, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE wi.type::text = 'OPERATION'::text), 0::numeric) * 30.0, 2)
+        END AS monthly_cost
     FROM {config.RFX_CLIENT_SCHEMA}.work_package wp
         LEFT JOIN work_items wi ON wi.work_package_id = wp._id
     WHERE wp._deleted IS NULL
-    GROUP BY wp._id, wp._created, wp._updated, wp._creator, wp._updater, wp._deleted, wp._etag, wp._realm, wp.organization_id, wp.work_package_name, wp.description, wp.example_description, wp.complexity_level, wp.estimate;
+    GROUP BY wp._id, wp._created, wp._updated, wp._creator, wp._updater, wp._deleted, wp._etag, wp._realm, wp.organization_id, wp.work_package_name, wp.description, wp.example_description, wp.complexity_level, wp.estimate, wp.method_calculated, wp.total_credits, wp.total_ar_credits, wp.total_de_credits, wp.total_op_credits;
     """,
 )
 

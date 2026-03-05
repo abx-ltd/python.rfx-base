@@ -21,6 +21,7 @@ from sqlalchemy.dialects.postgresql import INTERVAL, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA
+from .types import MethodCalculatedEnum
 
 
 class WorkPackage(TableBase):
@@ -43,6 +44,8 @@ class WorkPackage(TableBase):
     total_op_credits: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), default=0)
     total_credits: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), default=0)
     credits_consumed: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), default=0)
+    method_calculated: Mapped[Optional[MethodCalculatedEnum]] = mapped_column(String(50))
+    category: Mapped[Optional[str]] = mapped_column(String(100))
     credits_remaining: Mapped[Optional[float]] = mapped_column(
         Numeric(12, 2), default=0
     )

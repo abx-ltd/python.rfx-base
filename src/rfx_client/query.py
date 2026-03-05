@@ -442,6 +442,7 @@ class WorkPackageQuery(DomainQueryResource):
     type_list: list[str] = ArrayField("Type List")
     credits: float = FloatField("Credits")
     architectural_credits: float = FloatField("Architectural Credits")
+    category: str = StringField("Category")
     development_credits: float = FloatField("Development Credits")
     operation_credits: float = FloatField("Operation Credits")
     upfront_cost: float = FloatField("Upfront Cost")

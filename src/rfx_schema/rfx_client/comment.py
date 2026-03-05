@@ -66,7 +66,6 @@ class CommentReaction(TableBase):
 
 class CommentAttachment(TableBase):
     """Comment attachments in ``rfx_client.comment_attachment``."""
-    from ..rfx_media.media import MediaEntry
 
     __tablename__ = "comment_attachment"
     __table_args__ = (
@@ -97,7 +96,6 @@ class CommentAttachment(TableBase):
     )
     media_entry_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey(MediaEntry._id , name="fk_media", ondelete="RESTRICT"),
     )
     attachment_type: Mapped[Optional[str]] = mapped_column(String(50))
     caption: Mapped[Optional[str]] = mapped_column(Text)

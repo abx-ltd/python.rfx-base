@@ -214,6 +214,7 @@ class WorkPackageView(TableBase):
     work_item_count: Mapped[int] = mapped_column(Integer)
 
     credits: Mapped[float] = mapped_column(Numeric(12, 2))
+    category: Mapped[Optional[str]] = mapped_column(String(100))
     architectural_credits: Mapped[float] = mapped_column(Numeric(12, 2))
     development_credits: Mapped[float] = mapped_column(Numeric(12, 2))
     operation_credits: Mapped[float] = mapped_column(Numeric(12, 2))
