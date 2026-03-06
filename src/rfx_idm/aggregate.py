@@ -347,9 +347,58 @@ class IDMAggregate(Aggregate):
         email = data.get("email")
         duration = data.get("duration")
         message = data.get("message", "")
+        realm = data.get("realm")
+        realm_exist = await self.statemgr.exist("realm", where=dict(key=realm))
+        if not realm_exist:
+            raise ValueError(f"realm {realm} is not existed")
         user = await self.statemgr.exist("user", where=dict(verified_email=email))
         if not user:
-            return {"error": f"User with email {email} not found."}
+            raise ValueError(f"User with email {email} not found!")
+        exist_profile = self.statemgr.exist(
+            "profile",
+            realm=realm,
+            organization_id=self.context.organization_id,
+            user_id=user._id,
+            status='ACTIVE'
+        )
+        if exist_profile:
+            raise ValueError(f"User already have an ACTIVE profile in the current organization")
+
+        # Check for existing pending invitations
+        existing_invitations = await self.statemgr.find_all(
+            "invitation",
+            where=dict(
+                user_id=user._id,
+                organization_id=self.context.organization_id,
+                realm=realm,
+                status=InvitationStatusEnum.PENDING.value
+            )
+        )
+
+        current_time = datetime.utcnow()
+        for inv in existing_invitations:
+            if inv.expires_at and inv.expires_at > current_time:
+                 raise ValueError("User already has a pending invitation for this organization and realm.")
+
+        # Rate limit check
+        window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
+        max_requests = config.INVITATION_MAX_REQUESTS_PER_WINDOW
+        window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+
+        # We need to fetch all invitations for this user to check the rate limit
+        # reusing existing_invitations is not enough because it only fetches PENDING ones
+        all_recent_invitations = await self.statemgr.find_all(
+            "invitation",
+            where=dict(
+                sender_id=self.context.user_id,
+                **{"_created.gt": window_start}
+            )
+        )
+
+        recent_count = len(all_recent_invitations)
+        if recent_count >= max_requests:
+            raise ValueError(f"Too many invitations sent. Please wait {window_minutes} minutes.")
+
         invitation_record = dict(
             _id=UUID_GENR(),
             sender_id=self.context.user_id,
@@ -357,15 +406,67 @@ class IDMAggregate(Aggregate):
             user_id=user._id,
             email=email,
             token=secrets.token_urlsafe(48),
-            status=InvitationStatusEnum.PENDING,
+            status=InvitationStatusEnum.PENDING.value,
             expires_at=datetime.utcnow() + timedelta(days=duration),
             message=message,
-            duration=duration
+            duration=duration,
+            realm=realm,
         )
+
         record = self.init_resource("invitation", invitation_record)
         await self.statemgr.insert(record)
         await self.set_invitation_status(record, InvitationStatusEnum.PENDING)
-        return {"_id": record._id}
+
+
+        # Send invitation email
+        try:
+            context = self.context
+            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            if not notify_client:
+                raise RuntimeError("Notification service client is not found")
+
+            # Fetch organization name
+            org = await self.statemgr.fetch("organization", self.context.organization_id)
+            org_name = org.name if org else "Organization"
+
+            # Construct invitation links
+            base_url = config.API_BASE_URL
+            accept_link = f"{base_url}/{config.NAMESPACE}.accept-invitation/{record._id}?token={record.token}"
+            reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{record._id}?token={record.token}"
+
+            await notify_client.send(
+                "rfx-notify:send-notification",
+                command="send-notification",
+                resource="notification",
+                payload={
+                    "channel": "EMAIL",
+                    "recipients": [record.email],
+                    "template_key": "org-invitation-default",
+                    "content_type": "HTML",
+                    "template_data": {
+                        "organization_name": org_name,
+                        "accept_link": accept_link,
+                        "reject_link": reject_link,
+                        "duration_days": record.duration,
+                        "message": record.message or "",
+                    },
+                },
+                identifier=UUID_GENR(),
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id) if context.user_id else None,
+                        "profile_id": str(context.profile_id) if context.profile_id else None,
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    },
+                    "source": "rfx-user",
+                },
+            )
+        except Exception as e:
+            logger.error(f"Failed to send invitation email: {e}")
+
+        return {"_id": record._id, "token": record.token}
 
     @action("invitation-resent", resources="invitation")
     async def resend_invitation(self):
@@ -373,12 +474,62 @@ class IDMAggregate(Aggregate):
         invitation = self.rootobj
         updates = {
             "token": secrets.token_urlsafe(48),
-            "status": InvitationStatusEnum.PENDING,
+            "status": InvitationStatusEnum.PENDING.value,
             "expires_at": datetime.utcnow() + timedelta(days=7)
         }
         await self.statemgr.update(invitation, **updates)
         await self.set_invitation_status(invitation, InvitationStatusEnum.PENDING)
+
+        # Resend invitation email
+        try:
+            context = self.context
+            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            if not notify_client:
+                raise RuntimeError("Notification service client is not found")
+
+            # Fetch organization name
+            org = await self.statemgr.fetch("organization", self.context.organization_id)
+            org_name = org.name if org else "Organization"
+
+            # Construct invitation links with updated token
+            base_url = config.API_BASE_URL
+            accept_link = f"{base_url}/{config.NAMESPACE}.accept-invitation/{invitation._id}?token={invitation.token}"
+            reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{invitation._id}?token={invitation.token}"
+
+            await notify_client.send(
+                "rfx-notify:send-notification",
+                command="send-notification",
+                resource="notification",
+                payload={
+                    "channel": "EMAIL",
+                    "recipients": [invitation.email],
+                    "template_key": "org-invitation-default",
+                    "content_type": "HTML",
+                    "template_data": {
+                        "organization_name": org_name,
+                        "accept_link": accept_link,
+                        "reject_link": reject_link,
+                        "duration_days": invitation.duration,
+                        "message": invitation.message or "",
+                    },
+                },
+                identifier=UUID_GENR(),
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id) if context.user_id else None,
+                        "profile_id": str(context.profile_id) if context.profile_id else None,
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    },
+                    "source": "rfx-user",
+                },
+            )
+        except Exception as e:
+            logger.error(f"Failed to resend invitation email: {e}")
+
         return {"_id": invitation._id, "resend": True}
+
 
     @action("invitation-revoked", resources="invitation")
     async def revoke_invitation(self):

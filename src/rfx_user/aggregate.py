@@ -290,7 +290,7 @@ class UserProfileAggregate(Aggregate):
             "profile",
             realm=realm,
             organization_id=self.context.organization_id,
-            user_id=user_id,
+            user_id=user._id,
             status='ACTIVE'
         )
         if exist_profile:
