@@ -106,6 +106,7 @@ project_work_package_view = PGView(
         pwp.work_package_example_description,
         pwp.work_package_complexity_level,
         pwp.work_package_estimate,
+        pwp.params,
         array_agg(DISTINCT rwt.alias)::character varying(50)[] AS type_list,
         count(DISTINCT wi.project_work_item_id) AS work_item_count,
         round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS credits,

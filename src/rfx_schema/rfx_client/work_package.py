@@ -17,7 +17,7 @@ from sqlalchemy import (
     Index,
     text,
 )
-from sqlalchemy.dialects.postgresql import INTERVAL, UUID
+from sqlalchemy.dialects.postgresql import INTERVAL, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA

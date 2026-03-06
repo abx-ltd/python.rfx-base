@@ -252,6 +252,7 @@ class ProjectWorkPackageView(TableBase):
 
     upfront_cost: Mapped[float] = mapped_column(Numeric(12, 2))
     monthly_cost: Mapped[float] = mapped_column(Numeric(12, 2))
+    params: Mapped[Optional[dict]] = mapped_column(JSONB)
 
 
 # ============================================================================

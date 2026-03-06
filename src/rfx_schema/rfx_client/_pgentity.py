@@ -25,7 +25,7 @@ from .views import (
     document_view,
     work_package_view,
     project_work_package_view,
-    work_package_credit_usage_view,
+    # work_package_credit_usage_view,
     # Work item views
     work_item_view,
     work_item_listing_view,
@@ -66,7 +66,7 @@ def register_pg_entities(allow):
             # Work package views
             work_package_view,
             project_work_package_view,
-            work_package_credit_usage_view,
+            # work_package_credit_usage_view,
             # Work item views
             work_item_view,
             work_item_listing_view,

@@ -108,6 +108,7 @@ class AddCustomWorkPackageToProjectPayload(DataModel):
 
 class AddWorkPackageToProjectPayload(DataModel):
     work_package_id: UUID_TYPE
+    params: Optional[Dict[str, Any]] = None  # Additional parameters for estimation
 
 
 class RemoveWorkPackageFromProjectPayload(DataModel):

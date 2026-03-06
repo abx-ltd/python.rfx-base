@@ -23,7 +23,7 @@ from sqlalchemy import (
     Index,
     text,
 )
-from sqlalchemy.dialects.postgresql import INTERVAL, UUID
+from sqlalchemy.dialects.postgresql import INTERVAL, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from . import TableBase, SCHEMA
 from .types import WorkPackageStatusEnum
@@ -95,6 +95,7 @@ class ProjectWorkPackage(TableBase):
         nullable=True,
         comment="Timestamp when work package was completed (status changed to DONE)",
     )
+    params: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="work_packages")

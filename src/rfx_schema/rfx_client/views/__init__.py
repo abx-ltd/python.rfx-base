@@ -65,7 +65,7 @@ __all__ = [
     # Work package views
     "work_package_view",
     "project_work_package_view",
-    "work_package_credit_usage_view",
+    # "work_package_credit_usage_view",
     # Work item views
     "work_item_view",
     "work_item_listing_view",

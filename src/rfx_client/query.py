@@ -269,6 +269,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     upfront_cost: float = FloatField("Upfront Cost")
     monthly_cost: float = FloatField("Monthly Cost")
     total_deliverables: int = IntegerField("Total Deliverables")
+    params: dict = DictField("Params")
 
 
 @resource("project-work-item")

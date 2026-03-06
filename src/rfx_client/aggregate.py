@@ -81,9 +81,8 @@ class RFXClientAggregate(Aggregate):
 
         target_date = data.start_date + parsed_delta
 
-        data = data.set(duration=duration_interval)
-
         project_data = serialize_mapping(data)
+        project_data.pop("duration", None)
 
         sync_status = SyncStatusEnum.PENDING
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
@@ -184,7 +183,8 @@ class RFXClientAggregate(Aggregate):
                 "work_package_example_description": work_package.example_description,
                 "work_package_is_custom": False,
                 "work_package_complexity_level": work_package.complexity_level,
-                "work_package_estimate": work_package.estimate,
+                "params": data.params or {},  # Store estimation parameters for later use in estimation
+                # work_package_estimate removed to avoid timedelta JSON serialization error
             },
             _id=UUID_GENR(),
         )
@@ -234,6 +234,7 @@ class RFXClientAggregate(Aggregate):
             project_work_item_data.pop("_updated", None)
             project_work_item_data.pop("_etag", None)
             project_work_item_data.pop("organization_id", None)
+            project_work_item_data.pop("estimate", None)  # Remove timedelta to avoid JSON serialization error
 
             project_work_item_id = UUID_GENR()
             project_work_item_data["_id"] = project_work_item_id
@@ -352,6 +353,7 @@ class RFXClientAggregate(Aggregate):
             data_pwi.pop("_created", None)
             data_pwi.pop("_updated", None)
             data_pwi.pop("_etag", None)
+            data_pwi.pop("estimate", None)  # Remove timedelta to avoid JSON serialization error
             new_pwis.append(data_pwi)
         if new_pwis:
             await self.statemgr.insert_many("project_work_item", *new_pwis)
@@ -411,7 +413,7 @@ class RFXClientAggregate(Aggregate):
             "work_package_example_description": work_package.example_description,
             "work_package_is_custom": True,
             "work_package_complexity_level": work_package.complexity_level,
-            "work_package_estimate": work_package.estimate,
+            # work_package_estimate removed to avoid timedelta JSON serialization error
         }
         await self.statemgr.insert(self.init_resource("project_work_package", pwp_data))
 
@@ -454,6 +456,7 @@ class RFXClientAggregate(Aggregate):
             data_pwi.pop("_updated", None)
             data_pwi.pop("_etag", None)
             data_pwi.pop("organization_id", None)
+            data_pwi.pop("estimate", None)  # Remove timedelta to avoid JSON serialization error
 
             new_pwi_id = UUID_GENR()
             data_pwi["_id"] = new_pwi_id
@@ -513,7 +516,7 @@ class RFXClientAggregate(Aggregate):
             "project_work_package",
             where=dict(work_package_id=data.work_package_id, project_id=project._id),
         )
-        await self.statemgr.invalidate_one(
+        await self.statemgr.invalidate_data(
             "project_work_package", project_work_package._id
         )
 
@@ -644,7 +647,7 @@ class RFXClientAggregate(Aggregate):
         if not project_member:
             raise ValueError("Project member not found")
 
-        await self.statemgr.invalidate_one("project_member", project_member._id)
+        await self.statemgr.invalidate_data("project_member", project_member._id)
 
     # =========== Project Milestone (Project Context) ============
 
@@ -682,7 +685,7 @@ class RFXClientAggregate(Aggregate):
     @action("milestone-deleted", resources="project")
     async def delete_project_milestone(self, /, data):
         """Delete project milestone"""
-        await self.statemgr.invalidate_one("project_milestone", data.milestone_id)
+        await self.statemgr.invalidate_data("project_milestone", data.milestone_id)
 
     # =========== Project Category (Project Context) ============
     @action("project-category-created", resources="project")
@@ -713,7 +716,7 @@ class RFXClientAggregate(Aggregate):
     @action("project-category-deleted", resources="project")
     async def delete_project_category(self, /, data):
         """Delete project category"""
-        await self.statemgr.invalidate_one(
+        await self.statemgr.invalidate_data(
             "ref__project_category", data.project_category_id
         )
 
@@ -876,7 +879,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if deliverable:
-            await self.statemgr.invalidate_one("work_item_deliverable", deliverable._id)
+            await self.statemgr.invalidate_data("work_item_deliverable", deliverable._id)
         else:
             raise ValueError("Work item deliverable not found")
 
@@ -901,7 +904,7 @@ class RFXClientAggregate(Aggregate):
         if not work_package_work_item:
             raise ValueError("Work item not found")
 
-        await self.statemgr.invalidate_one(
+        await self.statemgr.invalidate_data(
             "work_package_work_item", work_package_work_item._id
         )
 
@@ -942,7 +945,7 @@ class RFXClientAggregate(Aggregate):
         if not work_item_type:
             raise ValueError("Work item type not found")
 
-        await self.statemgr.invalidate_one("ref__work_item_type", work_item_type._id)
+        await self.statemgr.invalidate_data("ref__work_item_type", work_item_type._id)
         return work_item_type
 
     # =========== Project Work Item (Project Context) ============
@@ -1021,10 +1024,10 @@ class RFXClientAggregate(Aggregate):
                 None,
             )
             if link_record:
-                await self.statemgr.invalidate_one(
+                await self.statemgr.invalidate_data(
                     "project_work_package_work_item", link_record._id
                 )
-            await self.statemgr.invalidate_one("project_work_item", work_item_id)
+            await self.statemgr.invalidate_data("project_work_item", work_item_id)
 
         to_add_ids = input_ids - existing_project_work_item_ids
 
@@ -1043,7 +1046,7 @@ class RFXClientAggregate(Aggregate):
                 "description": work_item.description,
                 "price_unit": work_item.price_unit,
                 "credit_per_unit": work_item.credit_per_unit,
-                "estimate": work_item.estimate,
+                # estimate removed to avoid timedelta JSON serialization error
             }
             project_work_item = self.init_resource(
                 "project_work_item", serialize_mapping(project_work_item_data)
@@ -1096,7 +1099,7 @@ class RFXClientAggregate(Aggregate):
             "description": work_item.description,
             "price_unit": work_item.price_unit,
             "credit_per_unit": work_item.credit_per_unit,
-            "estimate": work_item.estimate,
+            # estimate removed to avoid timedelta JSON serialization error
         }
         project_work_item = self.init_resource(
             "project_work_item", serialize_mapping(project_work_item_data)
@@ -1126,7 +1129,7 @@ class RFXClientAggregate(Aggregate):
         if not project_work_item:
             raise ValueError("Project work item not found")
 
-        await self.statemgr.invalidate_one("project_work_item", project_work_item._id)
+        await self.statemgr.invalidate_data("project_work_item", project_work_item._id)
 
     # =========== Project Work Item Deliverable (Project Context) ============
 
@@ -1194,7 +1197,7 @@ class RFXClientAggregate(Aggregate):
 
         if not project_integration:
             raise ValueError("Project integration not found")
-        await self.statemgr.invalidate_one(
+        await self.statemgr.invalidate_data(
             "project_integration", project_integration._id
         )
 
@@ -1280,7 +1283,7 @@ class RFXClientAggregate(Aggregate):
         )
         if not project_milestone_integration:
             raise ValueError("Project milestone integration not found")
-        await self.statemgr.invalidate_one(
+        await self.statemgr.invalidate_data(
             "project_milestone_integration", project_milestone_integration._id
         )
 
@@ -1314,7 +1317,7 @@ class RFXClientAggregate(Aggregate):
         )
         if not ticket_type:
             raise ValueError("Ticket type not found")
-        await self.statemgr.invalidate_one("ref__ticket_type", data.ticket_type_id)
+        await self.statemgr.invalidate_data("ref__ticket_type", data.ticket_type_id)
         return {"deleted": True}
 
     # =========== Inquiry (Ticket Context) ============
@@ -1456,7 +1459,7 @@ class RFXClientAggregate(Aggregate):
             raise ValueError("Member already assigned to ticket")
 
         if ticket_assignee:
-            await self.statemgr.invalidate_one("ticket_assignee", ticket_assignee._id)
+            await self.statemgr.invalidate_data("ticket_assignee", ticket_assignee._id)
 
         record = self.init_resource(
             "ticket_assignee",
@@ -1475,7 +1478,7 @@ class RFXClientAggregate(Aggregate):
         )
         if not assignee:
             raise ValueError("Assignee not found")
-        await self.statemgr.invalidate_one("ticket_assignee", assignee._id)
+        await self.statemgr.invalidate_data("ticket_assignee", assignee._id)
         return {"removed": True}
 
     # =========== Ticket Participant (Ticket Context) ============
@@ -1511,7 +1514,7 @@ class RFXClientAggregate(Aggregate):
         )
         if not participant:
             raise ValueError("Participant not found")
-        await self.statemgr.invalidate_one("ticket_participant", participant._id)
+        await self.statemgr.invalidate_data("ticket_participant", participant._id)
         return {"removed": True}
 
     # =========== Ticket Tag (Ticket Context) ============
@@ -1533,7 +1536,7 @@ class RFXClientAggregate(Aggregate):
             "ticket_tag", where=dict(ticket_id=self.aggroot.identifier, tag_id=tag_id)
         )
         for tag in tags:
-            await self.statemgr.invalidate_one("ticket_tag", tag._id)
+            await self.statemgr.invalidate_data("ticket_tag", tag._id)
         return {"removed": True}
 
     # =========== Tag Context ============
