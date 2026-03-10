@@ -1,6 +1,6 @@
 from .domain import RFXMediaDomain
 from fluvius.data import UUID_TYPE, logger
-from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
+from fluvius.query import DomainQueryManager, DomainQueryResource
 from fluvius.query.field import StringField, UUIDField, IntegerField, DatetimeField
 from datetime import datetime
 from . import scope
