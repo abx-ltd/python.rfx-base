@@ -3691,3 +3691,121 @@ class AddParticipantDocument(Command):
         yield agg.create_response(
             {"status": "success"}, _type="document-participant-response"
         )
+
+class CreateSupplier(Command):
+    """Create Supplier - Creates a new supplier"""
+
+    class Meta:
+        key = "create-supplier"
+        resources = ("supplier",)
+        tags = ["supplier"]
+        auth_required = True
+        description = "Create a new supplier"
+        resource_init = True
+        # policy_required = True
+
+    Data = datadef.CreateSupplierPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create supplier"""
+        supplier = await agg.create_supplier(data=payload)
+        yield agg.create_response(serialize_mapping(supplier), _type="supplier-response")
+
+class UpdateSupplier(Command):
+    """Update Supplier - Updates a supplier's information"""
+
+    class Meta:
+        key = "update-supplier"
+        resources = ("supplier",)
+        tags = ["supplier", "update"]
+        auth_required = True
+        description = "Update a supplier's information"
+
+    Data = datadef.UpdateSupplierPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update supplier"""
+        supplier = await agg.update_supplier(data=payload)
+        yield agg.create_response(serialize_mapping(supplier), _type="supplier-response")
+        
+class RemoveSupplier(Command):
+    """Remove Supplier - Removes a supplier"""
+
+    class Meta:
+        key = "remove-supplier"
+        resources = ("supplier",)
+        tags = ["supplier", "remove"]
+        auth_required = True
+        description = "Remove a supplier"
+
+    async def _process(self, agg, stm, payload):
+        """Remove supplier"""
+        await agg.remove_supplier()
+        yield agg.create_response({"status": "success"}, _type="supplier-response")
+        
+class CreateServiceCategory(Command):
+    """Create Service Category - Creates a new service category"""
+
+    class Meta:
+        key = "create-service-category"
+        resources = ("service_category",)
+        tags = ["service_category"]
+        auth_required = True
+        description = "Create a new service category"
+        resource_init = True
+
+    Data = datadef.CreateServiceCategoryPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create service category"""
+        service_category = await agg.create_service_category(data=payload)
+        yield agg.create_response(serialize_mapping(service_category), _type="service-category-response")
+
+class UpdateServiceCategory(Command):
+    """Update Service Category - Updates a service category's information"""
+
+    class Meta:
+        key = "update-service-category"
+        resources = ("service_category",)
+        tags = ["service_category", "update"]
+        auth_required = True
+        description = "Update a service category's information"
+
+    Data = datadef.UpdateServiceCategoryPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update service category"""
+        service_category = await agg.update_service_category(data=payload)
+        yield agg.create_response(serialize_mapping(service_category), _type="service-category-response")
+        
+class RemoveServiceCategory(Command):
+    """Remove Service Category - Removes a service category"""
+
+    class Meta:
+        key = "remove-service-category"
+        resources = ("service_category",)
+        tags = ["service_category", "remove"]
+        auth_required = True
+        description = "Remove a service category"
+
+    async def _process(self, agg, stm, payload):
+        """Remove service category"""
+        await agg.remove_service_category()
+        yield agg.create_response({"status": "success"}, _type="service-category-response")
+
+class AddServiceCategoryToSupplier(Command):
+    """Add Service Category to Supplier - Associates a service category with a supplier"""
+
+    class Meta:
+        key = "add-service-category-to-supplier"
+        resources = ("supplier",)
+        tags = ["supplier_service", "add"]
+        auth_required = True
+        description = "Add a service category to a supplier"
+
+    Data = datadef.AddServiceCategoryToSupplierPayload
+    
+    async def _process(self, agg, stm, payload):
+        """Add service category to supplier"""
+        supplier_service = await agg.add_service_category_to_supplier(data=payload)
+        yield agg.create_response(serialize_mapping(supplier_service), _type="supplier-service-response")

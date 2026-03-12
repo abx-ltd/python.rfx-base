@@ -155,3 +155,13 @@ class DocumentResponse(RFXClientDomain.Response):
 
 class DocumentParticipantResponse(RFXClientDomain.Response):
     pass
+
+
+class SupplierResponse(RFXClientDomain.Response):
+    pass
+
+class ServiceCategoryResponse(RFXClientDomain.Response):
+    pass
+
+class SupplierServiceResponse(RFXClientDomain.Response):
+    pass

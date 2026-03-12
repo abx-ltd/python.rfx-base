@@ -4,7 +4,7 @@ from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from rfx_schema.rfx_client.types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum
+from rfx_schema.rfx_client.types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum, ServiceCategoryEnum
 from typing import Any, Dict
 
 # Project related payloads
@@ -697,3 +697,37 @@ class RemoveParticipantFromGlobalDocumentPayload(DataModel):
     """Remove participant from global document payload"""
 
     participant_id: UUID_TYPE
+
+#------ Supplier related payloads ------
+
+
+class CreateSupplierPayload(DataModel):
+    supplier_name: str = Field(max_length=255)
+    
+    tax_code: Optional[str] = Field(max_length=50)
+    contact_email: Optional[str] = Field(max_length=255)
+    contact_phone: Optional[str] = Field(max_length=50)
+    
+class UpdateSupplierPayload(DataModel):
+    supplier_name: Optional[str] = Field(max_length=255)
+    
+    tax_code: Optional[str] = Field(max_length=50)
+    contact_email: Optional[str] = Field(max_length=255)
+    contact_phone: Optional[str] = Field(max_length=50)
+    status: Optional[SyncStatusEnum] = None
+
+class CreateServiceCategoryPayload(DataModel):
+    service_name: str = Field(max_length=255)
+    description: Optional[str] = None
+    category: ServiceCategoryEnum = Field(...)
+
+class UpdateServiceCategoryPayload(DataModel):
+    service_name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    category: Optional[ServiceCategoryEnum] = None
+    status: Optional[SyncStatusEnum] = None
+
+class AddServiceCategoryToSupplierPayload(DataModel):
+    service_id: UUID_TYPE
+    description: Optional[str] = None
+    

@@ -39,6 +39,9 @@ from .views import (
     organization_weekly_credit_usage_view,
     # Status view
     status_view,
+    # Supplier views
+    supplier_service_view,
+    
 )
 
 
@@ -77,6 +80,8 @@ def register_pg_entities(allow):
             ticket_view,
             # Status view
             status_view,
+            # Supplier views
+            supplier_service_view,
         ]
     )
 

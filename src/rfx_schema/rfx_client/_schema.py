@@ -6,6 +6,7 @@ from . import (
     ticket,
     work_package,
     referency,
+    supplier,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "ticket",
     "work_package",
     "referency",
+    "supplier",
 ]

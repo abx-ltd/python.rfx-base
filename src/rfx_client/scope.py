@@ -46,3 +46,6 @@ class CommentReactionScopeSchema(BaseModel):
 
 class OrganizationScopeSchema(BaseModel):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+class SupplierServiceScopeSchema(BaseModel):
+    service_category: str = UUIDField("Service Category Code")

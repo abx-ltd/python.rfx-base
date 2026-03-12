@@ -111,3 +111,15 @@ class MethodCalculatedEnum(str, Enum):
     WORKPACKAGE = "WORKPACKAGE"
     WORKITEM = "WORKITEM"
     PROJECT = "PROJECT"
+    
+class RecordStatusEnum(str, Enum):
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    
+class ServiceCategoryEnum(str, Enum):
+    DIGITAL_SIGNATURE = "DIGITAL_SIGNATURE"
+    E_INVOICE = "E_INVOICE"
+    SOCIAL_INSURANCE = "SOCIAL_INSURANCE"
+    ACCOUNTING = "ACCOUNTING"
+    E_CONTRACT = "E_CONTRACT"
+    COMPANY_SEAL = "COMPANY_SEAL"

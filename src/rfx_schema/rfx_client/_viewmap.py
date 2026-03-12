@@ -15,7 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import Enum as SQLEnum
 
 from . import TableBase, SCHEMA
-from .types import PriorityEnum, SyncStatusEnum, AvailabilityEnum
+from .types import PriorityEnum, SyncStatusEnum, AvailabilityEnum, ServiceCategoryEnum
 
 
 # ============================================================================
@@ -606,3 +606,30 @@ class DocumentView(TableBase):
 
     # Activity timestamp
     activity: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+# -------- Supplier Service Views --------
+
+class SupplierServiceView(TableBase):
+    """View: _supplier_service - Supplier services with category and credit info"""
+
+    __tablename__ = "_supplier_service"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+    
+    supplier_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    supplier_name: Mapped[str] = mapped_column(String(255))
+    supplier_code: Mapped[Optional[str]] = mapped_column(String(50))
+    supplier_status: Mapped[str] = mapped_column(String(50))
+    tax_code: Mapped[Optional[str]] = mapped_column(String(50))
+    contact_email: Mapped[Optional[str]] = mapped_column(String(255))
+    contact_phone: Mapped[Optional[str]] = mapped_column(String(50))
+    
+    service_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    service_name: Mapped[str] = mapped_column(String(255))
+    service_code: Mapped[Optional[str]] = mapped_column(String(50))
+    service_category: Mapped[Optional[ServiceCategoryEnum]] = mapped_column(
+        SQLEnum(ServiceCategoryEnum, name="servicecategoryenum")
+    )
+    
+    supplier_service_status: Mapped[str] = mapped_column(String(50))
+    supplier_service_description: Mapped[Optional[str]] = mapped_column(Text)

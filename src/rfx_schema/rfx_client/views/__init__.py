@@ -46,6 +46,11 @@ from .status import (
     status_view,
 )
 
+from .supplier import (
+    supplier_service_view,
+)
+
+
 __all__ = [
     # Comment views
     "comment_view",
@@ -77,4 +82,6 @@ __all__ = [
     "ticket_view",
     # Status view
     "status_view",
+    # Supplier views
+    "supplier_service_view",
 ]

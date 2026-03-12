@@ -3,7 +3,7 @@ from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR, logger
 from datetime import datetime, timezone
 from .helper import parse_duration_for_db
-from rfx_schema.rfx_client.types import SyncStatusEnum, InquiryStatusEnum
+from rfx_schema.rfx_client.types import SyncStatusEnum, InquiryStatusEnum, RecordStatusEnum
 from . import config
 
 
@@ -1970,3 +1970,119 @@ class RFXClientAggregate(Aggregate):
                 _id=UUID_GENR(),
             )
             await self.statemgr.insert(record)
+            
+    @action("created-supplier", resources="supplier")
+    async def create_supplier(self, /, data):
+        """Create a new supplier"""
+        from unidecode import unidecode
+        code = unidecode(data.supplier_name).lower().replace(" ", "_")
+        existing_supplier = await self.statemgr.exist(
+            "supplier",
+            where=dict(
+                code=code,
+                organization_id=self.context.organization_id,
+            ),
+        )
+        if existing_supplier:
+            raise ValueError("Supplier already exists")
+
+        record = self.init_resource(
+            "supplier",
+            serialize_mapping(data),
+            code=code,
+            organization_id=self.context.organization_id,
+            status=RecordStatusEnum.ACTIVE,
+            _id=self.aggroot.identifier or UUID_GENR(),
+        )
+        await self.statemgr.insert(record)
+        return record
+    
+    @action("updated-supplier", resources="supplier")
+    async def update_supplier(self, /, data):
+        """ Update supplier information"""
+        supplier = self.rootobj
+        update_data = serialize_mapping(data)
+        await self.statemgr.update(supplier, **update_data)
+        return supplier
+    
+    @action("removed-supplier", resources="supplier")
+    async def remove_supplier(self, /):
+        """Remove supplier"""
+        supplier = self.rootobj
+        await self.statemgr.invalidate(supplier)
+        
+    @action("create-service-category", resources="service_category")
+    async def create_service_category(self, /, data):
+        """Create a new service category"""
+        from unidecode import unidecode
+        code = unidecode(data.service_name).lower().replace(" ", "_")
+        existing_category = await self.statemgr.exist(
+            "service_category",
+            where=dict(
+                code=code,
+                organization_id=self.context.organization_id,
+            ),
+        )
+        if existing_category:
+            raise ValueError("Service category already exists")
+
+        record = self.init_resource(
+            "service_category",
+            serialize_mapping(data),
+            code=code,
+            organization_id=self.context.organization_id,
+            status=RecordStatusEnum.ACTIVE,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(record)
+        return record
+    
+    @action("update-service-category", resources="service_category")
+    async def update_service_category(self, /, data):
+        """
+        Update service category information
+        
+        """
+        service_category = self.rootobj
+        update_data = serialize_mapping(data)
+        result = await self.statemgr.update(service_category, **update_data)
+        return result
+    
+    @action("remove-service-category", resources="service_category")
+    async def remove_service_category(self, /):
+        """Remove service category"""
+        service_category = self.rootobj
+        await self.statemgr.invalidate(service_category)
+        
+    @action("add-service-category-to-supplier", resources="supplier")
+    async def add_service_category_to_supplier(self, /, data):
+        """Add service category to supplier"""
+        supplier = self.rootobj
+        service_category = await self.statemgr.find_one(
+            "service_category",
+            where=dict(_id=data.service_id, organization_id=self.context.organization_id),
+        )
+        if not service_category:
+            raise ValueError("Service category not found")
+        existing_relation = await self.statemgr.exist(
+            "supplier_service",
+            where=dict(
+                supplier_id=supplier._id,
+                service_id=data.service_id,
+            ),
+        )
+        if existing_relation:
+            raise ValueError("Service category already added to supplier")
+        record = self.init_resource(
+            "supplier_service",
+            {
+                "supplier_id": supplier._id,
+                "service_id": data.service_id,
+                "organization_id": self.context.organization_id,
+                "status": RecordStatusEnum.ACTIVE,
+                "description": data.description if hasattr(data, "description") else "",
+            },
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(record)
+        return record

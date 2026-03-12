@@ -22,7 +22,7 @@ from datetime import datetime
 from typing import Optional
 
 from rfx_schema.rfx_client import _schema, _viewmap  # noqa
-
+from rfx_schema.rfx_client.types import InquiryStatusEnum, RecordStatusEnum, ServiceCategoryEnum  # noqa
 
 default_exclude_fields = [
     "realm",
@@ -1064,3 +1064,33 @@ class DocumentQuery(DomainQueryResource):
     activity: datetime = DatetimeField("Last Activity")
     created: datetime = DatetimeField("Created At")
     updated: datetime = DatetimeField("Updated At")
+
+
+
+# ------ supplier service --------
+
+@resource("supplier-service")
+class SupplierServiceQuery(DomainQueryResource):
+    """Supplier Service queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        description = "Query supplier service information"
+        backend_model = "_supplier_service"
+        # scope_required = scope.SupplierServiceScopeSchema
+
+
+    supplier_id: UUID_TYPE = UUIDField("Supplier ID")
+    supplier_name: str = StringField("Supplier Name")
+    supplier_code: str = StringField("Supplier Code")
+    supplier_status: str = StringField("Supplier Status")
+    tax_code: str = StringField("Tax Code")
+    contact_email: str = StringField("Contact Email")
+    contact_phone: str = StringField("Contact Phone")
+    
+    service_id: UUID_TYPE = UUIDField("Service ID")
+    service_code: str = StringField("Service Code")
+    service_name: str = StringField("Service Name")
+    service_category: str = StringField("Service Category")
+    
+    supplier_service_status: str = StringField("Supplier Service Status")
+    supplier_service_description: str = StringField("Supplier Service Description")
