@@ -50,11 +50,11 @@ class CreateEstimator(Command):
         yield agg.create_activity(
             logroot=AggregateRoot(
                 resource="project",
-                identifier=result._id,
+                identifier=result["_id"],
                 domain_sid=agg.get_aggroot().domain_sid,
                 domain_iid=agg.get_aggroot().domain_iid,
             ),
-            message=f"{profile.name__given} {profile.name__family} created an estimator {result.name}",
+            message=f"{profile.name__given} {profile.name__family} created an estimator {result['name']}",
             msglabel="create-estimator",
             msgtype=ActivityType.USER_ACTION,
             data={
@@ -62,7 +62,7 @@ class CreateEstimator(Command):
             },
         )
 
-        yield agg.create_response(serialize_mapping(result), _type="project-response")
+        yield agg.create_response(result, _type="project-response")
 
 
 # ---------- Project (Project Context) ----------
@@ -659,14 +659,14 @@ class AddWorkPackageToProject(Command):
             msglabel="add-work-package-to-project",
             msgtype=ActivityType.USER_ACTION,
             data={
-                "project_work_package_id": result._id,
-                "work_package_id": result.work_package_id,
+                "project_work_package_id": result["_id"],
+                "work_package_id": result["work_package_id"],
                 "added_by": f"{profile.name__given} {profile.name__family}",
             },
         )
 
         yield agg.create_response(
-            serialize_mapping(result), _type="project-work-package-response"
+            result, _type="project-work-package-response"
         )
 
         user_ids, project = await get_project_member_user_ids(
@@ -1386,7 +1386,7 @@ class CreateWorkPackage(Command):
         """Create new work package"""
         result = await agg.create_work_package(data=payload)
         yield agg.create_response(
-            serialize_mapping(result), _type="work-package-response"
+            result, _type="work-package-response"
         )
 
 
@@ -1457,7 +1457,7 @@ class CreateWorkItem(Command):
     async def _process(self, agg, stm, payload):
         """Create new work item"""
         result = await agg.create_work_item(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="work-item-response")
+        yield agg.create_response(result, _type="work-item-response")
 
 
 class UpdateWorkItem(Command):

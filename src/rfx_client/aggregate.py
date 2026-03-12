@@ -27,7 +27,7 @@ class RFXClientAggregate(Aggregate):
             serialize_mapping(data),
             status="DRAFT",
             organization_id=self.context.organization_id,
-            _id=self.aggroot.identifier,
+            _id=self.aggroot.identifier or UUID_GENR(),
         )
         # we will check user permission to add project-member role correct (now we just default it client)
         project_member = self.init_resource(
@@ -42,7 +42,7 @@ class RFXClientAggregate(Aggregate):
 
         await self.statemgr.insert(estimator)
         await self.statemgr.insert(project_member)
-        return estimator
+        return {"_id": estimator._id, "name": estimator.name, "status": estimator.status}
 
     @action("promotion-applied", resources="project")
     async def apply_promotion(self, /, data):
@@ -195,7 +195,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not work_package_work_items:
-            return project_work_package
+            return {"_id": project_work_package._id, "work_package_id": project_work_package.work_package_id, "status": "OK"}
 
         work_item_ids = [
             wp_work_item.work_item_id for wp_work_item in work_package_work_items
@@ -290,9 +290,7 @@ class RFXClientAggregate(Aggregate):
                 "project_work_package_work_item", *project_wp_work_items_batch
             )
 
-        return project_work_package
-
-    @action("custom-work-package-added", resources="project")
+        return {"_id": project_work_package._id, "work_package_id": project_work_package.work_package_id, "status": "OK"}
     async def add_custom_work_package(self, /, data):
         """Clone a project-work-package template (project_id NULL) into this project with all related records"""
         project = self.rootobj
@@ -586,7 +584,7 @@ class RFXClientAggregate(Aggregate):
         record = self.init_resource(
             "promotion",
             serialize_mapping(data),
-            _id=UUID_GENR(),
+            _id=self.aggroot.identifier or UUID_GENR(),
             organization_id=self.context.organization_id,
         )
         """Create a new promotion code"""
@@ -728,11 +726,11 @@ class RFXClientAggregate(Aggregate):
         record = self.init_resource(
             "work_package",
             serialize_mapping(data),
-            _id=UUID_GENR(),
+            _id=self.aggroot.identifier or UUID_GENR(),
             organization_id=self.context.organization_id,
         )
         await self.statemgr.insert(record)
-        return record
+        return {"_id": record._id, "work_package_name": record.work_package_name, "status": "OK"}
 
     @action("work-package-updated", resources="work_package")
     async def update_work_package(self, /, data):
@@ -813,11 +811,11 @@ class RFXClientAggregate(Aggregate):
         record = self.init_resource(
             "work_item",
             serialize_mapping(data),
-            _id=UUID_GENR(),
+            _id=self.aggroot.identifier or UUID_GENR(),
             organization_id=self.context.organization_id,
         )
         await self.statemgr.insert(record)
-        return record
+        return {"_id": record._id, "name": record.name, "status": "OK"}
 
     @action("work-item-updated", resources="work_item")
     async def update_work_item(self, /, data):
@@ -1331,7 +1329,7 @@ class RFXClientAggregate(Aggregate):
             serialize_mapping(data),
             status=InquiryStatusEnum.OPEN.value,
             organization_id=self.context.organization_id,
-            _id=UUID_GENR(),
+            _id=self.aggroot.identifier or UUID_GENR(),
         )
         await self.statemgr.insert(record)
         return record
@@ -1345,7 +1343,7 @@ class RFXClientAggregate(Aggregate):
             serialize_mapping(data),
             status=InquiryStatusEnum.DRAFT.value,
             organization_id=self.context.organization_id,
-            _id=UUID_GENR(),
+            _id=self.aggroot.identifier or UUID_GENR(),
         )
         await self.statemgr.insert(record)
         return record
@@ -1547,7 +1545,7 @@ class RFXClientAggregate(Aggregate):
             "tag",
             serialize_mapping(data),
             organization_id=self.context.organization_id,
-            _id=UUID_GENR(),
+            _id=self.aggroot.identifier or UUID_GENR(),
         )
         await self.statemgr.insert(record)
         return record
@@ -1571,7 +1569,7 @@ class RFXClientAggregate(Aggregate):
     @action("status-created", resources="status")
     async def create_status(self, /, data):
         """Create a new workflow"""
-        record = self.init_resource("status", serialize_mapping(data), _id=UUID_GENR())
+        record = self.init_resource("status", serialize_mapping(data), _id=self.aggroot.identifier or UUID_GENR())
         await self.statemgr.insert(record)
         return record
 
