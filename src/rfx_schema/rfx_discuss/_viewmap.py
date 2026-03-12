@@ -38,6 +38,7 @@ class CommentView(TableBase):
 
     # Content
     content: Mapped[str] = mapped_column(Text)
+    requires_acknowledgement: Mapped[bool] = mapped_column(Boolean)
 
     # Context
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
@@ -47,6 +48,11 @@ class CommentView(TableBase):
     # Creator info (JSONB)
     creator: Mapped[Optional[dict]] = mapped_column(
         JSONB, comment="Contains: {id, name, avatar}"
+    )
+
+    # Acknowledge profile info (JSONB)
+    acknowledge_profile: Mapped[Optional[dict]] = mapped_column(
+        JSONB, comment="Contains: {id, name, avatar} for acknowledgement (if any)"
     )
 
     # Aggregate counts

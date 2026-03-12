@@ -2,7 +2,6 @@ from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
 from rfx_discuss import logger
-from rfx_schema.rfx_discuss.types import ReactionTypeEnum
 from . import config
 
 
@@ -15,10 +14,10 @@ class RFXDiscussAggregate(Aggregate):
         """Create a new comment"""
         organization_id = self.context.organization_id
         data = serialize_mapping(data)
-        
+
         data.setdefault("depth", 0)
         data.setdefault("master_id", UUID_GENR())
-        
+
         record = self.init_resource(
             "comment",
             data,
@@ -28,7 +27,22 @@ class RFXDiscussAggregate(Aggregate):
         )
         await self.statemgr.insert(record)
         return record
-    
+
+    @action("acknowledge-comment", resources="comment")
+    async def acknowledge_comment(self, /):
+        """Acknowledge comment"""
+        comment = self.rootobj
+        if not comment.requires_acknowledgement:
+            raise ValueError("Comment not requires acknowledgement")
+        acknowledge = self.init_resource(
+            "comment_acknowledge",
+            comment_id=comment._id,
+            profile_id=self.context.profile_id,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(acknowledge)
+        return comment
+
     @action("reply_comment", resources="comment")
     async def reply_comment(self, /, data):
         """Reply to comment"""
@@ -74,7 +88,6 @@ class RFXDiscussAggregate(Aggregate):
         """Delete comment"""
         comment = self.rootobj
         await self.statemgr.invalidate(comment)
-
 
     @action("attach-file", resources="comment")
     async def attach_file_to_comment(self, /, data):

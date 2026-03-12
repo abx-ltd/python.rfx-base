@@ -68,6 +68,13 @@ class Comment(TableBase):
     # Content
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # Acknowledgement
+    requires_acknowledgement: Mapped[Optional[bool]] = mapped_column(
+        Boolean,
+        nullable=True,
+        server_default=text("false"),
+    )
+
     # Context
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
@@ -113,6 +120,11 @@ class Comment(TableBase):
     )
     subscriptions: Mapped[list[CommentSubscription]] = relationship(
         "CommentSubscription",
+        back_populates="comment",
+        cascade="all, delete-orphan",
+    )
+    acknowledgements: Mapped[list[CommentAcknowledge]] = relationship(
+        "CommentAcknowledge",
         back_populates="comment",
         cascade="all, delete-orphan",
     )
@@ -463,6 +475,58 @@ class CommentIntegration(TableBase):
         )
 
 
+# ============================================================================
+# COMMENT ACKNOWLEDGEMENTS
+# ============================================================================
+
+
+class CommentAcknowledge(TableBase):
+    """
+    Tracks which profiles have acknowledged a comment that requires acknowledgement.
+    """
+
+    from ..rfx_user.profile import Profile
+
+    __tablename__ = "comment_acknowledge"
+    __table_args__ = (
+        UniqueConstraint(
+            "comment_id",
+            "profile_id",
+            name="uq_comment_ack_profile",
+        ),
+        Index(
+            "idx_comment_ack_comment",
+            "comment_id",
+            postgresql_where=text("_deleted IS NULL"),
+        ),
+        Index(
+            "idx_comment_ack_profile",
+            "profile_id",
+            postgresql_where=text("_deleted IS NULL"),
+        ),
+        {"schema": SCHEMA},
+    )
+
+    comment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.comment._id", ondelete="CASCADE", name="fk_comment"),
+        nullable=False,
+    )
+    profile_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(Profile._id, ondelete="CASCADE", name="fk_profile"),
+        nullable=False,
+    )
+
+    comment: Mapped[Comment] = relationship("Comment", back_populates="acknowledgements")
+
+    def __repr__(self) -> str:
+        return (
+            f"<CommentAcknowledge(id={self._id}, comment_id={self.comment_id}, "
+            f"profile_id={self.profile_id})>"
+        )
+
+
 __all__ = [
     "Comment",
     "CommentAttachment",
@@ -470,5 +534,6 @@ __all__ = [
     "CommentFlag",
     "CommentFlagResolution",
     "CommentSubscription",
+    "CommentAcknowledge",
     "CommentIntegration",
 ]

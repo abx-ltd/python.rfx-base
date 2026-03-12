@@ -86,25 +86,24 @@ def include_server_default(
 
 
 def include_object(object, name, type_, reflected, compare_to):
-    """
-    Filter function to control which objects are included in autogenerate.
+    schema = getattr(object, "schema", None)
 
-    This prevents alembic from generating DROP TABLE statements and
-    other destructive operations during autogenerate.
-    """
     if type_ in ("grant_table", "extension"):
         return False
 
-    if type_ in ("table", "view") and object.schema not in SCHEMAS:
+    if schema and schema not in SCHEMAS:
         return False
 
     if hasattr(object, "info") and object.info.get("is_view"):
         logger.warning(f"include_object: skipping {name} because it is a view")
         return False
 
-    # For other objects, use default behavior
     return True
 
+def include_name(name, type_, parent_names):
+    if type_ == "schema":
+        return name in SCHEMAS
+    return True
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -124,6 +123,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_name=include_name,
         include_schemas=True,
         include_object=include_object,
         compare_type=True,
@@ -152,6 +152,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             include_schemas=True,
+            include_name=include_name,
             include_object=include_object,
             compare_type=True,
             include_server_default=include_server_default,

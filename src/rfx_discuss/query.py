@@ -71,6 +71,8 @@ class CommentQuery(DomainQueryResource):
     attachment_count: int = IntegerField("Attachment Count")
     reaction_count: int = IntegerField("Reaction Count")
     flag_count: int = IntegerField("Flag Count")
+    requires_acknowledgement: bool = BooleanField("Requires Acknowledgement")
+    acknowledge_profile: dict = DictField("Acknowledge Profile")
 
 
 @resource("comment-attachment")

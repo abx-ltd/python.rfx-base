@@ -43,6 +43,22 @@ class CreateComment(Command):
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 
+class AcknowledgeComment(Command):
+    """Acknowledge Comment - Acknowledges a comment"""
+
+    class Meta:
+        key = "acknowledge-comment"
+        resources = ("comment",)
+        tags = ["comment", "acknowledge"]
+        auth_required = True
+        description = "Acknowledge a comment"
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        """Acknowledge comment"""
+        await agg.acknowledge_comment()
+
+
 class ReplyComment(Command):
     """Reply to Comment - Creates a reply to an existing comment"""
 
