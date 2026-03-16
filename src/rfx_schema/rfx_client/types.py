@@ -124,3 +124,4 @@ class ServiceCategoryEnum(str, Enum):
     E_CONTRACT = "E_CONTRACT"
     COMPANY_SEAL = "COMPANY_SEAL"
     COMPANY_SIGN = "COMPANY_SIGN"
+    SHIPPING = "SHIPPING"
