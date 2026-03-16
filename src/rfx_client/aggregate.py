@@ -1,5 +1,6 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
+from fluvius.error import BadRequestError
 from fluvius.data import serialize_mapping, UUID_GENR, logger
 from datetime import datetime, timezone
 from .helper import parse_duration_for_db
@@ -20,7 +21,11 @@ class RFXClientAggregate(Aggregate):
             "_project", where={"members.ov": [profile_id], "status": "DRAFT"}
         )
         if estimator:
-            raise ValueError("Estimator already exists")
+            raise BadRequestError(
+                "R13.400.01",
+                "Estimator already exists",
+                errdata={"id": str(estimator._id), "name": estimator.name, "status": estimator.status}
+            )
 
         estimator = self.init_resource(
             "project",
@@ -42,7 +47,7 @@ class RFXClientAggregate(Aggregate):
 
         await self.statemgr.insert(estimator)
         await self.statemgr.insert(project_member)
-        return {"_id": estimator._id, "name": estimator.name, "status": estimator.status}
+        return {"_id": estimator._id, "name": estimator.name, "status": "OK"}
 
     @action("promotion-applied", resources="project")
     async def apply_promotion(self, /, data):

@@ -3727,7 +3727,7 @@ class UpdateSupplier(Command):
         """Update supplier"""
         supplier = await agg.update_supplier(data=payload)
         yield agg.create_response(serialize_mapping(supplier), _type="supplier-response")
-        
+
 class RemoveSupplier(Command):
     """Remove Supplier - Removes a supplier"""
 
@@ -3742,7 +3742,7 @@ class RemoveSupplier(Command):
         """Remove supplier"""
         await agg.remove_supplier()
         yield agg.create_response({"status": "success"}, _type="supplier-response")
-        
+
 class CreateServiceCategory(Command):
     """Create Service Category - Creates a new service category"""
 
@@ -3777,7 +3777,7 @@ class UpdateServiceCategory(Command):
         """Update service category"""
         service_category = await agg.update_service_category(data=payload)
         yield agg.create_response(serialize_mapping(service_category), _type="service-category-response")
-        
+
 class RemoveServiceCategory(Command):
     """Remove Service Category - Removes a service category"""
 
@@ -3804,7 +3804,7 @@ class AddServiceCategoryToSupplier(Command):
         description = "Add a service category to a supplier"
 
     Data = datadef.AddServiceCategoryToSupplierPayload
-    
+
     async def _process(self, agg, stm, payload):
         """Add service category to supplier"""
         supplier_service = await agg.add_service_category_to_supplier(data=payload)
