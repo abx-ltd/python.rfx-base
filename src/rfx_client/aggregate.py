@@ -830,7 +830,6 @@ class RFXClientAggregate(Aggregate):
                 raise ValueError(f"Invalid estimate format: {data.estimate}")
 
         await self.statemgr.update(work_item, **serialize_mapping(data))
-        return work_item
 
     @action("work-item-invalidated", resources="work_item")
     async def invalidate_work_item(self, /, data):
@@ -1968,7 +1967,7 @@ class RFXClientAggregate(Aggregate):
                 _id=UUID_GENR(),
             )
             await self.statemgr.insert(record)
-            
+
     @action("created-supplier", resources="supplier")
     async def create_supplier(self, /, data):
         """Create a new supplier"""
@@ -1994,7 +1993,7 @@ class RFXClientAggregate(Aggregate):
         )
         await self.statemgr.insert(record)
         return record
-    
+
     @action("updated-supplier", resources="supplier")
     async def update_supplier(self, /, data):
         """ Update supplier information"""
@@ -2002,13 +2001,13 @@ class RFXClientAggregate(Aggregate):
         update_data = serialize_mapping(data)
         await self.statemgr.update(supplier, **update_data)
         return supplier
-    
+
     @action("removed-supplier", resources="supplier")
     async def remove_supplier(self, /):
         """Remove supplier"""
         supplier = self.rootobj
         await self.statemgr.invalidate(supplier)
-        
+
     @action("create-service-category", resources="service_category")
     async def create_service_category(self, /, data):
         """Create a new service category"""
@@ -2034,24 +2033,24 @@ class RFXClientAggregate(Aggregate):
         )
         await self.statemgr.insert(record)
         return record
-    
+
     @action("update-service-category", resources="service_category")
     async def update_service_category(self, /, data):
         """
         Update service category information
-        
+
         """
         service_category = self.rootobj
         update_data = serialize_mapping(data)
         result = await self.statemgr.update(service_category, **update_data)
         return result
-    
+
     @action("remove-service-category", resources="service_category")
     async def remove_service_category(self, /):
         """Remove service category"""
         service_category = self.rootobj
         await self.statemgr.invalidate(service_category)
-        
+
     @action("add-service-category-to-supplier", resources="supplier")
     async def add_service_category_to_supplier(self, /, data):
         """Add service category to supplier"""

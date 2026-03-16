@@ -124,7 +124,7 @@ class GuestUser(TableBase):
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50))
     full_name: Mapped[Optional[str]] = mapped_column(String(255))
-    session_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    session_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True, index=True)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     last_active_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")

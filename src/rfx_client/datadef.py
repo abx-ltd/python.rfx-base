@@ -108,6 +108,7 @@ class AddCustomWorkPackageToProjectPayload(DataModel):
 
 class AddWorkPackageToProjectPayload(DataModel):
     work_package_id: UUID_TYPE
+    project_work_package_id: UUID_TYPE  # shared _id supplied by ttp_project for cross-domain ID sync
     params: Optional[Dict[str, Any]] = None  # Additional parameters for estimation
 
 
@@ -128,11 +129,11 @@ class CreateWorkItemPayload(DataModel):
 
 
 class UpdateWorkItemPayload(DataModel):
-    name: Optional[str] = Field(max_length=255)
+    name: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None
     type: Optional[str] = None
-    price_unit: Optional[float] = Field(gt=0)
-    credit_per_unit: Optional[float] = Field(gt=0)
+    price_unit: Optional[float] = Field(default=None, gt=0)
+    credit_per_unit: Optional[float] = Field(default=None, gt=0)
     estimate: Optional[str] = None
 
 
@@ -703,14 +704,14 @@ class RemoveParticipantFromGlobalDocumentPayload(DataModel):
 
 class CreateSupplierPayload(DataModel):
     supplier_name: str = Field(max_length=255)
-    
+
     tax_code: Optional[str] = Field(max_length=50)
     contact_email: Optional[str] = Field(max_length=255)
     contact_phone: Optional[str] = Field(max_length=50)
-    
+
 class UpdateSupplierPayload(DataModel):
     supplier_name: Optional[str] = Field(max_length=255)
-    
+
     tax_code: Optional[str] = Field(max_length=50)
     contact_email: Optional[str] = Field(max_length=255)
     contact_phone: Optional[str] = Field(max_length=50)
@@ -730,4 +731,3 @@ class UpdateServiceCategoryPayload(DataModel):
 class AddServiceCategoryToSupplierPayload(DataModel):
     service_id: UUID_TYPE
     description: Optional[str] = None
-    

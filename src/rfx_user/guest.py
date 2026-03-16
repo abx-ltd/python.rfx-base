@@ -112,7 +112,8 @@ class IDMGuestAuth:
             "azp": "guest-client",
             "session_state": guest_user_id,
             "realm_access": {"roles": ["guest"]},
-            "resource_access": {}
+            "resource_access": {},
+            "phone": phone
         }
 
         return payload
@@ -272,12 +273,24 @@ class IDMGuestAuth:
                     )
 
                     session_id = generate_session_id(request.session)
+
+                    # Ensure session_id uniqueness by clearing it from any conflicting guest users
+                    conflicting_users = await self.statemgr.find_all(
+                        "guest_user",
+                        where={"session_id": session_id}
+                    )
+                    for conflict_user in conflicting_users:
+                        if not guest_user or conflict_user._id != guest_user._id:
+                            logger.info(f"[GUEST AUTH] Clearing conflicting session_id for {conflict_user.email}")
+                            await self.statemgr.update(conflict_user, session_id=None)
+
                     if guest_user:
                         # Update existing user
                         await self.statemgr.update(
                             guest_user,
                             last_active_at=current_time,
-                            email_verified=True
+                            email_verified=True,
+                            session_id=session_id
                         )
                     else:
                         # Create new guest user
