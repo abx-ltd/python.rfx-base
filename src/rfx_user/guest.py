@@ -22,8 +22,8 @@ from .state import IDMStateManager
 class SignInRequestPayload(BaseModel):
     """Payload for requesting guest sign-in verification code"""
     email: EmailStr = Field(..., description="Guest email address")
-    phone_number: Optional[str] = Field(None, max_length=50, description="Optional phone number")
-    full_name: Optional[str] = Field(None, max_length=255, description="Optional full name")
+    phone: Optional[str] = Field(None, max_length=50, description="Optional phone number")
+    name: Optional[str] = Field(None, max_length=255, description="Optional full name")
 
 class SignInPayload(BaseModel):
     """Payload for guest sign-in"""
@@ -131,8 +131,8 @@ class IDMGuestAuth:
             try:
                 async with self.statemgr.transaction():
                     email = payload.email.lower().strip()
-                    phone_number = payload.phone_number.strip() if payload.phone_number else None
-                    full_name = payload.full_name.strip() if payload.full_name else None
+                    phone_number = payload.phone.strip() if payload.phone else None
+                    full_name = payload.name.strip() if payload.name else None
 
                     # Check rate limiting - count recent requests from this email
                     rate_limit_cutoff = datetime.now(timezone.utc) - timedelta(minutes=config.RATE_LIMIT_WINDOW_MINUTES)
@@ -290,7 +290,9 @@ class IDMGuestAuth:
                             guest_user,
                             last_active_at=current_time,
                             email_verified=True,
-                            session_id=session_id
+                            session_id=session_id,
+                            phone=verification.phone,
+                            full_name=verification.full_name or guest_user.full_name
                         )
                     else:
                         # Create new guest user
