@@ -35,8 +35,6 @@ class SyncUserMixin:
             "telecom__email": kc_user.email,
             "username": kc_user.username,
             "active": kc_user.enabled,
-            "realm_access": kc_user.realmRoles,
-            "resource_access": kc_user.clientRoles,
             "verified_email": kc_user.emailVerified and kc_user.email,
             "last_sync": datetime.utcnow(),
         }
