@@ -815,11 +815,21 @@ class CreateProfile(Command):
 
     async def _process(self, agg, stm, payload):
         data = serialize_mapping(payload)
+
+        # Validate target realm against OPERATION_VALID_REALMS
+        # from . import config
+        if config.OPERATION_VALID_REALMS is not None:
+            target_realm = data.get("realm")
+            if target_realm not in config.OPERATION_VALID_REALMS:
+                raise ValueError(f"Realm '{target_realm}' is not valid for profile creation.")
+
         role_keys = data.pop("role_keys", ["VIEWER"])
         profile = await agg.create_profile(data)
 
+        profile_id = profile._id if hasattr(profile, '_id') else profile.get("_id")
+
         await agg.update_profile_roles({
-            "profile_id": profile._id,
+            "profile_id": profile_id,
             "role_keys": role_keys
         })
 
@@ -844,7 +854,24 @@ class CreateProfileInOrg(Command):
 
     async def _process(self, agg, stm, payload):
         profile_data = serialize_mapping(payload)
+
+        # Validate target realm against OPERATION_VALID_REALMS
+        # from . import config
+        if config.OPERATION_VALID_REALMS is not None:
+            target_realm = profile_data.get("realm")
+            if target_realm not in config.OPERATION_VALID_REALMS:
+                raise ValueError(f"Realm '{target_realm}' is not valid for profile creation.")
+
         role_keys = profile_data.pop("role_keys", ["VIEWER"])
+
+        # Early check for organization authorization to prevent information leakage
+        intended_organization_id = str(profile_data.get("organization_id"))
+        current_org_id = str(agg.context.organization_id)
+        if intended_organization_id != current_org_id:
+            # from .config import SYSTEM_ORGANIZATION_ID
+            is_admin = await agg._is_sys_admin()
+            if current_org_id != str(config.SYSTEM_ORGANIZATION_ID) and not is_admin:
+                raise ValueError("You are not a member of that organization")
 
         # Pre-validate OWNER role before creating profile to avoid orphaned records
         if "OWNER" in role_keys:

@@ -702,6 +702,14 @@ class CreateProfile(Command):
 
     async def _process(self, agg, stm, payload):
         data = serialize_mapping(payload)
+
+        # Validate target realm against OPERATION_VALID_REALMS
+        # from . import config
+        if config.OPERATION_VALID_REALMS is not None:
+            target_realm = data.get("realm")
+            if target_realm not in config.OPERATION_VALID_REALMS:
+                raise ValueError(f"Realm '{target_realm}' is not valid for profile creation.")
+
         role_keys = data.pop("role_keys", ["VIEWER"])
         profile = await agg.create_profile(data)
 

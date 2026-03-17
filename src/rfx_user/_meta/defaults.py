@@ -35,3 +35,5 @@ API_BASE_URL = None
 NAMESPACE = "user-profile"
 
 SERVICE_CLIENT="rfx"
+
+OPERATION_VALID_REALMS = None

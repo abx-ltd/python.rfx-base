@@ -13,6 +13,7 @@ from fluvius.query.field import (
 from starlette.responses import RedirectResponse
 from fluvius.error import ForbiddenError
 from rfx_user import config as userconf
+from . import config
 
 from .state import IDMStateManager
 from .domain import IDMDomain
@@ -417,6 +418,16 @@ class ReceivedInvitationQuery(DomainQueryResource):
 @resource("realm")
 class RealmQuery(DomainQueryResource):
     """Query realm information"""
+    @classmethod
+    def base_query(cls, context, scope):
+        if config.OPERATION_VALID_REALMS is None:
+            return {}
+
+        return {
+            ".or": [
+                {"key": realm} for realm in config.OPERATION_VALID_REALMS
+            ]
+        }
 
     class Meta(DomainQueryResource.Meta):
         include_all = True

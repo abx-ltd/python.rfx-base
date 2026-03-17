@@ -61,6 +61,15 @@ class IDMAggregate(Aggregate):
                                     )
         await self.statemgr.insert(record)
 
+    async def _is_sys_admin(self):
+        curr_user = await self.statemgr.fetch("user", self.context.user_id)
+        if not curr_user or not curr_user.realm_access:
+            return False
+
+        roles = curr_user.realm_access.get("roles", [])
+        return "sys_admin" in roles
+
+
     # ==========================================================================
     # USER OPERATIONS
     # ==========================================================================
@@ -553,8 +562,16 @@ class IDMAggregate(Aggregate):
     async def create_profile_in_org(self, data):
         """Create user profile within organization with role assignment."""
         user_id = data.get("user_id", None)
-        if user_id is None or user_id == self.context.user_id:
-            raise ValueError("Cannot create profile for current user.")
+        if user_id is None:
+            raise ValueError("invalid user id")
+
+        # organization = await self.statemgr.fetch("organization", data.get("organization_id"))
+        intended_organization_id = str(data.get("organization_id"))
+        current_org_id = str(self.context.organization_id)
+        if intended_organization_id != current_org_id:
+            is_admin = await self._is_sys_admin()
+            if current_org_id != str(config.SYSTEM_ORGANIZATION_ID) and not is_admin:
+                raise ValueError("You are not a member of the organization")
 
         existing_profiles = await self.statemgr.find_all("profile", where=dict(
             user_id=user_id,
