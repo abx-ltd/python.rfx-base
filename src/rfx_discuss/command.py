@@ -98,8 +98,9 @@ class UpdateComment(Command):
         """Update comment"""
 
         await agg.update_comment(data=payload)
-        await _handle_mentions(agg, stm, payload.content)
-        await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
+        if payload.content:
+            await _handle_mentions(agg, stm, payload.content)
+            await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
 
 
 class DeleteComment(Command):

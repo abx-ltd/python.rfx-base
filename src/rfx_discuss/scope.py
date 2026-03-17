@@ -18,3 +18,7 @@ class ReactionScopeSchema(BaseModel):
 
 class FlagScopeSchema(BaseModel):
     comment_id: UUID_TYPE = UUIDField("Comment ID")
+
+
+class CommentAcknowledgeScopeSchema(BaseModel):
+    comment_id: UUID_TYPE = UUIDField("Comment ID")

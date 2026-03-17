@@ -10,12 +10,14 @@ class CreateCommentPayload(DataModel):
     resource_id: str
     requires_acknowledgement: bool = False
 
+
 class ReplyCommentPayload(DataModel):
     content: str
 
+
 class UpdateCommentPayload(DataModel):
-    content: str
-    requires_acknowledgement: bool = False
+    content: Optional[str] = None
+    requires_acknowledgement: Optional[bool] = None
 
 
 class DeleteCommentPayload(DataModel):

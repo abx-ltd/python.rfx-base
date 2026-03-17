@@ -34,14 +34,22 @@ class RFXDiscussAggregate(Aggregate):
         comment = self.rootobj
         if not comment.requires_acknowledgement:
             raise ValueError("Comment not requires acknowledgement")
-        acknowledge = self.init_resource(
+
+        existing_acknowledge = await self.statemgr.exist(
             "comment_acknowledge",
-            comment_id=comment._id,
-            profile_id=self.context.profile_id,
-            _id=UUID_GENR(),
+            where={
+                "comment_id": comment._id,
+                "profile_id": self.context.profile_id,
+            },
         )
-        await self.statemgr.insert(acknowledge)
-        return comment
+        if not existing_acknowledge:
+            acknowledge = self.init_resource(
+                "comment_acknowledge",
+                comment_id=comment._id,
+                profile_id=self.context.profile_id,
+                _id=UUID_GENR(),
+            )
+            await self.statemgr.insert(acknowledge)
 
     @action("reply_comment", resources="comment")
     async def reply_comment(self, /, data):

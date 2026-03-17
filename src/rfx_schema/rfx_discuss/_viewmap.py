@@ -49,12 +49,7 @@ class CommentView(TableBase):
     creator: Mapped[Optional[dict]] = mapped_column(
         JSONB, comment="Contains: {id, name, avatar}"
     )
-
-    # Acknowledge profile info (JSONB)
-    acknowledge_profile: Mapped[Optional[dict]] = mapped_column(
-        JSONB, comment="Contains: {id, name, avatar} for acknowledgement (if any)"
-    )
-
+    is_acknowledged: Mapped[bool] = mapped_column(Boolean)
     # Aggregate counts
     attachment_count: Mapped[int] = mapped_column(Integer)
     reaction_count: Mapped[int] = mapped_column(Integer)
@@ -122,7 +117,9 @@ class CommentReactionView(TableBase):
 
     comment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    reaction_type: Mapped[ReactionTypeEnum] = mapped_column(Enum(ReactionTypeEnum, schema=SCHEMA))
+    reaction_type: Mapped[ReactionTypeEnum] = mapped_column(
+        Enum(ReactionTypeEnum, schema=SCHEMA)
+    )
 
     # Reactor info (JSONB)
     reactor: Mapped[Optional[dict]] = mapped_column(
@@ -147,7 +144,9 @@ class CommentReactionSummaryView(TableBase):
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     comment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    reaction_type: Mapped[ReactionTypeEnum] = mapped_column(Enum(ReactionTypeEnum, schema=SCHEMA))
+    reaction_type: Mapped[ReactionTypeEnum] = mapped_column(
+        Enum(ReactionTypeEnum, schema=SCHEMA)
+    )
     reaction_count: Mapped[int] = mapped_column(Integer)
 
     # Array of user objects (JSONB)

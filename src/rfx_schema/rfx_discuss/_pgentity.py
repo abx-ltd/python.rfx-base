@@ -36,16 +36,8 @@ comment_view = PGView(
         c.organization_id,
         c.resource,
         c.resource_id,
+        COALESCE(BOOL_OR(ca._id IS NOT NULL), false) AS is_acknowledged,
         jsonb_build_object('id', p._id, 'name', COALESCE(p.preferred_name, ((p.name__given::text || ' '::text) || p.name__family::text)::character varying), 'avatar', p.picture_id) AS creator,
-        CASE
-            WHEN c.requires_acknowledgement THEN
-                jsonb_build_object(
-                    'id', ap._id,
-                    'name', COALESCE(ap.preferred_name, ((ap.name__given::text || ' '::text) || ap.name__family::text)::character varying),
-                    'avatar', ap.picture_id
-                )
-            ELSE NULL
-        END AS acknowledge_profile,
         COALESCE(( SELECT count(*) AS count
                FROM {config.RFX_DISCUSS_SCHEMA}.comment_attachment ca
               WHERE ca.comment_id = c._id AND ca._deleted IS NULL), 0::bigint) AS attachment_count,
@@ -58,8 +50,8 @@ comment_view = PGView(
         FROM {config.RFX_DISCUSS_SCHEMA}.comment c
         LEFT JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = c._creator
         LEFT JOIN {config.RFX_DISCUSS_SCHEMA}.comment_acknowledge ca ON ca.comment_id = c._id AND ca._deleted IS NULL
-        LEFT JOIN {config.RFX_USER_SCHEMA}.profile ap ON ap._id = ca._creator AND ap._deleted IS NULL
-      WHERE c._deleted IS NULL;
+    WHERE c._deleted IS NULL
+    GROUP by c._id, p._id;
     """,
 )
 
