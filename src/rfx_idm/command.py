@@ -896,9 +896,11 @@ class CreateProfileInOrg(Command):
             curr_user = await stm.fetch("user", context.user_id)
             roles = curr_user.realm_access.get("roles", []) if curr_user.realm_access else []
             is_admin = "sys_admin" in roles
-            current_org = await stm.fetch("organization", current_org_id)
-            is_system_entity = current_org and getattr(current_org, "system_entity", False)
-            if not is_system_entity and not is_admin:
+
+            # Allow bypass if user is in the system organization
+            is_system_org = config.SYSTEM_ORGANIZATION_ID is not None and current_org_id == str(config.SYSTEM_ORGANIZATION_ID)
+
+            if not is_system_org and not is_admin:
                 raise ValueError("You are not a member of that organization")
 
         # Pre-validate OWNER role before creating profile to avoid orphaned records

@@ -570,9 +570,8 @@ class IDMAggregate(Aggregate):
         current_org_id = str(self.context.organization_id)
         if intended_organization_id != current_org_id:
             is_admin = await self._is_sys_admin()
-            current_org = await self.statemgr.fetch("organization", current_org_id)
-            is_system_entity = current_org and getattr(current_org, "system_entity", False)
-            if not is_system_entity and not is_admin:
+            is_system_org = config.SYSTEM_ORGANIZATION_ID is not None and current_org_id == str(config.SYSTEM_ORGANIZATION_ID)
+            if not is_system_org and not is_admin:
                 raise ValueError("You are not a member of the organization")
 
         existing_profiles = await self.statemgr.find_all("profile", where=dict(
