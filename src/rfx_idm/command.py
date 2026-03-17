@@ -25,9 +25,15 @@ class SyncUserMixin:
         """Pull latest user info from Keycloak and update local state."""
         user = agg.get_rootobj()
         user_id = user._id
-        kc_user = await kc_admin.get_user(user_id)
+        try:
+            kc_user = await kc_admin.get_user(user_id)
+        except BadRequestError as e:
+            if "User not found" in str(e):
+                return None, {"status": "skipped", "reason": "User not found in Keycloak"}
+            raise
+
         if not kc_user:
-            raise ValueError(f"User {user_id} not found in Keycloak")
+            return None, {"status": "skipped", "reason": "User not found in Keycloak"}
 
         user_data = {
             "name__family": kc_user.lastName,
