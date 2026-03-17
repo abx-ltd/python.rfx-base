@@ -65,7 +65,7 @@ class SyncUserMixin:
             "telecom__email": kc_user.email,
             "username": kc_user.username,
             "active": kc_user.enabled,
-            "verified_email": kc_user.emailVerified and kc_user.email,
+            "verified_email": kc_user.email if kc_user.emailVerified else None,
         }
 
         required_actions = []
