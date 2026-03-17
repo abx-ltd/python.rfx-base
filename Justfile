@@ -64,7 +64,7 @@ populate:
 #   just mig-autogen "update tables" user,message  # Multiple schemas
 #   just mig-autogen "todo" todo               # Only todo schema
 [no-cd]
-mig-autogen MESSAGE SCHEMA="all" REGISTER_ENTITIES="1":
+mig-autogen MESSAGE SCHEMA="all" REGISTER_ENTITIES="0":
     @echo "🔍 Generating migration for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
     REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision --autogenerate -m "{{MESSAGE}}"
 
@@ -102,6 +102,6 @@ mig-history:
 # Check differences between database and models (optionally for specific schema)
 # Usage: just mig-check [schema] [REGISTER_ENTITIES=true|false]
 [no-cd]
-mig-check SCHEMA="all" REGISTER_ENTITIES="1":
+mig-check SCHEMA="all" REGISTER_ENTITIES="0":
     @echo "🔍 Checking schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
     REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini check
