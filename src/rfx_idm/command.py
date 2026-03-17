@@ -856,7 +856,6 @@ class CreateProfileInOrg(Command):
         profile_data = serialize_mapping(payload)
 
         # Validate target realm against OPERATION_VALID_REALMS
-        # from . import config
         if config.OPERATION_VALID_REALMS is not None:
             target_realm = profile_data.get("realm")
             if target_realm not in config.OPERATION_VALID_REALMS:
@@ -869,8 +868,9 @@ class CreateProfileInOrg(Command):
         context = agg.get_context()
         current_org_id = str(context.organization_id)
         if intended_organization_id != current_org_id:
-            # from .config import SYSTEM_ORGANIZATION_ID
-            is_admin = await agg._is_sys_admin()
+            curr_user = await stm.fetch("user", self.context.user_id)
+            roles = curr_user.realm_access.get("roles", [])
+            is_admin = "sys_admin" in roles
             if current_org_id != str(config.SYSTEM_ORGANIZATION_ID) and not is_admin:
                 raise ValueError("You are not a member of that organization")
 
