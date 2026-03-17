@@ -177,8 +177,11 @@ class CreateUser(Command):
                     kc_user.id, payload.password, temporary=False
                 )
 
-        realm_access = payload.realm_access or DEFAULT_REALM_ACCESS
-        resource_access = payload.resource_access or DEFAULT_RESOURCE_ACCESS
+        realm_access = DEFAULT_REALM_ACCESS
+        if config.ALLOW_CREATE_SYS_ADMIN:
+            if payload.is_superuser:
+                realm_access['roles'].append("sys_admin")
+        resource_access = DEFAULT_RESOURCE_ACCESS
 
         # Prepare local database user data with proper field mapping
         user_data = {
