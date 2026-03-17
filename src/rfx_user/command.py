@@ -66,7 +66,6 @@ class SyncUserMixin:
             "username": kc_user.username,
             "active": kc_user.enabled,
             "verified_email": kc_user.emailVerified and kc_user.email,
-            "last_sync": datetime.utcnow(),
         }
 
         required_actions = []
