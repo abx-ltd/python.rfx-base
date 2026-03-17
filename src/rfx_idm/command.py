@@ -866,7 +866,8 @@ class CreateProfileInOrg(Command):
 
         # Early check for organization authorization to prevent information leakage
         intended_organization_id = str(profile_data.get("organization_id"))
-        current_org_id = str(agg.context.organization_id)
+        context = agg.get_context()
+        current_org_id = str(context.organization_id)
         if intended_organization_id != current_org_id:
             # from .config import SYSTEM_ORGANIZATION_ID
             is_admin = await agg._is_sys_admin()
