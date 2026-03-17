@@ -15,8 +15,9 @@ from rfx_user.state import IDMStateManager
 async def populate_sys_org(org_name: str):
     manager = IDMStateManager(None)
 
+    org_id = UUID_GENR()
     data = {
-        "_id": str(UUID_GENR()),
+        "_id": str(org_id),
         "_created": datetime(2026, 3, 17, 14, 11, 24, 87000, tzinfo=UTC),
         "_creator": UUID("2fb8949a-0c1d-42b3-9515-b90a2633b68e"),
         "_updated": datetime(2026, 3, 17, 14, 11, 24, 163000, tzinfo=UTC),
@@ -44,7 +45,7 @@ async def populate_sys_org(org_name: str):
         record = manager.create("organization", **data)
         await manager.insert(record)
 
-    print(f"Successfully populated organization: {org_name}")
+    print(f"Successfully populated organization: {org_name} with id {org_id}")
 
 
 def main():
