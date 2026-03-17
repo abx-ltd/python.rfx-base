@@ -868,7 +868,7 @@ class CreateProfileInOrg(Command):
         context = agg.get_context()
         current_org_id = str(context.organization_id)
         if intended_organization_id != current_org_id:
-            curr_user = await stm.fetch("user", self.context.user_id)
+            curr_user = await stm.fetch("user", context.user_id)
             roles = curr_user.realm_access.get("roles", [])
             is_admin = "sys_admin" in roles
             if current_org_id != str(config.SYSTEM_ORGANIZATION_ID) and not is_admin:
