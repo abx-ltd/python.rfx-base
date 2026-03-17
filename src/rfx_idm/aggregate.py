@@ -130,10 +130,13 @@ class IDMAggregate(Aggregate):
         # Handle user actions
         if data.sync_actions:
             # Get current pending actions from database
-            current_actions = await self.statemgr.find_all('user_action', where=dict(
-                user_id=user._id,
-                status='PENDING'
-            ))
+            try:
+                current_actions = await self.statemgr.find_all('user_action', where=dict(
+                    user_id=user._id,
+                    status='PENDING'
+                ))
+            except Exception as e:
+                current_actions = []
 
             # If there are required actions from Keycloak, update or create them
             if data.required_actions:
