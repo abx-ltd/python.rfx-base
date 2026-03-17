@@ -343,3 +343,8 @@ class SyncUserPayload(DataModel):
 
 class ChangeActionPayload(DataModel):
     action_type: str = Field(..., description="PASSWORD_CHANGE")
+
+class SyncUserRequestPayload(DataModel):
+    """Payload for manual sync request."""
+    force: bool = False
+    sync_actions: bool = True

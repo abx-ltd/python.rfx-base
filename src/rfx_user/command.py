@@ -35,6 +35,49 @@ processor = UserProfileDomain.command_processor
 Command = UserProfileDomain.Command
 
 
+# ============ Mixins =============
+
+
+class SyncUserMixin:
+    """Provides reusable logic for synchronizing user data from Keycloak."""
+
+    async def _sync_from_keycloak(
+        self, agg, force_sync: bool = False, sync_actions: bool = True
+    ):
+        """Pull latest user info from Keycloak and update local state."""
+        user = agg.get_rootobj()
+        user_id = user._id
+        kc_user = await kc_admin.get_user(user_id)
+        if not kc_user:
+            raise ValueError(f"User {user_id} not found in Keycloak")
+
+        user_data = {
+            "name__family": kc_user.lastName,
+            "name__given": kc_user.firstName,
+            "telecom__email": kc_user.email,
+            "username": kc_user.username,
+            "active": kc_user.enabled,
+            "realm_access": kc_user.realmRoles,
+            "resource_access": kc_user.clientRoles,
+            "verified_email": kc_user.emailVerified and kc_user.email,
+            "last_sync": datetime.utcnow(),
+        }
+
+        required_actions = []
+        if hasattr(kc_user, "requiredActions"):
+            required_actions = kc_user.requiredActions
+
+        sync_payload = datadef.SyncUserPayload(
+            force=force_sync,
+            sync_actions=sync_actions,
+            user_data=user_data,
+            required_actions=required_actions,
+        )
+
+        synced_user = await agg.sync_user(sync_payload)
+        return synced_user, {"status": "success", "user_id": str(user_id)}
+
+
 # ==========================================================================
 # USER COMMANDS
 # User lifecycle management with Keycloak integration for identity operations
@@ -49,12 +92,112 @@ Command = UserProfileDomain.Command
 #         resource_init = True
 #         auth_required = True
 
-# class UpdateUser(Command):
-#     class Meta:
-#         key = "update-user"
-#         resources = ("user",)
-#         tags = ["user"]
-#         auth_required = True
+class UpdateUser(Command, SyncUserMixin):
+    """
+    Update user attributes in Keycloak and local datastore.
+    Synchronizes identity information, status, and verification metadata.
+    """
+
+    class Meta:
+        key = "update-user"
+        resources = ("user",)
+        tags = ["user"]
+        auth_required = True
+        policy_required = True
+
+    Data = datadef.UpdateUserPayload
+
+    async def _process(self, agg, stm, payload):
+        rootobj = agg.get_rootobj()
+        user_id = rootobj._id
+
+        # Build Keycloak update payload from provided fields
+        kc_payload = {}
+        if payload.email is not None:
+            kc_payload["email"] = payload.email
+        if payload.username is not None:
+            kc_payload["username"] = payload.username
+        if payload.first_name is not None:
+            kc_payload["firstName"] = payload.first_name
+        if payload.last_name is not None:
+            kc_payload["lastName"] = payload.last_name
+        if payload.is_active is not None:
+            kc_payload["enabled"] = payload.is_active
+        if payload.email_verified is not None:
+            kc_payload["emailVerified"] = payload.email_verified
+        if payload.verified_email is not None:
+            kc_payload["emailVerified"] = bool(payload.verified_email)
+
+        update_performed = False
+        if kc_payload:
+            await kc_admin.update_user(user_id, kc_payload)
+            update_performed = True
+
+        if payload.password:
+            await kc_admin.set_user_password(
+                user_id, payload.password, temporary=False
+            )
+            update_performed = True
+
+        # Update local database if fields provided
+        local_fields = payload.model_dump(
+            exclude_none=True,
+            include={
+                "username",
+                "email",
+                "first_name",
+                "last_name",
+                "is_active",
+                "is_superuser",
+                "status",
+                "verified_email",
+                "verified_phone",
+                "realm_access",
+                "resource_access",
+                "system_tag",
+                "user_tag",
+            },
+        )
+
+        # Map field names if they differ
+        if "first_name" in local_fields:
+            local_fields["name__given"] = local_fields.pop("first_name")
+        if "last_name" in local_fields:
+            local_fields["name__family"] = local_fields.pop("last_name")
+        if "is_active" in local_fields:
+            local_fields["active"] = local_fields.pop("is_active")
+        if "is_superuser" in local_fields:
+            local_fields["is_super_admin"] = local_fields.pop("is_superuser")
+
+        updated_user = rootobj
+        if local_fields:
+            updated_user = await agg.update_user(local_fields)
+
+        # Trigger sync from Keycloak if requested or after an update to ensure consistency
+        # Force sync if update was performed to ensure local DB reflects Keycloak state
+        sync_requested = payload.sync_remote or payload.force_sync or update_performed
+        force_requested = payload.force_sync or update_performed
+        sync_only = sync_requested and not update_performed
+
+        synced_user = None
+        sync_status = None
+        if sync_requested:
+            synced_user, sync_status = await self._sync_from_keycloak(
+                agg, force_sync=force_requested, sync_actions=payload.sync_actions
+            )
+
+            if sync_status and sync_only:
+                yield agg.create_response(sync_status, _type="user-profile-response")
+                return
+
+        result_user = synced_user or updated_user
+        response_payload = serialize_mapping(result_user)
+
+        if sync_status and not sync_only:
+            response_payload["sync_status"] = sync_status
+
+        yield agg.create_response(response_payload, _type="user-profile-response")
+
 
 # class SendAction(Command):
 #     """
@@ -138,72 +281,44 @@ Command = UserProfileDomain.Command
 #         await agg.activate_user()
 
 
-# class SyncUser(Command):
-#     """
-#     Synchronize user information from Keycloak to local system.
-#     Implements intelligent sync with rate limiting (5-minute minimum interval)
-#     unless force flag is used. Retrieves user profile, roles, and verification status.
-#     """
+class SyncUser(Command, SyncUserMixin):
+    """
+    Manually trigger synchronization of user attributes from Keycloak.
+    Ensures local datastore is consistent with identity provider state.
+    """
 
-#     class Meta:
-#         key = "sync-user"
-#         resources = ("user",)
-#         tags = ["user"]
-#         auth_required = True
-#         description = "Synchronize user information from Keycloak"
+    class Meta:
+        key = "sync-user"
+        resources = ("user",)
+        tags = ["user", "sync"]
+        auth_required = True
+        policy_required = True
 
-#     Data = datadef.SyncUserPayload
+    Data = datadef.SyncUserRequestPayload
 
-#     async def _process(self, agg, stm, payload):
-#         # Check if sync is needed
-#         if not payload.force:
-#             user = agg.get_rootobj()
-#             if user.last_sync:
-#                 # Don't sync if last sync was less than 5 minutes ago
-#                 if (datetime.utcnow() - user.last_sync).total_seconds() < 300:
-#                     yield agg.create_response(
-#                         {"status": "skipped", "reason": "Recently synced"},
-#                         _type="user-profile-response",
-#                     )
-#                     return
+    async def _process(self, agg, stm, payload):
+        # Check if sync is needed
+        if not payload.force:
+            user = agg.get_rootobj()
+            if getattr(user, "last_sync", None):
+                # Don't sync if last sync was less than 5 minutes ago
+                if (datetime.utcnow() - user.last_sync).total_seconds() < 300:
+                    yield agg.create_response(
+                        {"status": "skipped", "reason": "Recently synced"},
+                        _type="user-profile-response",
+                    )
+                    return
 
-#         # Get user info from Keycloak
-#         user_id = agg.get_rootobj()._id
-#         kc_user = await kc_admin.get_user(user_id)
-#         if not kc_user:
-#             raise ValueError(f"User {user_id} not found in Keycloak")
+        synced_user, sync_status = await self._sync_from_keycloak(
+            agg, force_sync=payload.force, sync_actions=payload.sync_actions
+        )
 
-#         # Extract user data from Keycloak response
-#         user_data = {
-#             "name__family": kc_user.lastName,
-#             "name__given": kc_user.firstName,
-#             "telecom__email": kc_user.email,
-#             "username": kc_user.username,
-#             "active": kc_user.enabled,
-#             "realm_access": kc_user.realmRoles,
-#             "resource_access": kc_user.clientRoles,
-#             "verified_email": kc_user.emailVerified and kc_user.email,
-#             "last_sync": datetime.utcnow(),
-#         }
-
-#         # Get required actions
-#         required_actions = []
-#         if hasattr(kc_user, "requiredActions"):
-#             required_actions = kc_user.requiredActions
-
-#         # Create sync payload with Keycloak data
-#         sync_payload = datadef.SyncUserPayload(
-#             force=payload.force,
-#             sync_actions=payload.sync_actions,
-#             user_data=user_data,
-#             required_actions=required_actions,
-#         )
-
-#         # Perform sync
-#         user = await agg.sync_user(sync_payload)
-#         yield agg.create_response(
-#             serialize_mapping(user), _type="user-profile-response"
-#         )
+        if synced_user:
+            yield agg.create_response(
+                serialize_mapping(synced_user), _type="user-profile-response"
+            )
+        else:
+            yield agg.create_response(sync_status, _type="user-profile-response")
 
 
 # ==========================================================================
