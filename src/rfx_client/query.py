@@ -1086,11 +1086,11 @@ class SupplierServiceQuery(DomainQueryResource):
     tax_code: str = StringField("Tax Code")
     contact_email: str = StringField("Contact Email")
     contact_phone: str = StringField("Contact Phone")
-    
+
     service_id: UUID_TYPE = UUIDField("Service ID")
     service_code: str = StringField("Service Code")
     service_name: str = StringField("Service Name")
     service_category: str = StringField("Service Category")
-    
+
     supplier_service_status: str = StringField("Supplier Service Status")
     supplier_service_description: str = StringField("Supplier Service Description")

@@ -1,12 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fluvius.data import serialize_mapping, UUID_GENR
 from fluvius.data.exceptions import ItemNotFoundError
 from fluvius.error import BadRequestError
 
-from datetime import datetime, timedelta
 from .domain import IDMDomain
 from .integration import kc_admin
-from . import datadef, config
+from . import datadef, config, logger
 from rfx_user import config as userconf
 
 processor = IDMDomain.command_processor
@@ -177,11 +176,12 @@ class CreateUser(Command):
                     kc_user.id, payload.password, temporary=False
                 )
 
-        realm_access = DEFAULT_REALM_ACCESS
+        import copy
+        realm_access = copy.deepcopy(DEFAULT_REALM_ACCESS)
         if config.ALLOW_CREATE_SYS_ADMIN:
-            if payload.is_superuser:
+            if payload.is_superuser and "sys_admin" not in realm_access['roles']:
                 realm_access['roles'].append("sys_admin")
-        resource_access = DEFAULT_RESOURCE_ACCESS
+        resource_access = copy.deepcopy(DEFAULT_RESOURCE_ACCESS)
 
         # Prepare local database user data with proper field mapping
         user_data = {
@@ -209,6 +209,12 @@ class CreateUser(Command):
         }
         # Create user in local database
         user = await agg.create_user(user_data)
+
+        if config.ALLOW_CREATE_SYS_ADMIN and payload.is_superuser:
+            try:
+                await kc_admin.add_user_roles(kc_user.id, ["sys_admin"])
+            except Exception as e:
+                logger.warning(f"Failed to assign sys_admin role in Keycloak for {kc_user.id}: {e}")
 
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
@@ -275,8 +281,18 @@ class UpdateUser(Command, SyncUserMixin):
         set_update(payload.email, "telecom__email")
         set_update(payload.phone, "telecom__phone")
         set_update(payload.verified_phone, "verified_phone")
-        set_update(payload.realm_access, "realm_access")
-        set_update(payload.resource_access, "resource_access")
+        # Handle realm_access based on is_superuser
+        if payload.is_superuser is not None:
+            if getattr(config, "ALLOW_CREATE_SYS_ADMIN", False):
+                import copy
+                realm_access = copy.deepcopy(rootobj.realm_access) if rootobj.realm_access else copy.deepcopy(DEFAULT_REALM_ACCESS)
+                roles = realm_access.get("roles", [])
+                if payload.is_superuser and "sys_admin" not in roles:
+                    roles.append("sys_admin")
+                elif not payload.is_superuser and "sys_admin" in roles:
+                    roles.remove("sys_admin")
+                realm_access["roles"] = roles
+                user_updates["realm_access"] = realm_access
         set_update(
             payload.status, "status", lambda v: v.value if hasattr(v, "value") else v
         )
@@ -292,6 +308,15 @@ class UpdateUser(Command, SyncUserMixin):
         updated_user = rootobj
         if user_updates:
             updated_user = await agg.update_user(user_updates)
+
+        if payload.is_superuser is not None and getattr(config, "ALLOW_CREATE_SYS_ADMIN", False):
+            try:
+                if payload.is_superuser:
+                    await kc_admin.add_user_roles(user_id, ["sys_admin"])
+                else:
+                    await kc_admin.delete_user_roles(user_id, ["sys_admin"])
+            except Exception as e:
+                logger.warning(f"Failed to update sys_admin role in Keycloak for {user_id}: {e}")
 
         update_performed = (
             bool(kc_payload) or bool(payload.password) or bool(user_updates)
@@ -869,9 +894,11 @@ class CreateProfileInOrg(Command):
         current_org_id = str(context.organization_id)
         if intended_organization_id != current_org_id:
             curr_user = await stm.fetch("user", context.user_id)
-            roles = curr_user.realm_access.get("roles", [])
+            roles = curr_user.realm_access.get("roles", []) if curr_user.realm_access else []
             is_admin = "sys_admin" in roles
-            if current_org_id != str(config.SYSTEM_ORGANIZATION_ID) and not is_admin:
+            current_org = await stm.fetch("organization", current_org_id)
+            is_system_entity = current_org and getattr(current_org, "system_entity", False)
+            if not is_system_entity and not is_admin:
                 raise ValueError("You are not a member of that organization")
 
         # Pre-validate OWNER role before creating profile to avoid orphaned records
