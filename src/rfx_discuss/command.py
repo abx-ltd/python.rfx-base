@@ -1,4 +1,5 @@
 from fluvius.data import serialize_mapping
+from fluvius.domain.signal import DomainSignal
 
 from .domain import RFXDiscussDomain
 from . import datadef
@@ -61,6 +62,7 @@ class AcknowledgeComment(Command):
             await agg.reply_comment(
                 data=datadef.ReplyCommentPayload(content="<i>Acknowledged</i>")
             )
+
 
 class ReplyComment(Command):
     """Reply to Comment - Creates a reply to an existing comment"""
@@ -307,3 +309,20 @@ class UnSubscribeComment(Command):
         yield agg.create_response(
             {"status": "success"}, _type="comment-subscribe-response"
         )
+
+
+@RFXDiscussDomain.subscribe(
+    DomainSignal.TRIGGER_RECONCILIATION,
+    match=lambda cmd: cmd.command in ("create-comment", "reply-comment"),
+)
+async def process(cmd, **kwargs):
+    """Dispatch webhook to callback_url after comment creation / reply."""
+    from rfx_discuss import logger
+    from .webhook import dispatch_command
+
+    callback_url = getattr(cmd.payload, "callback_url", None)
+    if not callback_url:
+        return
+
+    logger.info(f"Dispatching webhook for [{cmd.command}] to {callback_url}")
+    await dispatch_command(cmd)
