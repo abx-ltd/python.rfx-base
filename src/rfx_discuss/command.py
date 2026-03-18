@@ -56,8 +56,11 @@ class AcknowledgeComment(Command):
 
     async def _process(self, agg, stm, payload):
         """Acknowledge comment"""
-        await agg.acknowledge_comment()
-
+        is_new = await agg.acknowledge_comment()
+        if is_new:
+            await agg.reply_comment(
+                data=datadef.ReplyCommentPayload(content="<i>Acknowledged</i>")
+            )
 
 class ReplyComment(Command):
     """Reply to Comment - Creates a reply to an existing comment"""
