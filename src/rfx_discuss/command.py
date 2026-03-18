@@ -325,4 +325,7 @@ async def process(cmd, **kwargs):
         return
 
     logger.info(f"Dispatching webhook for [{cmd.command}] to {callback_url}")
-    await dispatch_command(cmd)
+    try:
+        await dispatch_command(cmd)
+    except Exception as exc:
+        logger.error(f"Webhook dispatch failed for [{cmd.command}]: {exc}")

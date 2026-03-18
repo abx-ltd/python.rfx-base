@@ -1,6 +1,5 @@
 import hashlib
 import hmac
-import json
 import time
 
 import httpx
@@ -43,10 +42,14 @@ async def deliver(callback_url: str, data: dict, secret: str | None = None):
     payload_bytes = serialize_json(data).encode()
     headers = _build_headers(payload_bytes, secret)
 
-    async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
-        response = await client.post(
-            callback_url, content=payload_bytes, headers=headers
-        )
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+            response = await client.post(
+                callback_url, content=payload_bytes, headers=headers
+            )
+    except httpx.HTTPError as exc:
+        logger.error("Webhook delivery to %s failed: %s", callback_url, exc)
+        return None
 
     logger.info(
         "Webhook delivered to %s – status %s", callback_url, response.status_code
