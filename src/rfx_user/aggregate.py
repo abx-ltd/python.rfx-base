@@ -104,9 +104,21 @@ class UserProfileAggregate(Aggregate):
         """
         Synchronize user data from Keycloak and manage required actions.
         Handles action lifecycle (pending -> completed) based on Keycloak state.
+        Returns True if profile data or actions changed, signaling a required logout.
         """
         user = self.rootobj
-        await self.statemgr.update(user, **data.user_data)
+        changed = False
+
+        # Detect changes in user data
+        for key, value in data.user_data.items():
+            if getattr(user, key, None) != value:
+                changed = True
+                break
+
+        if changed:
+            await self.statemgr.update(user, **data.user_data)
+            # Fetch updated user to ensure we have the latest state for subsequent logic
+            user = await self.statemgr.fetch("user", user._id)
 
         # Handle user actions
         if data.sync_actions:
@@ -138,17 +150,20 @@ class UserProfileAggregate(Aggregate):
                             status='PENDING'
                         ))
                         await self.statemgr.insert(record)
+                        changed = True
 
                 # Any current actions not in required_actions should be marked as completed
                 for action in current_actions:
                     if action._id not in processed_actions:
                         await self.statemgr.update(action, status='COMPLETED')
+                        changed = True
             else:
                 # If no required actions, mark all pending actions as completed
                 for action in current_actions:
                     await self.statemgr.update(action, status='COMPLETED')
+                    changed = True
 
-        return user
+        return changed
 
     # ==========================================================================
     # ORGANIZATION OPERATIONS

@@ -33,6 +33,57 @@ processor = UserProfileDomain.command_processor
 Command = UserProfileDomain.Command
 
 
+# ============ Mixins =============
+
+
+class SyncUserMixin:
+    """Provides reusable logic for synchronizing user data from Keycloak."""
+
+    async def _sync_from_keycloak(
+        self, agg, force_sync: bool = False, sync_actions: bool = True
+    ):
+        """Pull latest user info from Keycloak and update local state."""
+        user = agg.get_rootobj()
+        user_id = user._id
+        try:
+            kc_user = await kc_admin.get_user(user_id)
+        except Exception as e:
+            # Broad catch because rfx_user might not have BadRequestError imported
+            # and it's safer to avoid crashing the whole sync process
+            if "User not found" in str(e):
+                return None, {"status": "skipped", "reason": "User not found in Keycloak"}
+            raise
+
+        if not kc_user:
+            return None, {"status": "skipped", "reason": "User not found in Keycloak"}
+
+        user_data = {
+            "name__family": kc_user.lastName,
+            "name__given": kc_user.firstName,
+            "telecom__email": kc_user.email,
+            "username": kc_user.username,
+            "active": kc_user.enabled,
+            "verified_email": kc_user.email if kc_user.emailVerified else None,
+        }
+
+        required_actions = []
+        if hasattr(kc_user, "requiredActions"):
+            required_actions = kc_user.requiredActions
+
+        sync_payload = datadef.SyncUserPayload(
+            force=force_sync,
+            sync_actions=sync_actions,
+            user_data=user_data,
+            required_actions=required_actions,
+        )
+
+        changed = await agg.sync_user(sync_payload)
+        if changed:
+            await kc_admin.logout_user(user_id)
+
+        return agg.get_rootobj(), {"status": "success", "user_id": str(user_id), "changed": changed}
+
+
 # ==========================================================================
 # USER COMMANDS
 # User lifecycle management with Keycloak integration for identity operations
