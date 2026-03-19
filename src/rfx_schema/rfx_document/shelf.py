@@ -24,7 +24,7 @@ class Shelf(TableBase):
 
     __tablename__ = "shelf"
     __table_args__ = (
-        UniqueConstraint("realm_id", "code", name="uq_shelf_realm_id_code"),
+        UniqueConstraint("realm_id", "code", name="uq_shelf_realm_code"),
         Index("ix_shelf_realm_id", "realm_id"),
         {"schema": SCHEMA},
     )

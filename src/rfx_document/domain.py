@@ -4,6 +4,7 @@ from .aggregate import RFXDocumentAggregate
 from .state import RFXDocumentStateManager
 from . import config
 
+
 class RFXDocumentDomain(Domain):
     __namespace__ = config.NAMESPACE
     __aggregate__ = RFXDocumentAggregate
@@ -12,4 +13,7 @@ class RFXDocumentDomain(Domain):
 
 
 class DocumentResponse(RFXDocumentDomain.Response):
+    pass
+
+class CategoryResponse(RFXDocumentDomain.Response):
     pass

@@ -28,7 +28,7 @@ class Category(TableBase):
 
     __tablename__ = "category"
     __table_args__ = (
-        UniqueConstraint("realm_id", "shelf_id", "code", name="uq_category_realm_shelf_code"),
+        UniqueConstraint("realm_id", "code", name="uq_category_realm_code"),
         Index("ix_category_realm_id", "realm_id"),
         Index("ix_category_shelf_id", "shelf_id"),
         {"schema": SCHEMA},

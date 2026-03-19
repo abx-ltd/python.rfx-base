@@ -10,3 +10,13 @@ class RealmScopeSchema(BaseModel):
 
 class ShelfScopeSchema(BaseModel):
     realm_id: Optional[UUID_TYPE] = None
+
+
+class CategoryScopeSchema(BaseModel):
+    realm_id: Optional[UUID_TYPE] = None
+    shelf_id: Optional[UUID_TYPE] = None
+
+
+class CabinetScopeSchema(BaseModel):
+    realm_id: Optional[UUID_TYPE] = None
+    category_id: Optional[UUID_TYPE] = None
