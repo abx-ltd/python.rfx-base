@@ -9,12 +9,10 @@ class CreateCommentPayload(DataModel):
     resource: str
     resource_id: str
     requires_acknowledgement: bool = False
-    callback_url: Optional[str] = None
 
 
 class ReplyCommentPayload(DataModel):
     content: str
-    callback_url: Optional[str] = None
 
 
 class UpdateCommentPayload(DataModel):

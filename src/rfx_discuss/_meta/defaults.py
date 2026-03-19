@@ -16,4 +16,5 @@ MESSAGE_NAMESPACE = "rfx-message"
 
 MESSAGE_ENABLED = True
 
-WEBHOOK_SECRET = "rfx-discuss-webhook-secret"
+WEBHOOK_SECRET = "SECRET"
+CALLBACK_URL = "URL"
