@@ -150,3 +150,39 @@ class CabinetQuery(DomainQueryResource):
 
     # Aggregate information
     entry_count: int = IntegerField("Entry Count")
+
+
+@resource("entry")
+class EntryQuery(DomainQueryResource):
+    """Entry queries."""
+
+    @classmethod
+    def base_query(cls, context, scope_data):
+        cabinet_id = scope_data.get("cabinet_id")
+
+        query = {}
+        if cabinet_id:
+            query["cabinet_id"] = cabinet_id
+
+        return query
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "entry"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_entry"
+        scope_required = scope.EntryScopeSchema
+
+    id: UUID_TYPE = PrimaryID("Entry ID")
+    cabinet_id: UUID_TYPE = UUIDField("Cabinet ID")
+    path: str = StringField("Path")
+    name: str = StringField("Name")
+    type: str = StringField("Type")
+    size: Optional[int] = IntegerField("Size")
+    mime_type: Optional[str] = StringField("MIME Type")
+    author: Optional[str] = StringField("Author")
+
+    parent_path: Optional[str] = StringField("Parent Path")

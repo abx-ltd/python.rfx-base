@@ -18,7 +18,7 @@ class RFXDocumentAggregate(Aggregate):
     """Document Aggregate - CRUD operations for document items."""
 
     @action("realm-created", resources="realm")
-    async def create_real(self, /, data):
+    async def create_realm(self, /, data):
         data = serialize_mapping(data)
         record = self.init_resource(
             "realm",
@@ -261,3 +261,30 @@ class RFXDocumentAggregate(Aggregate):
         if entry_exists:
             raise ValueError("Cannot remove cabinet with existing entry records")
         await self.statemgr.invalidate(cabinet)
+
+    
+    @action("entry-created", resources="cabinet")
+    async def create_entry(self, /, data):
+        cabinet = self.rootobj
+        full_path = data.computed_path
+        exists = await self.statemgr.exist(
+            "entry", 
+            where={"cabinet_id": cabinet._id, "path": full_path}
+        )
+        if exists:
+            raise ValueError(f"Entry '{full_path}' already exists in this cabinet")
+        entry_data = serialize_mapping(data)
+        entry_data.update({
+            "cabinet_id": cabinet._id,
+            "path": full_path,
+        })
+        entry_data.pop("parent_path", None)
+
+        record = self.init_resource(
+            "entry",
+            entry_data,
+            _id=UUID_GENR(),
+        )
+
+        await self.statemgr.insert(record)
+        return record

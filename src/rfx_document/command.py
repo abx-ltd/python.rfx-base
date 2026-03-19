@@ -185,3 +185,20 @@ class RemoveCabinet(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.remove_cabinet()
+
+
+class CreateEntry(Command):
+
+    Data = datadef.CreateEntryPayload
+
+    class Meta :
+        key = "create-entry"
+        resources = ("cabinet",)
+        tags = ["document","entry","create"]
+        auth_required = True
+    
+
+    
+    async def _process(self , agg , stm, payload):
+        result = await agg.create_entry(payload)
+        yield agg.create_response(serialize_mapping(result),_type ="document-response")
