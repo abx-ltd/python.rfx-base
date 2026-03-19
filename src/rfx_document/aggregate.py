@@ -80,15 +80,10 @@ class RFXDocumentAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action("shelf-updated", resources="realm")
+    @action("shelf-updated", resources="shelf")
     async def update_shelf(self, /, data):
-        realm = self.rootobj
+        shelf = self.rootobj
         data = serialize_mapping(data)
-        shelf_id = data["shelf_id"]
-
-        shelf = await self.statemgr.fetch("shelf", shelf_id)
-        if str(shelf.realm_id) != str(realm._id):
-            raise ValueError(f"Shelf {shelf_id} does not belong to realm {realm._id}")
 
         updates = _clean_updates(data)
         updates.pop("shelf_id", None)
@@ -96,28 +91,23 @@ class RFXDocumentAggregate(Aggregate):
             raise ValueError("At least one field required")
 
         if "code" in updates:
-            updates["code"] = _normalize_shelf_code(updates["code"])
+            code = _normalize_shelf_code(updates["code"])
+            updates["code"] = code
+            
+            # Check for duplicates in same realm
             existing = await self.statemgr.exist(
                 "shelf",
-                where={"realm_id": realm._id, "code": updates["code"]},
+                where={"realm_id": shelf.realm_id, "code": code},
             )
             if existing and str(existing._id) != str(shelf._id):
-                raise ValueError(
-                    f"Shelf code {updates['code']} already exists in this realm"
-                )
+                raise ValueError(f"Shelf code {code} already exists in this realm")
 
         await self.statemgr.update(shelf, **updates)
         return await self.statemgr.fetch("shelf", shelf._id)
 
-    @action("shelf-removed", resources="realm")
-    async def remove_shelf(self, /, data):
-        realm = self.rootobj
-        data = serialize_mapping(data)
-        shelf_id = data["shelf_id"]
-
-        shelf = await self.statemgr.fetch("shelf", shelf_id)
-        if str(shelf.realm_id) != str(realm._id):
-            raise ValueError(f"Shelf {shelf_id} does not belong to realm {realm._id}")
+    @action("shelf-removed", resources="shelf")
+    async def remove_shelf(self, /):
+        shelf = self.rootobj
 
         category_exists = await self.statemgr.exist(
             "category", where={"shelf_id": shelf._id}
@@ -159,17 +149,10 @@ class RFXDocumentAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action("category-updated", resources="realm")
+    @action("category-updated", resources="category")
     async def update_category(self, /, data):
-        realm = self.rootobj
+        category = self.rootobj
         data = serialize_mapping(data)
-        category_id = data["category_id"]
-
-        category = await self.statemgr.fetch("category", category_id)
-        if str(category.realm_id) != str(realm._id):
-            raise ValueError(
-                f"Category {category_id} does not belong to realm {realm._id}"
-            )
 
         updates = _clean_updates(data)
         updates.pop("category_id", None)
@@ -177,29 +160,26 @@ class RFXDocumentAggregate(Aggregate):
             raise ValueError("At least one field required")
 
         if "code" in updates:
+            new_code = updates["code"]
+            # Fetch shelf to check prefix
+            shelf = await self.statemgr.fetch("shelf", category.shelf_id)
+            if not new_code.startswith(shelf.code):
+                raise ValueError(f"Category code {new_code} must start with shelf code {shelf.code}")
+
+            # Duplicate check in realm
             existing = await self.statemgr.exist(
                 "category",
-                where={"realm_id": realm._id, "code": updates["code"]},
+                where={"realm_id": category.realm_id, "code": new_code},
             )
             if existing and str(existing._id) != str(category._id):
-                raise ValueError(
-                    f"Category code {updates['code']} already exists in this realm"
-                )
+                raise ValueError(f"Category code {new_code} already exists in this realm")
 
         await self.statemgr.update(category, **updates)
         return await self.statemgr.fetch("category", category._id)
 
-    @action("category-removed", resources="realm")
-    async def remove_category(self, /, data):
-        realm = self.rootobj
-        data = serialize_mapping(data)
-        category_id = data["category_id"]
-
-        category = await self.statemgr.fetch("category", category_id)
-        if str(category.realm_id) != str(realm._id):
-            raise ValueError(
-                f"Category {category_id} does not belong to realm {realm._id}"
-            )
+    @action("category-removed", resources="category")
+    async def remove_category(self, /):
+        category = self.rootobj
 
         cabinet_exists = await self.statemgr.exist(
             "cabinet", where={"category_id": category._id}
@@ -242,17 +222,10 @@ class RFXDocumentAggregate(Aggregate):
         await self.statemgr.insert(record)
         return record
 
-    @action("cabinet-updated", resources="realm")
+    @action("cabinet-updated", resources="cabinet")
     async def update_cabinet(self, /, data):
-        realm = self.rootobj
+        cabinet = self.rootobj
         data = serialize_mapping(data)
-        cabinet_id = data["cabinet_id"]
-
-        cabinet = await self.statemgr.fetch("cabinet", cabinet_id)
-        if str(cabinet.realm_id) != str(realm._id):
-            raise ValueError(
-                f"Cabinet {cabinet_id} does not belong to realm {realm._id}"
-            )
 
         updates = _clean_updates(data)
         updates.pop("cabinet_id", None)
@@ -260,29 +233,27 @@ class RFXDocumentAggregate(Aggregate):
             raise ValueError("At least one field required")
 
         if "code" in updates:
+            new_code = updates["code"]
+            # Fetch category to check prefix
+            category = await self.statemgr.fetch("category", cabinet.category_id)
+            prefix = f"{category.code}-"
+            if not new_code.startswith(prefix):
+                raise ValueError(f"Cabinet code {new_code} must start with category prefix {prefix}")
+
+            # Duplicate check in realm
             existing = await self.statemgr.exist(
                 "cabinet",
-                where={"realm_id": realm._id, "code": updates["code"]},
+                where={"realm_id": cabinet.realm_id, "code": new_code},
             )
             if existing and str(existing._id) != str(cabinet._id):
-                raise ValueError(
-                    f"Cabinet code {updates['code']} already exists in this realm"
-                )
+                raise ValueError(f"Cabinet code {new_code} already exists in this realm")
 
         await self.statemgr.update(cabinet, **updates)
         return await self.statemgr.fetch("cabinet", cabinet._id)
 
-    @action("cabinet-removed", resources="realm")
-    async def remove_cabinet(self, /, data):
-        realm = self.rootobj
-        data = serialize_mapping(data)
-        cabinet_id = data["cabinet_id"]
-
-        cabinet = await self.statemgr.fetch("cabinet", cabinet_id)
-        if str(cabinet.realm_id) != str(realm._id):
-            raise ValueError(
-                f"Cabinet {cabinet_id} does not belong to realm {realm._id}"
-            )
+    @action("cabinet-removed", resources="cabinet")
+    async def remove_cabinet(self, /):
+        cabinet = self.rootobj
 
         entry_exists = await self.statemgr.exist(
             "entry", where={"cabinet_id": cabinet._id}
