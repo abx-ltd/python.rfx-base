@@ -88,6 +88,18 @@ cabinet_view = PGView(
     """
 )
 
+entry_view = PGView(
+    schema=config.RFX_DOCUMENT_SCHEMA,
+    signature="_entry",
+    definition=f"""
+    SELECT
+        e.*,
+        COALESCE(SUBSTRING(e.path FROM '(.*)/'), '') AS parent_path
+    FROM "{config.RFX_DOCUMENT_SCHEMA}".entry e;
+    """
+)
+
+
 def register_pg_entities(allow):
     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
     if not allow_flag:
@@ -97,6 +109,8 @@ def register_pg_entities(allow):
         shelf_view,
         category_view,
         cabinet_view,
+        entry_view,
     ])
+
 
 register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))

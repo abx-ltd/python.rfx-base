@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Optional
 
-from sqlalchemy import Integer, String
+from sqlalchemy import BigInteger, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -61,5 +61,21 @@ class CabinetView(TableBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
-    # Aggregate fields
-    entry_count: Mapped[int] = mapped_column(Integer, default=0)
+class EntryView(TableBase):
+    """
+    Entry view with parent_path calculation.
+    """
+
+    __tablename__ = "_entry"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    cabinet_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    path: Mapped[str] = mapped_column(String(2048), nullable=False)
+    name: Mapped[str] = mapped_column(String(512), nullable=False)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    mime_type: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Calculated field from PGView
+    parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)
