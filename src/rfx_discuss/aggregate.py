@@ -12,29 +12,50 @@ class RFXDiscussAggregate(Aggregate):
     @action("comment-created", resources="comment")
     async def create_comment(self, /, data):
         """Create a new comment"""
+        organization_id = self.context.organization_id
+        data = serialize_mapping(data)
+
+        data.setdefault("depth", 0)
+        data.setdefault("master_id", UUID_GENR())
+
         record = self.init_resource(
             "comment",
-            serialize_mapping(data),
+            data,
+            master_id=data["master_id"],
             _id=UUID_GENR(),
-            organization_id=self.context.organization_id,
+            organization_id=organization_id,
         )
         await self.statemgr.insert(record)
         return record
 
-    @action("comment-updated", resources="comment")
-    async def update_comment(self, /, data):
-        """Update comment"""
-        data_result = serialize_mapping(data)
-        await self.statemgr.update(self.rootobj, **data_result)
-
-    @action("comment-deleted", resources="comment")
-    async def delete_comment(self, /):
-        """Delete comment"""
+    @action("acknowledge-comment", resources="comment")
+    async def acknowledge_comment(self, /):
+        """Acknowledge comment"""
         comment = self.rootobj
-        await self.statemgr.invalidate(comment)
+        if not comment.requires_acknowledgement:
+            raise ValueError("Comment not requires acknowledgement")
 
-    @action("reply-to-comment", resources="comment")
-    async def reply_to_comment(self, /, data):
+        existing_acknowledge = await self.statemgr.exist(
+            "comment_acknowledge",
+            where={
+                "comment_id": comment._id,
+                "profile_id": self.context.profile_id,
+            },
+        )
+        if existing_acknowledge:
+            return False
+
+        acknowledge = self.init_resource(
+            "comment_acknowledge",
+            comment_id=comment._id,
+            profile_id=self.context.profile_id,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(acknowledge)
+        return True
+
+    @action("reply_comment", resources="comment")
+    async def reply_comment(self, /, data):
         """Reply to comment"""
         parent_comment = self.rootobj
         organization_id = self.get_context().organization_id
@@ -53,6 +74,7 @@ class RFXDiscussAggregate(Aggregate):
         reply_data.update(
             {
                 "parent_id": parent_id,
+                "master_id": parent_comment.master_id,
                 "depth": depth,
                 "resource": parent_comment.resource,
                 "resource_id": parent_comment.resource_id,
@@ -65,6 +87,18 @@ class RFXDiscussAggregate(Aggregate):
 
         await self.statemgr.insert(new_comment)
         return new_comment
+
+    @action("comment-updated", resources="comment")
+    async def update_comment(self, /, data):
+        """Update comment"""
+        data_result = serialize_mapping(data)
+        await self.statemgr.update(self.rootobj, **data_result)
+
+    @action("comment-deleted", resources="comment")
+    async def delete_comment(self, /):
+        """Delete comment"""
+        comment = self.rootobj
+        await self.statemgr.invalidate(comment)
 
     @action("attach-file", resources="comment")
     async def attach_file_to_comment(self, /, data):
@@ -119,7 +153,7 @@ class RFXDiscussAggregate(Aggregate):
         reaction_data = serialize_mapping(data)
         reaction_data["comment_id"] = comment._id
         reaction_data["user_id"] = user_id
-        check_existing = await self.statemgr.find_one(
+        check_existing = await self.statemgr.exist(
             "comment_reaction",
             where={
                 "comment_id": comment._id,

@@ -22,12 +22,14 @@ Integration Points:
 - Policy engine for authorization decisions
 """
 
-from datetime import datetime
-from fluvius.data import serialize_mapping, DataModel, UUID_GENR
+from datetime import datetime, timedelta
+from fluvius.data import serialize_mapping, UUID_GENR
 
 from .domain import UserProfileDomain
 from .integration import kc_admin
-from . import datadef, config, logger
+from . import datadef
+from . import config, logger
+import secrets
 
 processor = UserProfileDomain.command_processor
 Command = UserProfileDomain.Command
@@ -77,11 +79,8 @@ class SyncUserMixin:
             required_actions=required_actions,
         )
 
-        changed = await agg.sync_user(sync_payload)
-        if changed:
-            await kc_admin.logout_user(user_id)
-
-        return agg.get_rootobj(), {"status": "success", "user_id": str(user_id), "changed": changed}
+        synced_user = await agg.sync_user(sync_payload)
+        return synced_user, {"status": "success", "user_id": str(user_id)}
 
 
 # ==========================================================================
@@ -95,158 +94,236 @@ class SyncUserMixin:
 #         key = "create-user"
 #         resources = ("user",)
 #         tags = ["user"]
-#         new_resource = True
+#         resource_init = True
 #         auth_required = True
 
-# class UpdateUser(Command):
-#     class Meta:
-#         key = "update-user"
-#         resources = ("user",)
-#         tags = ["user"]
-#         auth_required = True
+class UpdateUser(Command, SyncUserMixin):
+    """
+    Update user attributes in Keycloak and local datastore.
+    Synchronizes identity information, status, and verification metadata.
+    """
 
-class SendAction(Command):
-    """
-    Send required actions to user in Keycloak (e.g., UPDATE_PASSWORD, VERIFY_EMAIL).
-    Manages user action requirements and integrates with Keycloak's action execution system.
-    Updates user's required actions list if marked as required for enforcement.
-    """
     class Meta:
-        key = "send-action"
+        key = "update-user"
         resources = ("user",)
         tags = ["user"]
         auth_required = True
-        policy_required = False
+        policy_required = True
 
-    Data = datadef.SendActionPayload
+    Data = datadef.UpdateUserPayload
 
     async def _process(self, agg, stm, payload):
         rootobj = agg.get_rootobj()
         user_id = rootobj._id
 
-        await kc_admin.execute_actions(user_id=user_id, actions=payload.actions, redirect_uri=config.REDIRECT_URL)
-        await agg.track_user_action(payload)
+        # Build Keycloak update payload from provided fields
+        kc_payload = {}
+        if payload.email is not None:
+            kc_payload["email"] = payload.email
+        if payload.username is not None:
+            kc_payload["username"] = payload.username
+        if payload.first_name is not None:
+            kc_payload["firstName"] = payload.first_name
+        if payload.last_name is not None:
+            kc_payload["lastName"] = payload.last_name
+        if payload.is_active is not None:
+            kc_payload["enabled"] = payload.is_active
+        if payload.email_verified is not None:
+            kc_payload["emailVerified"] = payload.email_verified
+        if payload.verified_email is not None:
+            kc_payload["emailVerified"] = bool(payload.verified_email)
 
-        if payload.required:
-            kc_user = await kc_admin.get_user(user_id)
-            required_action = kc_user.requiredActions
-            actions = [
-                action for action in payload.actions if action not in required_action]
-            required_action.extend(actions)
-            await kc_admin.update_user(user_id=user_id, payload={"requiredActions": required_action})
+        update_performed = False
+        if kc_payload:
+            await kc_admin.update_user(user_id, kc_payload)
+            update_performed = True
+
+        if payload.password:
+            await kc_admin.set_user_password(
+                user_id, payload.password, temporary=False
+            )
+            update_performed = True
+
+        # Update local database if fields provided
+        local_fields = payload.model_dump(
+            exclude_none=True,
+            include={
+                "username",
+                "email",
+                "first_name",
+                "last_name",
+                "is_active",
+                "is_superuser",
+                "status",
+                "verified_email",
+                "verified_phone",
+                "realm_access",
+                "resource_access",
+                "system_tag",
+                "user_tag",
+            },
+        )
+
+        # Map field names if they differ
+        if "first_name" in local_fields:
+            local_fields["name__given"] = local_fields.pop("first_name")
+        if "last_name" in local_fields:
+            local_fields["name__family"] = local_fields.pop("last_name")
+        if "is_active" in local_fields:
+            local_fields["active"] = local_fields.pop("is_active")
+        if "is_superuser" in local_fields:
+            local_fields["is_super_admin"] = local_fields.pop("is_superuser")
+
+        updated_user = rootobj
+        if local_fields:
+            updated_user = await agg.update_user(local_fields)
+
+        # Trigger sync from Keycloak if requested or after an update to ensure consistency
+        # Force sync if update was performed to ensure local DB reflects Keycloak state
+        sync_requested = payload.sync_remote or payload.force_sync or update_performed
+        force_requested = payload.force_sync or update_performed
+        sync_only = sync_requested and not update_performed
+
+        synced_user = None
+        sync_status = None
+        if sync_requested:
+            synced_user, sync_status = await self._sync_from_keycloak(
+                agg, force_sync=force_requested, sync_actions=payload.sync_actions
+            )
+
+            if sync_status and sync_only:
+                yield agg.create_response(sync_status, _type="user-profile-response")
+                return
+
+        result_user = synced_user or updated_user
+        response_payload = serialize_mapping(result_user)
+
+        if sync_status and not sync_only:
+            response_payload["sync_status"] = sync_status
+
+        yield agg.create_response(response_payload, _type="user-profile-response")
 
 
-class SendVerification(Command):
+# class SendAction(Command):
+#     """
+#     Send required actions to user in Keycloak (e.g., UPDATE_PASSWORD, VERIFY_EMAIL).
+#     Manages user action requirements and integrates with Keycloak's action execution system.
+#     Updates user's required actions list if marked as required for enforcement.
+#     """
+#     class Meta:
+#         key = "send-action"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
+#         policy_required = False
+
+#     Data = datadef.SendActionPayload
+
+#     async def _process(self, agg, stm, payload):
+#         rootobj = agg.get_rootobj()
+#         user_id = rootobj._id
+
+#         await kc_admin.execute_actions(user_id=user_id, actions=payload.actions, redirect_uri=config.REDIRECT_URL)
+#         await agg.track_user_action(payload)
+
+#         if payload.required:
+#             kc_user = await kc_admin.get_user(user_id)
+#             required_action = kc_user.requiredActions
+#             actions = [
+#                 action for action in payload.actions if action not in required_action]
+#             required_action.extend(actions)
+#             await kc_admin.update_user(user_id=user_id, payload={"requiredActions": required_action})
+
+
+# class SendVerification(Command):
+#     """
+#     Send email verification request to user through Keycloak.
+#     Updates user record with verification request timestamp for tracking.
+#     """
+#     class Meta:
+#         key = "send-verification"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
+
+#     async def _process(self, agg, stm, payload):
+#         rootobj = agg.get_rootobj()
+#         await kc_admin.send_verify_email(rootobj._id)
+#         await agg.update_user(dict(last_verified_request=datetime.utcnow()))
+
+
+# class DeactivateUser(Command):
+#     """
+#     Deactivate user account in both local system and Keycloak.
+#     Disables user login while preserving account data for potential reactivation.
+#     """
+#     class Meta:
+#         key = "deactivate-user"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
+
+#     async def _process(self, agg, stm, payload):
+#         rootobj = agg.get_rootobj()
+#         await kc_admin.update_user(rootobj._id, dict(enabled=False))
+#         await agg.deactivate_user()
+
+
+# class ActivateUser(Command):
+#     """
+#     Reactivate previously deactivated user account.
+#     Enables user login in both Keycloak and local system state.
+#     """
+#     class Meta:
+#         key = "activate-user"
+#         resources = ("user",)
+#         tags = ["user"]
+#         auth_required = True
+
+#     async def _process(self, agg, stm, payload):
+#         rootobj = agg.get_rootobj()
+#         await kc_admin.update_user(rootobj._id, dict(enabled=True))
+#         await agg.activate_user()
+
+
+class SyncUser(Command, SyncUserMixin):
     """
-    Send email verification request to user through Keycloak.
-    Updates user record with verification request timestamp for tracking.
+    Manually trigger synchronization of user attributes from Keycloak.
+    Ensures local datastore is consistent with identity provider state.
     """
-    class Meta:
-        key = "send-verification"
-        resources = ("user",)
-        tags = ["user"]
-        auth_required = True
 
-    async def _process(self, agg, stm, payload):
-        rootobj = agg.get_rootobj()
-        await kc_admin.send_verify_email(rootobj._id)
-        await agg.update_user(dict(last_verified_request=datetime.utcnow()))
-
-
-class DeactivateUser(Command):
-    """
-    Deactivate user account in both local system and Keycloak.
-    Disables user login while preserving account data for potential reactivation.
-    """
-    class Meta:
-        key = "deactivate-user"
-        resources = ("user",)
-        tags = ["user"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        rootobj = agg.get_rootobj()
-        await kc_admin.update_user(rootobj._id, dict(enabled=False))
-        await agg.deactivate_user()
-
-
-class ActivateUser(Command):
-    """
-    Reactivate previously deactivated user account.
-    Enables user login in both Keycloak and local system state.
-    """
-    class Meta:
-        key = "activate-user"
-        resources = ("user",)
-        tags = ["user"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        rootobj = agg.get_rootobj()
-        await kc_admin.update_user(rootobj._id, dict(enabled=True))
-        await agg.activate_user()
-
-
-class SyncUser(Command):
-    """
-    Synchronize user information from Keycloak to local system.
-    Implements intelligent sync with rate limiting (5-minute minimum interval)
-    unless force flag is used. Retrieves user profile, roles, and verification status.
-    """
     class Meta:
         key = "sync-user"
         resources = ("user",)
-        tags = ["user"]
+        tags = ["user", "sync"]
         auth_required = True
-        description = "Synchronize user information from Keycloak"
+        policy_required = True
 
-    Data = datadef.SyncUserPayload
+    Data = datadef.SyncUserRequestPayload
 
     async def _process(self, agg, stm, payload):
         # Check if sync is needed
         if not payload.force:
             user = agg.get_rootobj()
-            if user.last_sync:
+            if getattr(user, "last_sync", None):
                 # Don't sync if last sync was less than 5 minutes ago
                 if (datetime.utcnow() - user.last_sync).total_seconds() < 300:
-                    yield agg.create_response({"status": "skipped", "reason": "Recently synced"}, _type="user-profile-response")
+                    yield agg.create_response(
+                        {"status": "skipped", "reason": "Recently synced"},
+                        _type="user-profile-response",
+                    )
                     return
 
-        # Get user info from Keycloak
-        user_id = agg.get_rootobj()._id
-        kc_user = await kc_admin.get_user(user_id)
-        if not kc_user:
-            raise ValueError(f"User {user_id} not found in Keycloak")
-
-        # Extract user data from Keycloak response
-        user_data = {
-            "name__family": kc_user.lastName,
-            "name__given": kc_user.firstName,
-            "telecom__email": kc_user.email,
-            "username": kc_user.username,
-            "active": kc_user.enabled,
-            "realm_access": kc_user.realmRoles,
-            "resource_access": kc_user.clientRoles,
-            "verified_email": kc_user.emailVerified and kc_user.email,
-            "last_sync": datetime.utcnow()
-        }
-
-        # Get required actions
-        required_actions = []
-        if hasattr(kc_user, 'requiredActions'):
-            required_actions = kc_user.requiredActions
-
-        # Create sync payload with Keycloak data
-        sync_payload = datadef.SyncUserPayload(
-            force=payload.force,
-            sync_actions=payload.sync_actions,
-            user_data=user_data,
-            required_actions=required_actions
+        synced_user, sync_status = await self._sync_from_keycloak(
+            agg, force_sync=payload.force, sync_actions=payload.sync_actions
         )
 
-        # Perform sync
-        user = await agg.sync_user(sync_payload)
-        yield agg.create_response(serialize_mapping(user), _type="user-profile-response")
+        if synced_user:
+            yield agg.create_response(
+                serialize_mapping(synced_user), _type="user-profile-response"
+            )
+        else:
+            yield agg.create_response(sync_status, _type="user-profile-response")
 
 
 # ==========================================================================
@@ -254,53 +331,164 @@ class SyncUser(Command):
 # Multi-tenant organization management with automatic profile creation
 # ==========================================================================
 
-class CreateOrganization(Command):
-    """
-    Create new organization with creator as initial admin profile.
-    Automatically generates profile for organization creator with full permissions
-    and sets up organizational context for multi-tenant operations.
-    """
-    Data = datadef.CreateOrganizationPayload
 
+# class CreateOrganization(Command):
+#     """
+#     Create new organization with creator as initial admin profile.
+#     Automatically generates profile for organization creator with full permissions
+#     and sets up organizational context for multi-tenant operations.
+#     """
+
+#     Data = datadef.CreateOrganizationPayload
+
+#     class Meta:
+#         key = "create-organization"
+#         resource_init = True
+#         resources = ("organization",)
+#         tags = ["organization", "create"]
+#         auth_required = True
+#         policy_required = True
+
+#     async def _process(self, agg, stm, payload):
+#         profile_id = UUID_GENR()
+#         org_data = serialize_mapping(payload)
+#         org_data.update(profile_id=profile_id, creator=profile_id)
+#         org = await agg.create_organization(payload)
+
+#         context = agg.get_context()
+#         user = await stm.fetch("user", context.user_id)
+#         profile_data = dict(
+#             _id=profile_id,
+#             user_id=user._id,
+#             organization_id=org._id,
+#             name__family=user.name__family,
+#             name__given=user.name__given,
+#             name__middle=user.name__middle,
+#             name__prefix=user.name__prefix,
+#             name__suffix=user.name__suffix,
+#             telecom__email=user.telecom__email,
+#             telecom__phone=user.telecom__phone,
+#             status="ACTIVE",
+#             current_profile=False,
+#         )
+#         await agg.create_profile(profile_data)
+
+#         profile_role = dict(
+#             profile_id=profile_id, role_key="OWNER", role_source="SYSTEM"
+#         )
+#         await agg.assign_role_to_profile(data=profile_role)
+#         yield agg.create_response(serialize_mapping(org), _type="user-profile-response")
+
+
+class UpdatePassword(Command):
+    """
+    Update password command, which takes the new password, hashes it then stores it in user action
+    and creates a random number code to verify the user via email.
+    """
     class Meta:
-        key = "create-organization"
-        new_resource = True
-        resources = ("organization",)
-        tags = ["organization", "create"]
+        key = "update-password"
+        resources = ("user",)
+        tags = ["user"]
         auth_required = True
-        policy_required = False
+        policy_required = True
+
+    Data = datadef.UpdatePasswordPayload
 
     async def _process(self, agg, stm, payload):
-        profile_id = UUID_GENR()
-        org_data = serialize_mapping(payload)
-        org_data.update(profile_id=profile_id, creator=profile_id)
-        org = await agg.create_organization(payload)
-
+        user = agg.get_rootobj()
         context = agg.get_context()
-        user = await stm.fetch("user", context.user_id)
-        profile_data = dict(
-            _id=profile_id,
-            user_id=user._id,
-            organization_id=org._id,
-            name__family=user.name__family,
-            name__given=user.name__given,
-            name__middle=user.name__middle,
-            name__prefix=user.name__prefix,
-            name__suffix=user.name__suffix,
-            telecom__email=user.telecom__email,
-            telecom__phone=user.telecom__phone,
-            status='ACTIVE',
-            current_profile=False
-        )
-        await agg.create_profile(profile_data)
+        if not user:
+            raise ValueError("No user aggregate found")
+        if user._id != context.user_id:
+            raise ValueError("Wrong user id")
 
-        profile_role = dict(
-            profile_id=profile_id,
-            role_key='OWNER',
-            role_source='SYSTEM'
+        # --- Rate limit check (mirrors send-user-action logic) ---
+        window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
+        max_requests = config.MAX_REQUESTS_PER_WINDOW
+        window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+
+        all_recent_actions = await stm.find_all(
+            "user_action",
+            where=dict(
+                user_id=user._id,
+                name="password-change-action",
+                **{"_created.gt": window_start}
+            )
         )
-        await agg.assign_role_to_profile(data=profile_role)
-        yield agg.create_response(serialize_mapping(org), _type="user-profile-response")
+
+        if len(all_recent_actions) >= max_requests:
+            raise ValueError(f"Too many password update requests. Please wait {window_minutes} minutes.")
+
+        # if any(getattr(a.status, "value", a.status) == "PENDING" for a in all_recent_actions):
+        #     raise ValueError("A password change request is already pending. Please complete or cancel it before requesting a new one.")
+        # --- End rate limit check ---
+
+        from .security import encrypt_password
+        encrypted_password = encrypt_password(payload.new_password)
+
+        code = "".join(str(secrets.randbelow(10)) for _ in range(6))
+
+        expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+
+        action_data_update = {
+            "password": encrypted_password,
+            "code": code,
+            "code_expires_at": expires_at
+        }
+
+        if payload.action_id:
+            user_action = await agg.update_user_action({
+                "action_id": payload.action_id,
+                "action_data": action_data_update
+            })
+        else:
+            user_action = await agg.record_user_action({
+                "action_type": "PASSWORD_CHANGE",
+                "action_data": action_data_update
+            })
+
+        # Get the email
+        email = user.verified_email or user.telecom__email
+
+        notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+        if notify_service:
+            # Send the confirmation code using rfx-notify standard email templates
+            recipient_name = user.name__given or user.username or "User"
+
+            await notify_service.send(
+                "rfx-notify:send-notification",
+                command="send-notification",
+                resource="notification",
+                payload={
+                    "channel": "EMAIL",
+                    "recipients": [email],
+                    "template_key": "password-change-verification",
+                    "content_type": "HTML",
+                    "template_data": {
+                        "user_name": recipient_name,
+                        "code": code,
+                        "current_year": datetime.utcnow().year,
+                    },
+                },
+                identifier=UUID_GENR(),
+                _headers={},
+                _context={
+                    "audit": {
+                        "user_id": str(context.user_id),
+                        "profile_id": str(context.profile_id),
+                        "organization_id": str(context.organization_id),
+                        "realm": context.realm,
+                    },
+                    "source": "rfx_user",
+                },
+            )
+
+        yield agg.create_response({
+            "status": "verification_sent",
+            "email": email,
+            "action_id": user_action._id
+        }, _type="user-profile-response")
+
 
 
 class UpdateOrganization(Command):
@@ -308,7 +496,7 @@ class UpdateOrganization(Command):
     Update organization information and settings.
     Modifies organizational metadata while preserving structural relationships.
     """
-    Data = datadef.UpdateOrganizationPayload
+
 
     class Meta:
         key = "update-organization"
@@ -316,71 +504,77 @@ class UpdateOrganization(Command):
         tags = ["organization", "update"]
         auth_required = True
         policy_required = True
+    Data = datadef.UpdateOrganizationPayload
 
     async def _process(self, agg, stm, payload):
         await agg.update_organization(payload)
         yield agg.create_response({"status": "success"}, _type="user-profile-response")
 
 
-class DeactivateOrganization(Command):
-    """
-    Deactivate organization and all associated profiles.
-    Soft deletion that preserves data while preventing active operations.
-    """
-    class Meta:
-        key = "deactivate-organization"
-        resources = ("organization",)
-        tags = ["organization", "deactivate"]
-        auth_required = True
+# class DeactivateOrganization(Command):
+#     """
+#     Deactivate organization and all associated profiles.
+#     Soft deletion that preserves data while preventing active operations.
+#     """
 
-    async def _process(self, agg, stm, payload):
-        await agg.deactivate_organization()
+#     class Meta:
+#         key = "deactivate-organization"
+#         resources = ("organization",)
+#         tags = ["organization", "deactivate"]
+#         auth_required = True
+
+#     async def _process(self, agg, stm, payload):
+#         await agg.deactivate_organization()
 
 
 # ---------- Organization Role Context -------
-class CreateOrgRole(Command):
-    """
-    Create custom organization-specific role with defined permissions.
-    Enables fine-grained access control within organizational boundaries.
-    """
-    class Meta:
-        key = "create-org-role"
-        resources = ("organization",)
-        tags = ["organization"]
-        auth_required = True
-        new_resource = True
-        policy_required = True
+# class CreateOrgRole(Command):
+#     """
+#     Create custom organization-specific role with defined permissions.
+#     Enables fine-grained access control within organizational boundaries.
+#     """
 
-    Data = datadef.CreateOrgRolePayload
+#     class Meta:
+#         key = "create-org-role"
+#         resources = ("organization",)
+#         tags = ["organization"]
+#         auth_required = True
+#         resource_init = True
+#         policy_required = True
 
-    async def _process(self, agg, stm, payload):
-        result = await agg.create_org_role(serialize_mapping(payload))
-        yield agg.create_response(result, _type="user-profile-response")
+#     Data = datadef.CreateOrgRolePayload
+
+#     async def _process(self, agg, stm, payload):
+#         result = await agg.create_org_role(serialize_mapping(payload))
+#         yield agg.create_response(result, _type="user-profile-response")
 
 
-class UpdateOrgRole(Command):
-    """
-    Update organization role permissions and metadata.
-    Modifies role definition while maintaining existing assignments.
-    """
-    class Meta:
-        key = "update-org-role"
-        resources = ("organization",)
-        tags = ["organization"]
-        auth_required = True
-        policy_required = True
+# class UpdateOrgRole(Command):
+#     """
+#     Update organization role permissions and metadata.
+#     Modifies role definition while maintaining existing assignments.
+#     """
 
-    Data = datadef.UpdateOrgRolePayload
+#     class Meta:
+#         key = "update-org-role"
+#         resources = ("organization",)
+#         tags = ["organization"]
+#         auth_required = True
+#         policy_required = True
 
-    async def _process(self, agg, stm, payload):
-        result = await agg.update_org_role(serialize_mapping(payload))
-        return agg.create_response(result, _type="user-profile-response")
+#     Data = datadef.UpdateOrgRolePayload
+
+#     async def _process(self, agg, stm, payload):
+#         result = await agg.update_org_role(serialize_mapping(payload))
+#         return agg.create_response(result, _type="user-profile-response")
+
 
 class RemoveOrgRole(Command):
     """
     Remove organization role and revoke from all profiles.
     Cascades removal to prevent orphaned role assignments.
     """
+
     class Meta:
         key = "remove-org-role"
         resources = ("organization",)
@@ -392,6 +586,7 @@ class RemoveOrgRole(Command):
     async def _process(self, agg, stm, payload):
         await agg.remove_org_role(payload)
 
+
 # class CreateOrgType(Command):
 #     """
 #     Create new organization type for categorization and management.
@@ -399,7 +594,7 @@ class RemoveOrgRole(Command):
 #     """
 #     class Meta:
 #         key = "create-org-type"
-#         new_resource = True
+#         resource_init = True
 #         resources = ("organization",)
 #         tags = ["organization-type"]
 #         auth_required = True
@@ -436,12 +631,13 @@ class SendInvitation(Command):
     Send secure invitation to join organization.
     Generates unique token with expiration and handles existing user detection.
     """
+
     class Meta:
         key = "send-invitation"
         resources = ("invitation",)
         tags = ["invitation"]
         auth_required = True
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.SendInvitationPayload
@@ -456,6 +652,7 @@ class ResendInvitation(Command):
     Resend invitation with new token and extended expiry.
     Refreshes invitation security while maintaining original invitation context.
     """
+
     class Meta:
         key = "resend-invitation"
         resources = ("invitation",)
@@ -472,6 +669,7 @@ class RevokeInvitation(Command):
     Cancel pending invitation to prevent acceptance.
     Invalidates invitation token while preserving audit trail.
     """
+
     class Meta:
         key = "revoke-invitation"
         resources = ("invitation",)
@@ -481,6 +679,8 @@ class RevokeInvitation(Command):
     async def _process(self, agg, stm, payload):
         result = await agg.revoke_invitation()
         yield agg.create_response(result, _type="user-profile-response")
+
+
 # ---------- Profile Context ----------
 
 
@@ -489,25 +689,38 @@ class CreateProfile(Command):
     Create user profile within organizational context.
     Establishes user presence and permissions within specific organization.
     """
+
     class Meta:
         key = "create-profile"
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        profile = await agg.create_profile(serialize_mapping(payload))
-        profile_role = dict(
-            profile_id=profile._id,
-            role_key='VIEWER',
-            role_source='SYSTEM'
+        data = serialize_mapping(payload)
+
+        # Validate target realm against OPERATION_VALID_REALMS
+        # from . import config
+        if config.OPERATION_VALID_REALMS is not None:
+            target_realm = data.get("realm")
+            if target_realm not in config.OPERATION_VALID_REALMS:
+                raise ValueError(f"Realm '{target_realm}' is not valid for profile creation.")
+
+        role_keys = data.pop("role_keys", ["VIEWER"])
+        profile = await agg.create_profile(data)
+
+        await agg.update_profile_roles({
+            "profile_id": profile._id,
+            "role_keys": role_keys
+        })
+        yield agg.create_response(
+            serialize_mapping(profile), _type="user-profile-response"
         )
-        await agg.assign_role_to_profile(profile_role)
-        yield agg.create_response(serialize_mapping(profile), _type="user-profile-response")
+
 
 class SwitchProfile(Command):
     """
@@ -525,11 +738,13 @@ class SwitchProfile(Command):
     async def _process(self, agg, stm, payload):
         await agg.switch_profile()
 
+
 class UpdateProfile(Command):
     """
     Update profile information and organizational settings.
     Modifies profile metadata while maintaining organizational relationships.
     """
+
     class Meta:
         key = "update-profile"
         resources = ("profile",)
@@ -540,59 +755,92 @@ class UpdateProfile(Command):
     Data = datadef.UpdateProfilePayload
 
     async def _process(self, agg, stm, payload):
-        await agg.update_profile(payload)
+        data = serialize_mapping(payload)
+        role_keys = data.pop("role_keys", None)
 
+        profile = agg.get_rootobj()
 
-class DeactivateProfile(Command):
-    """
-    Deactivate profile within organization.
-    Removes profile access while preserving organizational history.
-    """
-    class Meta:
-        key = "deactivate-profile"
-        resources = ("profile",)
-        tags = ["profile"]
-        auth_required = True
-        policy_required = True
+        # Check if realm is being changed - prevent duplicates
+        if "realm" in data and data["realm"] != profile.realm:
+            # Check if changing realm would create a duplicate profile
+            existing_profiles = await stm.find_all("profile", where=dict(
+                user_id=profile.user_id,
+                organization_id=profile.organization_id,
+                realm=data["realm"],
+                status='ACTIVE'
+            ))
 
-    async def _process(self, agg, stm, payload):
-        await agg.deactivate_profile()
+            # Filter out the current profile (in case it's in the results)
+            duplicates = [p for p in existing_profiles if p._id != profile._id]
 
-class ActivateProfile(Command):
-    """
-    Reactivate previously deactivated profile.
-    Restores profile access within organizational context.
-    """
-    class Meta:
-        key = "activate-profile"
-        resources = ("profile",)
-        tags = ["profile"]
-        auth_required = True
-        policy_required = True
+            if duplicates:
+                raise ValueError(
+                    f"Cannot change realm to '{data['realm']}': "
+                    f"User already has an active profile in this organization with that realm."
+                )
 
-    async def _process(self, agg, stm, payload):
-        await agg.activate_profile()
+        # Pre-validate OWNER role if being added
+        if role_keys is not None and "OWNER" in role_keys:
+            # Check if profile already has OWNER role
+            existing_roles = await stm.find_all('profile_role', where=dict(
+                profile_id=profile._id,
+            ))
+            existing_keys = {r.role_key for r in existing_roles}
 
+            # Only validate if OWNER is being newly added (not already assigned)
+            if "OWNER" not in existing_keys:
+                all_profile_in_orgs = await stm.find_all('profile', where=dict(
+                    organization_id=profile.organization_id,
+                    status="ACTIVE"
+                ))
 
+                for p in all_profile_in_orgs:
+                    # Skip the current profile being updated
+                    if p._id == profile._id:
+                        continue
+
+                    try:
+                        profile_role = await stm.find_one('profile_role', where=dict(
+                            profile_id=p._id,
+                            role_key='OWNER'
+                        ))
+                        # If find_one succeeds, an OWNER role exists
+                        raise ValueError(f"Organization already has an owner: {p.name__family} {p.name__given}")
+                    except ItemNotFoundError:
+                        pass
+
+        await agg.update_profile(data)
+
+        if role_keys is not None:
+            try:
+                await agg.update_profile_roles({
+                    "profile_id": str(agg.get_rootobj()._id),
+                    "role_keys": role_keys
+                })
+            except Exception as e:
+                # Re-raise to trigger transaction rollback
+                raise ValueError(f"Failed to update profile roles: {str(e)}")
 # ---------- Profile Role ----------
 
-class AssignRoleToProfile(Command):
-    """
-    Assign system or organization role to profile.
-    Grants specific permissions within organizational context.
-    """
-    class Meta:
-        key = "assign-role-to-profile"
-        resources = ("profile",)
-        tags = ["profile"]
-        auth_required = True
-        policy_required = True
 
-    Data = datadef.AssignRolePayload
+# class AssignRoleToProfile(Command):
+#     """
+#     Assign system or organization role to profile.
+#     Grants specific permissions within organizational context.
+#     """
 
-    async def _process(self, agg, stm, payload):
-        role = await agg.assign_role_to_profile(serialize_mapping(payload))
-        agg.create_response(role, _type="user-profile-response")
+#     class Meta:
+#         key = "assign-role-to-profile"
+#         resources = ("profile",)
+#         tags = ["profile"]
+#         auth_required = True
+#         policy_required = True
+
+#     Data = datadef.AssignRolePayload
+
+#     async def _process(self, agg, stm, payload):
+#         role = await agg.assign_role_to_profile(serialize_mapping(payload))
+#         agg.create_response(role, _type="user-profile-response")
 
 
 class RevokeRoleFromProfile(Command):
@@ -600,6 +848,7 @@ class RevokeRoleFromProfile(Command):
     Revoke specific role from profile.
     Removes individual role assignment while maintaining other permissions.
     """
+
     class Meta:
         key = "revoke-role-from-profile"
         resources = ("profile",)
@@ -617,6 +866,7 @@ class ClearAllRoleFromProfile(Command):
     Remove all roles assigned to profile.
     Clears all role assignments while maintaining profile structure.
     """
+
     class Meta:
         key = "clear-role-from-profile"
         resources = ("profile",)
@@ -628,157 +878,222 @@ class ClearAllRoleFromProfile(Command):
         await agg.clear_all_role_from_profile()
 
 
-class AddGroupToProfile(Command):
+class DeactivateProfile(Command):
     """
-    Add profile to security group.
-    Associates profile with group for permissions and organization structure.
+    Deactivate profile within organization.
+    Removes profile access while preserving organizational history.
     """
+
     class Meta:
-        key = "add-group-to-profile"
+        key = "deactivate-profile"
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
-        internal = True
-
-    Data = datadef.AddGroupToProfilePayload
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.add_group_to_profile(payload)
+        await agg.deactivate_profile()
 
+class ActivateProfile(Command):
+    """
+    Reactivate previously deactivated profile.
+    Restores profile access within organizational context.
+    """
 
-class RemoveGroupFromProfile(Command):
-    """
-    Remove profile from security group.
-    Removes group association while preserving other group memberships.
-    """
     class Meta:
-        key = "remove-group-from-profile"
+        key = "activate-profile"
         resources = ("profile",)
         tags = ["profile"]
         auth_required = True
-        internal = True
-
-    Data = datadef.RemoveGroupFromProfilePayload
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.remove_group_from_profile(payload)
+        await agg.activate_profile()
+
+
+class DeleteProfile(Command):
+    """
+    Delete user profile within organization.
+    Removes profile and associated data from system.
+    """
+
+    class Meta:
+        key = "delete-profile"
+        resources = ("profile",)
+        tags = ["profile"]
+        auth_required = True
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.delete_profile()
+
+
+# class AddGroupToProfile(Command):
+#     """
+#     Add profile to security group.
+#     Associates profile with group for permissions and organization structure.
+#     """
+
+#     class Meta:
+#         key = "add-group-to-profile"
+#         resources = ("profile",)
+#         tags = ["profile"]
+#         auth_required = True
+#         internal = True
+
+#     Data = datadef.AddGroupToProfilePayload
+
+#     async def _process(self, agg, stm, payload):
+#         await agg.add_group_to_profile(payload)
+
+
+# class RemoveGroupFromProfile(Command):
+#     """
+#     Remove profile from security group.
+#     Removes group association while preserving other group memberships.
+#     """
+
+#     class Meta:
+#         key = "remove-group-from-profile"
+#         resources = ("profile",)
+#         tags = ["profile"]
+#         auth_required = True
+#         internal = True
+
+#     Data = datadef.RemoveGroupFromProfilePayload
+
+#     async def _process(self, agg, stm, payload):
+#         await agg.remove_group_from_profile(payload)
+
 
 # ============ Group Context =============
 
 
-class AssignGroupToProfile(Command):
-    """
-    Assign security group to profile with permissions validation.
-    Creates group membership within organizational security model.
-    """
-    class Meta:
-        key = "assign-group-to-profile"
-        resources = ("profile",)
-        tags = ["profile"]
-        auth_required = True
-        internal = True
+# class AssignGroupToProfile(Command):
+#     """
+#     Assign security group to profile with permissions validation.
+#     Creates group membership within organizational security model.
+#     """
 
-    Data = datadef.AddGroupToProfilePayload
+#     class Meta:
+#         key = "assign-group-to-profile"
+#         resources = ("profile",)
+#         tags = ["profile"]
+#         auth_required = True
+#         internal = True
 
-    async def _process(self, agg, stm, payload):
-        group = await agg.assign_group_to_profile(payload)
-        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
+#     Data = datadef.AddGroupToProfilePayload
 
-
-class RevokeGroupFromProfile(Command):
-    """
-    Revoke group membership from profile.
-    Removes specific group association while maintaining other memberships.
-    """
-    class Meta:
-        key = "revoke-group-from-profile"
-        resources = ("profile",)
-        tags = ["profile"]
-        auth_required = True
-        internal = True
-
-    Data = datadef.RemoveGroupFromProfilePayload
-
-    async def _process(self, agg, stm, payload):
-        await agg.revoke_group_from_profile(payload)
-        yield agg.create_response({"status": "success"}, _type="user-profile-response")
+#     async def _process(self, agg, stm, payload):
+#         group = await agg.assign_group_to_profile(payload)
+#         yield agg.create_response(
+#             serialize_mapping(group), _type="user-profile-response"
+#         )
 
 
-class ClearAllGroupFromProfile(Command):
-    """
-    Remove all group memberships from profile.
-    Clears all group associations while preserving profile structure.
-    """
-    class Meta:
-        key = "clear-group-from-profile"
-        resources = ("profile",)
-        tags = ["profile"]
-        auth_required = True
-        internal = True
+# class RevokeGroupFromProfile(Command):
+#     """
+#     Revoke group membership from profile.
+#     Removes specific group association while maintaining other memberships.
+#     """
 
-    async def _process(self, agg, stm, payload):
-        await agg.clear_all_group_from_profile()
-        yield agg.create_response({"status": "success"}, _type="user-profile-response")
+#     class Meta:
+#         key = "revoke-group-from-profile"
+#         resources = ("profile",)
+#         tags = ["profile"]
+#         auth_required = True
+#         internal = True
 
+#     Data = datadef.RemoveGroupFromProfilePayload
 
-class CreateGroup(Command):
-    """
-    Create new security group with organizational scope.
-    Establishes group structure for permissions and access management.
-    """
-    class Meta:
-        key = "create-group"
-        new_resource = True
-        resources = ("group",)
-        tags = ["group"]
-        auth_required = True
-        description = "Create a new group"
-        internal = True
-
-    Data = datadef.CreateGroupPayload
-
-    async def _process(self, agg, stm, payload):
-        group = await agg.create_group(payload)
-        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
+#     async def _process(self, agg, stm, payload):
+#         await agg.revoke_group_from_profile(payload)
+#         yield agg.create_response({"status": "success"}, _type="user-profile-response")
 
 
-class UpdateGroup(Command):
-    """
-    Update security group metadata and permissions.
-    Modifies group definition while maintaining existing memberships.
-    """
-    class Meta:
-        key = "update-group"
-        resources = ("group",)
-        tags = ["group"]
-        auth_required = True
-        description = "Update an existing group"
-        internal = True
+# class ClearAllGroupFromProfile(Command):
+#     """
+#     Remove all group memberships from profile.
+#     Clears all group associations while preserving profile structure.
+#     """
 
-    Data = datadef.UpdateGroupPayload
+#     class Meta:
+#         key = "clear-group-from-profile"
+#         resources = ("profile",)
+#         tags = ["profile"]
+#         auth_required = True
+#         internal = True
 
-    async def _process(self, agg, stm, payload):
-        group = await agg.update_group(payload)
-        yield agg.create_response(serialize_mapping(group), _type="user-profile-response")
+#     async def _process(self, agg, stm, payload):
+#         await agg.clear_all_group_from_profile()
+#         yield agg.create_response({"status": "success"}, _type="user-profile-response")
 
 
-class DeleteGroup(Command):
-    """
-    Soft delete security group and remove all profile associations.
-    Deactivates group while preserving audit trail and historical memberships.
-    """
-    class Meta:
-        key = "delete-group"
-        resources = ("group",)
-        tags = ["group"]
-        auth_required = True
-        description = "Delete (soft) a group and remove all profile associations"
-        internal = True
+# class CreateGroup(Command):
+#     """
+#     Create new security group with organizational scope.
+#     Establishes group structure for permissions and access management.
+#     """
 
-    async def _process(self, agg, stm, payload):
-        await agg.delete_group()
-        yield agg.create_response({"status": "success"}, _type="user-profile-response")
+#     class Meta:
+#         key = "create-group"
+#         resource_init = True
+#         resources = ("group",)
+#         tags = ["group"]
+#         auth_required = True
+#         description = "Create a new group"
+#         internal = True
 
-    async def _process(self, agg, stm, payload):
-        await agg.delete_group()
-        yield agg.create_response({"status": "success"}, _type="user-profile-response")
+#     Data = datadef.CreateGroupPayload
+
+#     async def _process(self, agg, stm, payload):
+#         group = await agg.create_group(payload)
+#         yield agg.create_response(
+#             serialize_mapping(group), _type="user-profile-response"
+#         )
+
+
+# class UpdateGroup(Command):
+#     """
+#     Update security group metadata and permissions.
+#     Modifies group definition while maintaining existing memberships.
+#     """
+
+#     class Meta:
+#         key = "update-group"
+#         resources = ("group",)
+#         tags = ["group"]
+#         auth_required = True
+#         description = "Update an existing group"
+#         internal = True
+
+#     Data = datadef.UpdateGroupPayload
+
+#     async def _process(self, agg, stm, payload):
+#         group = await agg.update_group(payload)
+#         yield agg.create_response(
+#             serialize_mapping(group), _type="user-profile-response"
+#         )
+
+
+# class DeleteGroup(Command):
+#     """
+#     Soft delete security group and remove all profile associations.
+#     Deactivates group while preserving audit trail and historical memberships.
+#     """
+
+#     class Meta:
+#         key = "delete-group"
+#         resources = ("group",)
+#         tags = ["group"]
+#         auth_required = True
+#         description = "Delete (soft) a group and remove all profile associations"
+#         internal = True
+
+#     async def _process(self, agg, stm, payload):
+#         await agg.delete_group()
+#         yield agg.create_response({"status": "success"}, _type="user-profile-response")
+
+#     async def _process(self, agg, stm, payload):
+#         await agg.delete_group()
+#         yield agg.create_response({"status": "success"}, _type="user-profile-response")

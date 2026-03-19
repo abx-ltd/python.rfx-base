@@ -5,11 +5,11 @@ Integrates with Keycloak for user authentication and profile management.
 Handles user data synchronization and authorization context setup.
 """
 
-from types import SimpleNamespace
-from fluvius.data import DataAccessManager, UUID_GENR
-from fluvius.auth import AuthorizationContext
+from fluvius.data import DataAccessManager
+from fluvius.auth import AuthorizationContext, SessionOrganization, SessionProfile
 from fluvius.fastapi.auth import FluviusAuthProfileProvider, KeycloakTokenPayload
 from fluvius.error import UnauthorizedError
+from . import config
 
 from .model import IDMConnector
 
@@ -51,85 +51,71 @@ class RFXAuthProfileProvider(
             # ---------- User ----------
             user_id = auth_user.sub
             user_data = self.format_user_data(auth_user)
-            await self.upsert('user', user_data)
+            await self.upsert_data('user', user_data)
             user = await self.fetch('user', user_id)
 
-            # ---------- Proifle ----------
-            q = where = dict(user_id=user_id, current_profile=True, status='ACTIVE')
-            curr_profile = await self.find_one('profile', where=q)
+            # ---------- Profile ----------
+            realm_query = dict(user_id=user_id, current_profile=True, status='ACTIVE', _realm=config.REALM)
+            curr_profile = await self.find_one('profile', where=realm_query)
 
-            if not curr_profile:
-                org_record = self.create('organization', dict(
-                    _id=UUID_GENR(),
-                    name=f"{user.name__given}'s Organization",
-                    description=f"{user.name__given}'s Organization",
-                    business_name=f"{user.name__given}",
-                    system_entity=True,
-                    active=True,
-                    system_tag=['system'],
-                    status='SETUP',
-                ))
-                await self.insert(org_record)
+            profile = curr_profile
 
-                profile_record = self.create('profile', dict(
-                    _id=UUID_GENR(),
+            if not profile:
+                realm_profiles = await self.find_all('profile', where=dict(
                     user_id=user_id,
-                    name__family=user.name__family,
-                    name__given=user.name__given,
-                    name__middle=user.name__middle,
-                    name__prefix=user.name__prefix,
-                    name__suffix=user.name__suffix,
-                    telecom__email=user.telecom__email,
-                    telecom__phone=user.telecom__phone,
                     status='ACTIVE',
-                    current_profile=True,
-                    organization_id=org_record._id,
+                    _realm=config.REALM
                 ))
-                await self.insert(profile_record)
 
-                profile_role_record = self.create('profile_role', dict(
-                    _id=UUID_GENR(),
-                    profile_id=profile_record._id,
-                    role_key='OWNER',
-                    role_source='SYSTEM',
-                ))
-                await self.insert(profile_role_record)
+                if realm_profiles:
+                    profile = realm_profiles[0]
+                    await self.update_data('profile', profile._id, current_profile=True)
+                else:
+                    raise UnauthorizedError('U100-404', f'Profile not found for realm [{config.REALM}].')
 
-                profile_status = self.create('profile_status', dict(
-                    _id=UUID_GENR(),
-                    profile_id=profile_record._id,
-                    src_state=profile_record.status,
-                    dst_state=profile_record.status
-                ))
-                await self.insert(profile_status)
-                profile = profile_record
-                organization = org_record
-            else:
-                curr_profile = curr_profile
-                profile = curr_profile
+            if self._active_profile:
+                act_profile = await self.find_one('profile', identifier=self._active_profile._id)
+                if not act_profile:
+                    raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
 
-                if self._active_profile:
-                    act_profile = await self.find_one('profile', identifier=self._active_profile._id)
-                    if not act_profile:
-                        raise UnauthorizedError('U100-401', f'Active profile [{self._active_profile}] not found!')
+                if profile and profile._id != act_profile._id:
+                    await self.update_data('profile', profile._id, current_profile=False)
+                    await self.update_data('profile', act_profile._id, current_profile=True)
 
-                    if curr_profile._id != act_profile._id:
-                        await self.update_one('profile', identifier=curr_profile._id, current_profile=False)
-                        await self.update_one('profile', identifier=act_profile._id, current_profile=True)
+                profile = act_profile
 
-                    profile = act_profile
-
-                organization = await self.fetch('organization', profile.organization_id)
+            organization = await self.fetch('organization', profile.organization_id)
 
         # ---------- Realm/Roles ----------
-        iamroles = auth_user.realm_access['roles']
-        realm = str(auth_user.iss).rsplit("/", 1)[1]
+        realm_access = getattr(auth_user, "realm_access", None)
+        if realm_access and isinstance(realm_access, dict):
+            iamroles = tuple(realm_access.get("roles", ()))
+        else:
+            iamroles = tuple()
 
-        # ---------- Auth Context ----------
+        realm = config.REALM
+
+        profile_payload = SessionProfile(
+            id=profile._id,
+            name=profile.name__given or profile.name__family or (profile.telecom__email or ""),
+            family_name=profile.name__family or "",
+            given_name=profile.name__given or "",
+            email=profile.telecom__email,
+            username=user.username or user.telecom__email,
+            roles=iamroles,
+            org_id=profile.organization_id,
+            usr_id=user._id,
+        )
+
+        organization_payload = SessionOrganization(
+            id=organization._id,
+            name=getattr(organization, "name", None) or getattr(organization, "business_name", None) or "Organization"
+        )
+
         return AuthorizationContext(
-            realm = realm,
-            user = user,
-            profile = profile,
-            organization = organization,
-            iamroles = iamroles
+            realm=realm,
+            user=auth_user,
+            profile=profile_payload,
+            organization=organization_payload,
+            iamroles=iamroles,
         )

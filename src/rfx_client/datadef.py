@@ -4,7 +4,7 @@ from pydantic import Field
 from datetime import datetime
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum
+from rfx_schema.rfx_client.types import PriorityEnum, AvailabilityEnum, SyncStatusEnum, ContactMethodEnum, ServiceCategoryEnum
 from typing import Any, Dict
 
 # Project related payloads
@@ -108,6 +108,8 @@ class AddCustomWorkPackageToProjectPayload(DataModel):
 
 class AddWorkPackageToProjectPayload(DataModel):
     work_package_id: UUID_TYPE
+    project_work_package_id: UUID_TYPE  # shared _id supplied by ttp_project for cross-domain ID sync
+    params: Optional[Dict[str, Any]] = None  # Additional parameters for estimation
 
 
 class RemoveWorkPackageFromProjectPayload(DataModel):
@@ -127,11 +129,11 @@ class CreateWorkItemPayload(DataModel):
 
 
 class UpdateWorkItemPayload(DataModel):
-    name: Optional[str] = Field(max_length=255)
+    name: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None
     type: Optional[str] = None
-    price_unit: Optional[float] = Field(gt=0)
-    credit_per_unit: Optional[float] = Field(gt=0)
+    price_unit: Optional[float] = Field(default=None, gt=0)
+    credit_per_unit: Optional[float] = Field(default=None, gt=0)
     estimate: Optional[str] = None
 
 
@@ -657,3 +659,75 @@ class DeleteAttachmentPayload(DataModel):
 
 class CreateReactionCommentPayload(DataModel):
     reaction_type: str  # e.g., like, helpful, insightful, funny
+
+
+class UploadDocumentPayload(DataModel):
+    """Upload global organization document payload"""
+
+    name: str
+    description: Optional[str] = None
+    media_entry_id: UUID_TYPE
+    doc_type: str  # e.g., "CONTRACT", "REPORT", "SPECIFICATION"
+    file_size: Optional[int] = None
+    status: Optional[str] = "IN_PROGRESS"  # IN_PROGRESS, COMPLETED, ARCHIVED
+
+
+class UpdateDocumentPayload(DataModel):
+    """Update document payload"""
+
+    name: Optional[str] = None
+    description: Optional[str] = None
+    doc_type: Optional[str] = None
+    status: Optional[str] = None  # IN_PROGRESS, COMPLETED, ARCHIVED
+
+
+class DeleteDocumentPayload(DataModel):
+    """Delete document payload"""
+
+    pass  # No additional fields needed
+
+
+class AddParticipantDocumentPayload(DataModel):
+    """Add participant to global document payload"""
+
+    participant_ids: list[UUID_TYPE]
+    role: Optional[str] = "REVIEWER"  # REVIEWER, EDITOR, APPROVER
+
+
+class RemoveParticipantFromGlobalDocumentPayload(DataModel):
+    """Remove participant from global document payload"""
+
+    participant_id: UUID_TYPE
+
+#------ Supplier related payloads ------
+
+
+class CreateSupplierPayload(DataModel):
+    supplier_name: str = Field(max_length=255)
+
+    tax_code: Optional[str] = Field(max_length=50)
+    contact_email: Optional[str] = Field(max_length=255)
+    contact_phone: Optional[str] = Field(max_length=50)
+
+class UpdateSupplierPayload(DataModel):
+    supplier_name: Optional[str] = Field(max_length=255)
+
+    tax_code: Optional[str] = Field(max_length=50)
+    contact_email: Optional[str] = Field(max_length=255)
+    contact_phone: Optional[str] = Field(max_length=50)
+    status: Optional[SyncStatusEnum] = None
+
+class CreateServiceCategoryPayload(DataModel):
+    service_name: str = Field(max_length=255)
+    description: Optional[str] = None
+    category: ServiceCategoryEnum = Field(...)
+
+class UpdateServiceCategoryPayload(DataModel):
+    service_name: Optional[str] = Field(max_length=255)
+    description: Optional[str] = None
+    category: Optional[ServiceCategoryEnum] = None
+    status: Optional[SyncStatusEnum] = None
+
+class AddServiceCategoryToSupplierPayload(DataModel):
+    service_id: UUID_TYPE
+    description: Optional[str] = None

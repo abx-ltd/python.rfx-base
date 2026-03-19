@@ -15,12 +15,13 @@ custom roles, and status history.
 
 from __future__ import annotations
 
+from datetime import datetime
 import uuid
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import ARRAY, Boolean, Enum as SQLEnum, ForeignKey, String, Text
+from sqlalchemy import ARRAY, Boolean, DateTime, Enum as SQLEnum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 # Import from local types to avoid rfx_user module initialization
 from .types import OrganizationStatusEnum
@@ -36,31 +37,35 @@ class Organization(TableBase):
     """Tenant record for the `rfx_user.organization` table."""
 
     __tablename__ = "organization"
+    __ts_index__ = ["name", "status", "organization_code"]
 
     description: Mapped[Optional[str]] = mapped_column(Text)
     name: Mapped[Optional[str]] = mapped_column(String(255))
-    tax_id: Mapped[Optional[str]] = mapped_column(String(9))
-    business_name: Mapped[Optional[str]] = mapped_column(String(255))
     system_entity: Mapped[Optional[bool]] = mapped_column(Boolean)
+    business_name: Mapped[Optional[str]] = mapped_column(String(255))
     active: Mapped[Optional[bool]] = mapped_column(Boolean)
     system_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     user_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     organization_code: Mapped[Optional[str]] = mapped_column(String(255))
 
     status: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"),
+        SQLEnum(
+            OrganizationStatusEnum,
+            name="organizationstatusenum",
+            schema=SCHEMA,
+        ),
         nullable=False,
     )
     invitation_code: Mapped[Optional[str]] = mapped_column(String(10))
     type_key: Mapped[Optional[str]] = mapped_column(
         "type", ForeignKey(f"{SCHEMA}.ref__organization_type.key")
     )
+    type = synonym("type_key")
 
-    profiles: Mapped[List["Profile"]] = relationship(
-        back_populates="organization", cascade="all"
-    )
     delegated_access: Mapped[List["OrganizationDelegatedAccess"]] = relationship(
-        back_populates="organization", cascade="all, delete-orphan"
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        foreign_keys="OrganizationDelegatedAccess.organization_id",
     )
     delegated_to_us: Mapped[List["OrganizationDelegatedAccess"]] = relationship(
         back_populates="delegated_organization",
@@ -74,6 +79,12 @@ class Organization(TableBase):
     )
     invitations: Mapped[List["Invitation"]] = relationship(
         back_populates="organization", cascade="all"
+    )
+    profiles: Mapped[List["Profile"]] = relationship(
+        "Profile",
+        back_populates="organization",
+        cascade="all",
+        foreign_keys="Profile.organization_id",
     )
 
 
@@ -128,10 +139,20 @@ class OrganizationStatus(TableBase):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=False
     )
     src_state: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"), nullable=False
+        SQLEnum(
+            OrganizationStatusEnum,
+            name="organizationstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     dst_state: Mapped[OrganizationStatusEnum] = mapped_column(
-        SQLEnum(OrganizationStatusEnum, name="organizationstatusenum"), nullable=False
+        SQLEnum(
+            OrganizationStatusEnum,
+            name="organizationstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     note: Mapped[Optional[str]] = mapped_column(Text)
 

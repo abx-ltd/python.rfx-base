@@ -1,5 +1,5 @@
 from fluvius.domain.state import DataAccessManager
-from .model import IDMConnector
+from rfx_schema import IDMConnector
 
 class IDMStateManager(DataAccessManager):
     __connector__ = IDMConnector
@@ -12,4 +12,3 @@ class IDMStateManager(DataAccessManager):
 
     async def add_entry(self, model, **data):
         return await self._add_entry(model, **data)
-

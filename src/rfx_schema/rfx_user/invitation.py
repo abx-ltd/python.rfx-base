@@ -43,6 +43,7 @@ class Invitation(TableBase):
     sender_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=False
     )
+    realm: Mapped[str] = mapped_column(String(255))
     profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id")
     )
@@ -53,7 +54,12 @@ class Invitation(TableBase):
     email: Mapped[Optional[str]] = mapped_column(String(255))
     token: Mapped[Optional[str]] = mapped_column(String(255))
     status: Mapped[InvitationStatusEnum] = mapped_column(
-        SQLEnum(InvitationStatusEnum, name="invitationstatusenum"), nullable=False
+        SQLEnum(
+            InvitationStatusEnum,
+            name="invitationstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     message: Mapped[Optional[str]] = mapped_column(Text)
@@ -81,10 +87,20 @@ class InvitationStatus(TableBase):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.invitation._id"), nullable=False
     )
     src_state: Mapped[InvitationStatusEnum] = mapped_column(
-        SQLEnum(InvitationStatusEnum, name="invitationstatusenum"), nullable=False
+        SQLEnum(
+            InvitationStatusEnum,
+            name="invitationstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     dst_state: Mapped[InvitationStatusEnum] = mapped_column(
-        SQLEnum(InvitationStatusEnum, name="invitationstatusenum"), nullable=False
+        SQLEnum(
+            InvitationStatusEnum,
+            name="invitationstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     note: Mapped[Optional[str]] = mapped_column(Text)
 

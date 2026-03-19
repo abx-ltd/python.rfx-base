@@ -22,13 +22,14 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, String, text
+from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Import from local types to avoid rfx_user module initialization
 from .types import (
     UserActionStatusEnum,
+    UserActionTypeEnum,
     UserSourceEnum,
     UserStatusEnum,
 )
@@ -44,6 +45,7 @@ class User(TableBase):
     """Primary user account stored in the `rfx_user.user` table."""
 
     __tablename__ = "user"
+    __ts_index__ = ["name__family", "name__given", "telecom__email", "telecom__phone", "username"]
 
     active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
 
@@ -65,7 +67,14 @@ class User(TableBase):
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     status: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
+        SQLEnum(
+            UserStatusEnum,
+            name="userstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
+        default=UserStatusEnum.NEW,
+        server_default=text(f"'{UserStatusEnum.NEW.value}'"),
     )
     realm_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
     resource_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
@@ -103,6 +112,72 @@ class User(TableBase):
         cascade="all",
         foreign_keys="Invitation.user_id",
     )
+    _created: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True, server_default=text("now()")
+    )
+
+class GuestUser(TableBase):
+    """Guest user account stored in the `rfx_user.guest_user` table."""
+
+    __tablename__ = "guest_user"
+
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50))
+    full_name: Mapped[Optional[str]] = mapped_column(String(255))
+    session_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True, index=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+class GuestVerification(TableBase):
+    """Guest verification codes stored in the `rfx_user.guest_verification` table."""
+
+    __tablename__ = "guest_verification"
+
+    guest_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey(f"{SCHEMA}.guest_user._id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="Reference to guest user if they've signed in before"
+    )
+    method: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default=text("'email'"),
+        comment="Verification method: 'email' or 'sms'"
+    )
+    value: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True,
+        comment="Email address or phone number where code was sent"
+    )
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    code: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when code was successfully verified"
+    )
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        String(45),
+        nullable=True,
+        comment="IP address of the request"
+    )
+    attempt: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+        comment="Number of verification attempts for this code"
+    )
 
 
 class UserIdentity(TableBase):
@@ -134,7 +209,12 @@ class UserSession(TableBase):
     __tablename__ = "user_session"
 
     source: Mapped[Optional[UserSourceEnum]] = mapped_column(
-        SQLEnum(UserSourceEnum, name="usersourceenum"), nullable=True
+        SQLEnum(
+            UserSourceEnum,
+            name="usersourceenum",
+            schema=SCHEMA,
+        ),
+        nullable=True,
     )
     telecom__email: Mapped[Optional[str]] = mapped_column(String(255))
 
@@ -157,10 +237,20 @@ class UserStatus(TableBase):
     __tablename__ = "user_status"
 
     src_state: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
+        SQLEnum(
+            UserStatusEnum,
+            name="userstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     dst_state: Mapped[UserStatusEnum] = mapped_column(
-        SQLEnum(UserStatusEnum, name="userstatusenum"), nullable=False
+        SQLEnum(
+            UserStatusEnum,
+            name="userstatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     note: Mapped[Optional[str]] = mapped_column(String(1024))
 
@@ -202,8 +292,21 @@ class UserAction(TableBase):
         String(255), ForeignKey(f"{SCHEMA}.ref__action.key")
     )
     name: Mapped[Optional[str]] = mapped_column(String(1024))
+    action_type: Mapped[Optional[UserActionTypeEnum]] = mapped_column(
+        SQLEnum(
+            UserActionTypeEnum,
+            name="useractiontypeenum",
+            schema=SCHEMA,
+        ),
+        nullable=True
+    )
+    action_data: Mapped[dict] = mapped_column(JSONB, default=dict)
     status: Mapped[UserActionStatusEnum] = mapped_column(
-        SQLEnum(UserActionStatusEnum, name="useractionstatusenum"),
+        SQLEnum(
+            UserActionStatusEnum,
+            name="useractionstatusenum",
+            schema=SCHEMA,
+        ),
         nullable=False,
         server_default=text(f"'{UserActionStatusEnum.PENDING.value}'"),
     )

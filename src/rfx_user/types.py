@@ -15,6 +15,7 @@ class OrganizationStatusEnum(Enum):
     SETUP       = "SETUP"       # Organization is being configured (initial state)
     REVIEW      = "REVIEW"      # Organization pending administrative approval
     DEACTIVATED = "DEACTIVATED" # Organization permanently disabled
+    NEW         = "NEW"         # Newly created organization, pending setup
 
 
 class ProfileStatusEnum(Enum):
@@ -42,6 +43,7 @@ class UserStatusEnum(Enum):
     EXPIRED     = "EXPIRED"     # User account has expired
     PENDING     = "PENDING"     # User account awaiting activation
     DEACTIVATED = "DEACTIVATED" # User account permanently disabled
+    NEW         = "NEW"         # Newly created user, pending setup
 
 
 class InvitationStatusEnum(Enum):

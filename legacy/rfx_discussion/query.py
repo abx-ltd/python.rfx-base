@@ -5,12 +5,28 @@ from .state import RFXDiscussionStateManager
 from pydantic import BaseModel
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID, IntegerField, FloatField, DatetimeField, ListField, DictField, ArrayField
+from fluvius.query.field import (
+    StringField,
+    UUIDField,
+    BooleanField,
+    EnumField,
+    IntegerField,
+    DatetimeField,
+    DictField,
+    ArrayField,
+)
 from datetime import datetime
 from . import scope
 
-default_exclude_fields = ["realm", "deleted", "etag",
-                          "created", "updated", "creator", "updater"]
+default_exclude_fields = [
+    "realm",
+    "deleted",
+    "etag",
+    "created",
+    "updated",
+    "creator",
+    "updater",
+]
 
 
 class RFXDiscussionQueryManager(DomainQueryManager):
@@ -18,7 +34,7 @@ class RFXDiscussionQueryManager(DomainQueryManager):
     __policymgr__ = RFXDiscussionPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXDiscussionDomain.Meta.prefix
+        prefix = RFXDiscussionDomain.Meta.namespace
         tags = RFXDiscussionDomain.Meta.tags
 
 
@@ -31,7 +47,7 @@ class ResourceScope(BaseModel):
     resource_id: str
 
 
-@resource('inquiry')
+@resource("inquiry")
 class InquiryQuery(DomainQueryResource):
     """Inquiry listing queries"""
 
@@ -53,10 +69,11 @@ class InquiryQuery(DomainQueryResource):
     activity: datetime = DatetimeField("Activity")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
+
 # Ticket Queries
 
 
-@resource('ticket')
+@resource("ticket")
 class TicketQuery(DomainQueryResource):
     """Ticket queries"""
 
@@ -84,7 +101,7 @@ class TicketQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('ticket-type')
+@resource("ticket-type")
 class RefTicketTypeQuery(DomainQueryResource):
     """Ticket type reference queries"""
 
@@ -104,7 +121,7 @@ class RefTicketTypeQuery(DomainQueryResource):
 
 
 # Tag Queries
-@resource('tag')
+@resource("tag")
 class TagQuery(DomainQueryResource):
     """Tag queries"""
 
@@ -123,10 +140,11 @@ class TagQuery(DomainQueryResource):
     target_resource_id: str = StringField("Target Resource ID")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
+
 # Comment Queries
 
 
-@resource('comment')
+@resource("comment")
 class CommentQuery(DomainQueryResource):
     """Comment queries"""
 
@@ -148,7 +166,7 @@ class CommentQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
 
 
-@resource('status')
+@resource("status")
 class WorkflowStatusQuery(DomainQueryResource):
     """Workflow status queries"""
 

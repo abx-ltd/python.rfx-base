@@ -1,10 +1,10 @@
 from pipe import Pipe
 from fluvius.worker import DomainWorkerClient
+from . import config
 
 
 class MessageClient(DomainWorkerClient):
-    # @TODO: Need config for queue name
-    __queue_name__ = "cpo_portal_worker"
+    __queue_name__ = config.WORKER_QUEUE_NAME
 
 
 @Pipe

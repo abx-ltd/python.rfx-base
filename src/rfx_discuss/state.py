@@ -1,4 +1,4 @@
-from .model import RFXDiscussConnector
+from rfx_schema import RFXDiscussConnector
 from fluvius.data import DataAccessManager, item_query, list_query
 from pypika import Table
 from pypika import Schema

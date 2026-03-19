@@ -36,7 +36,7 @@ class CreateEstimator(Command):
         tags = ["project", "estimator"]
         auth_required = True
         description = "Create a new estimator (project draft)"
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateProjectEstimatorPayload
@@ -50,11 +50,11 @@ class CreateEstimator(Command):
         yield agg.create_activity(
             logroot=AggregateRoot(
                 resource="project",
-                identifier=result._id,
+                identifier=result["_id"],
                 domain_sid=agg.get_aggroot().domain_sid,
                 domain_iid=agg.get_aggroot().domain_iid,
             ),
-            message=f"{profile.name__given} {profile.name__family} created an estimator {result.name}",
+            message=f"{profile.name__given} {profile.name__family} created an estimator {result['name']}",
             msglabel="create-estimator",
             msgtype=ActivityType.USER_ACTION,
             data={
@@ -62,7 +62,7 @@ class CreateEstimator(Command):
             },
         )
 
-        yield agg.create_response(serialize_mapping(result), _type="project-response")
+        yield agg.create_response(result, _type="project-response")
 
 
 # ---------- Project (Project Context) ----------
@@ -585,7 +585,7 @@ class CreatePromotion(Command):
         tags = ["promotion", "code"]
         auth_required = True
         description = "Create a new promotion code"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreatePromotionPayload
@@ -659,14 +659,14 @@ class AddWorkPackageToProject(Command):
             msglabel="add-work-package-to-project",
             msgtype=ActivityType.USER_ACTION,
             data={
-                "project_work_package_id": result._id,
-                "work_package_id": result.work_package_id,
+                "project_work_package_id": result["_id"],
+                "work_package_id": result["work_package_id"],
                 "added_by": f"{profile.name__given} {profile.name__family}",
             },
         )
 
         yield agg.create_response(
-            serialize_mapping(result), _type="project-work-package-response"
+            result, _type="project-work-package-response"
         )
 
         user_ids, project = await get_project_member_user_ids(
@@ -781,7 +781,7 @@ class AddTicketToProject(Command):
         tags = ["project", "ticket"]
         auth_required = True
         description = "Add ticket to project"
-        new_resource = True
+        resource_init = True
         internal = True
         policy_required = False
 
@@ -1317,7 +1317,7 @@ class CreateProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Create a new project category"
-        new_resource = False
+        resource_init = False
 
     Data = datadef.CreateProjectCategoryPayload
 
@@ -1338,7 +1338,7 @@ class UpdateProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Update project category"
-        new_resource = False
+        resource_init = False
         policy_required = False
 
     Data = datadef.UpdateProjectCategoryPayload
@@ -1357,7 +1357,7 @@ class DeleteProjectCategory(Command):
         tags = ["project", "category"]
         auth_required = True
         description = "Delete project category"
-        new_resource = False
+        resource_init = False
         policy_required = False
 
     Data = datadef.DeleteProjectCategoryPayload
@@ -1375,7 +1375,7 @@ class CreateWorkPackage(Command):
         key = "create-work-package"
         resources = ("work_package",)
         tags = ["work-package", "create"]
-        new_resource = True
+        resource_init = True
         auth_required = True
         description = "Create new work package"
         policy_required = True
@@ -1386,7 +1386,7 @@ class CreateWorkPackage(Command):
         """Create new work package"""
         result = await agg.create_work_package(data=payload)
         yield agg.create_response(
-            serialize_mapping(result), _type="work-package-response"
+            result, _type="work-package-response"
         )
 
 
@@ -1449,7 +1449,7 @@ class CreateWorkItem(Command):
         key = "create-work-item"
         resources = ("work_item",)
         tags = ["work-item", "create"]
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateWorkItemPayload
@@ -1457,7 +1457,7 @@ class CreateWorkItem(Command):
     async def _process(self, agg, stm, payload):
         """Create new work item"""
         result = await agg.create_work_item(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="work-item-response")
+        yield agg.create_response(result, _type="work-item-response")
 
 
 class UpdateWorkItem(Command):
@@ -1501,7 +1501,7 @@ class CreateWorkItemType(Command):
         key = "create-work-item-type"
         resources = ("work_item",)
         tags = ["work-item", "type", "reference"]
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateWorkItemTypePayload
@@ -1523,7 +1523,7 @@ class UpdateWorkItemType(Command):
         tags = ["work-item", "type", "update"]
         auth_required = True
         description = "Update work item type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.UpdateWorkItemTypePayload
@@ -1542,7 +1542,7 @@ class DeleteWorkItemType(Command):
         tags = ["work-item", "type", "delete"]
         auth_required = True
         description = "Delete work item type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.DeleteWorkItemTypePayload
@@ -1559,7 +1559,7 @@ class CreateWorkItemDeliverable(Command):
         key = "create-work-item-deliverable"
         resources = ("work_item",)
         tags = ["work-item", "deliverable", "create"]
-        new_resource = True
+        resource_init = True
         auth_required = True
         description = "Create new work package deliverable"
         policy_required = False
@@ -2077,7 +2077,7 @@ class CreditUsageSummary(Command):
         tags = ["project", "credit", "usage", "summary"]
         auth_required = True
         description = "Get credit usage summary"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreditUsageSummaryPayload
@@ -2147,7 +2147,7 @@ class RemoveProjectIntegration(Command):
         description = "Remove a project integration"
         policy_required = False
         internal = False
-        new_resource = True
+        resource_init = True
 
     Data = datadef.RemoveProjectIntegrationPayload
 
@@ -2251,7 +2251,7 @@ class CreateInquiry(Command):
         tags = ["ticket", "inquiry"]
         auth_required = True
         description = "Create a new inquiry"
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateInquiryPayload
@@ -2281,6 +2281,92 @@ class CreateInquiry(Command):
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
 
+class CreateInquiryDraft(Command):
+    """save inquiry as draft (status = draft)"""
+
+    class Meta:
+        key = "create-inquiry-draft"
+        resources = ("ticket",)
+        tags = ["ticket", "inquiry", "draft"]
+        auth_required = True
+        description = "Create a new inquiry draft"
+        resource_init = True
+        policy_required = False
+
+    Data = datadef.CreateInquiryPayload
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        result = await agg.create_inquiry_draft(data=payload)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} created a ticket {result.title}",
+            msglabel="create ticket",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "ticket_id": agg.get_aggroot().identifier,
+                "created_by": f"{profile.name__given} {profile.name__family}",
+            },
+        )
+        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
+
+
+class CloseInquiry(Command):
+    """Close Inquiry - BDM closes inquiry(OPEN/DISCUSSSION -> CLOSED)"""
+
+    class Meta:
+        key = "close-inquiry"
+        resources = ("ticket",)
+        tags = ["ticket", "inquiry", "close"]
+        auth_required = True
+        description = "Close an inquiry"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        result = await agg.close_inquiry()
+
+        yield agg.create_activity(
+            logroot=AggregateRoot(
+                resource="ticket",
+                identifier=result._id,
+                domain_sid=agg.get_aggroot().domain_sid,
+                domain_iid=agg.get_aggroot().domain_iid,
+            ),
+            message=f"{profile.name__given} {profile.name__family} closed inquiry {result.title}",
+            msglabel="close inquiry",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "ticket_id": result._id,
+                "ticket_title": result.title,
+                "closed_by": f"{profile.name__given} {profile.name__family}",
+            },
+        )
+        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
+
+
+class SubmitInquiryDraft(Command):
+    """submit inquiry draft - change status from DRAFT to OPEN"""
+
+    class Meta:
+        key = "submit-inquiry-draft"
+        resources = ("ticket",)
+        tags = ["ticket", "inquiry", "submit", "draft"]
+        auth_required = True
+        description = "Submit an inquiry draft"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.submit_inquiry_draft()
+
+        yield agg.create_response(serialize_mapping(result), _type="ticket-response")
+
+
 # ---------- Ticket (Ticket Context) ----------
 class CreateTicket(Command):
     """Create Ticket - Creates a new ticket tied to a project"""
@@ -2291,7 +2377,7 @@ class CreateTicket(Command):
         tags = ["ticket"]
         auth_required = True
         description = "Create a new ticket in project"
-        new_resource = True
+        resource_init = True
         internal = False
         policy_required = False
 
@@ -2633,7 +2719,7 @@ class CreateTag(Command):
         tags = ["tag"]
         auth_required = True
         description = "Create a new tag in project"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateTagPayload
@@ -2688,7 +2774,7 @@ class CreateTicketType(Command):
         tags = ["ticket", "ticket-type", "reference"]
         auth_required = True
         description = "Create a new ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateTicketTypePayload
@@ -2710,7 +2796,7 @@ class UpdateTicketType(Command):
         tags = ["ticket", "ticket-type", "update"]
         auth_required = True
         description = "Update a ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.UpdateTicketTypePayload
@@ -2729,7 +2815,7 @@ class DeleteTicketType(Command):
         tags = ["ticket", "ticket-type", "delete"]
         auth_required = True
         description = "Delete a ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.DeleteTicketTypePayload
@@ -2815,7 +2901,7 @@ class CreateStatus(Command):
         tags = ["status"]
         auth_required = True
         description = "Create a new status"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateStatusPayload
@@ -2949,7 +3035,7 @@ class CreateComment(Command):
         tags = ["comment"]
         auth_required = True
         description = "Create a new comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.CreateCommentPayload
 
@@ -3017,7 +3103,7 @@ class UpdateComment(Command):
         tags = ["comment", "update"]
         auth_required = True
         description = "Update a comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.UpdateCommentPayload
 
@@ -3079,7 +3165,7 @@ class DeleteComment(Command):
         tags = ["comment", "delete"]
         auth_required = True
         description = "Delete a comment"
-        policy_required = False
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         """Delete comment"""
@@ -3119,16 +3205,16 @@ class DeleteComment(Command):
         await agg.delete_comment()
 
 
-class ReplyToComment(Command):
+class ReplyComment(Command):
     """Reply to Comment - Replies to a comment"""
 
     class Meta:
-        key = "reply-to-comment"
+        key = "reply-comment"
         resources = ("comment",)
         tags = ["comment", "reply"]
         auth_required = True
         description = "Reply to a comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.ReplyToCommentPayload
 
@@ -3146,7 +3232,7 @@ class ReplyToComment(Command):
         payload_dict["resource_id"] = str(resource_id)
         payload_dict["source"] = "user"
 
-        result = await agg.reply_to_comment(data=payload)
+        result = await agg.reply_to_comment(data=payload_dict)
 
         await _handle_mentions(agg, stm, payload.content)
 
@@ -3314,7 +3400,7 @@ class SyncCommentFromWebhook(Command):
         description = "Sync comment from webhook event"
         policy_required = False
         internal = True
-        new_resource = True
+        resource_init = True
 
     Data = datadef.SyncCommentFromWebhookPayload
 
@@ -3425,7 +3511,7 @@ class SyncCommentFromWebhookChange(Command):
         description = "Sync comment from webhook event"
         policy_required = False
         internal = True
-        new_resource = False
+        resource_init = False
 
     Data = datadef.SyncCommentFromWebhookPayload
 
@@ -3525,3 +3611,201 @@ class SyncCommentFromWebhookChange(Command):
                 comment_id=integration.comment_id,
             )
         )
+
+
+### command for document
+
+
+class UploadDocument(Command):
+    """Upload Global Document - Upload a document at organization level"""
+
+    class Meta:
+        key = "upload-document"
+        resources = ("document",)
+        tags = ["document", "upload"]
+        auth_required = True
+        description = "Upload a global organization document"
+        resource_init = True
+        policy_required = False
+
+    Data = datadef.UploadDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Upload global organization document"""
+        result = await agg.upload_document(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class UpdateDocument(Command):
+    """Update Document - Update global document information"""
+
+    class Meta:
+        key = "update-document"
+        resources = ("document",)
+        tags = ["document", "update"]
+        auth_required = True
+        description = "Update global document information"
+        policy_required = False
+
+    Data = datadef.UpdateDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update global document"""
+        result = await agg.update_document(data=payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class DeleteDocument(Command):
+    """Delete Document - Delete a global organization document"""
+
+    class Meta:
+        key = "delete-document"
+        resources = ("document",)
+        tags = ["document", "delete"]
+        auth_required = True
+        description = "Delete a global organization document"
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        """Delete global document"""
+        await agg.delete_document()
+
+
+class AddParticipantDocument(Command):
+    """Add Participant to Global Document - Add participant(s) to organization document"""
+
+    class Meta:
+        key = "add-participant-document"
+        resources = ("document",)
+        tags = ["document", "participant", "add"]
+        auth_required = True
+        description = "Add participant organization document"
+        policy_required = False
+
+    Data = datadef.AddParticipantDocumentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add participant to global document"""
+        await agg.add_participant_document(data=payload)
+
+        yield agg.create_response(
+            {"status": "success"}, _type="document-participant-response"
+        )
+
+class CreateSupplier(Command):
+    """Create Supplier - Creates a new supplier"""
+
+    class Meta:
+        key = "create-supplier"
+        resources = ("supplier",)
+        tags = ["supplier"]
+        auth_required = True
+        description = "Create a new supplier"
+        resource_init = True
+        # policy_required = True
+
+    Data = datadef.CreateSupplierPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create supplier"""
+        supplier = await agg.create_supplier(data=payload)
+        yield agg.create_response(serialize_mapping(supplier), _type="supplier-response")
+
+class UpdateSupplier(Command):
+    """Update Supplier - Updates a supplier's information"""
+
+    class Meta:
+        key = "update-supplier"
+        resources = ("supplier",)
+        tags = ["supplier", "update"]
+        auth_required = True
+        description = "Update a supplier's information"
+
+    Data = datadef.UpdateSupplierPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update supplier"""
+        supplier = await agg.update_supplier(data=payload)
+        yield agg.create_response(serialize_mapping(supplier), _type="supplier-response")
+
+class RemoveSupplier(Command):
+    """Remove Supplier - Removes a supplier"""
+
+    class Meta:
+        key = "remove-supplier"
+        resources = ("supplier",)
+        tags = ["supplier", "remove"]
+        auth_required = True
+        description = "Remove a supplier"
+
+    async def _process(self, agg, stm, payload):
+        """Remove supplier"""
+        await agg.remove_supplier()
+        yield agg.create_response({"status": "success"}, _type="supplier-response")
+
+class CreateServiceCategory(Command):
+    """Create Service Category - Creates a new service category"""
+
+    class Meta:
+        key = "create-service-category"
+        resources = ("service_category",)
+        tags = ["service_category"]
+        auth_required = True
+        description = "Create a new service category"
+        resource_init = True
+
+    Data = datadef.CreateServiceCategoryPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create service category"""
+        service_category = await agg.create_service_category(data=payload)
+        yield agg.create_response(serialize_mapping(service_category), _type="service-category-response")
+
+class UpdateServiceCategory(Command):
+    """Update Service Category - Updates a service category's information"""
+
+    class Meta:
+        key = "update-service-category"
+        resources = ("service_category",)
+        tags = ["service_category", "update"]
+        auth_required = True
+        description = "Update a service category's information"
+
+    Data = datadef.UpdateServiceCategoryPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update service category"""
+        service_category = await agg.update_service_category(data=payload)
+        yield agg.create_response(serialize_mapping(service_category), _type="service-category-response")
+
+class RemoveServiceCategory(Command):
+    """Remove Service Category - Removes a service category"""
+
+    class Meta:
+        key = "remove-service-category"
+        resources = ("service_category",)
+        tags = ["service_category", "remove"]
+        auth_required = True
+        description = "Remove a service category"
+
+    async def _process(self, agg, stm, payload):
+        """Remove service category"""
+        await agg.remove_service_category()
+        yield agg.create_response({"status": "success"}, _type="service-category-response")
+
+class AddServiceCategoryToSupplier(Command):
+    """Add Service Category to Supplier - Associates a service category with a supplier"""
+
+    class Meta:
+        key = "add-service-category-to-supplier"
+        resources = ("supplier",)
+        tags = ["supplier_service", "add"]
+        auth_required = True
+        description = "Add a service category to a supplier"
+
+    Data = datadef.AddServiceCategoryToSupplierPayload
+
+    async def _process(self, agg, stm, payload):
+        """Add service category to supplier"""
+        supplier_service = await agg.add_service_category_to_supplier(data=payload)
+        yield agg.create_response(serialize_mapping(supplier_service), _type="supplier-service-response")

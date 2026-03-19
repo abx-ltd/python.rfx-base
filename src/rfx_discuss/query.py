@@ -29,7 +29,7 @@ class RFXDiscussQueryManager(DomainQueryManager):
     __policymgr__ = RFXDiscussPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXDiscussDomain.Meta.prefix
+        prefix = RFXDiscussDomain.Meta.namespace
         tags = RFXDiscussDomain.Meta.tags
 
 
@@ -71,6 +71,26 @@ class CommentQuery(DomainQueryResource):
     attachment_count: int = IntegerField("Attachment Count")
     reaction_count: int = IntegerField("Reaction Count")
     flag_count: int = IntegerField("Flag Count")
+    requires_acknowledgement: bool = BooleanField("Requires Acknowledgement")
+    is_acknowledged: bool = BooleanField("Is Acknowledged")
+
+
+@resource("comment-acknowledge")
+class CommentAcknowledgeQuery(DomainQueryResource):
+    """Comment Acknowledge queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "comment-acknowledge"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "comment_acknowledge"
+        scope_required = scope.CommentAcknowledgeScopeSchema
+
+    comment_id: UUID_TYPE = UUIDField("Comment ID", filterable=True)
+    profile_id: UUID_TYPE = UUIDField("Profile ID", filterable=True)
 
 
 @resource("comment-attachment")

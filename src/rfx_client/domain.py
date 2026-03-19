@@ -2,7 +2,7 @@ from fluvius.domain import Domain, SQLDomainLogStore
 
 from .aggregate import RFXClientAggregate
 from .state import RFXClientStateManager
-from .policy import RFXClientPolicyManager
+from .policy import RFXClientPolicyManager, RFXClientPolicy  # noqa
 from . import config
 
 
@@ -146,4 +146,22 @@ class CommentAttachResponse(RFXClientDomain.Response):
 
 
 class CommentReactionResponse(RFXClientDomain.Response):
+    pass
+
+
+class DocumentResponse(RFXClientDomain.Response):
+    pass
+
+
+class DocumentParticipantResponse(RFXClientDomain.Response):
+    pass
+
+
+class SupplierResponse(RFXClientDomain.Response):
+    pass
+
+class ServiceCategoryResponse(RFXClientDomain.Response):
+    pass
+
+class SupplierServiceResponse(RFXClientDomain.Response):
     pass

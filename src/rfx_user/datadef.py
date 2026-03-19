@@ -11,15 +11,13 @@ from pydantic import Field, model_validator
 
 from fluvius.data import DataModel, UUID_TYPE
 
-from .types import OrganizationStatusEnum, ProfileStatusEnum
+from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum
 
 class CreateOrganizationPayload(DataModel):
     """Payload for creating new organizations."""
     description: Optional[str]
     name: str = Field(max_length=255)
-    tax_id: Optional[str] = Field(max_length=9)
     business_name: Optional[str]
-    system_entity: Optional[bool] = False
     active: Optional[bool] = True
     system_tag: Optional[List[str]] = []
     user_tag: Optional[List[str]] = []
@@ -32,9 +30,7 @@ class CreateOrganizationPayload(DataModel):
 class UpdateOrganizationPayload(DataModel):
     description: Optional[str] = None
     name: Optional[str] = Field(max_length=255, default=None)
-    tax_id: Optional[str] = Field(max_length=9, default=None)
     business_name: Optional[str] = None
-    system_entity: Optional[bool] = None
     active: Optional[bool] = None
     system_tag: Optional[List[str]] = None
     user_tag: Optional[List[str]] = None
@@ -50,18 +46,71 @@ class UpdateOrganizationPayload(DataModel):
             raise ValueError("At least one field must be provided for update")
         return self
 
+
+class UpdateUserPayload(DataModel):
+    """Payload for updating existing users."""
+    username: Optional[str] = None
+    email: Optional[str] = None
+
+    # Name fields (map to name__* in UserSchema)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    name_prefix: Optional[str] = None
+    name_suffix: Optional[str] = None
+
+    # Telecom fields
+    phone: Optional[str] = None
+
+    # Authentication + status
+    password: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+    status: Optional[UserStatusEnum] = None
+
+    # Verification metadata
+    email_verified: Optional[bool] = True
+    verified_email: Optional[str] = None
+    verified_phone: Optional[str] = None
+    last_verified_request: Optional[datetime] = None
+
+    # Access control (JSON fields)
+    # realm_access: Optional[dict] = None
+    # resource_access: Optional[dict] = None
+
+    # Tags
+    system_tag: Optional[List[str]] = None
+    user_tag: Optional[List[str]] = None
+
+    # Sync options
+    sync_remote: bool = False
+    force_sync: bool = False
+    sync_actions: bool = True
+
+    @model_validator(mode='after')
+    def validate_at_least_one_field(self):
+        """Ensure update payload contains at least one field or an explicit sync instruction."""
+        field_values = self.model_dump(
+            exclude_none=True,
+            exclude={"sync_remote", "force_sync", "sync_actions"}
+        )
+        if not field_values and not (self.sync_remote or self.force_sync):
+            raise ValueError("Provide update fields or enable sync_remote/force_sync")
+        return self
+
+
 class CreateProfilePayload(DataModel):
     """Payload for creating user profiles within organizations."""
     user_id: str = Field(default=None)
     access_tags: list[str] = []
-    active: bool = Field(default=True)
+    active: Optional[bool] = Field(default=True)
 
-    address__city: str
-    address__country: str
-    address__line1: str
+    address__city: Optional[str] = None
+    address__country: Optional[str] = None
+    address__line1: Optional[str] = None
     address__line2: Optional[str] = None
-    address__postal: str
-    address__state: str
+    address__postal: Optional[str] = None
+    address__state: Optional[str] = None
 
     picture_id: Optional[str] = None
     birthdate: Optional[date] = None
@@ -83,8 +132,9 @@ class CreateProfilePayload(DataModel):
     user_tag: Optional[list[str]] = None
 
     telecom__email: str
-    telecom__fax: str
+    telecom__fax: Optional[str] = None
     telecom__phone: str
+
 
     tfa_method: Optional[str] = None
     tfa_token: Optional[str] = None
@@ -92,7 +142,6 @@ class CreateProfilePayload(DataModel):
 
     upstream_user_id: Optional[str] = None
     user_type: Optional[str] = None
-    username: str
 
     verified_email: Optional[str] = None
     verified_phone: Optional[str] = None
@@ -105,6 +154,11 @@ class CreateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
+    role_keys: list[str] = Field(default_factory=lambda: ["VIEWER"])
+
+class CreateProfileInOrgPayload(CreateProfilePayload):
+    """Payload for creating user profiles within organizations."""
+    pass
 
 class UpdateProfilePayload(DataModel):
     """Payload for updating user profiles within organizations."""
@@ -157,6 +211,7 @@ class UpdateProfilePayload(DataModel):
 
     preferred_name: Optional[str] = None
     default_theme: Optional[str] = None
+    role_keys: Optional[list[str]] = None
 
     @model_validator(mode='after')
     def validate_at_least_one_field(self):
@@ -180,6 +235,7 @@ class SendInvitationPayload(DataModel):
     email: str
     duration: Optional[int] = Field(default=10)
     message: str | None = None
+    realm: str
 
 class AssignRolePayload(DataModel):
     """Payload for assigning roles to profiles."""
@@ -243,7 +299,26 @@ class UpdateGroupPayload(DataModel):
 
 class SyncUserPayload(DataModel):
     """Payload for synchronizing user data with Keycloak."""
-    force: Optional[bool] = False  # Force sync even if recently synced
-    sync_actions: Optional[bool] = True  # Whether to sync required actions
-    user_data: dict  # User data from Keycloak
-    required_actions: Optional[list[str]] = []  # Required actions from Keycloak
+    force: bool = False  # Force sync even if recently synced
+    sync_actions: bool = True  # Whether to sync required actions
+    user_data: dict = Field(default_factory=dict)  # User data from Keycloak
+    required_actions: List[str] = Field(default_factory=list)  # Required actions from Keycloak
+
+class SwitchProfilePayload(DataModel):
+    """Payload for switching active user profiles."""
+    profile_id: UUID_TYPE
+
+class UpdatePasswordPayload(DataModel):
+    """Payload for a user securely inputting a new password to be verified."""
+    action_id: Optional[str] = Field(None, description="Action ID from the token link (if initiated by admin)")
+    new_password: str = Field(..., description="The user's new plaintext password")
+
+class VerifyPasswordChangePayload(DataModel):
+    """Payload for verifying the newly set password via code."""
+    action_id: str = Field(..., description="Action ID from the token link")
+    code: str = Field(..., description="The 6-digit confirmation code")
+
+class SyncUserRequestPayload(DataModel):
+    """Payload for manual sync request."""
+    force: bool = False
+    sync_actions: bool = True

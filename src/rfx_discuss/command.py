@@ -2,7 +2,7 @@ from fluvius.data import serialize_mapping
 
 from .domain import RFXDiscussDomain
 from . import datadef
-from .helper import _handle_mentions, _notify_subscribers
+from .helper import _handle_mentions
 
 processor = RFXDiscussDomain.command_processor
 Command = RFXDiscussDomain.Command
@@ -29,8 +29,8 @@ class CreateComment(Command):
         tags = ["comment"]
         auth_required = True
         description = "Create a new comment"
-        policy_required = False
-        new_resource = True
+        policy_required = True
+        resource_init = True
 
     Data = datadef.CreateCommentPayload
 
@@ -38,6 +38,47 @@ class CreateComment(Command):
         """Create comment"""
 
         result = await agg.create_comment(data=payload)
+        await _handle_mentions(agg, stm, payload.content)
+
+        yield agg.create_response(serialize_mapping(result), _type="comment-response")
+
+
+class AcknowledgeComment(Command):
+    """Acknowledge Comment - Acknowledges a comment"""
+
+    class Meta:
+        key = "acknowledge-comment"
+        resources = ("comment",)
+        tags = ["comment", "acknowledge"]
+        auth_required = True
+        description = "Acknowledge a comment"
+        policy_required = True
+
+    async def _process(self, agg, stm, payload):
+        """Acknowledge comment"""
+        is_new = await agg.acknowledge_comment()
+        if is_new:
+            await agg.reply_comment(
+                data=datadef.ReplyCommentPayload(content="<i>Acknowledged</i>")
+            )
+
+class ReplyComment(Command):
+    """Reply to Comment - Creates a reply to an existing comment"""
+
+    class Meta:
+        key = "reply-comment"
+        resources = ("comment",)
+        tags = ["comment", "reply"]
+        auth_required = True
+        description = "Reply to an existing comment"
+        policy_required = True
+
+    Data = datadef.ReplyCommentPayload
+
+    async def _process(self, agg, stm, payload):
+        """Reply to comment"""
+
+        result = await agg.reply_comment(data=payload)
         await _handle_mentions(agg, stm, payload.content)
 
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
@@ -52,7 +93,7 @@ class UpdateComment(Command):
         tags = ["comment", "update"]
         auth_required = True
         description = "Update a comment"
-        policy_required = False
+        policy_required = True
 
     Data = datadef.UpdateCommentPayload
 
@@ -60,8 +101,9 @@ class UpdateComment(Command):
         """Update comment"""
 
         await agg.update_comment(data=payload)
-        await _handle_mentions(agg, stm, payload.content)
-        await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
+        if payload.content:
+            await _handle_mentions(agg, stm, payload.content)
+            await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
 
 
 class DeleteComment(Command):
@@ -73,33 +115,11 @@ class DeleteComment(Command):
         tags = ["comment", "delete"]
         auth_required = True
         description = "Delete a comment"
-        policy_required = False
+        policy_required = True
 
     async def _process(self, agg, stm, payload):
         """Delete comment"""
         await agg.delete_comment()
-
-
-class ReplyToComment(Command):
-    """Reply to Comment - Replies to a comment"""
-
-    class Meta:
-        key = "reply-to-comment"
-        resources = ("comment",)
-        tags = ["comment", "reply"]
-        auth_required = True
-        description = "Reply to a comment"
-        policy_required = False
-
-    Data = datadef.ReplyToCommentPayload
-
-    async def _process(self, agg, stm, payload):
-        """Reply to comment"""
-
-        result = await agg.reply_to_comment(data=payload)
-        await _handle_mentions(agg, stm, payload.content)
-        await _notify_subscribers(agg, stm, agg.get_aggroot().identifier)
-        yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
 
 class AttachFileToComment(Command):
@@ -188,9 +208,6 @@ class AddReaction(Command):
 
     async def _process(self, agg, stm, payload):
         """Add reaction to comment"""
-        comment = agg.get_aggroot()
-        if not comment:
-            raise ValueError(f"Comment not found: {agg.get_aggroot().identifier}")
         await agg.add_reaction(data=payload)
         yield agg.create_response(
             {"status": "success"}, _type="comment-reaction-response"

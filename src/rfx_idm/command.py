@@ -1,33 +1,38 @@
-from fluvius.data import serialize_mapping, DataModel
+from datetime import datetime, timedelta
+from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.data.exceptions import ItemNotFoundError
+from fluvius.error import BadRequestError
+
 from .domain import IDMDomain
-from . import logger
+from .integration import kc_admin
+from . import datadef, config, logger
+from rfx_user import config as userconf
 
 processor = IDMDomain.command_processor
+Command = IDMDomain.Command
 
 
-class CreateUserCmd(IDMDomain.Command):
-	""" Create a new user account """
+# ============ Mixins =============
 
-	class Meta:
-		key = 'create-user'
-		name = 'Create User'
-		new_resource = True
-		resource_desc = 'Resource key. e.g. `user`'
 
-	class Data(DataModel):
-		name__given: str
-		name__family: str
+class SyncUserMixin:
+    """Provides reusable logic for synchronizing user data from Keycloak."""
 
-	@processor
-	async def process(self, aggregate, statemgr, payload):
-		data = serialize_mapping(payload)
-		logger.info("Workon data: %r" % data)
+    async def _sync_from_keycloak(
+        self, agg, force_sync: bool = False, sync_actions: bool = True
+    ):
+        """Pull latest user info from Keycloak and update local state."""
+        user = agg.get_rootobj()
+        user_id = user._id
+        try:
+            kc_user = await kc_admin.get_user(user_id)
+        except BadRequestError as e:
+            if "User not found" in str(e):
+                return None, {"status": "skipped", "reason": "User not found in Keycloak"}
+            raise
 
-		yield None
-		# aggroot = aggregate.get_aggroot()
-		# user = statemgr.create('user', data, _id=aggroot.identifier)
-		# logger.info('/3rd/ Non-annotated processor (default) called: %s', aggroot)
-		# yield aggregate.create_response(serialize_mapping(user), _type="user-response")
+        if not kc_user:
+            return None, {"status": "skipped", "reason": "User not found in Keycloak"}
 
         user_data = {
             "name__family": kc_user.lastName,
@@ -49,11 +54,8 @@ class CreateUserCmd(IDMDomain.Command):
             required_actions=required_actions,
         )
 
-        changed = await agg.sync_user(sync_payload)
-        if changed:
-            await kc_admin.logout_user(user_id)
-
-        return agg.get_rootobj(), {"status": "success", "user_id": str(user_id), "changed": changed}
+        synced_user = await agg.sync_user(sync_payload)
+        return synced_user, {"status": "success", "user_id": str(user_id)}
 
 
 # ============ User Context =============

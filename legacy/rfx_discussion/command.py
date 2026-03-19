@@ -4,11 +4,11 @@ from fluvius.domain.aggregate import AggregateRoot
 
 from .domain import RFXDiscussionDomain
 from . import datadef, config
-from .types import ActivityAction
 
 from rfx_integration.pm_service import PMService
 from rfx_integration.pm_service.base import CreateTicketPayload
 from rfx_integration.pm_service.base import UpdateTicketPayload as PMUpdatePayload
+
 processor = RFXDiscussionDomain.command_processor
 Command = RFXDiscussionDomain.Command
 
@@ -23,13 +23,12 @@ class CreateInquiry(Command):
         tags = ["ticket", "inquiry"]
         auth_required = True
         description = "Create a new inquiry"
-        new_resource = True
+        resource_init = True
         policy_required = True
 
     Data = datadef.CreateInquiryPayload
 
     async def _process(self, agg, stm, payload):
-
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
@@ -49,7 +48,7 @@ class CreateInquiry(Command):
                 "ticket_id": result._id,
                 "ticket_title": result.title,
                 "created_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
@@ -64,7 +63,7 @@ class CreateTicket(Command):
         tags = ["ticket"]
         auth_required = True
         description = "Create a new ticket in project"
-        new_resource = True
+        resource_init = True
         internal = False
         policy_required = False
 
@@ -85,22 +84,21 @@ class CreateTicket(Command):
             data={
                 "ticket_id": agg.get_aggroot().identifier,
                 "created_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
         ticket_id = result._id
-        
-        logger.info(f"PROJECT_MANAGEMENT_INTEGRATION_ENABLED: {config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED}, sync_linear: {payload.sync_linear}")
+
+        logger.info(
+            f"PROJECT_MANAGEMENT_INTEGRATION_ENABLED: {config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED}, sync_linear: {payload.sync_linear}"
+        )
         logger.info(f"Payload: {payload}")
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
             try:
-               
                 async with PMService.init_client(
                     provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                 ) as pm_service:
-                    
-                    
                     pm_payload = CreateTicketPayload(
-                        ticket_id=str(result._id),  
+                        ticket_id=str(result._id),
                         title=payload.title,
                         description=payload.description,
                         assignee_id=str(payload.assignee),
@@ -108,25 +106,21 @@ class CreateTicket(Command):
                         project_id=str(payload.project_id),
                         team_id=str(config.LINEAR_TEAM_ID),
                     )
-                    
+
                     pm_response = await pm_service.create_ticket(pm_payload)
-                    
+
                     logger.info(f"pm_responese {pm_response}")
-                    
-                  
+
                     integration_result = await agg.create_ticket_integration(
                         data=datadef.CreateTicketIntegrationPayload(
                             provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                             external_id=pm_response.external_id,
-                            external_url=pm_response.url
+                            external_url=pm_response.url,
                         )
                     )
-                    
-                    
-                    
+
             except Exception as e:
                 logger.error(f"Failed to sync ticket to Linear: {str(e)}")
-        
 
         yield agg.create_response(serialize_mapping(result), _type="ticket-response")
 
@@ -150,7 +144,9 @@ class UpdateTicketInfo(Command):
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
-        ticket = await stm.find_one("ticket", where=dict(_id=agg.get_aggroot().identifier))
+        ticket = await stm.find_one(
+            "ticket", where=dict(_id=agg.get_aggroot().identifier)
+        )
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -160,65 +156,83 @@ class UpdateTicketInfo(Command):
             data={
                 "ticket_id": agg.get_aggroot().identifier,
                 "updated_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED and payload.sync_linear:
             try:
                 # Find existing integration
-                integration = await stm.find_one("ticket-integration", where=dict(
-                    ticket_id=agg.get_aggroot().identifier,
-                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
-                ))
-                
+                integration = await stm.find_one(
+                    "ticket-integration",
+                    where=dict(
+                        ticket_id=agg.get_aggroot().identifier,
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                    ),
+                )
+
                 if not integration:
-                    logger.warning("No integration found for this ticket, skipping sync")
+                    logger.warning(
+                        "No integration found for this ticket, skipping sync"
+                    )
                 else:
-                    
-                    
-                    logger.info(f"Syncing update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                    logger.info(
+                        f"Syncing update to {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
+                    )
                     logger.info(f"External ID: {integration.external_id}")
-                    
+
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        
                         # Build update payload - only include changed fields
                         pm_payload = PMUpdatePayload(
                             external_id=integration.external_id,
                             title=payload.title if payload.title else None,
-                            description=payload.description if payload.description else None,
-                            status_id=str(payload.status) if hasattr(payload, 'status') and payload.status else None,
-                            assignee_id=str(payload.assignee) if hasattr(payload, 'assignee') and payload.assignee else None,
-                            priority=payload.priority if hasattr(payload, 'priority') and payload.priority else None,
+                            description=payload.description
+                            if payload.description
+                            else None,
+                            status_id=str(payload.status)
+                            if hasattr(payload, "status") and payload.status
+                            else None,
+                            assignee_id=str(payload.assignee)
+                            if hasattr(payload, "assignee") and payload.assignee
+                            else None,
+                            priority=payload.priority
+                            if hasattr(payload, "priority") and payload.priority
+                            else None,
                         )
-                        
+
                         pm_response = await pm_service.update_ticket(pm_payload)
                         logger.info(f"PM Response: {pm_response}")
-                        
-                        logger.info(f"✓ Updated in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+
+                        logger.info(
+                            f"✓ Updated in {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
+                        )
                         logger.info(f"  External ID: {integration.external_id}")
                         logger.info(f"  Updated: {pm_response.updated}")
-                        
+
                         # ✅ Update integration metadata
                         integration_update_result = await agg.update_ticket_integration(
                             data=datadef.UpdateTicketIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
                                 external_id=integration.external_id,
-                                external_url=pm_response.external_url
+                                external_url=pm_response.external_url,
                             )
                         )
-                        
-                        logger.info(f"✓ Updated integration metadata")
-                        
+
+                        logger.info("✓ Updated integration metadata")
+
             except Exception as e:
                 logger.error(f"✗ Failed to sync update to PM service: {str(e)}")
                 import traceback
+
                 logger.error(traceback.format_exc())
-        
-        ticket_update = await stm.find_one("ticket", where=dict(_id=agg.get_aggroot().identifier))
-        
-        
-        yield agg.create_response(serialize_mapping(ticket_update), _type="ticket-response")
+
+        ticket_update = await stm.find_one(
+            "ticket", where=dict(_id=agg.get_aggroot().identifier)
+        )
+
+        yield agg.create_response(
+            serialize_mapping(ticket_update), _type="ticket-response"
+        )
 
 
 class RemoveTicket(Command):
@@ -233,11 +247,12 @@ class RemoveTicket(Command):
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-
         profile_id = agg.get_context().profile_id
         profile = await stm.get_profile(profile_id)
 
-        ticket = await stm.find_one("ticket", where=dict(_id=agg.get_aggroot().identifier))
+        ticket = await stm.find_one(
+            "ticket", where=dict(_id=agg.get_aggroot().identifier)
+        )
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -246,55 +261,62 @@ class RemoveTicket(Command):
             msgtype=ActivityType.USER_ACTION,
             data={
                 "removed_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
-        
+
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
             try:
                 # Find integration
-                integration = await stm.find_one("ticket-integration", where=dict(
-                    ticket_id=agg.get_aggroot().identifier,
-                    provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
-                ))
-                
+                integration = await stm.find_one(
+                    "ticket-integration",
+                    where=dict(
+                        ticket_id=agg.get_aggroot().identifier,
+                        provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
+                    ),
+                )
+
                 if integration:
                     from rfx_integration.pm_service import PMService
-                    
-                    logger.info(f"Removing ticket from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+
+                    logger.info(
+                        f"Removing ticket from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
+                    )
                     logger.info(f"External ID: {integration.external_id}")
-                    
+
                     async with PMService.init_client(
                         provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER
                     ) as pm_service:
-                        
                         # Delete from PM service
                         success = await pm_service.delete_ticket(
                             external_id=integration.external_id,
-                            permanently=True  # or False for soft delete
+                            permanently=True,  # or False for soft delete
                         )
-                        
+
                         if success:
-                            logger.info(f"✓ Deleted from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
+                            logger.info(
+                                f"✓ Deleted from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
+                            )
                         else:
-                            logger.warning(f"Failed to delete from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}")
-                        
-                  
+                            logger.warning(
+                                f"Failed to delete from {config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER}"
+                            )
+
                         await agg.remove_ticket_integration(
                             data=datadef.RemoveTicketIntegrationPayload(
                                 provider=config.PROJECT_MANAGEMENT_INTEGRATION_PROVIDER,
-                                external_id=integration.external_id
+                                external_id=integration.external_id,
                             )
                         )
-                        
-                        logger.info(f"✓ Removed integration record")
+
+                        logger.info("✓ Removed integration record")
                 else:
                     logger.info("No integration found, skipping PM service deletion")
-                    
+
             except Exception as e:
                 logger.error(f"✗ Failed to remove from PM service: {str(e)}")
                 import traceback
+
                 logger.error(traceback.format_exc())
-        
 
         await agg.remove_ticket()
 
@@ -329,7 +351,7 @@ class AssignMemberToTicket(Command):
             data={
                 "member_id": member._id,
                 "assigned_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
 
         await agg.assign_member_to_ticket(data=payload)
@@ -364,7 +386,7 @@ class RemoveMemberFromTicket(Command):
             data={
                 "member_id": member._id,
                 "removed_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
 
         await agg.remove_member_from_ticket(payload.member_id)
@@ -400,7 +422,7 @@ class AddParticipantToTicket(Command):
             data={
                 "participant_id": participant._id,
                 "added_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
 
         await agg.add_ticket_participant(payload.participant_id)
@@ -435,7 +457,7 @@ class RemoveParticipantFromTicket(Command):
             data={
                 "participant_id": participant._id,
                 "removed_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
 
         await agg.remove_ticket_participant(payload.participant_id)
@@ -451,7 +473,7 @@ class CreateTag(Command):
         tags = ["tag"]
         auth_required = True
         description = "Create a new tag in project"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateTagPayload
@@ -506,7 +528,7 @@ class CreateTicketType(Command):
         tags = ["ticket", "ticket-type", "reference"]
         auth_required = True
         description = "Create a new ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateTicketTypePayload
@@ -514,7 +536,9 @@ class CreateTicketType(Command):
     async def _process(self, agg, stm, payload):
         """Create ticket type"""
         result = await agg.create_ticket_type(data=payload)
-        yield agg.create_response(serialize_mapping(result), _type="ticket-type-response")
+        yield agg.create_response(
+            serialize_mapping(result), _type="ticket-type-response"
+        )
 
 
 class UpdateTicketType(Command):
@@ -526,7 +550,7 @@ class UpdateTicketType(Command):
         tags = ["ticket", "ticket-type", "update"]
         auth_required = True
         description = "Update a ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.UpdateTicketTypePayload
@@ -545,7 +569,7 @@ class DeleteTicketType(Command):
         tags = ["ticket", "ticket-type", "delete"]
         auth_required = True
         description = "Delete a ticket type"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.DeleteTicketTypePayload
@@ -583,7 +607,7 @@ class AddTicketTag(Command):
             data={
                 "tag_id": payload.tag_id,
                 "added_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
         await agg.add_ticket_tag(payload.tag_id)
 
@@ -615,7 +639,7 @@ class RemoveTicketTag(Command):
             data={
                 "tag_id": payload.tag_id,
                 "removed_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
 
         await agg.remove_ticket_tag(payload.tag_id)
@@ -633,7 +657,7 @@ class CreateComment(Command):
         tags = ["comment"]
         auth_required = True
         description = "Create a new comment"
-        new_resource = True
+        resource_init = True
         internal = True
 
     Data = datadef.CreateCommentPayload
@@ -660,25 +684,27 @@ class UpdateComment(Command):
     async def _process(self, agg, stm, payload):
         """Update comment"""
         await agg.update_comment(data=payload)
-        updated_comment = await stm.find_one("comment", where=dict(_id=agg.get_aggroot().identifier))
+        updated_comment = await stm.find_one(
+            "comment", where=dict(_id=agg.get_aggroot().identifier)
+        )
         yield agg.create_message(
-                "update-comment-integration-message",
-                data={
-                    "command": "update-comment-integration",
-                    "comment": serialize_mapping(updated_comment),
-                    "comment_id": str(agg.get_aggroot().identifier),
-                    "payload": {
-                        "provider": "linear",
-                        "external_id": str(agg.get_aggroot().identifier),
-                    },
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-            )
+            "update-comment-integration-message",
+            data={
+                "command": "update-comment-integration",
+                "comment": serialize_mapping(updated_comment),
+                "comment_id": str(agg.get_aggroot().identifier),
+                "payload": {
+                    "provider": "linear",
+                    "external_id": str(agg.get_aggroot().identifier),
+                },
+                "context": {
+                    "user_id": agg.get_context().user_id,
+                    "profile_id": agg.get_context().profile_id,
+                    "organization_id": agg.get_context().organization_id,
+                    "realm": agg.get_context().realm,
+                },
+            },
+        )
 
 
 class DeleteComment(Command):
@@ -691,14 +717,12 @@ class DeleteComment(Command):
         auth_required = True
         description = "Delete a comment"
         policy_required = False
-        
-        
+
     Data = datadef.DeleteCommentPayload
 
     async def _process(self, agg, stm, payload):
         """Delete comment"""
-        
-        
+
         if payload.sync_linear:
             yield agg.create_message(
                 "remove-comment-integration-message",
@@ -714,12 +738,11 @@ class DeleteComment(Command):
                         "profile_id": agg.get_context().profile_id,
                         "organization_id": agg.get_context().organization_id,
                         "realm": agg.get_context().realm,
-                    }
-                }
+                    },
+                },
             )
-        
+
         await agg.delete_comment()
-        
 
 
 class ReplyToComment(Command):
@@ -769,28 +792,28 @@ class CreateTicketComment(Command):
             data={
                 "comment_id": result._id,
                 "created_by": f"{profile.name__given} {profile.name__family}",
-            }
+            },
         )
-        
+
         yield agg.create_message(
-                "create-comment-integration-message",
-                data={
-                    "command": "create-comment-integration",
-                    "comment": serialize_mapping(result),
-                    "comment_id": str(result._id),
-                    "ticket_id": str(agg.get_aggroot().identifier), 
-                    "payload": {
-                        "provider": "linear",
-                        "external_id": str(result._id),
-                    },
-                    "context": {
-                        "user_id": agg.get_context().user_id,
-                        "profile_id": agg.get_context().profile_id,
-                        "organization_id": agg.get_context().organization_id,
-                        "realm": agg.get_context().realm,
-                    }
-                }
-            )
+            "create-comment-integration-message",
+            data={
+                "command": "create-comment-integration",
+                "comment": serialize_mapping(result),
+                "comment_id": str(result._id),
+                "ticket_id": str(agg.get_aggroot().identifier),
+                "payload": {
+                    "provider": "linear",
+                    "external_id": str(result._id),
+                },
+                "context": {
+                    "user_id": agg.get_context().user_id,
+                    "profile_id": agg.get_context().profile_id,
+                    "organization_id": agg.get_context().organization_id,
+                    "realm": agg.get_context().realm,
+                },
+            },
+        )
 
         yield agg.create_response(serialize_mapping(result), _type="comment-response")
 
@@ -805,7 +828,7 @@ class CreateStatus(Command):
         tags = ["status"]
         auth_required = True
         description = "Create a new status"
-        new_resource = True
+        resource_init = True
         policy_required = False
 
     Data = datadef.CreateStatusPayload
@@ -832,7 +855,9 @@ class CreateStatusKey(Command):
     async def _process(self, agg, stm, payload):
         """Create status key"""
         status_key = await agg.create_status_key(data=payload)
-        yield agg.create_response(serialize_mapping(status_key), _type="status-key-response")
+        yield agg.create_response(
+            serialize_mapping(status_key), _type="status-key-response"
+        )
 
 
 class CreateStatusTransition(Command):
@@ -851,7 +876,10 @@ class CreateStatusTransition(Command):
     async def _process(self, agg, stm, payload):
         """Create status transition"""
         status_transition = await agg.create_status_transition(data=payload)
-        yield agg.create_response(serialize_mapping(status_transition), _type="status-transition-response")
+        yield agg.create_response(
+            serialize_mapping(status_transition), _type="status-transition-response"
+        )
+
 
 # ------------ Linear Integration (Ticket Context) ------------
 class SyncTicketToLinear(Command):
@@ -882,10 +910,11 @@ class SyncTicketToLinear(Command):
                     "profile_id": agg.get_context().profile_id,
                     "organization_id": agg.get_context().organization_id,
                     "realm": agg.get_context().realm,
-                }
-            }
+                },
+            },
         )
-        
+
+
 class SyncAllTicketsToLinear(Command):
     """Sync All Tickets to Linear - Sync all tickets to Linear"""
 
@@ -896,15 +925,19 @@ class SyncAllTicketsToLinear(Command):
         auth_required = True
         description = "Sync all tickets to Linear"
         policy_required = False
-        new_resource = True
+        resource_init = True
+
     Data = datadef.SyncAllTicketsToLinearPayload
+
     async def _process(self, agg, stm, payload):
         """Sync all tickets to Linear"""
         project_id = payload.project_id
         logger.info(f"[Linear] Syncing all tickets for Project ID: {project_id}")
         ticket_id_records = await stm.get_ticket_ids_by_project_id(project_id)
         if not ticket_id_records:
-            logger.info(f"[Linear] No tickets found for Project ID: {project_id}. Sync finished.")
+            logger.info(
+                f"[Linear] No tickets found for Project ID: {project_id}. Sync finished."
+            )
             return
         ticket_ids = [record.ticket_id for record in ticket_id_records]
         tickets = await stm.get_tickets_by_ids(ticket_ids)
@@ -921,14 +954,17 @@ class SyncAllTicketsToLinear(Command):
                         "profile_id": agg.get_context().profile_id,
                         "organization_id": agg.get_context().organization_id,
                         "realm": agg.get_context().realm,
-                    }
-                }
-            )       
-#--------------- Ticket Integration------------
+                    },
+                },
+            )
+
+
+# --------------- Ticket Integration------------
+
 
 class CreateTicketIntegration(Command):
     """Create Ticket Integration"""
-    
+
     class Meta:
         key = "create-ticket-integration"
         resources = ("ticket",)
@@ -937,9 +973,9 @@ class CreateTicketIntegration(Command):
         description = "Create a ticket integration"
         policy_required = False
         internal = True
-        
+
     Data = datadef.CreateTicketIntegrationPayload
-    
+
     async def _process(self, agg, stm, payload):
         """Create a ticket integration"""
         await agg.create_ticket_integration(data=payload)
@@ -981,8 +1017,8 @@ class RemoveTicketIntegration(Command):
     async def _process(self, agg, stm, payload):
         """Remove a ticket integration"""
         await agg.remove_ticket_integration(data=payload)
-        
-        
+
+
 class SyncTicketIntegration(Command):
     """Sync Ticket Integration - Sync a ticket integration"""
 
@@ -1002,10 +1038,10 @@ class SyncTicketIntegration(Command):
         await agg.sync_ticket_integration(data=payload)
 
 
-#--------------- Comment Integration Commands ---------------
+# --------------- Comment Integration Commands ---------------
 class CreateCommentIntegration(Command):
     """Create Comment Integration"""
-    
+
     class Meta:
         key = "create-comment-integration"
         resources = ("comment",)
@@ -1014,9 +1050,9 @@ class CreateCommentIntegration(Command):
         description = "Create a comment integration"
         policy_required = False
         internal = True
-        
+
     Data = datadef.CreateCommentIntegrationPayload
-    
+
     async def _process(self, agg, stm, payload):
         """Create a comment integration"""
         result = await agg.create_comment_integration(data=payload)
@@ -1039,7 +1075,6 @@ class UpdateCommentIntegration(Command):
     async def _process(self, agg, stm, payload):
         """Update a comment integration"""
         result = await agg.update_comment_integration(data=payload)
-        
 
 
 class RemoveCommentIntegration(Command):
@@ -1053,14 +1088,10 @@ class RemoveCommentIntegration(Command):
         description = "Remove a comment integration"
         policy_required = False
         internal = False
-        new_resource = True
+        resource_init = True
 
     Data = datadef.RemoveCommentIntegrationPayload
 
     async def _process(self, agg, stm, payload):
         """Remove a comment integration"""
         result = await agg.remove_comment_integration(data=payload)
-        
-
-        
-

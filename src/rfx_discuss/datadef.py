@@ -1,5 +1,6 @@
 from fluvius.data import DataModel, UUID_TYPE
 from typing import Optional
+from rfx_schema.rfx_discuss.types import ReactionTypeEnum
 # ---------- Comment Context ----------
 
 
@@ -7,18 +8,20 @@ class CreateCommentPayload(DataModel):
     content: str
     resource: str
     resource_id: str
+    requires_acknowledgement: bool = False
+
+
+class ReplyCommentPayload(DataModel):
+    content: str
 
 
 class UpdateCommentPayload(DataModel):
-    content: str
+    content: Optional[str] = None
+    requires_acknowledgement: Optional[bool] = None
 
 
 class DeleteCommentPayload(DataModel):
     pass
-
-
-class ReplyToCommentPayload(DataModel):
-    content: str
 
 
 class AttachFileToCommentPayload(DataModel):
@@ -40,7 +43,7 @@ class DeleteAttachmentPayload(DataModel):
 
 
 class AddReactionPayload(DataModel):
-    reaction_type: str  # e.g., like, helpful, insightful, funny
+    reaction_type: ReactionTypeEnum  # e.g., like, helpful, insightful, funny
 
 
 class FlagCommentPayload(DataModel):

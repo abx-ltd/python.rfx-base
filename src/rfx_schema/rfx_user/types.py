@@ -18,6 +18,7 @@ class OrganizationStatusEnum(Enum):
     SETUP       = "SETUP"
     REVIEW      = "REVIEW"
     DEACTIVATED = "DEACTIVATED"
+    NEW         = "NEW"
 
 
 class ProfileStatusEnum(Enum):
@@ -45,6 +46,7 @@ class UserStatusEnum(Enum):
     EXPIRED     = "EXPIRED"
     PENDING     = "PENDING"
     DEACTIVATED = "DEACTIVATED"
+    NEW         = "NEW"
 
 
 class InvitationStatusEnum(Enum):
@@ -60,3 +62,7 @@ class UserActionStatusEnum(Enum):
     PENDING    = "PENDING"
     COMPLETED  = "COMPLETED"
     CANCELLED  = "CANCELLED"
+
+class UserActionTypeEnum(Enum):
+    """Types of user actions."""
+    PASSWORD_CHANGE = "PASSWORD_CHANGE"

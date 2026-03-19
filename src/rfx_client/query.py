@@ -21,6 +21,8 @@ from .types import ContactMethodEnum
 from datetime import datetime
 from typing import Optional
 
+from rfx_schema.rfx_client import _schema, _viewmap  # noqa
+from rfx_schema.rfx_client.types import InquiryStatusEnum, RecordStatusEnum, ServiceCategoryEnum  # noqa
 
 default_exclude_fields = [
     "realm",
@@ -38,7 +40,7 @@ class RFXClientQueryManager(DomainQueryManager):
     __policymgr__ = RFXClientPolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXClientDomain.Meta.prefix
+        prefix = RFXClientDomain.Meta.namespace
         tags = RFXClientDomain.Meta.tags
 
 
@@ -62,7 +64,7 @@ class ProjectDraftQuery(DomainQueryResource):
     @classmethod
     def base_query(cls, context, scope):
         profile_id = context.profile._id
-        return {"members.ov": [profile_id], "status": "DRAFT"}
+        return {"members.ov": [profile_id], "status.eq": "DRAFT"}
 
     class Meta(DomainQueryResource.Meta):
         resource = "project"
@@ -73,8 +75,9 @@ class ProjectDraftQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
-        policy_required = "id"
+        policy_required = True
 
+    status: str = StringField("Status")
     name: str = StringField("Project Name")
     description: str = StringField("Description")
     category: str = StringField("Category")
@@ -106,7 +109,7 @@ class ProjectQuery(DomainQueryResource):
         allow_text_search = True
 
         backend_model = "_project"
-        policy_required = "id"
+        policy_required = True
 
     name: str = StringField("Project Name")
     description: str = StringField("Description")
@@ -120,6 +123,8 @@ class ProjectQuery(DomainQueryResource):
     sync_status: SyncStatusEnum = EnumField("Sync Status")
     members: list[UUID_TYPE] = ArrayField("Members")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+    total_credits: float = FloatField("Total Credits")
+    used_credits: float = FloatField("Used Credits")
 
 
 @resource("project-bdm-contact")
@@ -133,7 +138,7 @@ class ProjectBDMContactQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        policy_required = "project_id"
+        policy_required = True
         scope_required = scope.ProjectBDMContactScopeSchema
 
     contact_method: list[ContactMethodEnum] = ArrayField("Contact Method")
@@ -154,7 +159,7 @@ class ProjectMilestoneQuery(DomainQueryResource):
         allow_meta_view = True
         allow_text_search = True
 
-        policy_required = "project_id"
+        policy_required = True
         scope_required = scope.ProjectMilestoneScopeSchema
 
     name: str = StringField("Milestone Name")
@@ -177,7 +182,7 @@ class ProjectEstimateSummaryQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "_project_estimate_summary"
-        policy_required = "id"
+        policy_required = True
 
     architectural_credits: float = FloatField("Architectural Credits")
     development_credits: float = FloatField("Development Credits")
@@ -242,7 +247,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
 
         backend_model = "_project_work_package"
         scope_required = scope.ProjectWorkPackageScopeSchema
-        policy_required = "project_id"
+        policy_required = True
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
@@ -264,6 +269,7 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     upfront_cost: float = FloatField("Upfront Cost")
     monthly_cost: float = FloatField("Monthly Cost")
     total_deliverables: int = IntegerField("Total Deliverables")
+    params: dict = DictField("Params")
 
 
 @resource("project-work-item")
@@ -437,6 +443,7 @@ class WorkPackageQuery(DomainQueryResource):
     type_list: list[str] = ArrayField("Type List")
     credits: float = FloatField("Credits")
     architectural_credits: float = FloatField("Architectural Credits")
+    category: str = StringField("Category")
     development_credits: float = FloatField("Development Credits")
     operation_credits: float = FloatField("Operation Credits")
     upfront_cost: float = FloatField("Upfront Cost")
@@ -480,7 +487,7 @@ class InquiryQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "_inquiry"
-        policy_required = "id"
+        policy_required = True
 
     type: str = StringField("Type")
     type_icon_color: str = StringField("Type Icon Color")
@@ -489,6 +496,8 @@ class InquiryQuery(DomainQueryResource):
     availability: AvailabilityEnum = EnumField("Availability")
     activity: datetime = DatetimeField("Activity")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
+    status: str = StringField("Status")
+    description: str = StringField("Description")
 
 
 # Ticket Queries
@@ -507,7 +516,7 @@ class TicketQuery(DomainQueryResource):
 
         backend_model = "_ticket"
         scope_required = scope.TicketScopeSchema
-        policy_required = "id"
+        policy_required = True
 
     project_id: UUID_TYPE = UUIDField("Project ID")
     title: str = StringField("Title")
@@ -646,3 +655,442 @@ class CommentReactionSummaryQuery(DomainQueryResource):
     reaction_type: str = StringField("Reaction Type", filterable=True)
     reaction_count: int = IntegerField("Reaction Count")
     users: dict = DictField("Users")
+
+
+@resource("credit-summary")
+class CreditSummaryQuery(DomainQueryResource):
+    """Credit summary for organization dashboard"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "credit-summary"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_credit_summary"
+        # scope_required = scope.OrganizationScopeSchema
+        # policy_required = True
+
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    current_ar_credits: float = FloatField("Current AR Credits")
+    current_de_credits: float = FloatField("Current DE Credits")
+    current_op_credits: float = FloatField("Current OP Credits")
+    current_total_credits: float = FloatField("Current Total Credits")
+    total_purchased_credits: float = FloatField("Total Purchased Credits")
+    remaining_credits: float = FloatField("Remaining Credits")
+    remaining_percentage: float = FloatField("Remaining Percentage")
+    avg_daily_usage: float = FloatField("Average Daily Usage")
+    avg_weekly_usage: float = FloatField("Average Weekly Usage")
+    days_until_depleted: int = IntegerField("Days Until Depleted")
+    month_purchased: float = FloatField("Month Purchased")
+    month_used: float = FloatField("Month Used")
+    last_purchase_date: datetime = DatetimeField("Last Purchase Date")
+    last_usage_date: datetime = DatetimeField("Last Usage Date")
+
+
+@resource("work-package-credit-usage")
+class WorkPackageCreditUsageQuery(DomainQueryResource):
+    """Credit usage breakdown by work package"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "project"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_work_package_credit_usage"
+        scope_required = scope.ProjectWorkPackageScopeSchema
+        policy_required = True
+
+    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
+    project_id: UUID_TYPE = UUIDField("Project ID")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    work_package_name: str = StringField("Work Package Name")
+    estimated_ar_credits: float = FloatField("Estimated AR Credits")
+    estimated_de_credits: float = FloatField("Estimated DE Credits")
+    estimated_op_credits: float = FloatField("Estimated OP Credits")
+    estimated_total_credits: float = FloatField("Estimated Total Credits")
+    actual_ar_credits: float = FloatField("Actual AR Credits")
+    actual_de_credits: float = FloatField("Actual DE Credits")
+    actual_op_credits: float = FloatField("Actual OP Credits")
+    actual_total_credits: float = FloatField("Actual Total Credits")
+    variance_ar: float = FloatField("Variance AR")
+    variance_de: float = FloatField("Variance DE")
+    variance_op: float = FloatField("Variance OP")
+    variance_total: float = FloatField("Variance Total")
+    variance_percentage: float = FloatField("Variance Percentage")
+    completion_percentage: float = FloatField("Completion Percentage")
+    credits_remaining: float = FloatField("Credits Remaining")
+    total_work_items: int = IntegerField("Total Work Items")
+    completed_work_items: int = IntegerField("Completed Work Items")
+    status: str = StringField("Status")
+
+
+@resource("credit-purchase-history")
+class CreditPurchaseHistoryQuery(DomainQueryResource):
+    """Credit purchase transaction history"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_credit_purchase_history"
+        policy_required = True
+
+    purchase_id: UUID_TYPE = UUIDField("Purchase ID")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    purchase_date: datetime = DatetimeField("Purchase Date")
+    ar_credits: float = FloatField("AR Credits")
+    de_credits: float = FloatField("DE Credits")
+    op_credits: float = FloatField("OP Credits")
+    total_credits: float = FloatField("Total Credits")
+    amount: float = FloatField("Amount")
+    currency: str = StringField("Currency")
+    payment_method: str = StringField("Payment Method")
+    transaction_id: str = StringField("Transaction ID")
+    invoice_number: str = StringField("Invoice Number")
+    discount_code: str = StringField("Discount Code")
+    discount_amount: float = FloatField("Discount Amount")
+    final_amount: float = FloatField("Final Amount")
+    status: str = StringField("Status")
+    package_name: str = StringField("Package Name")
+    package_code: str = StringField("Package Code")
+    purchased_by: UUID_TYPE = UUIDField("Purchased By")
+    purchaser_name: str = StringField("Purchaser Name")
+    purchaser_email: str = StringField("Purchaser Email")
+    created_at: datetime = DatetimeField("Created At")
+    completed_date: datetime = DatetimeField("Completed Date")
+
+
+@resource("credit-package")
+class CreditPackageQuery(DomainQueryResource):
+    """Available credit packages for purchase"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+    package_name: str = StringField("Package Name")
+    package_code: str = StringField("Package Code")
+    ar_credits: float = FloatField("AR Credits")
+    de_credits: float = FloatField("DE Credits")
+    op_credits: float = FloatField("OP Credits")
+    total_credits: float = FloatField("Total Credits")
+    price: float = FloatField("Price")
+    currency: str = StringField("Currency")
+    description: str = StringField("Description")
+    features: dict = DictField("Features")
+    is_active: bool = BooleanField("Is Active")
+    sort_order: int = IntegerField("Sort Order")
+
+
+@resource("credit-balance")
+class CreditBalanceQuery(DomainQueryResource):
+    """Current credit balance for organization"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = False
+        allow_meta_view = False
+
+        policy_required = True
+
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    ar_credits: float = FloatField("AR Credits")
+    de_credits: float = FloatField("DE Credits")
+    op_credits: float = FloatField("OP Credits")
+    total_credits: float = FloatField("Total Credits")
+    total_purchased_credits: float = FloatField("Total Purchased Credits")
+    total_used: float = FloatField("Total Used")
+    total_refunded_credits: float = FloatField("Total Refunded Credits")
+    avg_daily_usage: float = FloatField("Average Daily Usage")
+    avg_weekly_usage: float = FloatField("Average Weekly Usage")
+    estimated_depletion_date: datetime = DatetimeField("Estimated Depletion Date")
+    days_until_depleted: int = IntegerField("Days Until Depleted")
+    is_low_balance: bool = BooleanField("Is Low Balance")
+    low_balance_threshold: float = FloatField("Low Balance Threshold")
+    last_purchase_date: datetime = DatetimeField("Last Purchase Date")
+    last_usage_date: datetime = DatetimeField("Last Usage Date")
+    last_refund_date: datetime = DatetimeField("Last Refund Date")
+
+
+@resource("credit-usage-log")
+class CreditUsageLogQuery(DomainQueryResource):
+    """Detailed credit usage transaction log"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        policy_required = True
+
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    project_id: UUID_TYPE = UUIDField("Project ID")
+    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
+    work_item_id: UUID_TYPE = UUIDField("Work Item ID")
+    work_type: str = StringField("Work Type")
+    credits_used: float = FloatField("Credits Used")
+    credit_per_unit: float = FloatField("Credit Per Unit")
+    units_consumed: float = FloatField("Units Consumed")
+    usage_date: datetime = DatetimeField("Usage Date")
+    used_by: UUID_TYPE = UUIDField("Used By")
+    work_item_name: str = StringField("Work Item Name")
+    work_package_name: str = StringField("Work Package Name")
+    project_name: str = StringField("Project Name")
+    used_by_name: str = StringField("Used By Name")
+    used_by_email: str = StringField("Used By Email")
+    description: str = StringField("Description")
+    is_refunded: bool = BooleanField("Is Refunded")
+    refund_date: datetime = DatetimeField("Refund Date")
+    refund_reason: str = StringField("Refund Reason")
+    refunded_credits: float = FloatField("Refunded Credits")
+
+
+@resource("organization-credit-summary")
+class OrganizationCreditSummaryQuery(DomainQueryResource):
+    """Organization credit overview with breakdown by type (AR/DE/OP)"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"organization_id": context.organization._id}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = False
+        allow_list_view = True
+        allow_meta_view = False
+
+        backend_model = "_organization_credit_summary"
+
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+    total_credits: float = FloatField("Total Credits Balance")
+    total_purchased_credits: float = FloatField("Total Purchased Credits")
+    total_allocated: float = FloatField("Total Allocated to Projects")
+    total_used: float = FloatField("Total Used (DONE WPs)")
+    total_available: float = FloatField("Total Available")
+
+    ar_credits_balance: float = FloatField("AR Credits Balance")
+    ar_credits_allocated: float = FloatField("AR Credits Allocated")
+    ar_credits_used: float = FloatField("AR Credits Used")
+    ar_credits_available: float = FloatField("AR Credits Available")
+
+    de_credits_balance: float = FloatField("DE Credits Balance")
+    de_credits_allocated: float = FloatField("DE Credits Allocated")
+    de_credits_used: float = FloatField("DE Credits Used")
+    de_credits_available: float = FloatField("DE Credits Available")
+
+    op_credits_balance: float = FloatField("OP Credits Balance")
+    op_credits_allocated: float = FloatField("OP Credits Allocated")
+    op_credits_used: float = FloatField("OP Credits Used")
+    op_credits_available: float = FloatField("OP Credits Available")
+
+    allocation_percentage: float = FloatField("Allocation Percentage")
+    completion_percentage: float = FloatField("Completion Percentage")
+
+    total_projects: int = IntegerField("Total Projects")
+    active_projects: int = IntegerField("Active Projects")
+
+    is_low_balance: bool = BooleanField("Is Low Balance")
+    low_balance_threshold: float = FloatField("Low Balance Threshold")
+
+
+@resource("project-credit-summary")
+class ProjectCreditSummaryQuery(DomainQueryResource):
+    """Project credit summary with completion tracking"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"organization_id": context.organization._id}
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "project"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        allow_text_search = True
+
+        backend_model = "_project_credit_summary"
+
+    # Project info
+    project_id: UUID_TYPE = UUIDField("Project ID")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    project_name: str = StringField("Project Name")
+    project_status: str = StringField("Project Status")
+
+    # Credits
+    total_credits: float = FloatField("Total Credits (Estimated)")
+    credit_used: float = FloatField("Credit Used (DONE WPs)")
+    actual_total_credits: float = FloatField("Actual Total Credits (from log)")
+    credits_remaining: float = FloatField("Credits Remaining")
+
+    # Progress
+    completion_percentage: float = FloatField("Completion Percentage")
+
+    # Work Package Stats
+    total_work_packages: int = IntegerField("Total Work Packages")
+    completed_work_packages: int = IntegerField("Completed Work Packages")
+
+    # Work Item Count
+    total_work_items: int = IntegerField("Total Work Items")
+
+
+@resource("project-detail")
+class ProjectQueryDetail(DomainQueryResource):
+    """Project queries"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        profile_id = context.profile._id
+        return {"members.ov": [profile_id], "status": "ACTIVE"}
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "project"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        allow_text_search = True
+
+        backend_model = "_project_detail"
+        # policy_required = True
+
+    name: str = StringField("Project Name")
+    description: str = StringField("Description")
+    category: str = StringField("Category")
+    priority: PriorityEnum = EnumField("Priority")
+    status: str = StringField("Status")
+    start_date: str = DatetimeField("Start Date")
+    target_date: str = DatetimeField("Target Date")
+    free_credit_applied: int = IntegerField("Free Credit Applied")
+    referral_code_used: UUID_TYPE = UUIDField("Referral Code Used")
+    sync_status: SyncStatusEnum = EnumField("Sync Status")
+    members: list[UUID_TYPE] = ArrayField("Members")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    total_credits: float = FloatField("Total Credits")
+    used_credits: float = FloatField("Used Credits")
+
+
+@resource("organization-weekly-credit-usage")
+class OrganizationWeeklyCreditUsageQuery(DomainQueryResource):
+    """
+    Organization Weekly Credit Usage Query
+
+    Theo dõi credit usage theo tuần:
+    - Week number (relative to first project start date)
+    - Credits breakdown by type (AR/DE/OP)
+    - Work packages completed per week
+    - Usage trends over time
+    """
+
+    @classmethod
+    def base_query(cls, context, scope):
+        """Filter by organization from context"""
+        return {"organization_id": context.organization._id}
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "organization-weekly-credit-usage"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_organization_weekly_credit_usage"
+
+    # Organization
+    organization_id: UUID_TYPE = UUIDField("Organization ID", filterable=True)
+
+    # Week Information
+    week_number: int = IntegerField("Week Number", filterable=True, sortable=True)
+    week_label: str = StringField("Week Label")  # e.g., "Week 1", "Week 2"
+
+    # Credit Breakdown
+    total_credits: float = FloatField("Total Credits", sortable=True)
+    ar_credits: float = FloatField("Architecture Credits", sortable=True)
+    de_credits: float = FloatField("Development Credits", sortable=True)
+    op_credits: float = FloatField("Operation Credits", sortable=True)
+
+    # Work Package Stats
+    work_packages_completed: int = IntegerField(
+        "Work Packages Completed", sortable=True
+    )
+
+
+@resource("document")
+class DocumentQuery(DomainQueryResource):
+    """Global organization document queries"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        """Filter by organization"""
+        return {"organization_id": context.organization._id}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_list_view = True
+        allow_item_view = True
+        allow_meta_view = True
+        backend_model = "_document"
+
+    document_name: str = StringField("Document Name")
+    description: str = StringField("Description")
+    doc_type: str = StringField("Document Type")
+    file_size: int = IntegerField("File Size")
+    status: str = StringField("Status")
+
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+    media_entry_id: UUID_TYPE = UUIDField("Media Entry ID")
+    filename: str = StringField("Filename")
+    filemime: str = StringField("MIME Type")
+    cdn_url: str = StringField("CDN URL")
+    file_length: int = IntegerField("File Length")
+
+    created_by: dict = DictField("Created By")
+
+    participants: list = ArrayField("Participants")
+    participant_count: int = IntegerField("Participant Count")
+
+    activity: datetime = DatetimeField("Last Activity")
+    created: datetime = DatetimeField("Created At")
+    updated: datetime = DatetimeField("Updated At")
+
+
+
+# ------ supplier service --------
+
+@resource("supplier-service")
+class SupplierServiceQuery(DomainQueryResource):
+    """Supplier Service queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        description = "Query supplier service information"
+        backend_model = "_supplier_service"
+        # scope_required = scope.SupplierServiceScopeSchema
+
+
+    supplier_id: UUID_TYPE = UUIDField("Supplier ID")
+    supplier_name: str = StringField("Supplier Name")
+    supplier_code: str = StringField("Supplier Code")
+    supplier_status: str = StringField("Supplier Status")
+    tax_code: str = StringField("Tax Code")
+    contact_email: str = StringField("Contact Email")
+    contact_phone: str = StringField("Contact Phone")
+
+    service_id: UUID_TYPE = UUIDField("Service ID")
+    service_code: str = StringField("Service Code")
+    service_name: str = StringField("Service Name")
+    service_category: str = StringField("Service Category")
+
+    supplier_service_status: str = StringField("Supplier Service Status")
+    supplier_service_description: str = StringField("Supplier Service Description")

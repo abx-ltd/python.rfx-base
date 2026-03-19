@@ -62,8 +62,7 @@ query Issue($issueId: String!) {
 """
 
 
-
-#---------- Query Commmnet to Linear ----------
+# ---------- Query Commmnet to Linear ----------
 
 CREATE_ISSUE_MUTATION_COMMENT = """
 mutation CommentCreate($input: CommentCreateInput!) {
@@ -220,8 +219,6 @@ query Project($projectId: String!) {
   }
 }
 """
-
-
 
 
 # ========== PROJECT MILESTONE MUTATIONS ==========

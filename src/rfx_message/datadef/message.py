@@ -1,0 +1,197 @@
+from typing import Optional, List, Dict, Any
+from pydantic import Field, model_validator
+from datetime import datetime
+from fluvius.data import DataModel, UUID_TYPE
+from ..types import MessageCategoryEnum
+
+
+class SendMessagePayload(DataModel):
+    """
+    Enhanced payload for sending notification messages.
+    Supports both template-based and direct content messages.
+    """
+
+    # Recipients (required)
+    recipients: List[UUID_TYPE] = Field(
+        default_factory=list, description="List of recipient user IDs"
+    )
+
+    # Message metadata
+    subject: Optional[str] = Field(None, description="Message subject")
+    message_type: str = Field("NOTIFICATION", description="Type of message")
+    priority: str = Field("MEDIUM", description="Message priority")
+
+    # Content source (one of these must be provided)
+    content: Optional[str] = Field(
+        None, description="Direct message content (no template)"
+    )
+    content_type: Optional[str] = Field("TEXT", description="Content type")
+
+    # Template-based content
+    template_key: Optional[str] = Field(None, description="Template key for rendering")
+    template_data: Optional[Dict[str, Any]] = Field(
+        None, description="Data for template rendering"
+    )
+    template_version: Optional[int] = Field(
+        None, description="Specific template version"
+    )
+
+    # Rendering control
+    render_strategy: Optional[str] = Field(
+        None, description="Override rendering strategy"
+    )
+
+    # Context for template resolution
+    template_locale: Optional[str] = Field(
+        "en", description="Locale for template resolution"
+    )
+    template_channel: Optional[str] = Field(
+        None, description="Channel for template resolution"
+    )
+    tenant_id: Optional[UUID_TYPE] = Field(
+        None, description="Tenant ID for scoped templates"
+    )
+    app_id: Optional[str] = Field(None, description="App ID for scoped templates")
+
+    # Additional metadata
+    tags: Optional[List[str]] = Field([], description="Message tags")
+    data: Optional[Dict[str, Any]] = Field(
+        None, description="Additional data for the message"
+    )
+    expiration_date: Optional[datetime] = Field(
+        None, description="Message expiration time"
+    )
+    category: Optional[MessageCategoryEnum] = Field(
+        None, description="Message category"
+    )
+
+    @model_validator(mode="after")
+    def validate_content_source(self):
+        """Ensure either content or template_key is provided."""
+        if not self.content and not self.template_key:
+            raise ValueError("Either 'content' or 'template_key' must be provided")
+
+        if self.content and self.template_key:
+            raise ValueError("Cannot provide both 'content' and 'template_key'")
+
+        if self.template_key and not self.template_data:
+            # Allow empty template_data but warn
+            self.template_data = {}
+
+        return self
+
+
+class ReplyMessagePayload(DataModel):
+    """
+    Enhanced payload for sending notification messages.
+    Supports both template-based and direct content messages.
+    """
+
+    # Recipients (required)
+    recipients: List[UUID_TYPE] = Field(
+        default_factory=list, description="List of recipient user IDs"
+    )
+
+    subject: Optional[str] = Field(None, description="Message subject")
+    # Message metadata
+    message_type: str = Field("NOTIFICATION", description="Type of message")
+    priority: str = Field("MEDIUM", description="Message priority")
+
+    # Content source (one of these must be provided)
+    content: Optional[str] = Field(
+        None, description="Direct message content (no template)"
+    )
+    content_type: Optional[str] = Field("TEXT", description="Content type")
+
+    # Template-based content
+    template_key: Optional[str] = Field(None, description="Template key for rendering")
+    template_data: Optional[Dict[str, Any]] = Field(
+        None, description="Data for template rendering"
+    )
+    template_version: Optional[int] = Field(
+        None, description="Specific template version"
+    )
+
+    # Rendering control
+    render_strategy: Optional[str] = Field(
+        None, description="Override rendering strategy"
+    )
+
+    # Context for template resolution
+    template_locale: Optional[str] = Field(
+        "en", description="Locale for template resolution"
+    )
+    template_channel: Optional[str] = Field(
+        None, description="Channel for template resolution"
+    )
+    tenant_id: Optional[UUID_TYPE] = Field(
+        None, description="Tenant ID for scoped templates"
+    )
+    app_id: Optional[str] = Field(None, description="App ID for scoped templates")
+
+    # Additional metadata
+    tags: Optional[List[str]] = Field([], description="Message tags")
+    data: Optional[Dict[str, Any]] = Field(
+        None, description="Additional data for the message"
+    )
+    expiration_date: Optional[datetime] = Field(
+        None, description="Message expiration time"
+    )
+    category: Optional[MessageCategoryEnum] = Field(
+        None, description="Message category"
+    )
+
+    @model_validator(mode="after")
+    def validate_content_source(self):
+        """Ensure either content or template_key is provided."""
+        if not self.content and not self.template_key:
+            raise ValueError("Either 'content' or 'template_key' must be provided")
+
+        if self.content and self.template_key:
+            raise ValueError("Cannot provide both 'content' and 'template_key'")
+
+        if self.template_key and not self.template_data:
+            # Allow empty template_data but warn
+            self.template_data = {}
+
+        return self
+
+
+# DTO for response Message
+class Notification(DataModel):
+    message_id: UUID_TYPE = Field(..., description="ID of the message")
+    recipient_id: Optional[UUID_TYPE] = Field(None, description="ID of the recipient")
+    sender_id: Optional[UUID_TYPE] = Field(None, description="ID of the sender")
+
+    subject: str = Field(..., description="Subject of the message")
+    content: str = Field(..., description="Content of the message")
+    content_type: str = Field(..., description="Content type of the message")
+    priority: str = Field("MEDIUM", description="Priority level of the message")
+
+    is_important: Optional[bool] = Field(
+        False, description="Whether the message is marked as important"
+    )
+    expiration_date: Optional[datetime] = Field(
+        None, description="Expiration date of the message"
+    )
+    tags: Optional[list[str]] = Field(
+        default_factory=list, description="Tags associated with the message"
+    )
+    data: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="Arbitrary message metadata payload"
+    )
+
+    # Template fields for client rendering
+    template_key: Optional[str] = Field(
+        None, description="Template key used for rendering"
+    )
+    template_version: Optional[int] = Field(
+        None, description="Version of the template used"
+    )
+    template_locale: Optional[str] = Field("en", description="Locale for the template")
+    template_data: Optional[Dict[str, Any]] = Field(
+        None, description="Additional data for the template"
+    )
+    render_strategy: Optional[str] = Field(
+        None, description="Rendering strategy for the template"
+    )

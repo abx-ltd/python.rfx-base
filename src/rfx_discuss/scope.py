@@ -5,6 +5,7 @@ from fluvius.data import UUID_TYPE
 
 class CommentScopeSchema(BaseModel):
     resource_id: UUID_TYPE = UUIDField("Resource ID")
+    resource: str = UUIDField("Resource")
 
 
 class CommentAttachmentScopeSchema(BaseModel):
@@ -16,4 +17,8 @@ class ReactionScopeSchema(BaseModel):
 
 
 class FlagScopeSchema(BaseModel):
+    comment_id: UUID_TYPE = UUIDField("Comment ID")
+
+
+class CommentAcknowledgeScopeSchema(BaseModel):
     comment_id: UUID_TYPE = UUIDField("Comment ID")

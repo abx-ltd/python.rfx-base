@@ -1,11 +1,18 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import Request
-from pydantic import BaseModel
+from fastapi.responses import RedirectResponse
 from fluvius.data import UUID_TYPE, UUID_GENR
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
-from fluvius.query.field import StringField, UUIDField, BooleanField, EnumField, PrimaryID
-
+from fluvius.query.field import (
+    StringField,
+    UUIDField,
+    BooleanField,
+    EnumField,
+    PrimaryID,
+)
+from . import datadef
+from . import config, logger
 from .state import IDMStateManager
 from .domain import UserProfileDomain
 from .policy import UserProfilePolicyManager
@@ -18,7 +25,7 @@ class UserProfileQueryManager(DomainQueryManager):
     __policymgr__ = UserProfilePolicyManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = UserProfileDomain.Meta.prefix
+        prefix = UserProfileDomain.Meta.namespace
         tags = UserProfileDomain.Meta.tags
 
 
@@ -26,69 +33,76 @@ resource = UserProfileQueryManager.register_resource
 endpoint = UserProfileQueryManager.register_endpoint
 
 
-# @resource('user')
-# class UserQuery(QueryResource):
-#     """ List current user accounts """
-
-#     class Meta(QueryResource.Meta):
-#         include_all = True
-#         allow_item_view = True
-#         allow_list_view = False
-#         allow_meta_view = False
-
-#     _id = UUIDField("User ID", identifier=True)
-#     name__given = StringField("Given Name")
-#     name__family = StringField("Family Name")
-
-
-# @endpoint('~active-profile/{profile_id}')
-# async def my_profile(query: UserProfileQueryManager, request: Request, profile_id: str):
-#     return f"ENDPOINT: {request} {query} {profile_id}"
-
-@endpoint('.accept-invitation/{invitation_id}')
-async def accept_invitation(query_manager: UserProfileQueryManager, request: Request, invitation_id: str):
+@endpoint(".accept-invitation/{invitation_id}")
+async def accept_invitation(
+    query_manager: UserProfileQueryManager, request: Request, invitation_id: str
+):
     async with query_manager.data_manager.transaction():
-        token = request.query_params.get('token')
-        invitation = await query_manager.data_manager.fetch('invitation', invitation_id)
+        token = request.query_params.get("token")
+        invitation = await query_manager.data_manager.fetch("invitation", invitation_id)
         context = request.state.auth_context
         if not invitation:
             return {"error": "Invitation not found"}
         if token != invitation.token:
             return {"error": "Invalid invitation token"}
-        if invitation.user_id != context.profile.user_id:
+        if str(invitation.user_id) != str(context.profile.usr_id):
             return {"error": "Invitation does not belong to the current user"}
-        if invitation.status != InvitationStatusEnum.PENDING:
+        if invitation.status.value != InvitationStatusEnum.PENDING.value:
             return {"error": f"Invitation status is {invitation.status}, cannot accept"}
-        existing_profile = await query_manager.data_manager.find_one('profile', where=dict(
-            user_id=invitation.user_id,
-            organization_id=invitation.organization_id
-        ))
+        existing_profile = await query_manager.data_manager.exist(
+            "profile",
+            where=dict(
+                user_id=context.profile.usr_id,
+                organization_id=invitation.organization_id,
+                realm=invitation.realm,
+                status='ACTIVE'
+            ),
+        )
         if existing_profile:
-            return {"error": "User already has a profile in this organization"}
+            return {"error": "User already has an active profile in this organization's realm"}
         current_time = datetime.now(timezone(timedelta(hours=7)))
         if invitation.expires_at and invitation.expires_at < current_time:
-            await query_manager.data_manager.update(invitation, status=InvitationStatusEnum.EXPIRED)
+            await query_manager.data_manager.update(
+                invitation, status=InvitationStatusEnum.EXPIRED.value
+            )
             invitation_status_record = dict(
                 _id=UUID_GENR(),
                 invitation_id=invitation._id,
                 src_state=invitation.status,
-                dst_state=invitation.status
+                dst_state=invitation.status,
             )
-            await query_manager.data_manager.add_entry("invitation_status", **invitation_status_record)
+            await query_manager.data_manager.add_entry(
+                "invitation_status", **invitation_status_record
+            )
             return {"error": "Invitation has expired"}
 
-        await query_manager.data_manager.update(invitation, status=InvitationStatusEnum.ACCEPTED)
+        await query_manager.data_manager.update(
+            invitation, status=InvitationStatusEnum.ACCEPTED.value
+        )
 
         invitation_status_record = dict(
             _id=UUID_GENR(),
             invitation_id=invitation._id,
-            src_state=InvitationStatusEnum.ACCEPTED,
-            dst_state=InvitationStatusEnum.ACCEPTED
+            src_state=InvitationStatusEnum.ACCEPTED.value,
+            dst_state=InvitationStatusEnum.ACCEPTED.value,
         )
-        await query_manager.data_manager.add_entry("invitation_status", **invitation_status_record)
-        user = await query_manager.data_manager.fetch('user', context.profile.user_id)
+        await query_manager.data_manager.add_entry(
+            "invitation_status", **invitation_status_record
+        )
+        user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
         if not user:
             return {"error": "User not found"}
+        realm_profiles = await query_manager.data_manager.find_all(
+            "profile",
+            where=dict(
+                user_id=str(invitation.user_id),
+                realm=invitation.realm,
+                status='ACTIVE',
+                current_profile=True
+            )
+        )
+        for profile in realm_profiles:
+            await query_manager.data_manager.update(profile, current_profile=False)
         profile_record = dict(
             _id=UUID_GENR(),
             organization_id=invitation.organization_id,
@@ -100,54 +114,219 @@ async def accept_invitation(query_manager: UserProfileQueryManager, request: Req
             name__suffix=user.name__suffix,
             telecom__email=user.telecom__email,
             telecom__phone=user.telecom__phone,
-            status='ACTIVE',
-            current_profile=False
+            status="ACTIVE",
+            current_profile=True,
+            realm=invitation.realm
         )
-        await query_manager.data_manager.add_entry('profile', **profile_record)
+        await query_manager.data_manager.add_entry("profile", **profile_record)
         profile_status_record = dict(
             _id=UUID_GENR(),
-            profile_id=profile_record['_id'],
-            src_state=profile_record['status'],
-            dst_state=profile_record['status']
+            profile_id=profile_record["_id"],
+            src_state=profile_record["status"],
+            dst_state=profile_record["status"],
         )
-        await query_manager.data_manager.add_entry('profile_status', **profile_status_record)
-        return {"success": True, "profile_id": str(profile_record['_id'])}
+        await query_manager.data_manager.add_entry(
+            "profile_status", **profile_status_record
+        )
 
-@endpoint('.reject-invitation/{invitation_id}')
-async def reject_invitation(query_manager: UserProfileQueryManager, request: Request, invitation_id: str):
+        # Assign VIEWER role to the new profile
+        viewer_role = await query_manager.data_manager.exist(
+            "ref__system_role", where=dict(key="VIEWER")
+        )
+        if not viewer_role:
+            return {"error": "System role 'VIEWER' not found"}
+
+        profile_role_record = dict(
+            _id=UUID_GENR(),
+            profile_id=profile_record["_id"],
+            role_key="VIEWER",
+            role_id=viewer_role._id,
+            role_source="system",
+        )
+        await query_manager.data_manager.add_entry(
+            "profile_role", **profile_role_record
+        )
+
+        redirect_url = config.REALM_URL_MAPPER.get(invitation.realm, "/")
+        return RedirectResponse(redirect_url, status_code=303)
+
+
+@endpoint(".reject-invitation/{invitation_id}")
+async def reject_invitation(
+    query_manager: UserProfileQueryManager, request: Request, invitation_id: str
+):
     async with query_manager.data_manager.transaction():
-        token = request.query_params.get('token')
-        invitation = await query_manager.data_manager.fetch('invitation', invitation_id)
+        token = request.query_params.get("token")
+        invitation = await query_manager.data_manager.fetch("invitation", invitation_id)
         context = request.state.auth_context
         if not invitation:
             return {"error": "Invitation not found"}
         if token != invitation.token:
             return {"error": "Invalid invitation token"}
-        if invitation.user_id != context.profile.user_id:
+        if invitation.user_id == context.profile.usr_id:
             return {"error": "Invitation does not belong to the current user"}
-        if invitation.status != 'PENDING':
+        if invitation.status.value != "PENDING":
             return {"error": f"Invitation status is {invitation.status}, cannot reject"}
-        await query_manager.data_manager.update(invitation, status='REJECTED')
+        await query_manager.data_manager.update(invitation, status="REJECTED")
         await query_manager.data_manager.add_entry(
             "invitation_status",
             _id=UUID_GENR(),
             invitation_id=invitation._id,
             src_state=invitation.status,
-            dst_state=invitation.status
+            dst_state=invitation.status,
         )
         return {"success": True}
 
 
+@endpoint(".switch-profile/{profile_id}")
+async def switch_profile(
+    query_manager: UserProfileQueryManager, request: Request, profile_id: str
+):
+    context = request.state.auth_context
+    if profile_id == str(context.profile._id):
+        return {"error": "Cannot switch to the current profile"}
+    async with query_manager.data_manager.transaction():
+        profile = await query_manager.data_manager.fetch("profile", profile_id)
+        if profile.user_id != context.profile.usr_id:
+            return {"error": "Profile does not belong to the current user"}
+        profiles = await query_manager.data_manager.find_all(
+            "profile",
+            where=dict(
+                user_id=context.profile.usr_id, status="ACTIVE", realm=profile.realm
+            ),
+        )
 
-@resource('profile')
-class ProfileQuery(DomainQueryResource):
-    """ List current profile's user """
+        target_id = str(profile._id)
+        for p in profiles:
+            if str(p._id) == target_id:
+                await query_manager.data_manager.update_data(
+                    "profile", p._id, current_profile=True
+                )
+            else:
+                await query_manager.data_manager.update_data(
+                    "profile", p._id, current_profile=False
+                )
+
+    redirect_url = config.REALM_URL_MAPPER.get(profile.realm, "/")
+    return RedirectResponse(redirect_url, status_code=303)
+
+
+@endpoint(".verify-password-change/{action_id}/{code}")
+async def verify_password_change(
+    query_manager: UserProfileQueryManager, request: Request, action_id: str, code: str
+):
+    from .security import decrypt_password
+    from .integration import kc_admin
+
+    async with query_manager.data_manager.transaction():
+        user_action = await query_manager.data_manager.fetch("user_action", action_id)
+
+        if not user_action:
+            raise ValueError("Password change action not found")
+
+        if getattr(user_action.status, "value", user_action.status) != "PENDING":
+             raise ValueError("Action is no longer pending")
+
+        action_data = user_action.action_data or {}
+        stored_code = action_data.get("code")
+
+        if not stored_code or stored_code != code:
+            # Optionally increment a failed attempt counter here like in guest.py
+            raise ValueError("Invalid verification code")
+
+        code_expires_at = action_data.get("code_expires_at")
+        if code_expires_at and datetime.fromisoformat(code_expires_at) < datetime.utcnow():
+            raise ValueError("Verification code has expired")
+
+        encrypted_password = action_data.get("password")
+        if not encrypted_password:
+            raise ValueError("No password found to update")
+
+        try:
+            new_password = decrypt_password(encrypted_password)
+        except Exception:
+            raise ValueError("Invalid or corrupted password data")
+
+        # Update Keycloak
+        await kc_admin.set_user_password(user_action.user_id, new_password, temporary=False)
+
+        # Mark action as COMPLETED and blank out data for security
+        await query_manager.data_manager.update(user_action, status="COMPLETED", action_data={})
+
+        # Return success with user identifier
+        return {
+            "success": True,
+            "message": "Password updated successfully",
+            "user_id": str(user_action.user_id)
+        }
+
+
+@resource("user")
+class UserQuery(DomainQueryResource):
+    """List current user's basic info"""
+
     class Meta(DomainQueryResource.Meta):
+        include_all = True
         allow_item_view = True
         allow_list_view = True
+        allow_meta_view = True
+        backend_model = "user"
+
+        resource = "user"
+        policy_required = True
+
+    id: UUID_TYPE = PrimaryID("User ID")
+    name__family: str = StringField("Family Name")
+    name__given: str = StringField("Given Name")
+    telecom__email: str = StringField("Email")
+    telecom__phone: str = StringField("Phone")
+    username: str = StringField("Username")
+    verified_email: Optional[str] = StringField("Verified Email")
+    verified_phone: Optional[str] = StringField("Verified Phone")
+    is_super_admin: bool = BooleanField("Is Super Admin")
+    status: str = EnumField("Status")
+
+
+@resource("profile")
+class ProfileQuery(DomainQueryResource):
+    """List current profile's user"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "_profile_list"
+        policy_required = False
+
+        excluded_fields = ["_updated", "_updater", "_creator", "_created", "_deleted", "_etag"]
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"user_id": context.user._id}
+
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    organization_name: str = StringField("Organization Name")
+    user_id: UUID_TYPE = UUIDField("User ID")
+    name__family: str = StringField("Family Name")
+    name__given: str = StringField("Given Name")
+    telecom__email: str = StringField("Email")
+    status: str = StringField("Status")
+    current_profile: bool = BooleanField("Current Profile")
+    realm: Optional[str] = StringField("Realm")
+
+
+@resource("profile-detail")
+class ProfileDetailQuery(DomainQueryResource):
+    """List current profile's user"""
+
+    class Meta(DomainQueryResource.Meta):
+        allow_item_view = True
+        allow_list_view = False
+        backend_model = "profile"
 
         resource = "profile"
-        policy_required = "id"
+        policy_required = True
 
     user_id: UUID_TYPE = UUIDField("User ID")
     name__family: str = StringField("Family Name")
@@ -173,7 +352,9 @@ class ProfileQuery(DomainQueryResource):
     realm: Optional[str] = StringField("Realm")
     user_tag: Optional[str] = StringField("User Tag", array=True)
     telecom__fax: Optional[str] = StringField("Fax")
-    two_factor_authentication: Optional[bool] = BooleanField("Two Factor Authentication")
+    two_factor_authentication: Optional[bool] = BooleanField(
+        "Two Factor Authentication"
+    )
     upstream_user_id: Optional[str] = StringField("Upstream User ID")
     user_type: Optional[str] = StringField("User Type")
     username: str = StringField("Username")
@@ -188,7 +369,8 @@ class ProfileQuery(DomainQueryResource):
     default_theme: Optional[str] = StringField("Default Theme")
     status: str = StringField("Profile Status")
 
-@resource('profile-role')
+
+@resource("profile-role")
 class ProfileRole(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
         include_all = True
@@ -198,9 +380,8 @@ class ProfileRole(DomainQueryResource):
         backend_model = "profile_role"
 
         resource = "profile"
-        policy_required = "profile_id"
+        policy_required = True
         scope_required = scope.ProfileRoleScopeSchema
-
 
     id: UUID_TYPE = PrimaryID("Profile ID")
     profile_id: str = StringField("Profile Id")
@@ -209,23 +390,43 @@ class ProfileRole(DomainQueryResource):
     role_source: str = StringField("Role Source")
 
 
-@resource('organization')
-class OrganizationQuery(DomainQueryResource):
-    """ Query organization details """
+class OrganizationRoleQuery(DomainQueryResource):
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        resource = "organization"
+        policy_required = True
+
+    user_id: UUID_TYPE = UUIDField("User ID")
+    address__city: str = StringField("City")
+    address__country: str = StringField("Country")
+    address__line1: str = StringField("Address Line 1")
+    address__line2: str = StringField("Address Line 2")
+    address__postal: str = StringField("Postal Code")
+    address__state: str = StringField("State/Province")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+
+
+@resource("organization-detail")
+class OrganizationDetailQuery(DomainQueryResource):
+    """Query organization details"""
 
     class Meta(DomainQueryResource.Meta):
         include_all = True
         allow_item_view = True
         allow_list_view = False
         allow_meta_view = True
+        backend_model = "organization"
 
         resource = "organization"
-        policy_required = "id"
+        policy_required = True
 
     id: UUID_TYPE = PrimaryID("Organization ID")
     name: str = StringField("Organization name")
     description: str = StringField("Description")
-    tax_id: str = StringField("Tax ID")
     business_name: str = StringField("Business Name")
     system_entity: str = BooleanField("System Entity")
     active: str = BooleanField("Active")
@@ -236,9 +437,10 @@ class OrganizationQuery(DomainQueryResource):
     invitation_code: str = StringField("Invitation Code")
     type: str = StringField("Organization Type Key (ForeignKey)")
 
-@resource('sent-invitation')
+
+@resource("sent-invitation")
 class SentInvitationQuery(DomainQueryResource):
-    """ List invitations for the current user's profiles """
+    """List invitations for the current user's profiles"""
 
     class Meta(DomainQueryResource.Meta):
         allow_item_view = True
@@ -246,10 +448,9 @@ class SentInvitationQuery(DomainQueryResource):
 
         resource = "invitation"
         backend_model = "invitation"
-        policy_required = "id"
+        policy_required = True
         # scope_required = scope.SentInvitationScopeSchema
 
-
     id: UUID_TYPE = PrimaryID("Invitation ID")
     sender_id: UUID_TYPE = UUIDField("Sender User ID")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
@@ -259,9 +460,10 @@ class SentInvitationQuery(DomainQueryResource):
     message: str = StringField("Message")
     expires_at: datetime = StringField("Expiration DateTime")
 
-@resource('received-invitation')
+
+@resource("received-invitation")
 class ReceivedInvitationQuery(DomainQueryResource):
-    """ List invitations received by the current user's profiles """
+    """List invitations received by the current user's profiles"""
 
     class Meta(DomainQueryResource.Meta):
         allow_item_view = True
@@ -269,7 +471,7 @@ class ReceivedInvitationQuery(DomainQueryResource):
 
         backend_model = "invitation"
         resource = "invitation"
-        policy_required = "id"
+        policy_required = True
 
     id: UUID_TYPE = PrimaryID("Invitation ID")
     sender_id: UUID_TYPE = UUIDField("Sender User ID")
@@ -279,3 +481,144 @@ class ReceivedInvitationQuery(DomainQueryResource):
     status: str = EnumField("Status")
     message: str = StringField("Message")
     expires_at: datetime = StringField("Expiration DateTime")
+
+
+@resource("guest-user")
+class GuestUserQuery(DomainQueryResource):
+    """Query guest user information"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"id": context.user._id}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "guest_user"
+
+        resource = "guest_user"
+
+    id: UUID_TYPE = PrimaryID("Guest User ID")
+    email: str = StringField("Email")
+    full_name: str = StringField("Full Name")
+    email_verified: bool = BooleanField("Email Verified")
+    phone: str = StringField("Phone")
+    session_id: str = StringField("Session ID")
+
+
+@resource("realm")
+class RealmQuery(DomainQueryResource):
+    """Query realm information"""
+    @classmethod
+    def base_query(cls, context, scope):
+        if config.OPERATION_VALID_REALMS is None:
+            return {}
+
+        return {
+            ".or": [
+                {"key": realm} for realm in config.OPERATION_VALID_REALMS
+            ]
+        }
+
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "realm"
+
+        resource = "realm"
+
+    key: str = StringField("Realm Key")
+    display: Optional[str] = StringField("Display Name")
+    description: Optional[str] = StringField("Description")
+    active: Optional[bool] = BooleanField("Active")
+
+
+@resource("organization-member")
+class ProfileListQuery(DomainQueryResource):
+    """List current profile's users"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"organization_id": context.organization._id}
+
+    class Meta(DomainQueryResource.Meta):
+        allow_item_view = False
+        allow_list_view = True
+
+        backend_model = "_org_member"
+        resource = "profile"
+        policy_required = True
+        scope_required = scope.OrgProfileListScopeSchema
+
+    name__family: str = StringField("Family Name")
+    name__middle: Optional[str] = StringField("Middle Name")
+    name__given: str = StringField("Given Name")
+    telecom__email: str = StringField("Email")
+    telecom__phone: str = StringField("Phone")
+
+    user_id: UUID_TYPE = UUIDField("User ID")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    organization_name: str = StringField("Organization Name")
+    profile_status: str = StringField("Status")
+    profile_roles: str = StringField("Roles", array=True)
+    policy_count: int = StringField("Policy Count")
+
+
+# @resource('user-profile')
+# class UserProfileQuery(DomainQueryResource):
+#     """ List current profile's users """
+#     @classmethod
+#     def base_query(cls, context, scope):
+#       return {'organization_id': context.organization._id}
+
+#     class Meta(DomainQueryResource.Meta):
+#         allow_item_view = False
+#         allow_list_view = True
+
+#         backend_model = "_profile_list"
+#         resource = "profile"
+#         policy_required = True
+#         scope_required = scope.ProfileListScopeSchema
+
+#     name__family: str = StringField("Family Name")
+#     name__given: str = StringField("Given Name")
+#     preferred_name: Optional[str] = StringField("Preferred Name")
+#     telecom__email: str = StringField("Email")
+#     telecom__phone: str = StringField("Phone")
+#     username: str = StringField("Username")
+#     user_id: UUID_TYPE = UUIDField("User ID")
+#     status: str = StringField("Status")
+#     organization_id: UUID_TYPE = UUIDField("Organization ID")
+#     user_id: UUID_TYPE = UUIDField("User ID")
+#     organization_name: str = StringField("Organization Name")
+
+
+@resource('profile-domain')
+class ProfileDomainQuery(DomainQueryResource):
+    """List domains that a profile has access to"""
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {"id": context.profile._id}
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = False
+        resource = "profile"
+        backend_model = "_profile_domain"
+
+        policy_required = False
+
+    id: UUID_TYPE = PrimaryID("Profile ID")
+    user_id: UUID_TYPE = UUIDField("User ID")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    realm: Optional[str] = StringField("Realm")
+    is_super_admin: bool = BooleanField("Is Super Admin")
+    domains: Optional[str] = StringField("Domains", array=True)
+

@@ -1,4 +1,6 @@
+
 from __future__ import annotations
+from fluvius.casbin import PolicySchema
 
 import uuid
 from datetime import datetime
@@ -8,7 +10,7 @@ from sqlalchemy import ARRAY, Boolean, DateTime, Enum as SQLEnum, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import Base, SCHEMA
+from . import Base, PolicyBase, SCHEMA, POLICY_SCHEMA
 from .types import ProfileStatusEnum
 
 
@@ -84,7 +86,12 @@ class UserProfileView(Base):
 
     _realm: Mapped[Optional[str]] = mapped_column(String)
     status: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
 
     def __repr__(self) -> str:
@@ -92,3 +99,113 @@ class UserProfileView(Base):
             f"<UserProfileView(_id={self._id}, username={self.username}, "
             f"status={self.status})>"
         )
+
+
+class ProfileListView(Base):
+    """
+    ORM mapping for the materialized `_profile_list` view that powers
+    read-heavy profile list queries. The view mirrors a subset of the
+    `profile` table while exposing a stable surface for downstream consumers.
+    """
+
+    __tablename__ = "_profile_list"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    name__family: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__given: Mapped[Optional[str]] = mapped_column(String(1024))
+    preferred_name: Mapped[Optional[str]] = mapped_column(String(255))
+    username: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__email: Mapped[Optional[str]] = mapped_column(String(1024))
+    realm: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__phone: Mapped[Optional[str]] = mapped_column(String(1024))
+    status: Mapped[ProfileStatusEnum] = mapped_column(
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
+    )
+    active: Mapped[Optional[bool]] = mapped_column(Boolean)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_name: Mapped[Optional[str]] = mapped_column(String(255))
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    current_profile: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    profile_roles: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
+
+    def __repr__(self) -> str:
+        return (
+            f"<ProfileListView(_id={self._id}, username={self.username}, "
+            f"status={self.status})>"
+        )
+
+
+class OrgMemberView(Base):
+    """
+    ORM mapping for the materialized `_org_member` view that powers
+    read-heavy organization member queries. The view mirrors a subset of the
+    `profile` table while exposing a stable surface for downstream consumers.
+    """
+
+    __tablename__ = "_org_member"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_name: Mapped[Optional[str]] = mapped_column(String(255))
+    name__given: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__middle: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__family: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__email: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__phone: Mapped[Optional[str]] = mapped_column(String(1024))
+    realm: Mapped[Optional[str]] = mapped_column(String(1024))
+    profile_status: Mapped[ProfileStatusEnum] = mapped_column(
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
+    )
+    profile_roles: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
+    policy_count: Mapped[int] = mapped_column(nullable=False)
+
+    def __repr__(self) -> str:
+        return (
+            f"<OrgMemberView(profile_id={self._id}, user_id={self.user_id}, "
+            f"organization_id={self.organization_id})>"
+        )
+
+
+class PolicyUserProfileView(PolicyBase, PolicySchema):
+    """
+    ORM mapping for the `_policy__user_profile` view used to materialize Casbin
+    policy tuples for the user-profile domain.
+    """
+    __tablename__ = "_policy__user_profile"
+    __table_args__ = {"schema": POLICY_SCHEMA, "info": {"is_view": True}}
+
+
+class PolicyIDMProfileView(PolicyBase, PolicySchema):
+    """
+    ORM mapping for the `_policy__idm_profile` view used for IDM profile access
+    policy evaluation.
+    """
+    __tablename__ = "_policy__idm_profile"
+    __table_args__ = {"schema": POLICY_SCHEMA, "info": {"is_view": True}}
+
+
+class UserProfileDomainView(Base):
+    """
+    ORM mapping for the materialized `_profile_domain` view that exposes
+    domains a user profile has access to based on their assigned roles/policies.
+    """
+
+    __tablename__ = "_profile_domain"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    realm: Mapped[Optional[str]] = mapped_column(String(1024))
+    is_super_admin: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    domains: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))

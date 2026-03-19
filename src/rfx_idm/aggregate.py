@@ -1,8 +1,32 @@
-from fluvius.domain.aggregate import Aggregate
+"""
+RFX IDM Domain Aggregate - Business Logic and State Management
+
+This aggregate implements the domain model for the RFX IDM system, managing:
+- User lifecycle (activation, deactivation, synchronization with Keycloak)
+- Organization management (creation, role assignments, status tracking)
+- Invitation workflows (send, accept, reject, cancel)
+- Profile management (creation, updates, role/group assignments)
+- Group management (creation, member assignments, permissions)
+
+Uses the Fluvius framework's aggregate pattern with action decorators for
+event sourcing and state management. All operations include audit trails
+and status history tracking.
+"""
+
+import secrets
+from datetime import datetime, timedelta
+from fluvius.domain.aggregate import Aggregate, action
+from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.data.exceptions import ItemNotFoundError
+from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum, InvitationStatusEnum
+from . import config, logger
 
 
 class IDMAggregate(Aggregate):
-	pass
+    """
+    Main aggregate for RFX IDM domain operations.
+    Handles business logic for users, organizations, profiles, invitations, and groups.
+    """
 
     # ==========================================================================
     # STATUS TRACKING HELPERS
@@ -99,19 +123,9 @@ class IDMAggregate(Aggregate):
         """
         Synchronize user data from Keycloak and manage required actions.
         Handles action lifecycle (pending -> completed) based on Keycloak state.
-        Returns True if profile data or actions changed, signaling a required logout.
         """
         user = self.rootobj
-        changed = False
-
-        # Detect changes in user data
-        for key, value in data.user_data.items():
-            if getattr(user, key, None) != value:
-                changed = True
-                break
-
-        if changed:
-            await self.statemgr.update(user, **data.user_data)
+        await self.statemgr.update(user, **data.user_data)
 
         # Handle user actions
         if data.sync_actions:
@@ -146,20 +160,17 @@ class IDMAggregate(Aggregate):
                             status='PENDING'
                         ))
                         await self.statemgr.insert(record)
-                        changed = True
 
                 # Any current actions not in required_actions should be marked as completed
                 for action in current_actions:
                     if action._id not in processed_actions:
                         await self.statemgr.update(action, status='COMPLETED')
-                        changed = True
             else:
                 # If no required actions, mark all pending actions as completed
                 for action in current_actions:
                     await self.statemgr.update(action, status='COMPLETED')
-                    changed = True
 
-        return changed
+        return user
 
     @action("user-deactivated", resources="user")
     async def deactivate_user(self, data=None):

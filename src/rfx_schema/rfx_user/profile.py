@@ -33,6 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .organization import Organization
     from .invitation import Invitation
     from .group import ProfileGroup
+    from .realm import Realm
 
 
 class Profile(TableBase):
@@ -64,7 +65,9 @@ class Profile(TableBase):
     name__prefix: Mapped[Optional[str]] = mapped_column(String(1024))
     name__suffix: Mapped[Optional[str]] = mapped_column(String(1024))
 
-    realm: Mapped[Optional[str]] = mapped_column(String(1024))
+    realm: Mapped[Optional[str]] = mapped_column(
+        String(255), ForeignKey(f"{SCHEMA}.realm.key")
+    )
     svc_access: Mapped[Optional[str]] = mapped_column(String(1024))
     svc_secret: Mapped[Optional[str]] = mapped_column(String(1024))
     user_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
@@ -91,23 +94,31 @@ class Profile(TableBase):
     is_super_admin: Mapped[Optional[bool]] = mapped_column(Boolean)
     system_tag: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     status: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     preferred_name: Mapped[Optional[str]] = mapped_column(String(255))
     default_theme: Mapped[Optional[str]] = mapped_column(String(255))
 
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.user._id"), nullable=True
     )
     current_profile: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id")
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.organization._id"), nullable=True
     )
 
     user: Mapped[Optional["User"]] = relationship(back_populates="profiles")
     organization: Mapped[Optional["Organization"]] = relationship(
+        back_populates="profiles"
+    )
+    realm_entry: Mapped[Optional["Realm"]] = relationship(
         back_populates="profiles"
     )
     status_history: Mapped[List["ProfileStatus"]] = relationship(
@@ -154,10 +165,20 @@ class ProfileStatus(TableBase):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.profile._id"), nullable=False
     )
     src_state: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     dst_state: Mapped[ProfileStatusEnum] = mapped_column(
-        SQLEnum(ProfileStatusEnum, name="profilestatusenum"), nullable=False
+        SQLEnum(
+            ProfileStatusEnum,
+            name="profilestatusenum",
+            schema=SCHEMA,
+        ),
+        nullable=False,
     )
     note: Mapped[Optional[str]] = mapped_column(String(1024))
 

@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import text
 
 from . import TableBase, SCHEMA
 from .types import (
@@ -28,6 +29,10 @@ class Policy(TableBase):
     """Top-level policy definition."""
 
     __tablename__ = "policy"
+    __table_args__ = (
+        Index("policy_key_unique", "key", unique=True),
+        {"schema": SCHEMA},
+    )
 
     key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display: Mapped[Optional[str]] = mapped_column(String(255))
@@ -40,7 +45,8 @@ class Policy(TableBase):
         SQLEnum(PolicyStatusEnum, name="policystatusenum", schema=SCHEMA)
     )
     scope: Mapped[Optional[PolicyScopeEnum]] = mapped_column(
-        SQLEnum(PolicyScopeEnum, name="policyscopeenum", schema=SCHEMA)
+        SQLEnum(PolicyScopeEnum, name="policyscopeenum", schema=SCHEMA),
+        nullable=True,
     )
     kind: Mapped[Optional[PolicyKindEnum]] = mapped_column(
         SQLEnum(PolicyKindEnum, name="policykindenum", schema=SCHEMA)
@@ -67,7 +73,8 @@ class PolicyResource(TableBase):
         SQLEnum(PolicyEffectEnum, name="policyeffectenum", schema=SCHEMA)
     )
     status: Mapped[Optional[PolicyStatusEnum]] = mapped_column(
-        SQLEnum(PolicyStatusEnum, name="policystatusenum", schema=SCHEMA)
+        SQLEnum(PolicyStatusEnum, name="policystatusenum", schema=SCHEMA),
+        nullable=True,
     )
     scope: Mapped[Optional[PolicyScopeEnum]] = mapped_column(
         SQLEnum(PolicyScopeEnum, name="policyscopeenum", schema=SCHEMA)
@@ -84,8 +91,7 @@ class PolicyResource(TableBase):
     policy_key: Mapped[str] = mapped_column(
         String(255), ForeignKey(f"{SCHEMA}.policy.key"), nullable=False
     )
-    meta: Mapped[Optional[str]] = mapped_column(Text)
-
+    meta: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=True)
     policy: Mapped["Policy"] = relationship(back_populates="resources")
 
 
@@ -98,5 +104,5 @@ class PolicyRole(TableBase):
         String(255), ForeignKey(f"{SCHEMA}.policy.key"), nullable=False
     )
     role_key: Mapped[Optional[str]] = mapped_column(String(255))
-
     policy: Mapped["Policy"] = relationship(back_populates="roles")
+    scope: Mapped[str] = mapped_column(String(255))
