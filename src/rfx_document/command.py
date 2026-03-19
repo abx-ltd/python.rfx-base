@@ -87,9 +87,6 @@ class UpdateShelf(Command):
 
 class RemoveShelf(Command):
     """Remove a shelf."""
-
-    Data = datadef.RemoveShelfPayload
-
     class Meta:
         key = "remove-shelf"
         resources = ("shelf",)
@@ -135,8 +132,6 @@ class UpdateCategory(Command):
 class RemoveCategory(Command):
     """Remove a category."""
 
-    Data = datadef.RemoveCategoryPayload
-
     class Meta:
         key = "remove-category"
         resources = ("category",)
@@ -181,8 +176,6 @@ class UpdateCabinet(Command):
 
 class RemoveCabinet(Command):
     """Remove a cabinet."""
-
-    Data = datadef.RemoveCabinetPayload
 
     class Meta:
         key = "remove-cabinet"

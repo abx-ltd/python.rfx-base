@@ -52,10 +52,6 @@ class UpdateShelfPayload(BaseUpdatePayload):
     _nomaralize_code = field_validator("code")(validate_shelf_code)
 
 
-class RemoveShelfPayload(DataModel):
-    shelf_id: UUID_TYPE = Field(..., description="Shelf ID to remove")
-
-
 def validate_category_code(value: Optional[str]) -> Optional[str]:
     if value is None:
         return None
@@ -80,10 +76,6 @@ class UpdateCategoryPayload(BaseUpdatePayload):
     description: Optional[str] = Field(default=None, description="Category description")
 
     _normalize_code = field_validator("code")(validate_category_code)
-
-
-class RemoveCategoryPayload(DataModel):
-    category_id: UUID_TYPE = Field(..., description="Category ID to remove")
 
 
 def validate_cabinet_code(value: Optional[str]) -> Optional[str]:
@@ -112,7 +104,5 @@ class UpdateCabinetPayload(BaseUpdatePayload):
     _normalize_code = field_validator("code")(validate_cabinet_code)
 
 
-class RemoveCabinetPayload(DataModel):
-    cabinet_id: UUID_TYPE = Field(..., description="Cabinet ID to remove")
 
 
