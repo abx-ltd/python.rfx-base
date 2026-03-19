@@ -76,7 +76,7 @@ class UpdateShelf(Command):
 
     class Meta:
         key = "update-shelf"
-        resources = ("realm",)
+        resources = ("shelf",)
         tags = ["document", "update", "shelf"]
         auth_required = True
 
@@ -92,12 +92,12 @@ class RemoveShelf(Command):
 
     class Meta:
         key = "remove-shelf"
-        resources = ("realm",)
+        resources = ("shelf",)
         tags = ["document", "remove", "shelf"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.remove_shelf(payload)
+        await agg.remove_shelf()
 
 
 class CreateCategory(Command):
@@ -123,7 +123,7 @@ class UpdateCategory(Command):
 
     class Meta:
         key = "update-category"
-        resources = ("realm",)
+        resources = ("category",)
         tags = ["document", "update", "category"]
         auth_required = True
 
@@ -139,12 +139,12 @@ class RemoveCategory(Command):
 
     class Meta:
         key = "remove-category"
-        resources = ("realm",)
+        resources = ("category",)
         tags = ["document", "remove", "category"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.remove_category(payload)
+        await agg.remove_category()
 
 
 class CreateCabinet(Command):
@@ -170,7 +170,7 @@ class UpdateCabinet(Command):
 
     class Meta:
         key = "update-cabinet"
-        resources = ("realm",)
+        resources = ("cabinet",)
         tags = ["document", "update", "cabinet"]
         auth_required = True
 
@@ -186,9 +186,9 @@ class RemoveCabinet(Command):
 
     class Meta:
         key = "remove-cabinet"
-        resources = ("realm",)
+        resources = ("cabinet",)
         tags = ["document", "remove", "cabinet"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        await agg.remove_cabinet(payload)
+        await agg.remove_cabinet()
