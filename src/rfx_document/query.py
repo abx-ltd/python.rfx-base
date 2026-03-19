@@ -52,10 +52,7 @@ class ShelfQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope_data):
-        realm_id = scope_data.get("realm_id")
-        if realm_id:
-            return {"realm_id": realm_id}
-        return {}
+        return {"realm_id": scope_data["realm_id"]}
 
     class Meta(DomainQueryResource.Meta):
         resource = "shelf"
@@ -85,14 +82,8 @@ class CategoryQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope_data):
-        realm_id = scope_data.get("realm_id")
-        shelf_id = scope_data.get("shelf_id")
-        query = {}
-        if realm_id:
-            query["realm_id"] = realm_id
-        if shelf_id:
-            query["shelf_id"] = shelf_id
-        return query
+        return {"shelf_id": scope_data["shelf_id"]}
+
 
     class Meta(DomainQueryResource.Meta):
         resource = "category"
@@ -122,14 +113,7 @@ class CabinetQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope_data):
-        realm_id = scope_data.get("realm_id")
-        category_id = scope_data.get("category_id")
-        query = {}
-        if realm_id:
-            query["realm_id"] = realm_id
-        if category_id:
-            query["category_id"] = category_id
-        return query
+        return {"category_id": scope_data["category_id"]}
 
     class Meta(DomainQueryResource.Meta):
         resource = "cabinet"
@@ -158,13 +142,7 @@ class EntryQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope_data):
-        cabinet_id = scope_data.get("cabinet_id")
-
-        query = {}
-        if cabinet_id:
-            query["cabinet_id"] = cabinet_id
-
-        return query
+        return {"cabinet_id": scope_data["cabinet_id"]}
 
     class Meta(DomainQueryResource.Meta):
         resource = "entry"

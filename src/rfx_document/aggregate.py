@@ -156,6 +156,8 @@ class RFXDocumentAggregate(Aggregate):
 
         updates = _clean_updates(data)
         updates.pop("category_id", None)
+        updates.pop("shelf_id", None)
+        updates.pop("realm_id", None)
         if not updates:
             raise ValueError("At least one field required")
 
@@ -229,6 +231,8 @@ class RFXDocumentAggregate(Aggregate):
 
         updates = _clean_updates(data)
         updates.pop("cabinet_id", None)
+        updates.pop("category_id", None)
+        updates.pop("realm_id", None)
         if not updates:
             raise ValueError("At least one field required")
 

@@ -20,7 +20,7 @@ class CreateRealm(Command):
         resource_init = True
 
     async def _process(self, agg, stm, payload):
-        result = await agg.create_real(payload)
+        result = await agg.create_realm(payload)
         yield agg.create_response(serialize_mapping(result), _type="document-response")
 
 
