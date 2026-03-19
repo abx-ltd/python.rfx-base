@@ -456,7 +456,7 @@ class UpdatePassword(Command):
             recipient_name = user.name__given or user.username or "User"
 
             await notify_service.send(
-                "rfx-notify:send-notification",
+                f"{config.NOTIFY_NAMESPACE}:send-notification",
                 command="send-notification",
                 resource="notification",
                 payload={

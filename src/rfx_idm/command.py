@@ -590,7 +590,7 @@ class SendUserAction(Command):
             raise ValueError(f"Unsupported action type {payload.action_type}")
 
         await notify_service.send(
-            "rfx-notify:send-notification",
+            f"{config.NOTIFY_NAMESPACE}:send-notification",
             command="send-notification",
             resource="notification",
             payload={
