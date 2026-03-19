@@ -1,9 +1,9 @@
-from fluvius.data import serialize_mapping
+from fluvius.data import serialize_mapping, logger
 from fluvius.domain.signal import DomainSignal
-
 from .domain import RFXDiscussDomain
 from . import datadef
 from .helper import _handle_mentions
+from .webhook import dispatch_command
 
 processor = RFXDiscussDomain.command_processor
 Command = RFXDiscussDomain.Command
@@ -315,17 +315,8 @@ class UnSubscribeComment(Command):
     DomainSignal.TRIGGER_RECONCILIATION,
     match=lambda cmd: cmd.command in ("create-comment", "reply-comment"),
 )
-async def process(cmd, **kwargs):
-    """Dispatch webhook to callback_url after comment creation / reply."""
-    from rfx_discuss import logger
-    from .webhook import dispatch_command
-
-    callback_url = getattr(cmd.payload, "callback_url", None)
-    if not callback_url:
-        return
-
-    logger.info(f"Dispatching webhook for [{cmd.command}] to {callback_url}")
+async def process(cmd, aggregate, ctx_data, **kwargs):
     try:
-        await dispatch_command(cmd)
+        await dispatch_command(cmd, ctx_data=ctx_data)
     except Exception as exc:
         logger.error(f"Webhook dispatch failed for [{cmd.command}]: {exc}")

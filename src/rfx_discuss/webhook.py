@@ -13,9 +13,7 @@ TIMEOUT_SECONDS = 10
 def _sign_payload(payload_bytes: bytes, timestamp: str, secret: str) -> str:
     """HMAC-SHA256 signature over ``timestamp.body``."""
     message = f"{timestamp}.".encode() + payload_bytes
-    return hmac.new(
-        secret.encode(), message, hashlib.sha256
-    ).hexdigest()
+    return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
 
 
 def _build_headers(payload_bytes: bytes, secret: str) -> dict:
@@ -35,9 +33,7 @@ async def deliver(callback_url: str, data: dict, secret: str | None = None):
         X-Webhook-Timestamp – unix epoch seconds when the request was built.
         X-Webhook-Signature – ``HMAC-SHA256(secret, "<timestamp>.<body>")``
     """
-    secret = secret or config.WEBHOOK_SECRET
-    if not secret:
-        raise ValueError("Webhook secret is not configured")
+    secret = config.WEBHOOK_SECRET
 
     payload_bytes = serialize_json(data).encode()
     headers = _build_headers(payload_bytes, secret)
@@ -51,10 +47,6 @@ async def deliver(callback_url: str, data: dict, secret: str | None = None):
         logger.error("Webhook delivery to %s failed: %s", callback_url, exc)
         return None
 
-    logger.info(
-        "Webhook delivered to %s – status %s", callback_url, response.status_code
-    )
-
     if not response.is_success:
         logger.warning(
             "Webhook callback returned %s: %s",
@@ -65,9 +57,9 @@ async def deliver(callback_url: str, data: dict, secret: str | None = None):
     return response
 
 
-async def dispatch_command(cmd, *, secret: str | None = None):
-    """Extract callback_url from *cmd.payload* and deliver the command data."""
-    callback_url = getattr(cmd.payload, "callback_url", None)
+async def dispatch_command(cmd, ctx_data, *, secret: str | None = None):
+    """Deliver command data to the configured callback URL."""
+    callback_url = config.CALLBACK_URL
     if not callback_url:
         return None
 
@@ -77,6 +69,7 @@ async def dispatch_command(cmd, *, secret: str | None = None):
         "resource": cmd.resource,
         "identifier": str(cmd.identifier),
         "payload": serialize_mapping(cmd.payload),
+        "ctx_data": serialize_mapping(ctx_data),
     }
 
     return await deliver(callback_url, data, secret=secret)
