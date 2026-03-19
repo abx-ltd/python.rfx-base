@@ -179,8 +179,6 @@ class BaseTemplateService:
         if not template_body:
             return ""
 
-        if template.get('variables_schema'):
-            self._validate_template_data(data, template.get('variables_schema'))
 
         try:
             return template_registry.render(engine_name, template_body, data)
@@ -188,15 +186,6 @@ class BaseTemplateService:
             logger.error(f"Template rendering failed: {e}")
             logger.error(f"Template: {template.get('key')}, Engine: {engine_name}")
             raise ValueError(f"Template rendering failed: {str(e)}")
-
-    def _validate_template_data(self, data: Dict[str, Any], schema: Dict[str, Any]):
-        """Validate template data against JSON schema."""
-        # TODO: Implement full JSON schema validation using jsonschema lib
-        required = schema.get('required', [])
-        missing = [field for field in required if field not in data]
-        if missing:
-             # Basic check for top-level keys
-            raise ValueError(f"Missing required template variables: {missing}")
 
     async def create_template_base(
         self,
