@@ -2,7 +2,7 @@ from typing import Optional
 
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource
-from fluvius.query.field import PrimaryID, StringField, UUIDField
+from fluvius.query.field import PrimaryID, StringField, UUIDField, IntegerField
 
 from .domain import RFXDocumentDomain
 from .state import RFXDocumentStateManager
@@ -64,7 +64,7 @@ class ShelfQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "shelf"
+        backend_model = "_shelf"
         scope_required = scope.ShelfScopeSchema
 
     id: UUID_TYPE = PrimaryID("Shelf ID")
@@ -72,6 +72,11 @@ class ShelfQuery(DomainQueryResource):
     code: str = StringField("Code")
     name: str = StringField("Name")
     description: Optional[str] = StringField("Description")
+
+    # Aggregate information
+    category_count: int = IntegerField("Category Count")
+    cabinet_count: int = IntegerField("Cabinet Count")
+    entry_count: int = IntegerField("Entry Count")
 
 
 @resource("category")
@@ -96,7 +101,7 @@ class CategoryQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "category"
+        backend_model = "_category"
         scope_required = scope.CategoryScopeSchema
 
     id: UUID_TYPE = PrimaryID("Category ID")
@@ -105,6 +110,10 @@ class CategoryQuery(DomainQueryResource):
     code: str = StringField("Code")
     name: str = StringField("Name")
     description: Optional[str] = StringField("Description")
+
+    # Aggregate information
+    cabinet_count: int = IntegerField("Cabinet Count")
+    entry_count: int = IntegerField("Entry Count")
 
 
 @resource("cabinet")
@@ -129,7 +138,7 @@ class CabinetQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "cabinet"
+        backend_model = "_cabinet"
         scope_required = scope.CabinetScopeSchema
 
     id: UUID_TYPE = PrimaryID("Cabinet ID")
@@ -138,3 +147,6 @@ class CabinetQuery(DomainQueryResource):
     code: str = StringField("Code")
     name: str = StringField("Name")
     description: Optional[str] = StringField("Description")
+
+    # Aggregate information
+    entry_count: int = IntegerField("Entry Count")
