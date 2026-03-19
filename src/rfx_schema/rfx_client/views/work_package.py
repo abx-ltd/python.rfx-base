@@ -109,22 +109,41 @@ project_work_package_view = PGView(
         pwp.params,
         array_agg(DISTINCT rwt.alias)::character varying(50)[] AS type_list,
         count(DISTINCT wi.project_work_item_id) AS work_item_count,
-        round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'ARCHITECTURE'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS architectural_credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'DEVELOPMENT'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS development_credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'OPERATION'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS operation_credits,
-        round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric * 30.0, 2) AS upfront_cost,
-        0::numeric AS monthly_cost,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+        END AS credits,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_ar_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'ARCHITECTURE'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+        END AS architectural_credits,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_de_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'DEVELOPMENT'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+        END AS development_credits,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_op_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'OPERATION'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+        END AS operation_credits,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round((COALESCE(wp_base.total_ar_credits, 0::numeric) + COALESCE(wp_base.total_de_credits, 0::numeric)) * COALESCE(pwp.quantity, 1)::numeric * 100.0, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric * 100.0, 2)
+        END AS upfront_cost,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_op_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric * 100.0, 2)
+            ELSE 0::numeric
+        END AS monthly_cost,
         COALESCE(sum(dc.deliverable_count), 0::numeric) AS total_deliverables,
         pwp.status AS status_wp
     FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
         JOIN {config.RFX_CLIENT_SCHEMA}.project p ON p._id = pwp.project_id
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.work_package wp_base ON wp_base._id = pwp.work_package_id AND wp_base._deleted IS NULL
         LEFT JOIN work_items wi ON wi.project_work_package_id = pwp._id
         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi_join ON wi.project_work_item_id = pwi_join._id
         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rwt ON pwi_join.type::text = rwt.key::text
         LEFT JOIN deliverable_counts dc ON dc.project_work_item_id = wi.project_work_item_id
     WHERE pwp._deleted IS NULL
-    GROUP BY pwp._id, pwp.project_id, pwp.work_package_id, pwp.quantity, pwp.work_package_name, pwp.work_package_is_custom, pwp.work_package_estimate, p.status;
+    GROUP BY pwp._id, pwp.project_id, pwp.work_package_id, pwp.quantity, pwp.work_package_name, pwp.work_package_is_custom, pwp.work_package_estimate, p.status, wp_base.method_calculated, wp_base.total_credits, wp_base.total_ar_credits, wp_base.total_de_credits, wp_base.total_op_credits;
     """,
 )
 
