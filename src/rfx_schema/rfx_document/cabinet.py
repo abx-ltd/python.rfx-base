@@ -25,7 +25,7 @@ class Cabinet(TableBase):
 
     __tablename__ = "cabinet"
     __table_args__ = (
-        UniqueConstraint("realm_id", "category_id", "code", name="uq_cabinet_realm_category_code"),
+        UniqueConstraint("realm_id", "code", name="uq_cabinet_realm_code"),
         Index("ix_cabinet_realm_id",    "realm_id"),
         Index("ix_cabinet_category_id", "category_id"),
         {"schema": SCHEMA},
