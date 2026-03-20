@@ -352,10 +352,10 @@ def register_pg_entities(allow):
     register_entities([
         user_profile_view,
         user_profile_list_view,
-        org_member_view,
         policy_user_profile_view,
         policy_idm_profile_view,
         user_profile_domain_view,
+        org_member_view,
     ])
 
 register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))

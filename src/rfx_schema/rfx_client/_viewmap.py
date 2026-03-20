@@ -255,6 +255,27 @@ class ProjectWorkPackageView(TableBase):
     params: Mapped[Optional[dict]] = mapped_column(JSONB)
 
 
+class ProjectWorkPackageRelationshipView(TableBase):
+    """View: _project_work_package_relationship - PWP relationships with project/work package details"""
+
+    __tablename__ = "_project_work_package_relationship"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    project_work_package_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    schema_relation: Mapped[Optional[str]] = mapped_column(String(255))
+    resource_name: Mapped[str] = mapped_column(String(100))
+    resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+
+    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    work_package_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    quantity: Mapped[Optional[int]] = mapped_column(Integer)
+    project_work_package_status: Mapped[Optional[str]] = mapped_column(String)
+    project_work_package_name: Mapped[Optional[str]] = mapped_column(String(255))
+    project_name: Mapped[Optional[str]] = mapped_column(String(255))
+    work_package_name: Mapped[Optional[str]] = mapped_column(String(255))
+    resource_data: Mapped[Optional[dict]] = mapped_column(JSONB)
+
+
 # ============================================================================
 # WORK ITEM VIEWS
 # ============================================================================

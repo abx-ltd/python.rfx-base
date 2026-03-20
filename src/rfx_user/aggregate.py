@@ -370,7 +370,7 @@ class UserProfileAggregate(Aggregate):
             reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{record._id}?token={record.token}"
 
             await notify_client.send(
-                "rfx-notify:send-notification",
+                f"{config.NOTIFY_NAMESPACE}:send-notification",
                 command="send-notification",
                 resource="notification",
                 payload={
@@ -432,7 +432,7 @@ class UserProfileAggregate(Aggregate):
             reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{invitation._id}?token={invitation.token}"
 
             await notify_client.send(
-                "rfx-notify:send-notification",
+                f"{config.NOTIFY_NAMESPACE}:send-notification",
                 command="send-notification",
                 resource="notification",
                 payload={

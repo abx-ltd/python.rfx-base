@@ -9,6 +9,8 @@ POLICY_TABLE = "_policy__user_profile"
 REALM = 'rfx'
 REALM_URL_MAPPER = None
 
+NOTIFY_NAMESPACE = "rfx-notify"
+
 # Guest Authentication Settings
 VERIFICATION_CODE_LENGTH = 6
 VERIFICATION_TTL_MINUTES = 15

@@ -773,6 +773,25 @@ class RemoveWorkPackageFromProject(Command):
                 },
             )
 
+class CreateProjectWorkPackageRelationShip(Command):
+    """Create Project Work Package Relationship - Creates a relationship between project_work_package and orther resources"""
+
+    class Meta:
+        key = "create-project-work-package-relationship"
+        resources = ("project_work_package",)
+        tags = ["project", "work-package", "relationship"]
+        auth_required = True
+        description = "Create a relationship between project and work package"
+        policy_required = True
+
+    Data = datadef.CreateProjectWorkPackageRelationshipPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create a relationship between project and work package"""
+        result = await agg.create_project_work_package_relationship(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result), _type="project-work-package-response"
+        )
 
 class AddTicketToProject(Command):
     class Meta:

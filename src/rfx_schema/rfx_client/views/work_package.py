@@ -2,8 +2,43 @@
 Work Package-related database views
 """
 
+from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_view import PGView
 from rfx_base import config
+
+fn_get_resource_json = PGFunction(
+    schema=config.RFX_CLIENT_SCHEMA,
+    signature="fn_get_resource_json(schema_name text, table_name text, row_id uuid)",
+    definition="""
+    RETURNS jsonb
+    LANGUAGE plpgsql
+    STABLE
+    AS $function$
+    DECLARE
+        result jsonb;
+        sql_query text;
+    BEGIN
+        IF schema_name IS NULL OR table_name IS NULL OR row_id IS NULL THEN
+            RETURN NULL;
+        END IF;
+
+        sql_query := format(
+            'SELECT to_jsonb(t) FROM %I.%I t WHERE t._id = $1 AND t._deleted IS NULL',
+            schema_name,
+            table_name
+        );
+
+        EXECUTE sql_query INTO result USING row_id;
+        RETURN result;
+    EXCEPTION
+        WHEN undefined_table OR undefined_column THEN
+            RETURN NULL;
+        WHEN others THEN
+            RETURN NULL;
+    END;
+    $function$
+    """,
+)
 
 work_package_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
@@ -109,22 +144,80 @@ project_work_package_view = PGView(
         pwp.params,
         array_agg(DISTINCT rwt.alias)::character varying(50)[] AS type_list,
         count(DISTINCT wi.project_work_item_id) AS work_item_count,
-        round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'ARCHITECTURE'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS architectural_credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'DEVELOPMENT'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS development_credits,
-        round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'OPERATION'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2) AS operation_credits,
-        round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric * 30.0, 2) AS upfront_cost,
-        0::numeric AS monthly_cost,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+        END AS credits,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_ar_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'ARCHITECTURE'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+        END AS architectural_credits,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_de_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'DEVELOPMENT'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+        END AS development_credits,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_op_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits) FILTER (WHERE upper(wi.type::text) = 'OPERATION'::text), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric, 2)
+        END AS operation_credits,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round((COALESCE(wp_base.total_ar_credits, 0::numeric) + COALESCE(wp_base.total_de_credits, 0::numeric)) * COALESCE(pwp.quantity, 1)::numeric * 100.0, 2)
+            ELSE round(COALESCE(sum(wi.calculated_credits), 0::numeric) * COALESCE(pwp.quantity, 1)::numeric * 100.0, 2)
+        END AS upfront_cost,
+        CASE
+            WHEN wp_base.method_calculated = 'WORKPACKAGE' THEN round(COALESCE(wp_base.total_op_credits, 0::numeric) * COALESCE(pwp.quantity, 1)::numeric * 100.0, 2)
+            ELSE 0::numeric
+        END AS monthly_cost,
         COALESCE(sum(dc.deliverable_count), 0::numeric) AS total_deliverables,
         pwp.status AS status_wp
     FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
         JOIN {config.RFX_CLIENT_SCHEMA}.project p ON p._id = pwp.project_id
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.work_package wp_base ON wp_base._id = pwp.work_package_id AND wp_base._deleted IS NULL
         LEFT JOIN work_items wi ON wi.project_work_package_id = pwp._id
         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi_join ON wi.project_work_item_id = pwi_join._id
         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rwt ON pwi_join.type::text = rwt.key::text
         LEFT JOIN deliverable_counts dc ON dc.project_work_item_id = wi.project_work_item_id
     WHERE pwp._deleted IS NULL
-    GROUP BY pwp._id, pwp.project_id, pwp.work_package_id, pwp.quantity, pwp.work_package_name, pwp.work_package_is_custom, pwp.work_package_estimate, p.status;
+    GROUP BY pwp._id, pwp.project_id, pwp.work_package_id, pwp.quantity, pwp.work_package_name, pwp.work_package_is_custom, pwp.work_package_estimate, p.status, wp_base.method_calculated, wp_base.total_credits, wp_base.total_ar_credits, wp_base.total_de_credits, wp_base.total_op_credits;
+    """,
+)
+
+project_work_package_relationship_view = PGView(
+    schema=config.RFX_CLIENT_SCHEMA,
+    signature="_project_work_package_relationship",
+    definition=f"""
+    SELECT pwpr._id,
+        pwpr._created,
+        pwpr._updated,
+        pwpr._creator,
+        pwpr._updater,
+        pwpr._deleted,
+        pwpr._etag,
+        pwpr._realm,
+        pwpr.project_work_package_id,
+        pwpr.schema_relation,
+        pwpr.resource_name,
+        pwpr.resource_id,
+        pwp.project_id,
+        pwp.work_package_id,
+        pwp.quantity,
+        pwp.status AS project_work_package_status,
+        pwp.work_package_name AS project_work_package_name,
+        p.name AS project_name,
+        wp.work_package_name AS work_package_name,
+        res.resource_data
+    FROM {config.RFX_CLIENT_SCHEMA}.project_work_package_relationship pwpr
+        JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package pwp ON pwp._id = pwpr.project_work_package_id AND pwp._deleted IS NULL
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project p ON p._id = pwp.project_id AND p._deleted IS NULL
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.work_package wp ON wp._id = pwp.work_package_id AND wp._deleted IS NULL
+        LEFT JOIN LATERAL (
+            SELECT {config.RFX_CLIENT_SCHEMA}.fn_get_resource_json(
+                COALESCE(NULLIF(trim(pwpr.schema_relation), ''), '{config.RFX_CLIENT_SCHEMA}'),
+                pwpr.resource_name,
+                pwpr.resource_id
+            ) AS resource_data
+        ) res ON TRUE
+    WHERE pwpr._deleted IS NULL;
     """,
 )
 

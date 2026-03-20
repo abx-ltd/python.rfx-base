@@ -590,7 +590,7 @@ class SendUserAction(Command):
             raise ValueError(f"Unsupported action type {payload.action_type}")
 
         await notify_service.send(
-            "rfx-notify:send-notification",
+            f"{config.NOTIFY_NAMESPACE}:send-notification",
             command="send-notification",
             resource="notification",
             payload={
@@ -858,6 +858,52 @@ class CreateProfile(Command):
             "role_keys": role_keys
         })
 
+        # Send welcome email
+        if data.get("realm"):
+            context = agg.get_context()
+            notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+
+            if notify_service:
+                target_realm = data.get("realm")
+                base_url = userconf.REALM_URL_MAPPER.get(target_realm, "/") if target_realm and userconf.REALM_URL_MAPPER else "/"
+                action_link = base_url
+
+                # Extract company name from realm (e.g. "triptech" from "app.triptech.vn")
+                realm_parts = target_realm.split('.') if target_realm else []
+                company_name = realm_parts[1].capitalize() if len(realm_parts) > 1 else (target_realm or "Our Company")
+
+                try:
+                    await notify_service.send(
+                        f"{config.NOTIFY_NAMESPACE}:send-notification",
+                        command="send-notification",
+                        resource="notification",
+                        payload={
+                            "channel": "EMAIL",
+                            "recipients": [data.get("telecom__email")],
+                            "template_key": "create-user-email",
+                            "content_type": "HTML",
+                            "template_data": {
+                                "user_name": f"{data.get('name__given') or ''} {data.get('name__family') or ''}".strip() or data.get('username') or "User",
+                                "username": data.get("username") or data.get("telecom__email"),
+                                "action_link": action_link,
+                                "company": company_name,
+                            },
+                        },
+                        identifier=UUID_GENR(),
+                        _headers={},
+                        _context={
+                            "audit": {
+                                "user_id": str(context.user_id) if context.user_id else None,
+                                "profile_id": str(context.profile_id) if context.profile_id else None,
+                                "organization_id": str(context.organization_id) if context.organization_id else None,
+                                "realm": context.realm,
+                            },
+                            "source": "rfx-idm",
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send welcome email for profile {profile_id}: {e}")
+
         yield agg.create_response(serialize_mapping(profile), _type="idm-response")
 
 
@@ -935,6 +981,52 @@ class CreateProfileInOrg(Command):
         except Exception as e:
             # Re-raise to trigger transaction rollback
             raise ValueError(f"Failed to assign roles to profile: {str(e)}")
+
+        # Send welcome email
+        if profile_data.get("realm"):
+            context = agg.get_context()
+            notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+
+            if notify_service:
+                target_realm = profile_data.get("realm")
+                base_url = userconf.REALM_URL_MAPPER.get(target_realm, "/") if target_realm and userconf.REALM_URL_MAPPER else "/"
+                action_link = base_url
+
+                # Extract company name from realm
+                realm_parts = target_realm.split('.') if target_realm else []
+                company_name = realm_parts[1].capitalize() if len(realm_parts) > 1 else (target_realm or "Our Company")
+
+                try:
+                    await notify_service.send(
+                        f"{config.NOTIFY_NAMESPACE}:send-notification",
+                        command="send-notification",
+                        resource="notification",
+                        payload={
+                            "channel": "EMAIL",
+                            "recipients": [profile_data.get("telecom__email")],
+                            "template_key": "create-user-email",
+                            "content_type": "HTML",
+                            "template_data": {
+                                "user_name": f"{profile_data.get('name__given') or ''} {profile_data.get('name__family') or ''}".strip() or profile_data.get('username') or "User",
+                                "username": profile_data.get("username") or profile_data.get("telecom__email"),
+                                "action_link": action_link,
+                                "company": company_name,
+                            },
+                        },
+                        identifier=UUID_GENR(),
+                        _headers={},
+                        _context={
+                            "audit": {
+                                "user_id": str(context.user_id) if context.user_id else None,
+                                "profile_id": str(context.profile_id) if context.profile_id else None,
+                                "organization_id": str(context.organization_id) if context.organization_id else None,
+                                "realm": context.realm,
+                            },
+                            "source": "rfx-idm",
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send welcome email for profile {result.get('profile_id')}: {e}")
 
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
