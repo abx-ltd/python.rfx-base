@@ -94,8 +94,56 @@ entry_view = PGView(
     definition=f"""
     SELECT
         e.*,
-        COALESCE(SUBSTRING(e.path FROM '(.*)/'), '') AS parent_path
+        COALESCE(SUBSTRING(e.path FROM '(.*)/'), '') AS parent_path,
+        COALESCE(
+            (
+                SELECT json_agg(
+                    json_build_object(
+                        '_id',    t._id,
+                        'name',  t.name,
+                        'color', t.color,
+                        'icon',  t.icon
+                    )
+                    ORDER BY t.name
+                )
+                FROM "{config.RFX_DOCUMENT_SCHEMA}".entry_tag et
+                JOIN "{config.RFX_DOCUMENT_SCHEMA}".tag         t  ON t._id = et.tag_id
+                                                                   AND t._deleted IS NULL
+                WHERE et.entry_id = e._id
+            ),
+            '[]'::json
+        ) AS tags
     FROM "{config.RFX_DOCUMENT_SCHEMA}".entry e;
+    """
+)
+
+tag_view = PGView(
+    schema=config.RFX_DOCUMENT_SCHEMA,
+    signature="_tag",
+    definition=f"""
+    SELECT
+        t.*,
+        COALESCE(
+            (
+                SELECT json_agg(
+                    json_build_object(
+                        '_id',        e._id,
+                        'name',       e.name,
+                        'path',       e.path,
+                        'type',       e.type,
+                        'cabinet_id', e.cabinet_id
+                    )
+                    ORDER BY e.path
+                )
+                FROM "{config.RFX_DOCUMENT_SCHEMA}".entry_tag et
+                JOIN "{config.RFX_DOCUMENT_SCHEMA}".entry      e  ON e._id = et.entry_id
+                                                                  AND e._deleted IS NULL
+                WHERE et.tag_id = t._id
+            ),
+            '[]'::json
+        ) AS entries
+    FROM "{config.RFX_DOCUMENT_SCHEMA}".tag t
+    WHERE t._deleted IS NULL;
     """
 )
 
@@ -110,6 +158,7 @@ def register_pg_entities(allow):
         category_view,
         cabinet_view,
         entry_view,
+        tag_view,
     ])
 
 

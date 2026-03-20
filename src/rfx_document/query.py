@@ -2,7 +2,13 @@ from typing import Optional
 
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource
-from fluvius.query.field import PrimaryID, StringField, UUIDField, IntegerField
+from fluvius.query.field import (
+    PrimaryID,
+    StringField,
+    UUIDField,
+    IntegerField,
+    JSONField,
+)
 
 from .domain import RFXDocumentDomain
 from .state import RFXDocumentStateManager
@@ -167,3 +173,36 @@ class EntryQuery(DomainQueryResource):
     author: Optional[str] = StringField("Author")
 
     parent_path: Optional[str] = StringField("Parent Path")
+
+    # Aggregated from entry_tag JOIN tag in _entry view
+    tags: Optional[list] = JSONField("Tags", default=None)
+
+
+@resource("tag")
+class TagQuery(DomainQueryResource):
+    """Tag queries — globally shared tags, each exposes a list of entries."""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "tag"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_tag"
+        scope_required = scope.TagScopeSchema
+
+    @classmethod
+    def base_query(cls, context, scope_data):
+        query = {}
+        if (cabinet_id := scope_data.get("cabinet_id")) is not None:
+            query["cabinet_id"] = cabinet_id
+        return query
+
+    id: UUID_TYPE = PrimaryID("Tag ID")
+    name: str = StringField("Name")
+    color: Optional[str] = StringField("Color")
+    icon: Optional[str] = StringField("Icon")
+
+    # Aggregated from entry_tag JOIN entry in _tag view
+    entries: Optional[list] = JSONField("Entries", default=None)

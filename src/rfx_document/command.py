@@ -53,6 +53,51 @@ class RemoveRealm(Command):
         await agg.remove_realm()
 
 
+class CreateRealmMeta(Command):
+    """Create a realm meta."""
+
+    Data = datadef.CreateRealmMetaPayload
+
+    class Meta:
+        key = "create-realm-meta"
+        resources = ("realm",)
+        tags = ["document", "create", "realm-meta"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.create_realm_meta(payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class UpdateRealmMeta(Command):
+    """Update a realm meta."""
+
+    Data = datadef.UpdateRealmMetaPayload
+
+    class Meta:
+        key = "update-realm-meta"
+        resources = ("realm_meta",)
+        tags = ["document", "update", "realm_meta"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.update_realm_meta(payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class RemoveRealmMeta(Command):
+    """Remove a realm meta."""
+
+    class Meta:
+        key = "remove-realm-meta"
+        resources = ("realm_meta",)
+        tags = ["document", "remove", "realm_meta"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.remove_realm_meta()
+
+
 class CreateShelf(Command):
     """Create a shelf."""
 
@@ -87,6 +132,7 @@ class UpdateShelf(Command):
 
 class RemoveShelf(Command):
     """Remove a shelf."""
+
     class Meta:
         key = "remove-shelf"
         resources = ("shelf",)
@@ -202,6 +248,7 @@ class CreateEntry(Command):
         result = await agg.create_entry(payload)
         yield agg.create_response(serialize_mapping(result), _type="document-response")
 
+
 class UpdateEntry(Command):
     """Update an entry."""
 
@@ -217,6 +264,7 @@ class UpdateEntry(Command):
         result = await agg.update_entry(payload)
         yield agg.create_response(serialize_mapping(result), _type="document-response")
 
+
 class RemoveEntry(Command):
     """Remove an entry."""
 
@@ -228,3 +276,90 @@ class RemoveEntry(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.remove_entry()
+
+
+# =============================================================================
+# TAG COMMANDS — globally shared tag CRUD
+# =============================================================================
+
+
+class CreateTag(Command):
+    """Create a new globally-shared tag."""
+
+    Data = datadef.CreateTagPayload
+
+    class Meta:
+        key = "create-tag"
+        resources = ("tag",)
+        tags = ["document", "create", "tag"]
+        auth_required = True
+        resource_init = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.create_tag(payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class UpdateTag(Command):
+    """Update an existing tag."""
+
+    Data = datadef.UpdateTagPayload
+
+    class Meta:
+        key = "update-tag"
+        resources = ("tag",)
+        tags = ["document", "update", "tag"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.update_tag(payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class RemoveTag(Command):
+    """Remove a tag."""
+
+    class Meta:
+        key = "remove-tag"
+        resources = ("tag",)
+        tags = ["document", "remove", "tag"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.remove_tag()
+
+
+# =============================================================================
+# ENTRY TAG COMMANDS — M:N via entry_tag junction
+# =============================================================================
+
+
+class AddEntryTag(Command):
+    """Attach a tag to an entry."""
+
+    Data = datadef.AddEntryTagPayload
+
+    class Meta:
+        key = "add-entry-tag"
+        resources = ("entry",)
+        tags = ["document", "entry", "tag"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.add_entry_tag(payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+
+class RemoveEntryTag(Command):
+    """Detach a tag from an entry."""
+
+    Data = datadef.RemoveEntryTagPayload
+
+    class Meta:
+        key = "remove-entry-tag"
+        resources = ("entry",)
+        tags = ["document", "entry", "tag"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.remove_entry_tag(payload)
