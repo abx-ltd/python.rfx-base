@@ -8,21 +8,21 @@ from .._meta import config as schema_config, logger
 from rfx_base import config
 
 
-class RFXDocumentConnector(SqlaDriver):
+class RFXDocmanConnector(SqlaDriver):
     __db_dsn__ = schema_config.DB_DSN
-    __schema__ = config.RFX_DOCUMENT_SCHEMA
+    __schema__ = config.RFX_DOCMAN_SCHEMA
 
 
-class Base(RFXDocumentConnector.__data_schema_base__, DomainSchema):
+class Base(RFXDocmanConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
-    __table_args__ = {"schema": config.RFX_DOCUMENT_SCHEMA}
+    __table_args__ = {"schema": config.RFX_DOCMAN_SCHEMA}
 
 
 class TableBase(Base):
     __abstract__ = True
 
 
-SCHEMA = config.RFX_DOCUMENT_SCHEMA
+SCHEMA = config.RFX_DOCMAN_SCHEMA
 
 # Ensure ORM schemas and view maps register when module loads.
 from . import _schema  # noqa: F401

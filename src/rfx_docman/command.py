@@ -1,10 +1,10 @@
 from fluvius.data import serialize_mapping
 
-from .domain import RFXDocumentDomain
+from .domain import RFXDocmanDomain
 from . import datadef
 
-processor = RFXDocumentDomain.command_processor
-Command = RFXDocumentDomain.Command
+processor = RFXDocmanDomain.command_processor
+Command = RFXDocmanDomain.Command
 
 
 class CreateRealm(Command):
@@ -15,13 +15,13 @@ class CreateRealm(Command):
     class Meta:
         key = "create-realm"
         resources = ("realm",)
-        tags = ["document", "create", "realm"]
+        tags = ["docman", "create", "realm"]
         auth_required = True
         resource_init = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_realm(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class UpdateRealm(Command):
@@ -32,12 +32,12 @@ class UpdateRealm(Command):
     class Meta:
         key = "update-realm"
         resources = ("realm",)
-        tags = ["document", "update", "realm"]
+        tags = ["docman", "update", "realm"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_realm(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class RemoveRealm(Command):
@@ -46,7 +46,7 @@ class RemoveRealm(Command):
     class Meta:
         key = "remove-realm"
         resources = ("realm",)
-        tags = ["document", "remove", "realm"]
+        tags = ["docman", "remove", "realm"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -61,12 +61,12 @@ class CreateRealmMeta(Command):
     class Meta:
         key = "create-realm-meta"
         resources = ("realm",)
-        tags = ["document", "create", "realm-meta"]
+        tags = ["docman", "create", "realm-meta"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_realm_meta(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class UpdateRealmMeta(Command):
@@ -77,12 +77,12 @@ class UpdateRealmMeta(Command):
     class Meta:
         key = "update-realm-meta"
         resources = ("realm_meta",)
-        tags = ["document", "update", "realm_meta"]
+        tags = ["docman", "update", "realm_meta"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_realm_meta(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class RemoveRealmMeta(Command):
@@ -91,7 +91,7 @@ class RemoveRealmMeta(Command):
     class Meta:
         key = "remove-realm-meta"
         resources = ("realm_meta",)
-        tags = ["document", "remove", "realm_meta"]
+        tags = ["docman", "remove", "realm_meta"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -106,12 +106,12 @@ class CreateShelf(Command):
     class Meta:
         key = "create-shelf"
         resources = ("realm",)
-        tags = ["document", "create", "shelf"]
+        tags = ["docman", "create", "shelf"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_shelf(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class UpdateShelf(Command):
@@ -122,12 +122,12 @@ class UpdateShelf(Command):
     class Meta:
         key = "update-shelf"
         resources = ("shelf",)
-        tags = ["document", "update", "shelf"]
+        tags = ["docman", "update", "shelf"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_shelf(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class RemoveShelf(Command):
@@ -136,7 +136,7 @@ class RemoveShelf(Command):
     class Meta:
         key = "remove-shelf"
         resources = ("shelf",)
-        tags = ["document", "remove", "shelf"]
+        tags = ["docman", "remove", "shelf"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -151,12 +151,12 @@ class CreateCategory(Command):
     class Meta:
         key = "create-category"
         resources = ("shelf",)
-        tags = ["document", "create", "category"]
+        tags = ["docman", "create", "category"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_category(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class UpdateCategory(Command):
@@ -167,12 +167,12 @@ class UpdateCategory(Command):
     class Meta:
         key = "update-category"
         resources = ("category",)
-        tags = ["document", "update", "category"]
+        tags = ["docman", "update", "category"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_category(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class RemoveCategory(Command):
@@ -181,7 +181,7 @@ class RemoveCategory(Command):
     class Meta:
         key = "remove-category"
         resources = ("category",)
-        tags = ["document", "remove", "category"]
+        tags = ["docman", "remove", "category"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -196,12 +196,12 @@ class CreateCabinet(Command):
     class Meta:
         key = "create-cabinet"
         resources = ("category",)
-        tags = ["document", "create", "cabinet"]
+        tags = ["docman", "create", "cabinet"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_cabinet(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class UpdateCabinet(Command):
@@ -212,12 +212,12 @@ class UpdateCabinet(Command):
     class Meta:
         key = "update-cabinet"
         resources = ("cabinet",)
-        tags = ["document", "update", "cabinet"]
+        tags = ["docman", "update", "cabinet"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_cabinet(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class RemoveCabinet(Command):
@@ -226,7 +226,7 @@ class RemoveCabinet(Command):
     class Meta:
         key = "remove-cabinet"
         resources = ("cabinet",)
-        tags = ["document", "remove", "cabinet"]
+        tags = ["docman", "remove", "cabinet"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -241,12 +241,12 @@ class CreateEntry(Command):
     class Meta:
         key = "create-entry"
         resources = ("cabinet",)
-        tags = ["document", "entry", "create"]
+        tags = ["docman", "entry", "create"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_entry(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class UpdateEntry(Command):
@@ -257,12 +257,12 @@ class UpdateEntry(Command):
     class Meta:
         key = "update-entry"
         resources = ("entry",)
-        tags = ["document", "update", "entry"]
+        tags = ["docman", "update", "entry"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_entry(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class RemoveEntry(Command):
@@ -271,7 +271,7 @@ class RemoveEntry(Command):
     class Meta:
         key = "remove-entry"
         resources = ("entry",)
-        tags = ["document", "remove", "entry"]
+        tags = ["docman", "remove", "entry"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -291,13 +291,13 @@ class CreateTag(Command):
     class Meta:
         key = "create-tag"
         resources = ("tag",)
-        tags = ["document", "create", "tag"]
+        tags = ["docman", "create", "tag"]
         auth_required = True
         resource_init = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_tag(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class UpdateTag(Command):
@@ -308,12 +308,12 @@ class UpdateTag(Command):
     class Meta:
         key = "update-tag"
         resources = ("tag",)
-        tags = ["document", "update", "tag"]
+        tags = ["docman", "update", "tag"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_tag(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class RemoveTag(Command):
@@ -322,7 +322,7 @@ class RemoveTag(Command):
     class Meta:
         key = "remove-tag"
         resources = ("tag",)
-        tags = ["document", "remove", "tag"]
+        tags = ["docman", "remove", "tag"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -342,12 +342,12 @@ class AddEntryTag(Command):
     class Meta:
         key = "add-entry-tag"
         resources = ("entry",)
-        tags = ["document", "entry", "tag"]
+        tags = ["docman", "entry", "tag"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.add_entry_tag(payload)
-        yield agg.create_response(serialize_mapping(result), _type="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="docman-response")
 
 
 class RemoveEntryTag(Command):
@@ -358,7 +358,7 @@ class RemoveEntryTag(Command):
     class Meta:
         key = "remove-entry-tag"
         resources = ("entry",)
-        tags = ["document", "entry", "tag"]
+        tags = ["docman", "entry", "tag"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):

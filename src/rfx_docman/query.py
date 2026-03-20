@@ -10,21 +10,21 @@ from fluvius.query.field import (
     JSONField,
 )
 
-from .domain import RFXDocumentDomain
-from .state import RFXDocumentStateManager
+from .domain import RFXDocmanDomain
+from .state import RFXDocmanStateManager
 from . import scope
 
 
-class RFXDocumentQueryManager(DomainQueryManager):
-    __data_manager__ = RFXDocumentStateManager
+class RFXDocmanQueryManager(DomainQueryManager):
+    __data_manager__ = RFXDocmanStateManager
 
     class Meta(DomainQueryManager.Meta):
-        prefix = RFXDocumentDomain.Meta.namespace
-        tags = RFXDocumentDomain.Meta.tags
+        prefix = RFXDocmanDomain.Meta.namespace
+        tags = RFXDocmanDomain.Meta.tags
 
 
-resource = RFXDocumentQueryManager.register_resource
-endpoint = RFXDocumentQueryManager.register_endpoint
+resource = RFXDocmanQueryManager.register_resource
+endpoint = RFXDocmanQueryManager.register_endpoint
 
 
 @resource("realm")

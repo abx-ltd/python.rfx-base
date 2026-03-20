@@ -1,11 +1,5 @@
 """
 Tag ORM Model
-=============
-
-Globally-scoped reusable tags. Tags are NOT scoped per realm — they are shared
-across the entire document system and applied to entries via the entry_tag junction.
-
-Unique constraint: name — tag name is globally unique.
 """
 
 from __future__ import annotations

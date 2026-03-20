@@ -9,8 +9,8 @@ def _clean_updates(data: dict) -> dict[str, Any]:
     return {k: v for k, v in data.items() if v is not None}
 
 
-class RFXDocumentAggregate(Aggregate):
-    """Document Aggregate - CRUD operations for document items."""
+class RFXDocmanAggregate(Aggregate):
+    """Docman Aggregate - CRUD operations for document items."""
 
     @action("realm-created", resources="realm")
     async def create_realm(self, /, data):

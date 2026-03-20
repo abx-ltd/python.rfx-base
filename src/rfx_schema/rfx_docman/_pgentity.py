@@ -7,89 +7,89 @@ from alembic_utils.pg_view import PGView
 from alembic_utils.replaceable_entity import register_entities
 
 shelf_view = PGView(
-    schema=config.RFX_DOCUMENT_SCHEMA,
+    schema=config.RFX_DOCMAN_SCHEMA,
     signature="_shelf",
     definition=f"""
     SELECT
         s.*,
         (
             SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCUMENT_SCHEMA}".category c
+            FROM "{config.RFX_DOCMAN_SCHEMA}".category c
             WHERE c.shelf_id = s._id AND c._deleted IS NULL
         ) AS category_count,
         (
             SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCUMENT_SCHEMA}".cabinet cb
+            FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
             WHERE cb.realm_id = s.realm_id 
               AND cb._deleted IS NULL
               AND cb.category_id IN (
                   SELECT c2._id 
-                  FROM "{config.RFX_DOCUMENT_SCHEMA}".category c2 
+                  FROM "{config.RFX_DOCMAN_SCHEMA}".category c2 
                   WHERE c2.shelf_id = s._id AND c2._deleted IS NULL
               )
         ) AS cabinet_count,
         (
             SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCUMENT_SCHEMA}".entry e
+            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
             WHERE e._deleted IS NULL
               AND e.cabinet_id IN (
                   SELECT cb2._id
-                  FROM "{config.RFX_DOCUMENT_SCHEMA}".cabinet cb2
+                  FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
                   WHERE cb2.realm_id = s.realm_id
                     AND cb2._deleted IS NULL
                     AND cb2.category_id IN (
                         SELECT c3._id
-                        FROM "{config.RFX_DOCUMENT_SCHEMA}".category c3
+                        FROM "{config.RFX_DOCMAN_SCHEMA}".category c3
                         WHERE c3.shelf_id = s._id AND c3._deleted IS NULL
                     )
               )
         ) AS entry_count
-    FROM "{config.RFX_DOCUMENT_SCHEMA}".shelf s;
+    FROM "{config.RFX_DOCMAN_SCHEMA}".shelf s;
     """
 )
 
 category_view = PGView(
-    schema=config.RFX_DOCUMENT_SCHEMA,
+    schema=config.RFX_DOCMAN_SCHEMA,
     signature="_category",
     definition=f"""
     SELECT
         c.*,
         (
             SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCUMENT_SCHEMA}".cabinet cb
+            FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
             WHERE cb.category_id = c._id AND cb._deleted IS NULL
         ) AS cabinet_count,
         (
             SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCUMENT_SCHEMA}".entry e
+            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
             WHERE e._deleted IS NULL
               AND e.cabinet_id IN (
                   SELECT cb2._id
-                  FROM "{config.RFX_DOCUMENT_SCHEMA}".cabinet cb2
+                  FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
                   WHERE cb2.category_id = c._id AND cb2._deleted IS NULL
               )
         ) AS entry_count
-    FROM "{config.RFX_DOCUMENT_SCHEMA}".category c;
+    FROM "{config.RFX_DOCMAN_SCHEMA}".category c;
     """
 )
 
 cabinet_view = PGView(
-    schema=config.RFX_DOCUMENT_SCHEMA,
+    schema=config.RFX_DOCMAN_SCHEMA,
     signature="_cabinet",
     definition=f"""
     SELECT
         cb.*,
         (
             SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCUMENT_SCHEMA}".entry e
+            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
             WHERE e.cabinet_id = cb._id AND e._deleted IS NULL
         ) AS entry_count
-    FROM "{config.RFX_DOCUMENT_SCHEMA}".cabinet cb;
+    FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb;
     """
 )
 
 entry_view = PGView(
-    schema=config.RFX_DOCUMENT_SCHEMA,
+    schema=config.RFX_DOCMAN_SCHEMA,
     signature="_entry",
     definition=f"""
     SELECT
@@ -106,19 +106,19 @@ entry_view = PGView(
                     )
                     ORDER BY t.name
                 )
-                FROM "{config.RFX_DOCUMENT_SCHEMA}".entry_tag et
-                JOIN "{config.RFX_DOCUMENT_SCHEMA}".tag         t  ON t._id = et.tag_id
+                FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
+                JOIN "{config.RFX_DOCMAN_SCHEMA}".tag         t  ON t._id = et.tag_id
                                                                    AND t._deleted IS NULL
                 WHERE et.entry_id = e._id
             ),
             '[]'::json
         ) AS tags
-    FROM "{config.RFX_DOCUMENT_SCHEMA}".entry e;
+    FROM "{config.RFX_DOCMAN_SCHEMA}".entry e;
     """
 )
 
 tag_view = PGView(
-    schema=config.RFX_DOCUMENT_SCHEMA,
+    schema=config.RFX_DOCMAN_SCHEMA,
     signature="_tag",
     definition=f"""
     SELECT
@@ -135,14 +135,14 @@ tag_view = PGView(
                     )
                     ORDER BY e.path
                 )
-                FROM "{config.RFX_DOCUMENT_SCHEMA}".entry_tag et
-                JOIN "{config.RFX_DOCUMENT_SCHEMA}".entry      e  ON e._id = et.entry_id
+                FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
+                JOIN "{config.RFX_DOCMAN_SCHEMA}".entry      e  ON e._id = et.entry_id
                                                                   AND e._deleted IS NULL
                 WHERE et.tag_id = t._id
             ),
             '[]'::json
         ) AS entries
-    FROM "{config.RFX_DOCUMENT_SCHEMA}".tag t
+    FROM "{config.RFX_DOCMAN_SCHEMA}".tag t
     WHERE t._deleted IS NULL;
     """
 )
@@ -151,7 +151,7 @@ tag_view = PGView(
 def register_pg_entities(allow):
     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
     if not allow_flag:
-        logger.info('REGISTER_PG_ENTITIES for rfx_document is disabled or not set.')
+        logger.info('REGISTER_PG_ENTITIES for rfx_docman is disabled or not set.')
         return
     register_entities([
         shelf_view,

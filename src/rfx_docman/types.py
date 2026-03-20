@@ -1,7 +1,7 @@
 """
-RFX Document Type Definitions
+RFX Docman Type Definitions
 =============================
-Enums and type definitions for the document system.
+Enums and type definitions for the docman system.
 """
 
 from enum import Enum

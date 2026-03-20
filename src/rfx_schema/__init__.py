@@ -19,7 +19,7 @@ from .rfx_discuss import RFXDiscussConnector
 from .rfx_qr import RFXQRConnector
 from .rfx_todo import RFXTodoConnector
 from .rfx_template import RFXTemplateConnector
-from .rfx_document import RFXDocumentConnector
+from .rfx_docman import RFXDocmanConnector
 
 DOMAIN_CONNECTORS = {
     "user": IDMConnector,
@@ -32,5 +32,5 @@ DOMAIN_CONNECTORS = {
     "qr": RFXQRConnector,
     "todo": RFXTodoConnector,
     "template": RFXTemplateConnector,
-    "document": RFXDocumentConnector
+    "docman": RFXDocmanConnector,
 }
