@@ -126,23 +126,19 @@ INSERT INTO rfx_template.template (
                     <span class="credential-label">Username:</span>
                     <span class="credential-value">{{ username }}</span>
                 </div>
-                <div class="credential-item">
-                    <span class="credential-label">Password:</span>
-                    <span class="credential-value">{{ password }}</span>
-                </div>
             </div>
 
             <p>To get started, please click the button below to go to your realm:</p>
 
             <div class="button-wrapper">
-                <a href="{{ action_link }}" class="button">Go to Realm</a>
+                <a href="{{ action_link }}" class="button">Go to system</a>
             </div>
 
             <p>If you have any questions, please don't hesitate to reach out to our support team.</p>
         </div>
         <div class="footer">
             <p>This is an automated message. Please do not reply directly to this email.</p>
-            <p>&copy; 2026 Adaptive Bits. All rights reserved.</p>
+            <p>&copy; 2026 {{ company }}. All rights reserved.</p>
         </div>
     </div>
 </body>
