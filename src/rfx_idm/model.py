@@ -1,1 +1,1 @@
-from rfx_user.model import IDMConnector
+from rfx_schema.rfx_user import RFXUserConnector as IDMConnector

@@ -5,7 +5,7 @@ Commands for the RFX notification domain.
 from fluvius.data import serialize_mapping
 
 from .domain import NotifyServiceDomain
-from . import datadef, logger
+from . import datadef, logger, config
 from .types import NotificationChannelEnum
 from rfx_user import config as userconf
 
@@ -55,7 +55,7 @@ class SendNotification(Command):
 
                 # Render template via rfx-template domain
                 context = agg.get_context()
-                template_client = getattr(context.service_proxy, userconf.SERVICE_CLIENT, None)
+                template_client = getattr(context.service_proxy, config.TEMPLATE_CLIENT, None)
                 if not template_client:
                     raise RuntimeError("Template service not found")
 

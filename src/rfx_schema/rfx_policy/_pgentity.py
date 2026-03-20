@@ -1,13 +1,12 @@
-# import os
-# from rfx_schema import logger
-# from rfx_base import config
+from . import SCHEMA, domain_config
+
 
 # from alembic_utils.pg_view import PGView
 # from alembic_utils.replaceable_entity import register_entities
 
 
 # policy_user_profile_view = PGView(
-#     schema=config.RFX_POLICY_SCHEMA,
+#     schema=schema_config.RFX_POLICY_SCHEMA,
 #     signature="_policy__user_profile",
 #     definition=f"""
 # SELECT uuid_generate_v4() AS _id,
@@ -22,8 +21,8 @@
 #     pol_res.cqrs::character varying(255) AS cqrs,
 #     concat_ws(''::text, pol_res.meta)::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_POLICY_SCHEMA}.policy_role pol_rol
-#      JOIN {config.RFX_POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
+#    FROM {schema_config.RFX_POLICY_SCHEMA}.policy_role pol_rol
+#      JOIN {schema_config.RFX_POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
 #   WHERE pol_res.domain::text = ANY (ARRAY['user-profile'::text, '*'::text])
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -38,8 +37,8 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.profile
-#      JOIN {config.RFX_USER_SCHEMA}.profile_role pro_rol ON profile._id = pro_rol.profile_id
+#    FROM {schema_config.RFX_USER_SCHEMA}.profile
+#      JOIN {schema_config.RFX_USER_SCHEMA}.profile_role pro_rol ON profile._id = pro_rol.profile_id
 #   WHERE pro_rol._deleted IS NULL
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -54,7 +53,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.organization
+#    FROM {schema_config.RFX_USER_SCHEMA}.organization
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
 #     'g2'::character varying(255) AS ptype,
@@ -68,7 +67,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.invitation
+#    FROM {schema_config.RFX_USER_SCHEMA}.invitation
 #   WHERE invitation.organization_id IS NOT NULL
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -83,7 +82,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.profile
+#    FROM {schema_config.RFX_USER_SCHEMA}.profile
 #   WHERE profile.organization_id IS NOT NULL
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -98,7 +97,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.profile
+#    FROM {schema_config.RFX_USER_SCHEMA}.profile
 #   WHERE profile.organization_id IS NOT NULL AND profile.user_id IS NOT NULL
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -113,7 +112,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}."group"
+#    FROM {schema_config.RFX_USER_SCHEMA}."group"
 #   WHERE "group".resource_id IS NOT NULL AND "group".resource::text = 'organization'::text
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -128,7 +127,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}."user"
+#    FROM {schema_config.RFX_USER_SCHEMA}."user"
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
 #     'g3'::character varying(255) AS ptype,
@@ -142,7 +141,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}."user"
+#    FROM {schema_config.RFX_USER_SCHEMA}."user"
 #   WHERE "user".is_super_admin IS TRUE
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -157,7 +156,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}."user"
+#    FROM {schema_config.RFX_USER_SCHEMA}."user"
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
 #     'g4'::character varying(255) AS ptype,
@@ -171,12 +170,12 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.profile;
+#    FROM {schema_config.RFX_USER_SCHEMA}.profile;
 #      """
 # )
 
 # policy_idm_profile_view = PGView(
-#     schema=config.RFX_POLICY_SCHEMA,
+#     schema=schema_config.RFX_POLICY_SCHEMA,
 #     signature="_policy__idm_profile",
 #     definition=f"""
 # SELECT uuid_generate_v4() AS _id,
@@ -191,8 +190,8 @@
 #     pol_res.cqrs::character varying(255) AS cqrs,
 #     concat_ws(''::text, pol_res.meta)::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_POLICY_SCHEMA}.policy_role pol_rol
-#      JOIN {config.RFX_POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
+#    FROM {schema_config.RFX_POLICY_SCHEMA}.policy_role pol_rol
+#      JOIN {schema_config.RFX_POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
 #   WHERE pol_res.domain::text = ANY (ARRAY['user-profile'::text, '*'::text])
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -207,8 +206,8 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.profile
-#      JOIN {config.RFX_USER_SCHEMA}.profile_role pro_rol ON profile._id = pro_rol.profile_id
+#    FROM {schema_config.RFX_USER_SCHEMA}.profile
+#      JOIN {schema_config.RFX_USER_SCHEMA}.profile_role pro_rol ON profile._id = pro_rol.profile_id
 #   WHERE pro_rol._deleted IS NULL
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -223,7 +222,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.organization
+#    FROM {schema_config.RFX_USER_SCHEMA}.organization
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
 #     'g2'::character varying(255) AS ptype,
@@ -237,7 +236,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.invitation
+#    FROM {schema_config.RFX_USER_SCHEMA}.invitation
 #   WHERE invitation.organization_id IS NOT NULL
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -252,7 +251,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.profile
+#    FROM {schema_config.RFX_USER_SCHEMA}.profile
 #   WHERE profile.organization_id IS NOT NULL
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -267,7 +266,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.profile
+#    FROM {schema_config.RFX_USER_SCHEMA}.profile
 #   WHERE profile.organization_id IS NOT NULL AND profile.user_id IS NOT NULL
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -282,7 +281,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}."group"
+#    FROM {schema_config.RFX_USER_SCHEMA}."group"
 #   WHERE "group".resource_id IS NOT NULL AND "group".resource::text = 'organization'::text
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -297,7 +296,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}."user"
+#    FROM {schema_config.RFX_USER_SCHEMA}."user"
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
 #     'g3'::character varying(255) AS ptype,
@@ -311,7 +310,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}."user"
+#    FROM {schema_config.RFX_USER_SCHEMA}."user"
 #   WHERE "user".is_super_admin IS TRUE
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
@@ -326,7 +325,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}."user"
+#    FROM {schema_config.RFX_USER_SCHEMA}."user"
 # UNION ALL
 #  SELECT uuid_generate_v4() AS _id,
 #     'g4'::character varying(255) AS ptype,
@@ -340,7 +339,7 @@
 #     NULL::character varying(255) AS cqrs,
 #     NULL::character varying(255) AS meta,
 #     NULL::timestamp without time zone AS _deleted
-#    FROM {config.RFX_USER_SCHEMA}.profile;
+#    FROM {schema_config.RFX_USER_SCHEMA}.profile;
 #      """
 # )
 

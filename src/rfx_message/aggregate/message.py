@@ -70,7 +70,7 @@ class MessageMixin:
         if message.template_key:
             try:
                 from rfx_user import config as userconf
-                template_client = getattr(self.context.service_proxy, userconf.SERVICE_CLIENT, None)
+                template_client = getattr(self.context.service_proxy, userconf.TEMPLATE_CLIENT, None)
                 if not template_client:
                     raise RuntimeError("Template client not found")
 

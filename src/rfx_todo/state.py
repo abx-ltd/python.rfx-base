@@ -1,5 +1,5 @@
 from fluvius.domain.state import DataAccessManager
-from rfx_schema import RFXTodoConnector
+from rfx_schema.rfx_todo import RFXTodoConnector
 from rfx_schema.rfx_todo import _schema  # noqa: F401
 
 

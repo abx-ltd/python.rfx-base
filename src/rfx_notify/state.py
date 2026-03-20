@@ -1,5 +1,5 @@
 from fluvius.domain.state import DataAccessManager
-from rfx_schema import RFXNotifyConnector
+from rfx_schema.rfx_notify import RFXNotifyConnector
 
 
 class NotifyStateManager(DataAccessManager):

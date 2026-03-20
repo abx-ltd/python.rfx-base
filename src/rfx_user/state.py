@@ -1,5 +1,5 @@
 from fluvius.domain.state import DataAccessManager
-from rfx_schema import IDMConnector
+from rfx_schema.rfx_user import RFXUserConnector as IDMConnector
 
 class IDMStateManager(DataAccessManager):
     __connector__ = IDMConnector

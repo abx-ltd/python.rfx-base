@@ -4,18 +4,17 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from fluvius.data import DomainSchema, SqlaDriver
-from .._meta import config as schema_config, logger
-from rfx_base import config
+from rfx_todo import config as domain_config
 
-
+# --- Connector and Base Schema ---
 class RFXTodoConnector(SqlaDriver):
-    __db_dsn__ = schema_config.DB_DSN
-    __schema__ = config.RFX_TODO_SCHEMA
+    __db_dsn__ = domain_config.DB_DSN
+    __schema__ = domain_config.RFX_TODO_SCHEMA
 
 
 class Base(RFXTodoConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
-    __table_args__ = {"schema": config.RFX_TODO_SCHEMA}
+    __table_args__ = {"schema": domain_config.RFX_TODO_SCHEMA}
 
 
 class TableBase(Base):
@@ -23,7 +22,9 @@ class TableBase(Base):
     _realm: Mapped[Optional[str]] = mapped_column(String(255))
 
 
-SCHEMA = config.RFX_TODO_SCHEMA
+SCHEMA = domain_config.RFX_TODO_SCHEMA
+
+
 
 # Ensure ORM schemas and view maps register when module loads.
 from . import _schema  # noqa: F401

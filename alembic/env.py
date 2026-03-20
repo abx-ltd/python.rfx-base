@@ -1,7 +1,7 @@
-import logging
 import os
 
-# import alembic_postgresql_enum  # noqa: F401
+os.environ["REGISTER_PG_ENTITIES"] = "true"
+
 from logging.config import fileConfig
 
 from sqlalchemy import create_engine
@@ -9,12 +9,35 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# STEP 1: Load base config (which triggers setupModule and reads from .ini files)
-from rfx_base import config as base_config
-
-# STEP 2: Import RFXConnector and schema modules (they will use rfx_base.config directly)
-from rfx_schema import DOMAIN_CONNECTORS, config as schema_config
+# STEP 1: Load schema config (centralized domain schemas)
+from rfx_schema import config as schema_config
 from rfx_schema import _schema, _pgentity  # noqa: F401
+
+# Import domain connectors individually
+from rfx_schema.rfx_user import RFXUserConnector as IDMConnector
+from rfx_schema.rfx_policy import RFXPolicyConnector
+from rfx_schema.rfx_message import RFXMessageConnector
+from rfx_schema.rfx_media import RFXMediaConnector
+from rfx_schema.rfx_notify import RFXNotifyConnector
+from rfx_schema.rfx_client import RFXClientConnector
+from rfx_schema.rfx_discuss import RFXDiscussConnector
+from rfx_schema.rfx_qr import RFXQRConnector
+from rfx_schema.rfx_todo import RFXTodoConnector
+from rfx_schema.rfx_template import RFXTemplateConnector
+
+DOMAIN_CONNECTORS = {
+    "user": IDMConnector,
+    "policy": RFXPolicyConnector,
+    "message": RFXMessageConnector,
+    "media": RFXMediaConnector,
+    "notify": RFXNotifyConnector,
+    "client": RFXClientConnector,
+    "discuss": RFXDiscussConnector,
+    "qr": RFXQRConnector,
+    "todo": RFXTodoConnector,
+    "template": RFXTemplateConnector,
+}
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -31,17 +54,9 @@ sync_url = schema_config.DB_DSN.replace("+asyncpg://", "+psycopg2://")
 
 # All available schemas
 DOMAIN_SCHEMAS = {
-    "user": base_config.RFX_USER_SCHEMA,
-    "policy": base_config.RFX_POLICY_SCHEMA,
-    "message": base_config.RFX_MESSAGE_SCHEMA,
-    "media": base_config.RFX_MEDIA_SCHEMA,
-    "notify": base_config.RFX_NOTIFY_SCHEMA,
-    "client": base_config.RFX_CLIENT_SCHEMA,
-    "discuss": base_config.RFX_DISCUSS_SCHEMA,
-    "qr": base_config.RFX_QR_SCHEMA,
-    "todo": base_config.RFX_TODO_SCHEMA,
-    "template": base_config.RFX_TEMPLATE_SCHEMA,
+    name: conn.__schema__ for name, conn in DOMAIN_CONNECTORS.items()
 }
+
 
 # Get schema filter from environment variable
 # Format: comma-separated list like "user,message" or "all" (default)

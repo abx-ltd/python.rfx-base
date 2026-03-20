@@ -530,7 +530,7 @@ class SendUserAction(Command):
 
     async def _process(self, agg, stm, payload):
         context = agg.get_context()
-        notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+        notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
 
         if not notify_service:
             raise RuntimeError("Notification service client is not found")
@@ -861,7 +861,7 @@ class CreateProfile(Command):
         # Send welcome email
         if data.get("realm"):
             context = agg.get_context()
-            notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
 
             if notify_service:
                 target_realm = data.get("realm")
@@ -985,7 +985,7 @@ class CreateProfileInOrg(Command):
         # Send welcome email
         if profile_data.get("realm"):
             context = agg.get_context()
-            notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
 
             if notify_service:
                 target_realm = profile_data.get("realm")

@@ -1,7 +1,7 @@
 from fluvius.data import DataAccessManager
 from fluvius.fastapi.auth import FluviusAuthProfileProvider
 
-from rfx_schema import RFXClientConnector
+from rfx_schema.rfx_client import RFXClientConnector
 
 
 class RFXClientProfileProvider(

@@ -1,5 +1,5 @@
 from fluvius.domain.state import DataAccessManager
-from rfx_schema import RFXQRConnector
+from rfx_schema.rfx_qr import RFXQRConnector
 
 
 class QRStateManager(DataAccessManager):
