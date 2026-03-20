@@ -1,18 +1,11 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
+from .types import EntryTypeEnum
+from typing import Any
 
-
-def _clean_updates(data: dict) -> dict:
+def _clean_updates(data: dict) -> dict[str,Any]:
     return {k: v for k, v in data.items() if v is not None}
-
-
-def _normalize_shelf_code(value: str) -> str:
-    code = value.strip().upper()
-    if len(code) != 1 or not code.isalpha() or not code.isascii():
-        raise ValueError("Shelf code must be a single letter A-Z")
-    return code
-
 
 class RFXDocumentAggregate(Aggregate):
     """Document Aggregate - CRUD operations for document items."""
@@ -32,15 +25,13 @@ class RFXDocumentAggregate(Aggregate):
     async def update_realm(self, /, data):
         realm = self.rootobj
         updates = _clean_updates(serialize_mapping(data))
-        if not updates:
-            raise ValueError("At least one field required")
         await self.statemgr.update(realm, **updates)
         return await self.statemgr.fetch("realm", realm._id)
 
     @action("realm-removed", resources="realm")
     async def remove_realm(self, /):
         realm = self.rootobj
-        for child_model in ("realm_meta", "shelf", "category", "cabinet"):
+        for child_model in ("realm_meta", "shelf", "category", "cabinet", "entry"):
             exists = await self.statemgr.exist(
                 child_model, where={"realm_id": realm._id}
             )
@@ -54,11 +45,7 @@ class RFXDocumentAggregate(Aggregate):
     async def create_shelf(self, /, data):
         data = serialize_mapping(data)
         realm = self.rootobj
-
-        code = data.get("code")
-        if not code:
-            raise ValueError("Shelf code is required")
-        code = _normalize_shelf_code(code)
+        code = data["code"]
 
         duplicated = await self.statemgr.exist(
             "shelf",
@@ -83,18 +70,10 @@ class RFXDocumentAggregate(Aggregate):
     @action("shelf-updated", resources="shelf")
     async def update_shelf(self, /, data):
         shelf = self.rootobj
-        data = serialize_mapping(data)
-
-        updates = _clean_updates(data)
-        updates.pop("shelf_id", None)
-        if not updates:
-            raise ValueError("At least one field required")
+        updates = _clean_updates(serialize_mapping(data))
 
         if "code" in updates:
-            code = _normalize_shelf_code(updates["code"])
-            updates["code"] = code
-            
-            # Check for duplicates in same realm
+            code = updates["code"]
             existing = await self.statemgr.exist(
                 "shelf",
                 where={"realm_id": shelf.realm_id, "code": code},
@@ -120,11 +99,8 @@ class RFXDocumentAggregate(Aggregate):
     async def create_category(self, /, data):
         data = serialize_mapping(data)
         shelf = self.rootobj
+        code = data["code"]
 
-        code = data.get("code")
-        if not code:
-            raise ValueError("Category code is required")
-        
         if not code.startswith(shelf.code):
             raise ValueError(f"Category code {code} must start with shelf code {shelf.code}")
 
@@ -152,23 +128,14 @@ class RFXDocumentAggregate(Aggregate):
     @action("category-updated", resources="category")
     async def update_category(self, /, data):
         category = self.rootobj
-        data = serialize_mapping(data)
-
-        updates = _clean_updates(data)
-        updates.pop("category_id", None)
-        updates.pop("shelf_id", None)
-        updates.pop("realm_id", None)
-        if not updates:
-            raise ValueError("At least one field required")
+        updates = _clean_updates(serialize_mapping(data))
 
         if "code" in updates:
             new_code = updates["code"]
-            # Fetch shelf to check prefix
             shelf = await self.statemgr.fetch("shelf", category.shelf_id)
             if not new_code.startswith(shelf.code):
                 raise ValueError(f"Category code {new_code} must start with shelf code {shelf.code}")
 
-            # Duplicate check in realm
             existing = await self.statemgr.exist(
                 "category",
                 where={"realm_id": category.realm_id, "code": new_code},
@@ -194,12 +161,9 @@ class RFXDocumentAggregate(Aggregate):
     async def create_cabinet(self, /, data):
         data = serialize_mapping(data)
         category = self.rootobj
-
-        code = data.get("code")
-        if not code:
-            raise ValueError("Cabinet code is required")
-        
+        code = data["code"]
         prefix = f"{category.code}-"
+
         if not code.startswith(prefix):
             raise ValueError(f"Cabinet code {code} must start with category prefix {prefix}")
 
@@ -227,24 +191,15 @@ class RFXDocumentAggregate(Aggregate):
     @action("cabinet-updated", resources="cabinet")
     async def update_cabinet(self, /, data):
         cabinet = self.rootobj
-        data = serialize_mapping(data)
-
-        updates = _clean_updates(data)
-        updates.pop("cabinet_id", None)
-        updates.pop("category_id", None)
-        updates.pop("realm_id", None)
-        if not updates:
-            raise ValueError("At least one field required")
+        updates = _clean_updates(serialize_mapping(data))
 
         if "code" in updates:
             new_code = updates["code"]
-            # Fetch category to check prefix
             category = await self.statemgr.fetch("category", cabinet.category_id)
             prefix = f"{category.code}-"
             if not new_code.startswith(prefix):
                 raise ValueError(f"Cabinet code {new_code} must start with category prefix {prefix}")
 
-            # Duplicate check in realm
             existing = await self.statemgr.exist(
                 "cabinet",
                 where={"realm_id": cabinet.realm_id, "code": new_code},
@@ -269,6 +224,7 @@ class RFXDocumentAggregate(Aggregate):
     
     @action("entry-created", resources="cabinet")
     async def create_entry(self, /, data):
+
         cabinet = self.rootobj
         full_path = data.computed_path
         exists = await self.statemgr.exist(
@@ -292,3 +248,71 @@ class RFXDocumentAggregate(Aggregate):
 
         await self.statemgr.insert(record)
         return record
+
+
+    @action("entry-updated", resources="entry")
+    async def update_entry(self, /, data):
+        entry = self.rootobj
+        # Dùng serialize_mapping nhất quán với create_entry
+        updates = _clean_updates(serialize_mapping(data))
+
+        new_path = data.get_computed_path(entry)
+        old_path = entry.path
+
+        # Check type hiệu lực sau update: ưu tiên type mới, fallback type cũ
+        effective_type = data.type if data.type is not None else entry.type
+        if effective_type == EntryTypeEnum.FOLDER:
+            updates.pop("size", None)
+            updates.pop("mime_type", None)
+
+        if new_path != old_path:
+            same_path_entries = await self.statemgr.find_all(
+                "entry",
+                where={"cabinet_id": entry.cabinet_id, "path": new_path},
+            )
+            if same_path_entries and any(str(item._id) != str(entry._id) for item in same_path_entries):
+                raise ValueError(f"Path '{new_path}' already exists in this cabinet")
+
+            updates["path"] = new_path
+
+            if effective_type == EntryTypeEnum.FOLDER:
+                descendants = await self.statemgr.find_all(
+                    "entry",
+                    where={
+                        "cabinet_id": entry.cabinet_id,
+                        "path:has": f"{old_path}/%",
+                    },
+                )
+
+                old_prefix = f"{old_path}/"
+                new_prefix = f"{new_path}/"
+                descendant_ids = {str(item._id) for item in descendants}
+
+                for child in descendants:
+                    target_child_path = child.path.replace(old_prefix, new_prefix, 1)
+                    existing_entries = await self.statemgr.find_all(
+                        "entry",
+                        where={"cabinet_id": entry.cabinet_id, "path": target_child_path},
+                    )
+                    if any(
+                        str(item._id) not in descendant_ids and str(item._id) != str(entry._id)
+                        for item in existing_entries
+                    ):
+                        raise ValueError(f"Path '{target_child_path}' already exists in this cabinet")
+
+                for child in descendants:
+                    target_child_path = child.path.replace(old_prefix, new_prefix, 1)
+                    await self.statemgr.update(
+                        child,
+                        path=target_child_path,
+                        name=target_child_path.rsplit("/", 1)[-1],
+                    )
+
+        updates.pop("parent_path", None)
+        await self.statemgr.update(entry, **updates)
+        return await self.statemgr.fetch("entry", entry._id)
+
+    @action("entry-removed", resources="entry")
+    async def remove_entry(self, /):
+        entry = self.rootobj
+        await self.statemgr.invalidate(entry)
