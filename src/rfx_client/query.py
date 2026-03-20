@@ -271,6 +271,33 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     total_deliverables: int = IntegerField("Total Deliverables")
     params: dict = DictField("Params")
 
+@resource("project-work-package-relationship")
+class ProjectWorkPackageRelationshipQuery(DomainQueryResource):
+    """Project work package relationship queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "project"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        allow_text_search = True
+
+        backend_model = "_project_work_package_relationship"
+        scope_required = scope.ProjectWorkPackageRelationScopeSchema
+        policy_required = True
+
+    project_work_package_id: UUID_TYPE = UUIDField("Project Work Package ID")
+    resource_name: str = StringField("Resource Name")
+    resource_id: UUID_TYPE = UUIDField("Resource ID")
+    schema_relation: str = StringField("Schema Relation")
+    project_id: UUID_TYPE = UUIDField("Project ID")
+    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
+    project_work_package_status: str = StringField("Project Work Package Status")
+    project_work_package_name: str = StringField("Project Work Package Name")
+    project_name: str = StringField("Project Name")
+    work_package_name: str = StringField("Work Package Name")
+    resource_name_relation: str = StringField("Resource Name Relation")
 
 @resource("project-work-item")
 class ProjectWorkItemDetailQuery(DomainQueryResource):

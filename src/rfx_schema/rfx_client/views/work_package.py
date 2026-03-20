@@ -2,8 +2,43 @@
 Work Package-related database views
 """
 
+from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_view import PGView
 from rfx_base import config
+
+fn_get_resource_json = PGFunction(
+    schema=config.RFX_CLIENT_SCHEMA,
+    signature="fn_get_resource_json(schema_name text, table_name text, row_id uuid)",
+    definition="""
+    RETURNS jsonb
+    LANGUAGE plpgsql
+    STABLE
+    AS $function$
+    DECLARE
+        result jsonb;
+        sql_query text;
+    BEGIN
+        IF schema_name IS NULL OR table_name IS NULL OR row_id IS NULL THEN
+            RETURN NULL;
+        END IF;
+
+        sql_query := format(
+            'SELECT to_jsonb(t) FROM %I.%I t WHERE t._id = $1 AND t._deleted IS NULL',
+            schema_name,
+            table_name
+        );
+
+        EXECUTE sql_query INTO result USING row_id;
+        RETURN result;
+    EXCEPTION
+        WHEN undefined_table OR undefined_column THEN
+            RETURN NULL;
+        WHEN others THEN
+            RETURN NULL;
+    END;
+    $function$
+    """,
+)
 
 work_package_view = PGView(
     schema=config.RFX_CLIENT_SCHEMA,
@@ -144,6 +179,45 @@ project_work_package_view = PGView(
         LEFT JOIN deliverable_counts dc ON dc.project_work_item_id = wi.project_work_item_id
     WHERE pwp._deleted IS NULL
     GROUP BY pwp._id, pwp.project_id, pwp.work_package_id, pwp.quantity, pwp.work_package_name, pwp.work_package_is_custom, pwp.work_package_estimate, p.status, wp_base.method_calculated, wp_base.total_credits, wp_base.total_ar_credits, wp_base.total_de_credits, wp_base.total_op_credits;
+    """,
+)
+
+project_work_package_relationship_view = PGView(
+    schema=config.RFX_CLIENT_SCHEMA,
+    signature="_project_work_package_relationship",
+    definition=f"""
+    SELECT pwpr._id,
+        pwpr._created,
+        pwpr._updated,
+        pwpr._creator,
+        pwpr._updater,
+        pwpr._deleted,
+        pwpr._etag,
+        pwpr._realm,
+        pwpr.project_work_package_id,
+        pwpr.schema_relation,
+        pwpr.resource_name,
+        pwpr.resource_id,
+        pwp.project_id,
+        pwp.work_package_id,
+        pwp.quantity,
+        pwp.status AS project_work_package_status,
+        pwp.work_package_name AS project_work_package_name,
+        p.name AS project_name,
+        wp.work_package_name AS work_package_name,
+        res.resource_data
+    FROM {config.RFX_CLIENT_SCHEMA}.project_work_package_relationship pwpr
+        JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package pwp ON pwp._id = pwpr.project_work_package_id AND pwp._deleted IS NULL
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project p ON p._id = pwp.project_id AND p._deleted IS NULL
+        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.work_package wp ON wp._id = pwp.work_package_id AND wp._deleted IS NULL
+        LEFT JOIN LATERAL (
+            SELECT {config.RFX_CLIENT_SCHEMA}.fn_get_resource_json(
+                COALESCE(NULLIF(trim(pwpr.schema_relation), ''), '{config.RFX_CLIENT_SCHEMA}'),
+                pwpr.resource_name,
+                pwpr.resource_id
+            ) AS resource_data
+        ) res ON TRUE
+    WHERE pwpr._deleted IS NULL;
     """,
 )
 

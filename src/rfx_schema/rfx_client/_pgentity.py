@@ -23,8 +23,10 @@ from .views import (
     project_credit_summary_view,
     project_estimate_summary_view,
     document_view,
+    fn_get_resource_json,
     work_package_view,
     project_work_package_view,
+    project_work_package_relationship_view,
     # work_package_credit_usage_view,
     # Work item views
     work_item_view,
@@ -67,8 +69,10 @@ def register_pg_entities(allow):
             project_estimate_summary_view,
             document_view,
             # Work package views
+            fn_get_resource_json,
             work_package_view,
             project_work_package_view,
+            project_work_package_relationship_view,
             # work_package_credit_usage_view,
             # Work item views
             work_item_view,

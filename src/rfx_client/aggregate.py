@@ -522,6 +522,22 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.invalidate_data(
             "project_work_package", project_work_package._id
         )
+    
+    @action("create-project-work-package-relationship", resources="project_work_package")
+    async def create_project_work_package_relationship(self, /, data):
+        project_work_package = self.rootobj
+        
+        record = self.init_resource(
+            "project_work_package_relationship",
+            {
+                "project_work_package_id": project_work_package._id,
+                "resource_name": data.resource_name,
+                "resource_id": data.resource_id,
+                "schema_relation": data.schema_relation
+            }
+        )
+        await self.statemgr.insert(record)
+        return record
 
     # =========== Project BDM Contact (Project Context) ============
 

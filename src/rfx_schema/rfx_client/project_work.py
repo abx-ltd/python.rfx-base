@@ -104,6 +104,22 @@ class ProjectWorkPackage(TableBase):
         back_populates="work_package", cascade="all, delete-orphan"
     )
 
+class ProjectWorkPackageRelationship(TableBase):
+    """Generic relationships of project work packages in ``rfx_client.project_work_package_relationship``."""
+
+    __tablename__ = "project_work_package_relationship"
+    __table_args__ = (
+        {"schema": SCHEMA},
+    )
+
+    project_work_package_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.project_work_package._id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    resource_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    schema_relation: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
 class ProjectWorkItem(TableBase):
     """Project work items in ``rfx_client.project_work_item``."""
