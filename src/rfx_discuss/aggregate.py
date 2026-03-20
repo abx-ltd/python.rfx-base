@@ -42,14 +42,17 @@ class RFXDiscussAggregate(Aggregate):
                 "profile_id": self.context.profile_id,
             },
         )
-        if not existing_acknowledge:
-            acknowledge = self.init_resource(
-                "comment_acknowledge",
-                comment_id=comment._id,
-                profile_id=self.context.profile_id,
-                _id=UUID_GENR(),
-            )
-            await self.statemgr.insert(acknowledge)
+        if existing_acknowledge:
+            return False
+
+        acknowledge = self.init_resource(
+            "comment_acknowledge",
+            comment_id=comment._id,
+            profile_id=self.context.profile_id,
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(acknowledge)
+        return True
 
     @action("reply_comment", resources="comment")
     async def reply_comment(self, /, data):

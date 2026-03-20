@@ -1,13 +1,14 @@
 import os
 from rfx_schema import logger
-from rfx_base import config
+from . import SCHEMA, POLICY_SCHEMA, domain_config
+
 
 from alembic_utils.pg_view import PGView
 from alembic_utils.replaceable_entity import register_entities
 
 
 user_profile_view = PGView(
-    schema=config.RFX_USER_SCHEMA,
+    schema=SCHEMA,
     signature="_profile",
     definition=f"""
     SELECT profile._created,
@@ -64,12 +65,12 @@ user_profile_view = PGView(
     profile.default_theme,
     profile._realm,
     profile.status
-    FROM "{config.RFX_USER_SCHEMA}".profile;
+    FROM "{SCHEMA}".profile;
     """
 )
 
 user_profile_list_view = PGView(
-    schema=config.RFX_USER_SCHEMA,
+    schema=SCHEMA,
     signature="_profile_list",
     definition=f"""
     SELECT
@@ -95,12 +96,12 @@ user_profile_list_view = PGView(
         profile.current_profile,
         organization.name AS organization_name,
         COALESCE(profile_role.role_keys, ARRAY[]::varchar[]) AS profile_roles
-    FROM "{config.RFX_USER_SCHEMA}".profile AS profile
-    LEFT JOIN "{config.RFX_USER_SCHEMA}".organization AS organization
+    FROM "{SCHEMA}".profile AS profile
+    LEFT JOIN "{SCHEMA}".organization AS organization
         ON profile.organization_id = organization._id
     LEFT JOIN (
         SELECT profile_id, array_agg(role_key) AS role_keys
-        FROM "{config.RFX_USER_SCHEMA}".profile_role
+        FROM "{SCHEMA}".profile_role
         WHERE _deleted IS NULL
         GROUP BY profile_id
     ) AS profile_role
@@ -109,7 +110,7 @@ user_profile_list_view = PGView(
 )
 
 org_member_view = PGView(
-    schema=config.RFX_USER_SCHEMA,
+    schema=SCHEMA,
     signature="_org_member",
     definition=f"""
     SELECT
@@ -133,19 +134,19 @@ org_member_view = PGView(
         profile.status AS profile_status,
         COALESCE(profile_role.role_keys, ARRAY[]::varchar[]) AS profile_roles,
         COALESCE(policy_counts.policy_count, 0) AS policy_count
-    FROM "{config.RFX_USER_SCHEMA}".profile AS profile
-    JOIN "{config.RFX_USER_SCHEMA}".organization AS organization
+    FROM "{SCHEMA}".profile AS profile
+    JOIN "{SCHEMA}".organization AS organization
         ON profile.organization_id = organization._id
     LEFT JOIN (
         SELECT profile_id, array_agg(role_key) AS role_keys
-        FROM "{config.RFX_USER_SCHEMA}".profile_role
+        FROM "{SCHEMA}".profile_role
         WHERE _deleted IS NULL
         GROUP BY profile_id
     ) AS profile_role
         ON profile._id = profile_role.profile_id
     LEFT JOIN LATERAL (
         SELECT COUNT(*) AS policy_count
-        FROM "{config.RFX_POLICY_SCHEMA}"._policy__user_profile AS policy
+        FROM "{POLICY_SCHEMA}"._policy__user_profile AS policy
         WHERE policy.org = organization._id::character varying(255)
             AND policy._deleted IS NULL
     ) AS policy_counts ON true;
@@ -153,7 +154,7 @@ org_member_view = PGView(
 )
 
 policy_user_profile_view = PGView(
-    schema=config.RFX_POLICY_SCHEMA,
+    schema=POLICY_SCHEMA,
     signature="_policy__user_profile",
     definition=f"""
 SELECT uuid_generate_v4() AS _id,
@@ -168,8 +169,8 @@ SELECT uuid_generate_v4() AS _id,
     pol_res.cqrs::character varying(255) AS cqrs,
     pol_res.meta::text AS meta,
     NULL::timestamp without time zone AS _deleted
-   FROM {config.RFX_POLICY_SCHEMA}.policy_role pol_rol
-     JOIN {config.RFX_POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
+   FROM {POLICY_SCHEMA}.policy_role pol_rol
+     JOIN {POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
   WHERE pol_res.domain::text = ANY (ARRAY['user-profile'::text, '*'::text])
 UNION ALL
  SELECT uuid_generate_v4() AS _id,
@@ -184,7 +185,7 @@ UNION ALL
     NULL::character varying(255) AS cqrs,
     NULL::text AS meta,
     NULL::timestamp without time zone AS _deleted
-   FROM {config.RFX_USER_SCHEMA}.profile
+   FROM {SCHEMA}.profile
   WHERE profile._deleted IS NULL AND profile.user_id IS NOT NULL AND profile.organization_id IS NOT NULL
 UNION ALL
  SELECT uuid_generate_v4() AS _id,
@@ -199,8 +200,8 @@ UNION ALL
     NULL::character varying(255) AS cqrs,
     NULL::text AS meta,
     NULL::timestamp without time zone AS _deleted
-   FROM {config.RFX_USER_SCHEMA}.profile_role pro_rol
-     JOIN {config.RFX_USER_SCHEMA}.profile profile ON profile._id = pro_rol.profile_id
+   FROM {SCHEMA}.profile_role pro_rol
+     JOIN {SCHEMA}.profile profile ON profile._id = pro_rol.profile_id
   WHERE pro_rol._deleted IS NULL
     AND profile._deleted IS NULL
     AND profile.organization_id IS NOT NULL
@@ -217,14 +218,14 @@ UNION ALL
     NULL::character varying(255) AS cqrs,
     NULL::text AS meta,
     NULL::timestamp without time zone AS _deleted
-   FROM {config.RFX_USER_SCHEMA}.profile
+   FROM {SCHEMA}.profile
   WHERE profile._deleted IS NULL
     AND profile.user_id IS NOT NULL;
     """
 )
 
 policy_idm_profile_view = PGView(
-    schema=config.RFX_POLICY_SCHEMA,
+    schema=POLICY_SCHEMA,
     signature="_policy__idm_profile",
     definition=f"""
 SELECT uuid_generate_v4() AS _id,
@@ -239,8 +240,8 @@ SELECT uuid_generate_v4() AS _id,
     pol_res.cqrs::character varying(255) AS cqrs,
     pol_res.meta::text AS meta,
     NULL::timestamp without time zone AS _deleted
-   FROM {config.RFX_POLICY_SCHEMA}.policy_role pol_rol
-     JOIN {config.RFX_POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
+   FROM {POLICY_SCHEMA}.policy_role pol_rol
+     JOIN {POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
   WHERE pol_res.domain::text = ANY (ARRAY['idm-service'::text, '*'::text])
 UNION ALL
  SELECT uuid_generate_v4() AS _id,
@@ -255,7 +256,7 @@ UNION ALL
     NULL::character varying(255) AS cqrs,
     NULL::character varying(255) AS meta,
     NULL::timestamp without time zone AS _deleted
-   FROM {config.RFX_USER_SCHEMA}.profile
+   FROM {SCHEMA}.profile
   WHERE profile._deleted IS NULL AND profile.user_id IS NOT NULL AND profile.organization_id IS NOT NULL
 UNION ALL
  SELECT uuid_generate_v4() AS _id,
@@ -270,8 +271,8 @@ UNION ALL
     NULL::character varying(255) AS cqrs,
     NULL::character varying(255) AS meta,
     NULL::timestamp without time zone AS _deleted
-   FROM {config.RFX_USER_SCHEMA}.profile_role pro_rol
-     JOIN {config.RFX_USER_SCHEMA}.profile profile ON profile._id = pro_rol.profile_id
+   FROM {SCHEMA}.profile_role pro_rol
+     JOIN {SCHEMA}.profile profile ON profile._id = pro_rol.profile_id
   WHERE pro_rol._deleted IS NULL
     AND profile._deleted IS NULL
     AND profile.organization_id IS NOT NULL
@@ -288,14 +289,14 @@ UNION ALL
     NULL::character varying(255) AS cqrs,
     NULL::character varying(255) AS meta,
     NULL::timestamp without time zone AS _deleted
-   FROM {config.RFX_USER_SCHEMA}.profile
+   FROM {SCHEMA}.profile
   WHERE profile._deleted IS NULL
     AND profile.user_id IS NOT NULL;
     """
 )
 
 user_profile_domain_view = PGView(
-    schema=config.RFX_USER_SCHEMA,
+    schema=SCHEMA,
     signature="_profile_domain",
     definition=f"""
     SELECT
@@ -318,14 +319,14 @@ user_profile_domain_view = PGView(
             array_agg(DISTINCT pol_res.domain) FILTER (WHERE pol_res.domain IS NOT NULL),
             ARRAY[]::varchar[]
         ) AS domains
-    FROM "{config.RFX_USER_SCHEMA}".profile AS profile
-    LEFT JOIN "{config.RFX_USER_SCHEMA}".user AS usr
+    FROM "{SCHEMA}".profile AS profile
+    LEFT JOIN "{SCHEMA}".user AS usr
         ON profile.user_id = usr._id
-    LEFT JOIN "{config.RFX_USER_SCHEMA}".profile_role AS pro_rol
+    LEFT JOIN "{SCHEMA}".profile_role AS pro_rol
         ON profile._id = pro_rol.profile_id AND pro_rol._deleted IS NULL
-    LEFT JOIN "{config.RFX_POLICY_SCHEMA}".policy_role AS pol_rol
+    LEFT JOIN "{POLICY_SCHEMA}".policy_role AS pol_rol
         ON pro_rol.role_key = pol_rol.role_key
-    LEFT JOIN "{config.RFX_POLICY_SCHEMA}".policy_resource AS pol_res
+    LEFT JOIN "{POLICY_SCHEMA}".policy_resource AS pol_res
         ON pol_rol.policy_key = pol_res.policy_key
     WHERE profile._deleted IS NULL
     GROUP BY
@@ -352,10 +353,10 @@ def register_pg_entities(allow):
     register_entities([
         user_profile_view,
         user_profile_list_view,
-        org_member_view,
         policy_user_profile_view,
         policy_idm_profile_view,
         user_profile_domain_view,
+        org_member_view,
     ])
 
 register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))

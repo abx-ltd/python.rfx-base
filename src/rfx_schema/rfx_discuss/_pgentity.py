@@ -6,7 +6,10 @@ Registers database views for Alembic migrations.
 
 import os
 from rfx_schema import logger
-from rfx_base import config
+from . import SCHEMA, domain_config
+from rfx_schema.rfx_user import SCHEMA as USER_SCHEMA
+from rfx_schema.rfx_media import SCHEMA as MEDIA_SCHEMA
+
 
 from alembic_utils.pg_view import PGView
 from alembic_utils.replaceable_entity import register_entities
@@ -17,7 +20,7 @@ from alembic_utils.replaceable_entity import register_entities
 # ============================================================================
 
 comment_view = PGView(
-    schema=config.RFX_DISCUSS_SCHEMA,
+    schema=SCHEMA,
     signature="_comment",
     definition=f"""
     SELECT c._id,
@@ -39,24 +42,24 @@ comment_view = PGView(
         COALESCE(BOOL_OR(ca._id IS NOT NULL), false) AS is_acknowledged,
         jsonb_build_object('id', p._id, 'name', COALESCE(p.preferred_name, ((p.name__given::text || ' '::text) || p.name__family::text)::character varying), 'avatar', p.picture_id) AS creator,
         COALESCE(( SELECT count(*) AS count
-               FROM {config.RFX_DISCUSS_SCHEMA}.comment_attachment ca
+               FROM {SCHEMA}.comment_attachment ca
               WHERE ca.comment_id = c._id AND ca._deleted IS NULL), 0::bigint) AS attachment_count,
         COALESCE(( SELECT count(*) AS count
-               FROM {config.RFX_DISCUSS_SCHEMA}.comment_reaction cr
+               FROM {SCHEMA}.comment_reaction cr
               WHERE cr.comment_id = c._id AND cr._deleted IS NULL), 0::bigint) AS reaction_count,
         COALESCE(( SELECT count(*) AS count
-               FROM {config.RFX_DISCUSS_SCHEMA}.comment_flag cf
+               FROM {SCHEMA}.comment_flag cf
               WHERE cf.comment_id = c._id AND cf._deleted IS NULL), 0::bigint) AS flag_count
-        FROM {config.RFX_DISCUSS_SCHEMA}.comment c
-        LEFT JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = c._creator
-        LEFT JOIN {config.RFX_DISCUSS_SCHEMA}.comment_acknowledge ca ON ca.comment_id = c._id AND ca._deleted IS NULL
+        FROM {SCHEMA}.comment c
+        LEFT JOIN {USER_SCHEMA}.profile p ON p._id = c._creator
+        LEFT JOIN {SCHEMA}.comment_acknowledge ca ON ca.comment_id = c._id AND ca._deleted IS NULL
     WHERE c._deleted IS NULL
     GROUP by c._id, p._id;
     """,
 )
 
 comment_attachment_view = PGView(
-    schema=config.RFX_DISCUSS_SCHEMA,
+    schema=SCHEMA,
     signature="_comment_attachment",
     definition=f"""
     SELECT ca._id,
@@ -84,15 +87,15 @@ comment_attachment_view = PGView(
         me.resource,
         me.resource__id,
         jsonb_build_object('id', p._id, 'name', COALESCE(p.preferred_name, ((p.name__given::text || ' '::text) || p.name__family::text)::character varying), 'avatar', p.picture_id) AS uploader
-       FROM {config.RFX_DISCUSS_SCHEMA}.comment_attachment ca
-         JOIN "{config.RFX_MEDIA_SCHEMA}"."media-entry" me ON me._id = ca.media_entry_id
-         LEFT JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = ca._creator
+       FROM {SCHEMA}.comment_attachment ca
+         JOIN "{MEDIA_SCHEMA}"."media-entry" me ON me._id = ca.media_entry_id
+         LEFT JOIN {USER_SCHEMA}.profile p ON p._id = ca._creator
       WHERE ca._deleted IS NULL;
     """,
 )
 
 comment_reaction_view = PGView(
-    schema=config.RFX_DISCUSS_SCHEMA,
+    schema=SCHEMA,
     signature="_comment_reaction",
     definition=f"""
     SELECT cr._id,
@@ -107,14 +110,14 @@ comment_reaction_view = PGView(
         cr.user_id,
         cr.reaction_type,
         jsonb_build_object('id', p._id, 'name', COALESCE(p.preferred_name, ((p.name__given::text || ' '::text) || p.name__family::text)::character varying), 'avatar', p.picture_id) AS reactor
-       FROM {config.RFX_DISCUSS_SCHEMA}.comment_reaction cr
-         LEFT JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = cr.user_id
+       FROM {SCHEMA}.comment_reaction cr
+         LEFT JOIN {schema_config.RFX_USER_SCHEMA}.profile p ON p._id = cr.user_id
       WHERE cr._deleted IS NULL;
     """,
 )
 
 comment_reaction_summary_view = PGView(
-    schema=config.RFX_DISCUSS_SCHEMA,
+    schema=SCHEMA,
     signature="_comment_reaction_summary",
     definition=f"""
     SELECT cr.comment_id,
@@ -129,8 +132,8 @@ comment_reaction_summary_view = PGView(
         gen_random_uuid()::character varying AS _etag,
         NULL::character varying AS _realm,
         uuid_generate_v4() AS _id
-       FROM {config.RFX_DISCUSS_SCHEMA}.comment_reaction cr
-         LEFT JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = cr.user_id
+       FROM {SCHEMA}.comment_reaction cr
+         LEFT JOIN {schema_config.RFX_USER_SCHEMA}.profile p ON p._id = cr.user_id
       WHERE cr._deleted IS NULL
       GROUP BY cr.comment_id, cr.reaction_type;
     """,
@@ -142,7 +145,7 @@ comment_reaction_summary_view = PGView(
 # ============================================================================
 
 comment_flag_view = PGView(
-    schema=config.RFX_DISCUSS_SCHEMA,
+    schema=SCHEMA,
     signature="_comment_flag",
     definition=f"""
     SELECT cf._id,
@@ -160,16 +163,16 @@ comment_flag_view = PGView(
         cf.description,
         jsonb_build_object('id', reporter._id, 'name', COALESCE(reporter.preferred_name, ((reporter.name__given::text || ' '::text) || reporter.name__family::text)::character varying), 'avatar', reporter.picture_id) AS reporter,
         jsonb_build_object('id', c._id, 'content', "left"(c.content, 200), 'creator', jsonb_build_object('id', creator._id, 'name', COALESCE(creator.preferred_name, ((creator.name__given::text || ' '::text) || creator.name__family::text)::character varying))) AS comment_preview
-       FROM {config.RFX_DISCUSS_SCHEMA}.comment_flag cf
-         LEFT JOIN {config.RFX_USER_SCHEMA}.profile reporter ON reporter._id = cf.reported_by_user_id
-         LEFT JOIN {config.RFX_DISCUSS_SCHEMA}.comment c ON c._id = cf.comment_id
-         LEFT JOIN {config.RFX_USER_SCHEMA}.profile creator ON creator._id = c._creator
+       FROM {SCHEMA}.comment_flag cf
+         LEFT JOIN {USER_SCHEMA}.profile reporter ON reporter._id = cf.reported_by_user_id
+         LEFT JOIN {SCHEMA}.comment c ON c._id = cf.comment_id
+         LEFT JOIN {USER_SCHEMA}.profile creator ON creator._id = c._creator
       WHERE cf._deleted IS NULL;
     """,
 )
 
 comment_flag_resolution_view = PGView(
-    schema=config.RFX_DISCUSS_SCHEMA,
+    schema=SCHEMA,
     signature="_comment_flag_resolution",
     definition=f"""
     SELECT cfr._id,
@@ -188,16 +191,16 @@ comment_flag_resolution_view = PGView(
         cfr.resolution_action,
         jsonb_build_object('id', resolver._id, 'name', COALESCE(resolver.preferred_name, ((resolver.name__given::text || ' '::text) || resolver.name__family::text)::character varying), 'avatar', resolver.picture_id) AS resolver,
         jsonb_build_object('id', cf._id, 'comment_id', cf.comment_id, 'reason', cf.reason, 'status', cf.status, 'reported_by', jsonb_build_object('id', reporter._id, 'name', COALESCE(reporter.preferred_name, ((reporter.name__given::text || ' '::text) || reporter.name__family::text)::character varying))) AS flag_info
-       FROM {config.RFX_DISCUSS_SCHEMA}.comment_flag_resolution cfr
-         LEFT JOIN {config.RFX_USER_SCHEMA}.profile resolver ON resolver._id = cfr.resolved_by_user_id
-         LEFT JOIN {config.RFX_DISCUSS_SCHEMA}.comment_flag cf ON cf._id = cfr.flag_id
-         LEFT JOIN {config.RFX_USER_SCHEMA}.profile reporter ON reporter._id = cf.reported_by_user_id
+       FROM {SCHEMA}.comment_flag_resolution cfr
+         LEFT JOIN {USER_SCHEMA}.profile resolver ON resolver._id = cfr.resolved_by_user_id
+         LEFT JOIN {SCHEMA}.comment_flag cf ON cf._id = cfr.flag_id
+         LEFT JOIN {USER_SCHEMA}.profile reporter ON reporter._id = cf.reported_by_user_id
       WHERE cfr._deleted IS NULL;
     """,
 )
 
 comment_flag_summary_view = PGView(
-    schema=config.RFX_DISCUSS_SCHEMA,
+    schema=SCHEMA,
     signature="_comment_flag_summary",
     definition=f"""
     SELECT cf.comment_id,
@@ -214,10 +217,10 @@ comment_flag_summary_view = PGView(
         NULL::character varying AS _realm,
         uuid_generate_v4() AS _id,
         jsonb_object_agg(cf.reason, ( SELECT count(*) AS count
-               FROM {config.RFX_DISCUSS_SCHEMA}.comment_flag cf2
+               FROM {SCHEMA}.comment_flag cf2
               WHERE cf2.comment_id = cf.comment_id AND cf2.reason::text = cf.reason::text AND cf2._deleted IS NULL)) AS flag_reasons,
         max(cf._created) AS latest_flag_at
-       FROM {config.RFX_DISCUSS_SCHEMA}.comment_flag cf
+       FROM {SCHEMA}.comment_flag cf
       WHERE cf._deleted IS NULL
       GROUP BY cf.comment_id;
     """,
@@ -229,7 +232,7 @@ comment_flag_summary_view = PGView(
 # ============================================================================
 
 comment_subscription_view = PGView(
-    schema=config.RFX_DISCUSS_SCHEMA,
+    schema=SCHEMA,
     signature="_comment_subscription",
     definition=f"""
     SELECT cs._id,
@@ -246,9 +249,9 @@ comment_subscription_view = PGView(
         c.content AS comment_content,
         c._creator AS comment_creator_id,
         jsonb_build_object('id', p._id, 'name', COALESCE(p.preferred_name, ((p.name__given::text || ' '::text) || p.name__family::text)::character varying), 'avatar', p.picture_id) AS subscriber
-       FROM {config.RFX_DISCUSS_SCHEMA}.comment_subscription cs
-         JOIN {config.RFX_DISCUSS_SCHEMA}.comment c ON c._id = cs.comment_id
-         LEFT JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = cs.user_id
+       FROM {SCHEMA}.comment_subscription cs
+         JOIN {SCHEMA}.comment c ON c._id = cs.comment_id
+         LEFT JOIN {USER_SCHEMA}.profile p ON p._id = cs.user_id
       WHERE cs._deleted IS NULL;
     """,
 )
@@ -282,7 +285,7 @@ def register_pg_entities(allow):
         ]
     )
 
-    logger.info(f"Registered 8 PostgreSQL views for {config.RFX_DISCUSS_SCHEMA} schema")
+    logger.info(f"Registered 8 PostgreSQL views for {SCHEMA} schema")
 
 
 # Auto-register if environment variable is set

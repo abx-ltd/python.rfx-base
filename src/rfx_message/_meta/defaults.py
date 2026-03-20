@@ -1,7 +1,7 @@
 from rfx_base import config
 
 LOG_LEVEL = config.LOG_LEVEL
-DB_DSN = config.DB_DSN
+DB_DSN = None
 
 MESSAGE_SERVICE_SCHEMA = "rfx_message"
 POLICY_SCHEMA = "rfx_policy"

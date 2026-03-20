@@ -19,7 +19,7 @@ from fluvius.domain.aggregate import Aggregate, action
 from fluvius.data import serialize_mapping, UUID_GENR
 from fluvius.data.exceptions import ItemNotFoundError
 from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum, InvitationStatusEnum
-
+from . import config, logger
 
 class IDMAggregate(Aggregate):
     """
@@ -60,6 +60,15 @@ class IDMAggregate(Aggregate):
                                     note=note
                                     )
         await self.statemgr.insert(record)
+
+    async def _is_sys_admin(self):
+        curr_user = await self.statemgr.fetch("user", self.context.user_id)
+        if not curr_user or not curr_user.realm_access:
+            return False
+
+        roles = curr_user.realm_access.get("roles", [])
+        return "sys_admin" in roles
+
 
     # ==========================================================================
     # USER OPERATIONS
@@ -120,10 +129,13 @@ class IDMAggregate(Aggregate):
         # Handle user actions
         if data.sync_actions:
             # Get current pending actions from database
-            current_actions = await self.statemgr.find_all('user_action', where=dict(
-                user_id=user._id,
-                status='PENDING'
-            ))
+            try:
+                current_actions = await self.statemgr.find_all('user_action', where=dict(
+                    user_id=user._id,
+                    status='PENDING'
+                ))
+            except Exception as e:
+                current_actions = []
 
             # If there are required actions from Keycloak, update or create them
             if data.required_actions:
@@ -370,7 +382,7 @@ class IDMAggregate(Aggregate):
         # Send invitation email
         try:
             context = self.context
-            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_client = getattr(self.context.service_proxy, config.NOTIFY_CLIENT, None)
             if not notify_client:
                 raise RuntimeError("Notification service client is not found")
 
@@ -384,7 +396,7 @@ class IDMAggregate(Aggregate):
             reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{record._id}?token={record.token}"
 
             await notify_client.send(
-                "rfx-notify:send-notification",
+                f"{config.NOTIFY_NAMESPACE}:send-notification",
                 command="send-notification",
                 resource="notification",
                 payload={
@@ -432,7 +444,7 @@ class IDMAggregate(Aggregate):
         # Resend invitation email
         try:
             context = self.context
-            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_client = getattr(self.context.service_proxy, config.NOTIFY_CLIENT, None)
             if not notify_client:
                 raise RuntimeError("Notification service client is not found")
 
@@ -446,7 +458,7 @@ class IDMAggregate(Aggregate):
             reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{invitation._id}?token={invitation.token}"
 
             await notify_client.send(
-                "rfx-notify:send-notification",
+                f"{config.NOTIFY_NAMESPACE}:send-notification",
                 command="send-notification",
                 resource="notification",
                 payload={
@@ -553,8 +565,16 @@ class IDMAggregate(Aggregate):
     async def create_profile_in_org(self, data):
         """Create user profile within organization with role assignment."""
         user_id = data.get("user_id", None)
-        if user_id is None or user_id == self.context.user_id:
-            raise ValueError("Cannot create profile for current user.")
+        if user_id is None:
+            raise ValueError("invalid user id")
+
+        intended_organization_id = str(data.get("organization_id"))
+        current_org_id = str(self.context.organization_id)
+        if intended_organization_id != current_org_id:
+            is_admin = await self._is_sys_admin()
+            is_system_org = config.SYSTEM_ORGANIZATION_ID is not None and current_org_id == str(config.SYSTEM_ORGANIZATION_ID)
+            if not is_system_org and not is_admin:
+                raise ValueError("You are not a member of the organization")
 
         existing_profiles = await self.statemgr.find_all("profile", where=dict(
             user_id=user_id,

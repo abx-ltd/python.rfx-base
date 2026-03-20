@@ -1,12 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fluvius.data import serialize_mapping, UUID_GENR
 from fluvius.data.exceptions import ItemNotFoundError
 from fluvius.error import BadRequestError
 
-from datetime import datetime, timedelta
 from .domain import IDMDomain
 from .integration import kc_admin
-from . import datadef, config
+from . import datadef, config, logger
 from rfx_user import config as userconf
 
 processor = IDMDomain.command_processor
@@ -177,8 +176,12 @@ class CreateUser(Command):
                     kc_user.id, payload.password, temporary=False
                 )
 
-        realm_access = payload.realm_access or DEFAULT_REALM_ACCESS
-        resource_access = payload.resource_access or DEFAULT_RESOURCE_ACCESS
+        import copy
+        realm_access = copy.deepcopy(DEFAULT_REALM_ACCESS)
+        if config.ALLOW_CREATE_SYS_ADMIN:
+            if payload.is_superuser and "sys_admin" not in realm_access['roles']:
+                realm_access['roles'].append("sys_admin")
+        resource_access = copy.deepcopy(DEFAULT_RESOURCE_ACCESS)
 
         # Prepare local database user data with proper field mapping
         user_data = {
@@ -206,6 +209,12 @@ class CreateUser(Command):
         }
         # Create user in local database
         user = await agg.create_user(user_data)
+
+        if config.ALLOW_CREATE_SYS_ADMIN and payload.is_superuser:
+            try:
+                await kc_admin.add_user_roles(kc_user.id, ["sys_admin"])
+            except Exception as e:
+                logger.warning(f"Failed to assign sys_admin role in Keycloak for {kc_user.id}: {e}")
 
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
@@ -272,8 +281,18 @@ class UpdateUser(Command, SyncUserMixin):
         set_update(payload.email, "telecom__email")
         set_update(payload.phone, "telecom__phone")
         set_update(payload.verified_phone, "verified_phone")
-        set_update(payload.realm_access, "realm_access")
-        set_update(payload.resource_access, "resource_access")
+        # Handle realm_access based on is_superuser
+        if payload.is_superuser is not None:
+            if getattr(config, "ALLOW_CREATE_SYS_ADMIN", False):
+                import copy
+                realm_access = copy.deepcopy(rootobj.realm_access) if rootobj.realm_access else copy.deepcopy(DEFAULT_REALM_ACCESS)
+                roles = realm_access.get("roles", [])
+                if payload.is_superuser and "sys_admin" not in roles:
+                    roles.append("sys_admin")
+                elif not payload.is_superuser and "sys_admin" in roles:
+                    roles.remove("sys_admin")
+                realm_access["roles"] = roles
+                user_updates["realm_access"] = realm_access
         set_update(
             payload.status, "status", lambda v: v.value if hasattr(v, "value") else v
         )
@@ -289,6 +308,15 @@ class UpdateUser(Command, SyncUserMixin):
         updated_user = rootobj
         if user_updates:
             updated_user = await agg.update_user(user_updates)
+
+        if payload.is_superuser is not None and getattr(config, "ALLOW_CREATE_SYS_ADMIN", False):
+            try:
+                if payload.is_superuser:
+                    await kc_admin.add_user_roles(user_id, ["sys_admin"])
+                else:
+                    await kc_admin.delete_user_roles(user_id, ["sys_admin"])
+            except Exception as e:
+                logger.warning(f"Failed to update sys_admin role in Keycloak for {user_id}: {e}")
 
         update_performed = (
             bool(kc_payload) or bool(payload.password) or bool(user_updates)
@@ -502,7 +530,7 @@ class SendUserAction(Command):
 
     async def _process(self, agg, stm, payload):
         context = agg.get_context()
-        notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+        notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
 
         if not notify_service:
             raise RuntimeError("Notification service client is not found")
@@ -562,7 +590,7 @@ class SendUserAction(Command):
             raise ValueError(f"Unsupported action type {payload.action_type}")
 
         await notify_service.send(
-            "rfx-notify:send-notification",
+            f"{config.NOTIFY_NAMESPACE}:send-notification",
             command="send-notification",
             resource="notification",
             payload={
@@ -812,13 +840,69 @@ class CreateProfile(Command):
 
     async def _process(self, agg, stm, payload):
         data = serialize_mapping(payload)
+
+        # Validate target realm against OPERATION_VALID_REALMS
+        # from . import config
+        if config.OPERATION_VALID_REALMS is not None:
+            target_realm = data.get("realm")
+            if target_realm not in config.OPERATION_VALID_REALMS:
+                raise ValueError(f"Realm '{target_realm}' is not valid for profile creation.")
+
         role_keys = data.pop("role_keys", ["VIEWER"])
         profile = await agg.create_profile(data)
 
+        profile_id = profile._id if hasattr(profile, '_id') else profile.get("_id")
+
         await agg.update_profile_roles({
-            "profile_id": profile._id,
+            "profile_id": profile_id,
             "role_keys": role_keys
         })
+
+        # Send welcome email
+        if data.get("realm"):
+            context = agg.get_context()
+            notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
+
+            if notify_service:
+                target_realm = data.get("realm")
+                base_url = userconf.REALM_URL_MAPPER.get(target_realm, "/") if target_realm and userconf.REALM_URL_MAPPER else "/"
+                action_link = base_url
+
+                # Extract company name from realm (e.g. "triptech" from "app.triptech.vn")
+                realm_parts = target_realm.split('.') if target_realm else []
+                company_name = realm_parts[1].capitalize() if len(realm_parts) > 1 else (target_realm or "Our Company")
+
+                try:
+                    await notify_service.send(
+                        f"{config.NOTIFY_NAMESPACE}:send-notification",
+                        command="send-notification",
+                        resource="notification",
+                        payload={
+                            "channel": "EMAIL",
+                            "recipients": [data.get("telecom__email")],
+                            "template_key": "create-user-email",
+                            "content_type": "HTML",
+                            "template_data": {
+                                "user_name": f"{data.get('name__given') or ''} {data.get('name__family') or ''}".strip() or data.get('username') or "User",
+                                "username": data.get("username") or data.get("telecom__email"),
+                                "action_link": action_link,
+                                "company": company_name,
+                            },
+                        },
+                        identifier=UUID_GENR(),
+                        _headers={},
+                        _context={
+                            "audit": {
+                                "user_id": str(context.user_id) if context.user_id else None,
+                                "profile_id": str(context.profile_id) if context.profile_id else None,
+                                "organization_id": str(context.organization_id) if context.organization_id else None,
+                                "realm": context.realm,
+                            },
+                            "source": "rfx-idm",
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send welcome email for profile {profile_id}: {e}")
 
         yield agg.create_response(serialize_mapping(profile), _type="idm-response")
 
@@ -841,7 +925,29 @@ class CreateProfileInOrg(Command):
 
     async def _process(self, agg, stm, payload):
         profile_data = serialize_mapping(payload)
+
+        # Validate target realm against OPERATION_VALID_REALMS
+        if config.OPERATION_VALID_REALMS is not None:
+            target_realm = profile_data.get("realm")
+            if target_realm not in config.OPERATION_VALID_REALMS:
+                raise ValueError(f"Realm '{target_realm}' is not valid for profile creation.")
+
         role_keys = profile_data.pop("role_keys", ["VIEWER"])
+
+        # Early check for organization authorization to prevent information leakage
+        intended_organization_id = str(profile_data.get("organization_id"))
+        context = agg.get_context()
+        current_org_id = str(context.organization_id)
+        if intended_organization_id != current_org_id:
+            curr_user = await stm.fetch("user", context.user_id)
+            roles = curr_user.realm_access.get("roles", []) if curr_user.realm_access else []
+            is_admin = "sys_admin" in roles
+
+            # Allow bypass if user is in the system organization
+            is_system_org = config.SYSTEM_ORGANIZATION_ID is not None and current_org_id == str(config.SYSTEM_ORGANIZATION_ID)
+
+            if not is_system_org and not is_admin:
+                raise ValueError("You are not a member of that organization")
 
         # Pre-validate OWNER role before creating profile to avoid orphaned records
         if "OWNER" in role_keys:
@@ -875,6 +981,52 @@ class CreateProfileInOrg(Command):
         except Exception as e:
             # Re-raise to trigger transaction rollback
             raise ValueError(f"Failed to assign roles to profile: {str(e)}")
+
+        # Send welcome email
+        if profile_data.get("realm"):
+            context = agg.get_context()
+            notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
+
+            if notify_service:
+                target_realm = profile_data.get("realm")
+                base_url = userconf.REALM_URL_MAPPER.get(target_realm, "/") if target_realm and userconf.REALM_URL_MAPPER else "/"
+                action_link = base_url
+
+                # Extract company name from realm
+                realm_parts = target_realm.split('.') if target_realm else []
+                company_name = realm_parts[1].capitalize() if len(realm_parts) > 1 else (target_realm or "Our Company")
+
+                try:
+                    await notify_service.send(
+                        f"{config.NOTIFY_NAMESPACE}:send-notification",
+                        command="send-notification",
+                        resource="notification",
+                        payload={
+                            "channel": "EMAIL",
+                            "recipients": [profile_data.get("telecom__email")],
+                            "template_key": "create-user-email",
+                            "content_type": "HTML",
+                            "template_data": {
+                                "user_name": f"{profile_data.get('name__given') or ''} {profile_data.get('name__family') or ''}".strip() or profile_data.get('username') or "User",
+                                "username": profile_data.get("username") or profile_data.get("telecom__email"),
+                                "action_link": action_link,
+                                "company": company_name,
+                            },
+                        },
+                        identifier=UUID_GENR(),
+                        _headers={},
+                        _context={
+                            "audit": {
+                                "user_id": str(context.user_id) if context.user_id else None,
+                                "profile_id": str(context.profile_id) if context.profile_id else None,
+                                "organization_id": str(context.organization_id) if context.organization_id else None,
+                                "realm": context.realm,
+                            },
+                            "source": "rfx-idm",
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send welcome email for profile {result.get('profile_id')}: {e}")
 
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 

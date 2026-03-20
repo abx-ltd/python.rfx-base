@@ -1,13 +1,16 @@
-from rfx_base import config
+from rfx_base import config as baseconfig
 from fluvius.fastapi import config as fastapi_config
 
-DB_DSN = config.DB_DSN
+DB_DSN = None
 
-USER_PROFILE_SCHEMA = config.RFX_USER_SCHEMA
-POLICY_SCHEMA = config.RFX_USER_SCHEMA
+USER_PROFILE_SCHEMA = "rfx_user"
+POLICY_SCHEMA = None
 POLICY_TABLE = "_policy__user_profile"
 REALM = 'rfx'
 REALM_URL_MAPPER = None
+
+NOTIFY_NAMESPACE = "rfx-notify"
+NOTIFY_CLIENT = baseconfig.NOTIFY_CLIENT
 
 # Guest Authentication Settings
 VERIFICATION_CODE_LENGTH = 6
@@ -34,4 +37,4 @@ GUEST_JWT_ISSUER = "rfx-user-guest-auth"
 API_BASE_URL = None
 NAMESPACE = "user-profile"
 
-SERVICE_CLIENT="rfx"
+OPERATION_VALID_REALMS = None

@@ -108,13 +108,18 @@ class AddCustomWorkPackageToProjectPayload(DataModel):
 
 class AddWorkPackageToProjectPayload(DataModel):
     work_package_id: UUID_TYPE
-    project_work_package_id: UUID_TYPE  # shared _id supplied by ttp_project for cross-domain ID sync
-    params: Optional[Dict[str, Any]] = None  # Additional parameters for estimation
+    project_work_package_id: Optional[UUID_TYPE] = None
+    params: Optional[Dict[str, Any]] = None
 
 
 class RemoveWorkPackageFromProjectPayload(DataModel):
     work_package_id: UUID_TYPE
 
+
+class CreateProjectWorkPackageRelationshipPayload(DataModel):
+    resource_name: str
+    resource_id: UUID_TYPE
+    schema_relation: Optional[str] = None
 
 # Work Item related payloads
 

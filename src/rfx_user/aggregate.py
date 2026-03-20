@@ -108,14 +108,18 @@ class UserProfileAggregate(Aggregate):
         """
         user = self.rootobj
         await self.statemgr.update(user, **data.user_data)
+        user = await self.statemgr.fetch("user", user._id)
 
         # Handle user actions
         if data.sync_actions:
             # Get current pending actions from database
-            current_actions = await self.statemgr.find_all('user_action', where=dict(
-                user_id=user._id,
-                status='PENDING'
-            ))
+            try:
+                current_actions = await self.statemgr.find_all('user_action', where=dict(
+                    user_id=user._id,
+                    status='PENDING'
+                ))
+            except Exception as e:
+                current_actions = []
 
             # If there are required actions from Keycloak, update or create them
             if data.required_actions:
@@ -145,7 +149,6 @@ class UserProfileAggregate(Aggregate):
                     if action._id not in processed_actions:
                         await self.statemgr.update(action, status='COMPLETED')
             else:
-                # If no required actions, mark all pending actions as completed
                 for action in current_actions:
                     await self.statemgr.update(action, status='COMPLETED')
 
@@ -353,7 +356,7 @@ class UserProfileAggregate(Aggregate):
         # Send invitation email
         try:
             context = self.context
-            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_client = getattr(self.context.service_proxy, config.NOTIFY_CLIENT, None)
             if not notify_client:
                 raise RuntimeError("Notification service client is not found")
 
@@ -367,7 +370,7 @@ class UserProfileAggregate(Aggregate):
             reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{record._id}?token={record.token}"
 
             await notify_client.send(
-                "rfx-notify:send-notification",
+                f"{config.NOTIFY_NAMESPACE}:send-notification",
                 command="send-notification",
                 resource="notification",
                 payload={
@@ -415,7 +418,7 @@ class UserProfileAggregate(Aggregate):
         # Resend invitation email
         try:
             context = self.context
-            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_client = getattr(self.context.service_proxy, config.NOTIFY_CLIENT, None)
             if not notify_client:
                 raise RuntimeError("Notification service client is not found")
 
@@ -429,7 +432,7 @@ class UserProfileAggregate(Aggregate):
             reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{invitation._id}?token={invitation.token}"
 
             await notify_client.send(
-                "rfx-notify:send-notification",
+                f"{config.NOTIFY_NAMESPACE}:send-notification",
                 command="send-notification",
                 resource="notification",
                 payload={

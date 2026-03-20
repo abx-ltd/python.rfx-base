@@ -1,5 +1,5 @@
 from fluvius.domain.state import DataAccessManager
-from rfx_schema import RFXMessageConnector
+from rfx_schema.rfx_message import RFXMessageConnector
 from rfx_schema.rfx_message import _schema, _viewmap  # noqa: F401
 from fluvius.data import value_query
 from rfx_base import config

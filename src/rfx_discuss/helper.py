@@ -44,6 +44,52 @@ async def _handle_mentions(agg, stm, content: str):
         )
 
 
+async def _notify_mention_ids(agg, stm, user_ids=None, content: str = None):
+    """Send notifications to explicitly mentioned users and profiles."""
+    context = agg.get_context()
+    profile_id = context.profile_id
+    profile = await stm.get_profile(profile_id)
+
+    recipients = []
+
+    if user_ids:
+        users_info = await utils.get_mentioned_users(stm, [str(uid) for uid in user_ids])
+        recipients.extend([str(user["id"]) for user in users_info])
+
+    # Deduplicate and exclude the sender
+    recipients = list({r for r in recipients if r != str(profile_id)})
+
+    if not recipients or not config.MESSAGE_ENABLED:
+        return
+
+    message_content = content
+    message_subject = f"Comment created by {profile.name__given}"
+
+    service_proxy = context.service_proxy
+    await service_proxy.msg_client.send(
+        f"{config.MESSAGE_NAMESPACE}:send-message",
+        command="send-message",
+        resource="message",
+        payload={
+            "recipients": recipients,
+            "subject": message_subject,
+            "message_type": "NOTIFICATION",
+            "priority": "MEDIUM",
+            "content": message_content,
+            "content_type": "TEXT",
+        },
+        _headers={},
+        _context={
+            "audit": {
+                "user_id": str(context.profile_id),
+                "profile_id": str(context.profile_id),
+                "organization_id": str(context.organization_id),
+                "realm": context.realm,
+            }
+        },
+    )
+
+
 async def _notify_subscribers(agg, stm, comment_id: str):
     subscribers = await stm.find_all(
         "comment_subscription",

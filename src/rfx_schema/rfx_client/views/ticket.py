@@ -1,12 +1,9 @@
-"""
-Ticket-related database views
-"""
+from .. import SCHEMA, domain_config
+from rfx_schema.rfx_user import SCHEMA as USER_SCHEMA
 
-from alembic_utils.pg_view import PGView
-from rfx_base import config
 
 inquiry_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_inquiry",
     definition=f"""
     SELECT t._id,
@@ -31,20 +28,20 @@ inquiry_view = PGView(
         array_agg(DISTINCT tg.name) FILTER (WHERE tg.name IS NOT NULL) AS tag_names,
         t._updated AS activity,
         (ARRAY( SELECT DISTINCT jsonb_build_object('id', p._id, 'name', COALESCE(p.preferred_name, ((p.name__given::text || ' '::text) || p.name__family::text)::character varying), 'avatar', p.picture_id)::text AS jsonb_build_object
-               FROM {config.RFX_CLIENT_SCHEMA}.ticket_participant tp2
-                 JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = tp2.participant_id
+               FROM {SCHEMA}.ticket_participant tp2
+                 JOIN {USER_SCHEMA}.profile p ON p._id = tp2.participant_id
               WHERE tp2.ticket_id = t._id AND p._id IS NOT NULL))::json[] AS participants
-       FROM {config.RFX_CLIENT_SCHEMA}.ticket t
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ticket_tag ttg ON ttg.ticket_id = t._id
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.tag tg ON tg._id = ttg.tag_id
-         LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__ticket_type tt ON tt.key::text = t.type::text
+       FROM {SCHEMA}.ticket t
+         LEFT JOIN {SCHEMA}.ticket_tag ttg ON ttg.ticket_id = t._id
+         LEFT JOIN {SCHEMA}.tag tg ON tg._id = ttg.tag_id
+         LEFT JOIN {SCHEMA}.ref__ticket_type tt ON tt.key::text = t.type::text
       WHERE t.is_inquiry = true
       GROUP BY t._id, t.title, t._updated, tt.key, tt.icon_color;
     """,
 )
 
 ticket_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_ticket",
     definition=f"""
     SELECT t._id,
@@ -66,8 +63,8 @@ ticket_view = PGView(
         t.sync_status,
         t.organization_id,
         pt.project_id
-       FROM {config.RFX_CLIENT_SCHEMA}.ticket t
-         JOIN {config.RFX_CLIENT_SCHEMA}.project_ticket pt ON t._id = pt.ticket_id
+       FROM {SCHEMA}.ticket t
+         JOIN {SCHEMA}.project_ticket pt ON t._id = pt.ticket_id
       WHERE t.is_inquiry = false;
     """,
 )

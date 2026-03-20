@@ -45,7 +45,8 @@ class Policy(TableBase):
         SQLEnum(PolicyStatusEnum, name="policystatusenum", schema=SCHEMA)
     )
     scope: Mapped[Optional[PolicyScopeEnum]] = mapped_column(
-        SQLEnum(PolicyScopeEnum, name="policyscopeenum", schema=SCHEMA)
+        SQLEnum(PolicyScopeEnum, name="policyscopeenum", schema=SCHEMA),
+        nullable=True,
     )
     kind: Mapped[Optional[PolicyKindEnum]] = mapped_column(
         SQLEnum(PolicyKindEnum, name="policykindenum", schema=SCHEMA)
@@ -72,7 +73,8 @@ class PolicyResource(TableBase):
         SQLEnum(PolicyEffectEnum, name="policyeffectenum", schema=SCHEMA)
     )
     status: Mapped[Optional[PolicyStatusEnum]] = mapped_column(
-        SQLEnum(PolicyStatusEnum, name="policystatusenum", schema=SCHEMA)
+        SQLEnum(PolicyStatusEnum, name="policystatusenum", schema=SCHEMA),
+        nullable=True,
     )
     scope: Mapped[Optional[PolicyScopeEnum]] = mapped_column(
         SQLEnum(PolicyScopeEnum, name="policyscopeenum", schema=SCHEMA)
@@ -89,7 +91,7 @@ class PolicyResource(TableBase):
     policy_key: Mapped[str] = mapped_column(
         String(255), ForeignKey(f"{SCHEMA}.policy.key"), nullable=False
     )
-    meta: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
+    meta: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=True)
     policy: Mapped["Policy"] = relationship(back_populates="resources")
 
 

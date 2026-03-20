@@ -511,6 +511,17 @@ class GuestUserQuery(DomainQueryResource):
 @resource("realm")
 class RealmQuery(DomainQueryResource):
     """Query realm information"""
+    @classmethod
+    def base_query(cls, context, scope):
+        if config.OPERATION_VALID_REALMS is None:
+            return {}
+
+        return {
+            ".or": [
+                {"key": realm} for realm in config.OPERATION_VALID_REALMS
+            ]
+        }
+
 
     class Meta(DomainQueryResource.Meta):
         include_all = True

@@ -78,8 +78,8 @@ class UpdateUserPayload(DataModel):
     last_verified_request: Optional[datetime] = None
 
     # Access control (JSON fields)
-    realm_access: Optional[dict] = None
-    resource_access: Optional[dict] = None
+    # realm_access: Optional[dict] = None
+    # resource_access: Optional[dict] = None
 
     # Tags
     system_tag: Optional[List[str]] = None
@@ -106,7 +106,6 @@ class CreateOrganizationPayload(DataModel):
     description: Optional[str]
     name: str = Field(max_length=255)
     business_name: Optional[str]
-    system_entity: Optional[bool] = False
     active: Optional[bool] = True
     system_tag: Optional[List[str]] = []
     user_tag: Optional[List[str]] = []
@@ -119,7 +118,6 @@ class UpdateOrganizationPayload(DataModel):
     description: Optional[str] = None
     name: Optional[str] = Field(max_length=255, default=None)
     business_name: Optional[str] = None
-    system_entity: Optional[bool] = None
     active: Optional[bool] = None
     system_tag: Optional[List[str]] = None
     user_tag: Optional[List[str]] = None

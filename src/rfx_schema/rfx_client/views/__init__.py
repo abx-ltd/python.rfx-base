@@ -27,9 +27,10 @@ from .project import (
     document_view,
 )
 from .work_package import (
+    fn_get_resource_json,
     work_package_view,
     project_work_package_view,
-    work_package_credit_usage_view,
+    project_work_package_relationship_view,
 )
 from .work_item import (
     work_item_view,
@@ -68,8 +69,10 @@ __all__ = [
     "project_credit_summary_view",
     "document_view",
     # Work package views
+    "fn_get_resource_json",
     "work_package_view",
     "project_work_package_view",
+    "project_work_package_relationship_view",
     # "work_package_credit_usage_view",
     # Work item views
     "work_item_view",

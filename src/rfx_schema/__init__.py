@@ -34,3 +34,5 @@ DOMAIN_CONNECTORS = {
     "template": RFXTemplateConnector,
     "docman": RFXDocmanConnector,
 }
+# Domain connectors are now managed within their respective submodules
+# to avoid circular imports.

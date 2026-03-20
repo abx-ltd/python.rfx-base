@@ -1,11 +1,12 @@
 from rfx_base import config
 
 LOG_LEVEL = config.LOG_LEVEL
-DB_DSN = config.DB_DSN
+DB_DSN = None
 
-RFX_DISCUSS_SCHEMA = config.RFX_DISCUSS_SCHEMA
-POLICY_SCHEMA = config.RFX_POLICY_SCHEMA
-RFX_USER_SCHEMA = config.RFX_USER_SCHEMA
+RFX_DISCUSS_SCHEMA = "rfx_discuss"
+POLICY_SCHEMA = None
+# RFX_USER_SCHEMA = config.RFX_USER_SCHEMA
+
 MESSAGE_NAMESPACE = "rfx-message"
 
 POLICY_TABLE = "_policy__rfx_discuss"
@@ -15,3 +16,6 @@ NAMESPACE = "rfx-discuss"
 MESSAGE_NAMESPACE = "rfx-message"
 
 MESSAGE_ENABLED = True
+
+WEBHOOK_SECRET = "SECRET"
+CALLBACK_URL = "URL"

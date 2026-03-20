@@ -46,34 +46,44 @@ class IDMGuestAuth:
         self.app = app
         self.statemgr = IDMStateManager(None)
 
-    async def send_guest_verification_email(self, email: str, code: str, full_name: Optional[str] = None) -> None:
+    async def send_guest_verification_email(self, email: str, code: str, full_name: Optional[str] = None, realm: str | None = None) -> None:
         """
         Send verification code via email using rfx_notify domain
         """
         recipient_name = full_name or "Guest"
 
-        # Get ttp_client from app state
-        client = getattr(self.app.state, config.SERVICE_CLIENT, None)
-        if not client:
+        notify_client = getattr(self.app.state, config.NOTIFY_CLIENT, None)
+        if not notify_client:
             logger.warning("[GUEST AUTH] ttp_client not available, logging code instead")
             logger.info(f"[GUEST AUTH] Verification code for {email}: {code}")
             return
+        realm_parts = realm.split(".")
+        company_name = realm_parts[1].capitalize() if len(realm_parts) > 1 else "Our Company"
 
-        await client.send(
-            "push_notification",
-            command="push-notification",
+        await notify_client.send(
+            f"{config.NOTIFY_NAMESPACE}:send-notification",
+            command="send-notification",
             resource="notification",
             payload={
-                "provider": "smtp",
+                "channel": "EMAIL",
                 "recipients": [email],
-                "subject": "Your Guest Verification Code",
-                "body": f"Hello {recipient_name},\n\nYour verification code is: {code}\n\nThis code will expire in {config.VERIFICATION_TTL_MINUTES} minutes.\n\nIf you didn't request this code, please ignore this email.",
-                "content_type": "TEXT",
-                "meta": {},
+                "template_key": "guest-verification-email",
+                "content_type": "HTML",
+                "template_data": {
+                    "user_name": recipient_name,
+                    "code": code,
+                    "current_year": datetime.utcnow().year,
+                    "company": company_name,
+                },
             },
             identifier=UUID_GENR(),
             _headers={},
-            _context={"source": "rfx_user"},
+            _context={
+                "audit": {
+                    "realm": realm,
+                },
+                "source": "rfx_user"
+            },
         )
         logger.info(f"[GUEST AUTH] Verification code sent to {email}")
 
@@ -184,7 +194,7 @@ class IDMGuestAuth:
                     await self.statemgr.insert(verification_record)
 
                     # Send verification email
-                    await self.send_guest_verification_email(email, code, full_name)
+                    await self.send_guest_verification_email(email, code, full_name, realm=config.REALM)
 
                     logger.info(f"[GUEST AUTH] Verification code sent to {email}")
                     logger.info(f"CODE: {code}")
