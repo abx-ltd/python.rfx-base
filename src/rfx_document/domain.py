@@ -14,6 +14,3 @@ class RFXDocumentDomain(Domain):
 
 class DocumentResponse(RFXDocumentDomain.Response):
     pass
-
-class CategoryResponse(RFXDocumentDomain.Response):
-    pass

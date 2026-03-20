@@ -1,7 +1,7 @@
 import re
 from typing import Optional, Annotated
 from pydantic import Field, model_validator, AfterValidator
-from fluvius.data import DataModel
+from fluvius.data import DataModel, UUID_TYPE
 from .types import EntryTypeEnum
 
 
@@ -52,7 +52,17 @@ def validate_entry_name(name: str) -> str:
     return stripped
 
 
+def validate_tag_name(name: str) -> str:
+    stripped = name.strip()
+    if not stripped:
+        raise ValueError("Tag name cannot be empty")
+    if len(stripped) > 100:
+        raise ValueError("Tag name cannot exceed 100 characters")
+    return stripped
+
+
 _FOLDER_FORBIDDEN = re.compile(r'[.*?"<>|:\\\/]')
+
 
 def validate_folder_name(name: str) -> str:
     stripped = name.strip()
@@ -83,7 +93,7 @@ CategoryCode = Annotated[str, AfterValidator(validate_category_code)]
 CabinetCode = Annotated[str, AfterValidator(validate_cabinet_code)]
 EntryName = Annotated[str, AfterValidator(validate_entry_name)]
 ParentPath = Annotated[str, AfterValidator(validate_parent_path)]
-
+TagName = Annotated[str, AfterValidator(validate_tag_name)]
 
 # ==========================================
 # REALM PAYLOADS
@@ -110,6 +120,23 @@ class UpdateRealmPayload(BaseUpdatePayload):
     )
     icon: Optional[str] = Field(default=None, description="Lucide icon identifier")
     color: Optional[str] = Field(default=None, description="Hex color code")
+
+
+# ==========================================
+# REALM META PAYLOADS
+# ==========================================
+class CreateRealmMetaPayload(DataModel):
+    key: str = Field(
+        ..., description="Meta key", examples=["shelf_label", "cabinet_label"]
+    )
+    value: str = Field(
+        ..., description="Meta value", examples=["Function", "Transaction"]
+    )
+
+
+class UpdateRealmMetaPayload(BaseUpdatePayload):
+    key: Optional[str] = Field(default=None, description="Meta key")
+    value: Optional[str] = Field(default=None, description="Meta value")
 
 
 # ==========================================
@@ -241,25 +268,23 @@ class CreateEntryPayload(DataModel):
         if not self.parent_path:
             return self.name
         return f"{self.parent_path}/{self.name}"
-    
+
+
 class UpdateEntryPayload(BaseUpdatePayload):
-    """ Update entry """
+    """Update entry"""
+
     parent_path: Optional[ParentPath] = Field(
-        default=None,
-        description="New parent path if moving the entry."
+        default=None, description="New parent path if moving the entry."
     )
     name: Optional[EntryName] = Field(
-        default=None,
-        description="New name of the file or folder."
+        default=None, description="New name of the file or folder."
     )
     type: Optional[EntryTypeEnum] = Field(
-        default=None,
-        description="New type of the document"
+        default=None, description="New type of the document"
     )
     size: Optional[int] = Field(default=None, ge=0)
     mime_type: Optional[str] = Field(
-        default=None,
-        description="New mime type of the file"
+        default=None, description="New mime type of the file"
     )
     author: Optional[str] = Field(default=None)
 
@@ -269,15 +294,66 @@ class UpdateEntryPayload(BaseUpdatePayload):
             return self
         if self.type == EntryTypeEnum.FOLDER:
             if self.size is not None or self.mime_type is not None:
-                raise ValueError("A folder cannot have 'size' or 'mime_type' attributes")
+                raise ValueError(
+                    "A folder cannot have 'size' or 'mime_type' attributes"
+                )
         else:
             if self.size is None:
-                raise ValueError(f"A file of type '{self.type.value}' must have a 'size' attribute")
+                raise ValueError(
+                    f"A file of type '{self.type.value}' must have a 'size' attribute"
+                )
         return self
 
     def get_computed_path(self, entry) -> str:
         """Compute the new absolute path based on updated name/parent_path fields."""
-        parent = self.parent_path if self.parent_path is not None else entry.path.rsplit("/", 1)[0] if "/" in entry.path else ""
+        parent = (
+            self.parent_path
+            if self.parent_path is not None
+            else entry.path.rsplit("/", 1)[0]
+            if "/" in entry.path
+            else ""
+        )
         name = self.name if self.name is not None else entry.name
         return f"{parent}/{name}" if parent else name
 
+
+# ==========================================
+# TAG PAYLOADS
+# ==========================================
+
+
+class CreateTagPayload(DataModel):
+    """Create a new globally-shared tag."""
+
+    name: TagName = Field(..., description="Tag name", examples=["urgent", "archived"])
+    color: Optional[str] = Field(
+        default=None, description="Hex color code", examples=["#EF4444"]
+    )
+    icon: Optional[str] = Field(
+        default=None, description="Lucide icon name", examples=["tag"]
+    )
+
+
+class UpdateTagPayload(BaseUpdatePayload):
+    """Update an existing tag."""
+
+    name: Optional[TagName] = Field(default=None, description="Tag name")
+    color: Optional[str] = Field(default=None, description="Hex color code")
+    icon: Optional[str] = Field(default=None, description="Lucide icon name")
+
+
+# ==========================================
+# ENTRY TAG PAYLOADS
+# ==========================================
+
+
+class AddEntryTagPayload(DataModel):
+    """Attach a tag to an entry (M:N via entry_tag)."""
+
+    tag_id: UUID_TYPE = Field(..., description="ID of the tag to attach")
+
+
+class RemoveEntryTagPayload(DataModel):
+    """Detach a tag from an entry."""
+
+    tag_id: UUID_TYPE = Field(..., description="ID of the tag to detach")

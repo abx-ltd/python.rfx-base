@@ -1,9 +1,9 @@
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Any
 
 from sqlalchemy import BigInteger, Integer, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import TableBase, SCHEMA
@@ -79,3 +79,22 @@ class EntryView(TableBase):
 
     # Calculated field from PGView
     parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)
+
+    # Aggregated tags (JSON array from entry_tag JOIN tag)
+    tags: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
+
+
+class TagView(TableBase):
+    """
+    Tag view — globally shared tags with aggregated entry list.
+    """
+
+    __tablename__ = "_tag"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    name:    Mapped[str]           = mapped_column(String(255), nullable=False)
+    color:   Mapped[Optional[str]] = mapped_column(String(64),  nullable=True)
+    icon:    Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Aggregated entries (JSON array from entry_tag JOIN entry)
+    entries: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)

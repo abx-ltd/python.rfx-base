@@ -4,7 +4,6 @@ from fluvius.data import UUID_TYPE
 from pydantic import BaseModel, Field
 
 
-
 class RealmScopeSchema(BaseModel):
     pass
 
@@ -20,8 +19,16 @@ class CategoryScopeSchema(BaseModel):
 class CabinetScopeSchema(BaseModel):
     category_id: UUID_TYPE = UUIDField("Category ID")
 
+
 class EntryScopeSchema(BaseModel):
     cabinet_id: UUID_TYPE = UUIDField("Cabinet ID")
 
-    parent_path: Optional[str] = Field(default=None, description="Filter entries by parent folder path")
+    parent_path: Optional[str] = Field(
+        default=None, description="Filter entries by parent folder path"
+    )
 
+
+class TagScopeSchema(BaseModel):
+    cabinet_id: Optional[UUID_TYPE] = Field(
+        default=None, description="Filter tags by cabinet ID"
+    )

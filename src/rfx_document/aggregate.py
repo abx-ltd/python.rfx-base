@@ -4,8 +4,10 @@ from fluvius.data import serialize_mapping, UUID_GENR
 from .types import EntryTypeEnum
 from typing import Any
 
-def _clean_updates(data: dict) -> dict[str,Any]:
+
+def _clean_updates(data: dict) -> dict[str, Any]:
     return {k: v for k, v in data.items() if v is not None}
+
 
 class RFXDocumentAggregate(Aggregate):
     """Document Aggregate - CRUD operations for document items."""
@@ -40,6 +42,44 @@ class RFXDocumentAggregate(Aggregate):
                     f"Cannot remove realm with existing {child_model} records"
                 )
         await self.statemgr.invalidate(realm)
+
+    @action("realm-meta-created", resources="realm")
+    async def create_realm_meta(self, /, data):
+        data = serialize_mapping(data)
+        realm = self.rootobj
+        key = data["key"]
+        value = data["value"]
+
+        existing = await self.statemgr.exist(
+            "realm_meta",
+            where={"realm_id": realm._id, "key": key},
+        )
+        if existing:
+            raise ValueError(f"Realm meta key {key} already exists in this realm")
+
+        record = self.init_resource(
+            "realm_meta",
+            {
+                "realm_id": realm._id,
+                "key": key,
+                "value": value,
+            },
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("realm-meta-updated", resources="realm_meta")
+    async def update_realm_meta(self, /, data):
+        realm_meta = self.rootobj
+        updates = _clean_updates(serialize_mapping(data))
+        await self.statemgr.update(realm_meta, **updates)
+        return await self.statemgr.fetch("realm_meta", realm_meta._id)
+
+    @action("realm-meta-removed", resources="realm_meta")
+    async def remove_realm_meta(self, /):
+        realm_meta = self.rootobj
+        await self.statemgr.invalidate(realm_meta)
 
     @action("shelf-created", resources="realm")
     async def create_shelf(self, /, data):
@@ -102,7 +142,9 @@ class RFXDocumentAggregate(Aggregate):
         code = data["code"]
 
         if not code.startswith(shelf.code):
-            raise ValueError(f"Category code {code} must start with shelf code {shelf.code}")
+            raise ValueError(
+                f"Category code {code} must start with shelf code {shelf.code}"
+            )
 
         duplicated = await self.statemgr.exist(
             "category",
@@ -134,14 +176,18 @@ class RFXDocumentAggregate(Aggregate):
             new_code = updates["code"]
             shelf = await self.statemgr.fetch("shelf", category.shelf_id)
             if not new_code.startswith(shelf.code):
-                raise ValueError(f"Category code {new_code} must start with shelf code {shelf.code}")
+                raise ValueError(
+                    f"Category code {new_code} must start with shelf code {shelf.code}"
+                )
 
             existing = await self.statemgr.exist(
                 "category",
                 where={"realm_id": category.realm_id, "code": new_code},
             )
             if existing and str(existing._id) != str(category._id):
-                raise ValueError(f"Category code {new_code} already exists in this realm")
+                raise ValueError(
+                    f"Category code {new_code} already exists in this realm"
+                )
 
         await self.statemgr.update(category, **updates)
         return await self.statemgr.fetch("category", category._id)
@@ -165,7 +211,9 @@ class RFXDocumentAggregate(Aggregate):
         prefix = f"{category.code}-"
 
         if not code.startswith(prefix):
-            raise ValueError(f"Cabinet code {code} must start with category prefix {prefix}")
+            raise ValueError(
+                f"Cabinet code {code} must start with category prefix {prefix}"
+            )
 
         duplicated = await self.statemgr.exist(
             "cabinet",
@@ -198,14 +246,18 @@ class RFXDocumentAggregate(Aggregate):
             category = await self.statemgr.fetch("category", cabinet.category_id)
             prefix = f"{category.code}-"
             if not new_code.startswith(prefix):
-                raise ValueError(f"Cabinet code {new_code} must start with category prefix {prefix}")
+                raise ValueError(
+                    f"Cabinet code {new_code} must start with category prefix {prefix}"
+                )
 
             existing = await self.statemgr.exist(
                 "cabinet",
                 where={"realm_id": cabinet.realm_id, "code": new_code},
             )
             if existing and str(existing._id) != str(cabinet._id):
-                raise ValueError(f"Cabinet code {new_code} already exists in this realm")
+                raise ValueError(
+                    f"Cabinet code {new_code} already exists in this realm"
+                )
 
         await self.statemgr.update(cabinet, **updates)
         return await self.statemgr.fetch("cabinet", cabinet._id)
@@ -221,23 +273,23 @@ class RFXDocumentAggregate(Aggregate):
             raise ValueError("Cannot remove cabinet with existing entry records")
         await self.statemgr.invalidate(cabinet)
 
-    
     @action("entry-created", resources="cabinet")
     async def create_entry(self, /, data):
 
         cabinet = self.rootobj
         full_path = data.computed_path
         exists = await self.statemgr.exist(
-            "entry", 
-            where={"cabinet_id": cabinet._id, "path": full_path}
+            "entry", where={"cabinet_id": cabinet._id, "path": full_path}
         )
         if exists:
             raise ValueError(f"Entry '{full_path}' already exists in this cabinet")
         entry_data = serialize_mapping(data)
-        entry_data.update({
-            "cabinet_id": cabinet._id,
-            "path": full_path,
-        })
+        entry_data.update(
+            {
+                "cabinet_id": cabinet._id,
+                "path": full_path,
+            }
+        )
         entry_data.pop("parent_path", None)
 
         record = self.init_resource(
@@ -248,7 +300,6 @@ class RFXDocumentAggregate(Aggregate):
 
         await self.statemgr.insert(record)
         return record
-
 
     @action("entry-updated", resources="entry")
     async def update_entry(self, /, data):
@@ -270,7 +321,9 @@ class RFXDocumentAggregate(Aggregate):
                 "entry",
                 where={"cabinet_id": entry.cabinet_id, "path": new_path},
             )
-            if same_path_entries and any(str(item._id) != str(entry._id) for item in same_path_entries):
+            if same_path_entries and any(
+                str(item._id) != str(entry._id) for item in same_path_entries
+            ):
                 raise ValueError(f"Path '{new_path}' already exists in this cabinet")
 
             updates["path"] = new_path
@@ -292,13 +345,19 @@ class RFXDocumentAggregate(Aggregate):
                     target_child_path = child.path.replace(old_prefix, new_prefix, 1)
                     existing_entries = await self.statemgr.find_all(
                         "entry",
-                        where={"cabinet_id": entry.cabinet_id, "path": target_child_path},
+                        where={
+                            "cabinet_id": entry.cabinet_id,
+                            "path": target_child_path,
+                        },
                     )
                     if any(
-                        str(item._id) not in descendant_ids and str(item._id) != str(entry._id)
+                        str(item._id) not in descendant_ids
+                        and str(item._id) != str(entry._id)
                         for item in existing_entries
                     ):
-                        raise ValueError(f"Path '{target_child_path}' already exists in this cabinet")
+                        raise ValueError(
+                            f"Path '{target_child_path}' already exists in this cabinet"
+                        )
 
                 for child in descendants:
                     target_child_path = child.path.replace(old_prefix, new_prefix, 1)
@@ -316,3 +375,99 @@ class RFXDocumentAggregate(Aggregate):
     async def remove_entry(self, /):
         entry = self.rootobj
         await self.statemgr.invalidate(entry)
+
+    # =========================================================================
+    # TAG 
+    # =========================================================================
+
+    @action("tag-created", resources="entry")
+    async def create_tag(self, /, data):
+        """Create a new tag in context of an entry, auto-link via entry_tag."""
+        data = serialize_mapping(data)
+        entry = self.rootobj
+
+        duplicated = await self.statemgr.exist("tag", where={"name": data["name"]})
+        if duplicated:
+            raise ValueError(f"Tag '{data['name']}' already exists")
+
+        tag = self.init_resource(
+            "tag",
+            {
+                "name": data["name"],
+                "color": data.get("color"),
+                "icon": data.get("icon"),
+            },
+            _id=UUID_GENR(),
+        )
+        await self.statemgr.insert(tag)
+
+        # Auto-link to the entry that triggered creation
+        link = self.init_resource(
+            "entry_tag",
+            {"entry_id": entry._id, "tag_id": tag._id},
+        )
+        await self.statemgr.insert(link)
+        return tag
+
+    @action("tag-updated", resources="tag")
+    async def update_tag(self, /, data):
+        """Update name/color/icon of an existing tag."""
+        tag = self.rootobj
+        updates = _clean_updates(serialize_mapping(data))
+
+        if "name" in updates:
+            existing = await self.statemgr.exist("tag", where={"name": updates["name"]})
+            if existing and str(existing._id) != str(tag._id):
+                raise ValueError(f"Tag '{updates['name']}' already exists")
+
+        await self.statemgr.update(tag, **updates)
+        return await self.statemgr.fetch("tag", tag._id)
+
+    @action("tag-removed", resources="tag")
+    async def remove_tag(self, /):
+        """Remove a tag (also cascades through entry_tag if DB supports it)."""
+        tag = self.rootobj
+        await self.statemgr.invalidate(tag)
+
+    # =========================================================================
+    # ENTRY TAG 
+    # =========================================================================
+
+    @action("entry-tag-added", resources="entry")
+    async def add_entry_tag(self, /, data):
+        """Attach a tag to an entry via entry_tag."""
+        data = serialize_mapping(data)
+        entry = self.rootobj
+        tag_id = data["tag_id"]
+
+        tag = await self.statemgr.fetch("tag", tag_id)
+        if not tag:
+            raise ValueError(f"Tag '{tag_id}' does not exist")
+
+        already_linked = await self.statemgr.exist(
+            "entry_tag", where={"entry_id": entry._id, "tag_id": tag_id}
+        )
+        if already_linked:
+            raise ValueError(f"Tag '{tag.name}' is already attached to this entry")
+
+        record = self.init_resource(
+            "entry_tag",
+            {"entry_id": entry._id, "tag_id": tag_id},
+        )
+        await self.statemgr.insert(record)
+        return record
+
+    @action("entry-tag-removed", resources="entry")
+    async def remove_entry_tag(self, /, data):
+        """Detach a tag from an entry."""
+        data = serialize_mapping(data)
+        entry = self.rootobj
+        tag_id = data["tag_id"]
+
+        link = await self.statemgr.exist(
+            "entry_tag", where={"entry_id": entry._id, "tag_id": tag_id}
+        )
+        if not link:
+            raise ValueError(f"Tag '{tag_id}' is not attached to this entry")
+
+        await self.statemgr.invalidate(link)
