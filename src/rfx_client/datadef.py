@@ -116,6 +116,11 @@ class RemoveWorkPackageFromProjectPayload(DataModel):
     work_package_id: UUID_TYPE
 
 
+class CreateProjectWorkPackageRelationshipPayload(DataModel):
+    resource_name: str
+    resource_id: UUID_TYPE
+    schema_relation: Optional[str] = None
+
 # Work Item related payloads
 
 
