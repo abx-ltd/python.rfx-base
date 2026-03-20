@@ -188,17 +188,43 @@ class RemoveCabinet(Command):
 
 
 class CreateEntry(Command):
+    """Create a new entry (file or folder) inside a cabinet."""
 
     Data = datadef.CreateEntryPayload
 
-    class Meta :
+    class Meta:
         key = "create-entry"
         resources = ("cabinet",)
-        tags = ["document","entry","create"]
+        tags = ["document", "entry", "create"]
         auth_required = True
-    
 
-    
-    async def _process(self , agg , stm, payload):
+    async def _process(self, agg, stm, payload):
         result = await agg.create_entry(payload)
-        yield agg.create_response(serialize_mapping(result),_type ="document-response")
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+class UpdateEntry(Command):
+    """Update an entry."""
+
+    Data = datadef.UpdateEntryPayload
+
+    class Meta:
+        key = "update-entry"
+        resources = ("entry",)
+        tags = ["document", "update", "entry"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.update_entry(payload)
+        yield agg.create_response(serialize_mapping(result), _type="document-response")
+
+class RemoveEntry(Command):
+    """Remove an entry."""
+
+    class Meta:
+        key = "remove-entry"
+        resources = ("entry",)
+        tags = ["document", "remove", "entry"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.remove_entry()

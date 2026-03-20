@@ -51,8 +51,8 @@ class ShelfQuery(DomainQueryResource):
     """Shelf queries."""
 
     @classmethod
-    def base_query(cls, context, scope_data):
-        return {"realm_id": scope_data["realm_id"]}
+    def base_query(cls, context, scope):
+        return {"realm_id": scope["realm_id"]}
 
     class Meta(DomainQueryResource.Meta):
         resource = "shelf"
@@ -83,7 +83,6 @@ class CategoryQuery(DomainQueryResource):
     @classmethod
     def base_query(cls, context, scope_data):
         return {"shelf_id": scope_data["shelf_id"]}
-
 
     class Meta(DomainQueryResource.Meta):
         resource = "category"
@@ -142,7 +141,11 @@ class EntryQuery(DomainQueryResource):
 
     @classmethod
     def base_query(cls, context, scope_data):
-        return {"cabinet_id": scope_data["cabinet_id"]}
+        query = {"cabinet_id": scope_data["cabinet_id"]}
+
+        if (parent_path := scope_data.get("parent_path")) is not None:
+            query["parent_path"] = parent_path
+        return query
 
     class Meta(DomainQueryResource.Meta):
         resource = "entry"
