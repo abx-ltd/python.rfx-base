@@ -1,8 +1,9 @@
-from fluvius.data import serialize_mapping
-
+from fluvius.data import serialize_mapping, logger
+from fluvius.domain.signal import DomainSignal
 from .domain import RFXDiscussDomain
 from . import datadef
 from .helper import _handle_mentions
+from .webhook import dispatch_command
 
 processor = RFXDiscussDomain.command_processor
 Command = RFXDiscussDomain.Command
@@ -61,6 +62,7 @@ class AcknowledgeComment(Command):
             await agg.reply_comment(
                 data=datadef.ReplyCommentPayload(content="<i>Acknowledged</i>")
             )
+
 
 class ReplyComment(Command):
     """Reply to Comment - Creates a reply to an existing comment"""
@@ -307,3 +309,14 @@ class UnSubscribeComment(Command):
         yield agg.create_response(
             {"status": "success"}, _type="comment-subscribe-response"
         )
+
+
+@RFXDiscussDomain.subscribe(
+    DomainSignal.TRIGGER_RECONCILIATION,
+    match=lambda cmd: cmd.command in ("create-comment", "reply-comment"),
+)
+async def process(cmd, aggregate, ctx_data, **kwargs):
+    try:
+        await dispatch_command(cmd, ctx_data=ctx_data)
+    except Exception as exc:
+        logger.error(f"Webhook dispatch failed for [{cmd.command}]: {exc}")
