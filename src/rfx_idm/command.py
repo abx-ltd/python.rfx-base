@@ -216,6 +216,53 @@ class CreateUser(Command):
             except Exception as e:
                 logger.warning(f"Failed to assign sys_admin role in Keycloak for {kc_user.id}: {e}")
 
+        # Send welcome email if password is provided
+        if payload.password:
+            context = agg.get_context()
+            notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+
+            if notify_service:
+                target_realm = context.realm or getattr(config, "REALM", None)
+                base_url = userconf.REALM_URL_MAPPER.get(target_realm, "/") if target_realm and userconf.REALM_URL_MAPPER else "/"
+                action_link = base_url
+
+                # Extract company name from realm (e.g. "triptech" from "app.triptech.vn")
+                realm_parts = target_realm.split('.') if target_realm else []
+                company_name = realm_parts[1].capitalize() if len(realm_parts) > 1 else (target_realm or "Our Company")
+
+                try:
+                    await notify_service.send(
+                        f"{config.NOTIFY_NAMESPACE}:send-notification",
+                        command="send-notification",
+                        resource="notification",
+                        payload={
+                            "channel": "EMAIL",
+                            "recipients": [payload.email],
+                            "template_key": "create-user-email",
+                            "content_type": "HTML",
+                            "template_data": {
+                                "user_name": f"{payload.first_name or ''} {payload.last_name or ''}".strip() or payload.username,
+                                "username": payload.username,
+                                "password": payload.password,
+                                "action_link": action_link,
+                                "company": company_name,
+                            },
+                        },
+                        identifier=UUID_GENR(),
+                        _headers={},
+                        _context={
+                            "audit": {
+                                "user_id": str(context.user_id) if context.user_id else None,
+                                "profile_id": str(context.profile_id) if context.profile_id else None,
+                                "organization_id": str(context.organization_id) if context.organization_id else None,
+                                "realm": context.realm,
+                            },
+                            "source": "rfx-idm",
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send welcome email for user {kc_user.id}: {e}")
+
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
 
