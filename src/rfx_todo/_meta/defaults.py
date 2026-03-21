@@ -1,10 +1,10 @@
-from rfx_base import config
+from rfx_base import config as baseconfig
 
-DB_DSN = None
+DB_DSN = baseconfig.RFX_TODO_DB_DSN
 
-RFX_TODO_SCHEMA = "rfx_todo"
-RFX_POLICY_SCHEMA = None
-# RFX_USER_SCHEMA = config.RFX_USER_SCHEMA
+RFX_TODO_SCHEMA = baseconfig.RFX_TODO_SCHEMA
+RFX_POLICY_SCHEMA = baseconfig.RFX_POLICY_SCHEMA
+RFX_USER_SCHEMA = baseconfig.RFX_USER_SCHEMA
 
 POLICY_TABLE = "_policy__rfx_todo"
 
