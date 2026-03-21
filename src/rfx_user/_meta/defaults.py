@@ -1,7 +1,7 @@
 from rfx_base import config as baseconfig
 from fluvius.fastapi import config as fastapi_config
 
-DB_DSN = None
+DB_DSN = baseconfig.DB_DSN
 
 USER_PROFILE_SCHEMA = "rfx_user"
 POLICY_SCHEMA = None
