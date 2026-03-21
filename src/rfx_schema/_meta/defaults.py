@@ -1,13 +1,25 @@
+from rfx_base import config as base_config
 # --- Default Schema Names ---
-RFX_CLIENT_SCHEMA = "rfx_client"
-RFX_DISCUSS_SCHEMA = "rfx_discuss"
-RFX_MEDIA_SCHEMA = "rfx_media"
-RFX_MESSAGE_SCHEMA = "rfx_message"
-RFX_NOTIFY_SCHEMA = "rfx_notify"
-RFX_POLICY_SCHEMA = "rfx_policy"
-RFX_USER_SCHEMA = "rfx_user"
-RFX_QR_SCHEMA = "rfx_qr"
-RFX_TODO_SCHEMA = "rfx_todo"
-RFX_TEMPLATE_SCHEMA = "rfx_template"
+RFX_CLIENT_SCHEMA = base_config.RFX_CLIENT_SCHEMA
+RFX_DISCUSS_SCHEMA = base_config.RFX_DISCUSS_SCHEMA
+RFX_MEDIA_SCHEMA = base_config.RFX_MEDIA_SCHEMA
+RFX_MESSAGE_SCHEMA = base_config.RFX_MESSAGE_SCHEMA
+RFX_NOTIFY_SCHEMA = base_config.RFX_NOTIFY_SCHEMA
+RFX_POLICY_SCHEMA = base_config.RFX_POLICY_SCHEMA
+RFX_USER_SCHEMA = base_config.RFX_USER_SCHEMA
+RFX_QR_SCHEMA = base_config.RFX_QR_SCHEMA
+RFX_TODO_SCHEMA = base_config.RFX_TODO_SCHEMA
+RFX_TEMPLATE_SCHEMA = base_config.RFX_TEMPLATE_SCHEMA
+
+RFX_CLIENT_DB_DSN = base_config.DB_DSN
+RFX_DISCUSS_DB_DSN = base_config.DB_DSN
+RFX_MEDIA_DB_DSN = base_config.DB_DSN
+RFX_MESSAGE_DB_DSN = base_config.DB_DSN
+RFX_NOTIFY_DB_DSN = base_config.DB_DSN
+RFX_POLICY_DB_DSN = base_config.DB_DSN
+RFX_USER_DB_DSN = base_config.DB_DSN
+RFX_QR_DB_DSN = base_config.DB_DSN
+RFX_TODO_DB_DSN = base_config.DB_DSN
+RFX_TEMPLATE_DB_DSN = base_config.DB_DSN
 
 MAX_MUTATIONS = 50

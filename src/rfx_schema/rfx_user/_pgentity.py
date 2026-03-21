@@ -1,6 +1,6 @@
 import os
-from rfx_schema import logger
-from . import SCHEMA, POLICY_SCHEMA, domain_config
+from rfx_schema._meta import logger
+from . import SCHEMA, POLICY_SCHEMA
 
 
 from alembic_utils.pg_view import PGView

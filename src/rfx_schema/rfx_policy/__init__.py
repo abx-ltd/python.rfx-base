@@ -4,17 +4,17 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from fluvius.data import DomainSchema, SqlaDriver
-from rfx_policy import config as domain_config
+from rfx_schema._meta import config as schema_config
 
 # --- Connector and Base Schema ---
 class RFXPolicyConnector(SqlaDriver):
-    __db_dsn__ = domain_config.DB_DSN
-    __schema__ = domain_config.POLICY_SCHEMA
+    __db_dsn__ = schema_config.RFX_POLICY_DB_DSN
+    __schema__ = schema_config.RFX_POLICY_SCHEMA
 
 
 class Base(RFXPolicyConnector.__data_schema_base__, DomainSchema):
     __abstract__ = True
-    __table_args__ = {"schema": domain_config.POLICY_SCHEMA}
+    __table_args__ = {"schema": schema_config.RFX_POLICY_SCHEMA}
 
 
 class TableBase(Base):
@@ -22,7 +22,7 @@ class TableBase(Base):
     _realm: Mapped[Optional[str]] = mapped_column(String(255))
 
 
-SCHEMA = domain_config.POLICY_SCHEMA
+SCHEMA = schema_config.RFX_POLICY_SCHEMA
 
 
 

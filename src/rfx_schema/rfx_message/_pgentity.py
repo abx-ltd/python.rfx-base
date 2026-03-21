@@ -1,5 +1,5 @@
 import os
-from rfx_schema import logger
+from rfx_schema._meta import logger
 
 from alembic_utils.replaceable_entity import register_entities
 
