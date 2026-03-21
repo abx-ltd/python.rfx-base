@@ -1,4 +1,4 @@
-# DB_DSN = None
+DB_DSN = None
 
 <<<<<<< HEAD
 RFX_BILLING_SCHEMA = "rfx_billing"
