@@ -1,9 +1,10 @@
 from rfx_base import config as baseconfig
+from rfx_schema import config as schema_config
 from fluvius.fastapi import config as fastapi_config
 
-DB_DSN = baseconfig.RFX_USER_DB_DSN
-USER_PROFILE_SCHEMA = baseconfig.RFX_USER_SCHEMA
-POLICY_SCHEMA = baseconfig.RFX_POLICY_SCHEMA
+DB_DSN = schema_config.RFX_USER_DB_DSN
+USER_PROFILE_SCHEMA = schema_config.RFX_USER_SCHEMA
+POLICY_SCHEMA = schema_config.RFX_POLICY_SCHEMA
 
 POLICY_TABLE = "_policy__user_profile"
 REALM = 'rfx'
