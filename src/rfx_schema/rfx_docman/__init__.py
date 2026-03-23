@@ -9,7 +9,7 @@ from rfx_base import config
 
 
 class RFXDocmanConnector(SqlaDriver):
-    __db_dsn__ = schema_config.DB_DSN
+    __db_dsn__ = schema_config.RFX_DOCMAN_DB_DSN
     __schema__ = config.RFX_DOCMAN_SCHEMA
 
 
