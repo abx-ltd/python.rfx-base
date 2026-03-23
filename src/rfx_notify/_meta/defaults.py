@@ -1,13 +1,13 @@
-from rfx_base import config
+from rfx_base import config as base_config
 
-LOG_LEVEL = config.LOG_LEVEL
-DB_DSN = None
+LOG_LEVEL = base_config.LOG_LEVEL
+DB_DSN = base_config.RFX_NOTIFY_DB_DSN
 
 NOTIFY_SERVICE_SCHEMA = "rfx_notify"
 POLICY_SCHEMA = "rfx_policy"
 POLICY_TABLE = "_policy__user_profile"
 NAMESPACE = "rfx-notify"
-TEMPLATE_CLIENT = config.TEMPLATE_CLIENT
+TEMPLATE_CLIENT = base_config.TEMPLATE_CLIENT
 
 # ============================================================================
 # SELF-HOSTED INFRASTRUCTURE CONFIGURATION

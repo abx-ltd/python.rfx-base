@@ -1,11 +1,11 @@
-from rfx_base import config
+from rfx_base import config as base_config
 
-DB_DSN = None
+DB_DSN = base_config.RFX_CLIENT_DB_DSN
 RFX_CLIENT_SCHEMA = "rfx_client"
 RFX_POLICY_SCHEMA = None
-RFX_USER_SCHEMA = config.RFX_USER_SCHEMA
-RFX_MESSAGE_SCHEMA = config.RFX_MESSAGE_SCHEMA
-RFX_DISCUSS_SCHEMA = config.RFX_DISCUSS_SCHEMA
+RFX_USER_SCHEMA = base_config.RFX_USER_SCHEMA
+RFX_MESSAGE_SCHEMA = base_config.RFX_MESSAGE_SCHEMA
+RFX_DISCUSS_SCHEMA = base_config.RFX_DISCUSS_SCHEMA
 
 POLICY_TABLE = "_policy__rfx_client"
 NAMESPACE = "rfx-client"
