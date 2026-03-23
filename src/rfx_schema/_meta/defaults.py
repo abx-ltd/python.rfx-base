@@ -1,7 +1,9 @@
 from rfx_base import config as base_config
+
 # --- Default Schema Names ---
 RFX_CLIENT_SCHEMA = base_config.RFX_CLIENT_SCHEMA
 RFX_DISCUSS_SCHEMA = base_config.RFX_DISCUSS_SCHEMA
+RFX_DOCMAN_SCHEMA = base_config.RFX_DOCMAN_SCHEMA
 RFX_MEDIA_SCHEMA = base_config.RFX_MEDIA_SCHEMA
 RFX_MESSAGE_SCHEMA = base_config.RFX_MESSAGE_SCHEMA
 RFX_NOTIFY_SCHEMA = base_config.RFX_NOTIFY_SCHEMA
@@ -13,6 +15,7 @@ RFX_TEMPLATE_SCHEMA = base_config.RFX_TEMPLATE_SCHEMA
 
 RFX_CLIENT_DB_DSN = base_config.DB_DSN
 RFX_DISCUSS_DB_DSN = base_config.DB_DSN
+RFX_DOCMAN_DB_DSN = base_config.DB_DSN
 RFX_MEDIA_DB_DSN = base_config.DB_DSN
 RFX_MESSAGE_DB_DSN = base_config.DB_DSN
 RFX_NOTIFY_DB_DSN = base_config.DB_DSN
