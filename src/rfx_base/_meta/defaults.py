@@ -18,5 +18,6 @@ RFX_TODO_SCHEMA = "rfx_todo"
 RFX_TEMPLATE_SCHEMA = "rfx_template"
 RFX_HATCHET_SCHEMA = "rfx_hatchet"
 RFX_IDM_SCHEMA = "rfx_idm"
+RFX_CQRS_SCHEMA = "domain-audit"
 
 LOG_LEVEL = None
