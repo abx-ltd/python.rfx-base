@@ -221,7 +221,7 @@ class CreateUser(Command):
         notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
 
         if notify_service:
-            target_realm = config.KEYCLOAK_REALM
+            target_realm = config.REALM
             # Extract company name from realm
             realm_parts = target_realm.split(".") if target_realm else []
             company_name = (
