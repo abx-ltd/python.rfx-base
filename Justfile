@@ -73,7 +73,7 @@ mig-autogen MESSAGE SCHEMA="all" REGISTER_ENTITIES="1":
 # Apply all pending migrations (optionally filter by schema)
 # Usage: just mig-upgrade [revision] [schema] [REGISTER_ENTITIES=true|false]
 [no-cd]
-mig-upgrade REVISION="head" SCHEMA="all" REGISTER_ENTITIES="0":
+mig-upgrade REVISION="head" SCHEMA="all" REGISTER_ENTITIES="1":
     @echo "⬆️  Upgrading migrations for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
     REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini upgrade {{REVISION}}
 
@@ -104,6 +104,6 @@ mig-history:
 # Check differences between database and models (optionally for specific schema)
 # Usage: just mig-check [schema] [REGISTER_ENTITIES=true|false]
 [no-cd]
-mig-check SCHEMA="all" REGISTER_ENTITIES="0":
+mig-check SCHEMA="all" REGISTER_ENTITIES="1":
     @echo "🔍 Checking schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
     REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini check
