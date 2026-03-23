@@ -218,7 +218,7 @@ class CreateUser(Command):
 
         # Send welcome email
         context = agg.get_context()
-        notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+        notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
 
         if notify_service:
             target_realm = config.KEYCLOAK_REALM
