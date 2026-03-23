@@ -57,7 +57,7 @@ class SendNotification(Command):
                 context = agg.get_context()
                 template_client = getattr(context.service_proxy, config.TEMPLATE_CLIENT, None)
                 if not template_client:
-                    raise RuntimeError("Template service not found")
+                    raise RuntimeError(f"Template service not found {config.TEMPLATE_CLIENT}")
 
                 response = await template_client.request(
                     "rfx-template:render-template",

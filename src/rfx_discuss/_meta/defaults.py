@@ -1,11 +1,11 @@
-from rfx_base import config
+from rfx_base import config as base_config
 
-LOG_LEVEL = config.LOG_LEVEL
-DB_DSN = None
+LOG_LEVEL = base_config.LOG_LEVEL
+DB_DSN = base_config.RFX_DISCUSS_DB_DSN
 
 RFX_DISCUSS_SCHEMA = "rfx_discuss"
 POLICY_SCHEMA = None
-# RFX_USER_SCHEMA = config.RFX_USER_SCHEMA
+RFX_USER_SCHEMA = base_config.RFX_USER_SCHEMA
 
 MESSAGE_NAMESPACE = "rfx-message"
 

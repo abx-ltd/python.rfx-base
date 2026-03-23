@@ -31,8 +31,8 @@ populate:
 populate-sys-org name="SYSTEM ORGANIZATION":
     python -m mig.populate_sys_org "{{name}}"
 
-@create-schema:
-    ./manager db create-schema rfx_schema._schema.RFXConnector --force
+@create-schema MODULE:
+    ./manager db create-schema {{MODULE}} --force
 
 @drop-schema: print-vars && _drop-schema-confirmed
 

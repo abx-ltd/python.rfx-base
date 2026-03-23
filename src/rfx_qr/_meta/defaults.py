@@ -1,7 +1,7 @@
-from rfx_base import config
+from rfx_base import config as base_config
 
-LOG_LEVEL = config.LOG_LEVEL
-DB_DSN = None
+LOG_LEVEL = base_config.LOG_LEVEL
+DB_DSN = base_config.RFX_QR_DB_DSN
 
 QR_DOMAIN_NAMESPACE = "rfx-qr"
 QR_BIN_ID = None
