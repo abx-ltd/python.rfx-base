@@ -66,14 +66,14 @@ populate-sys-org name="SYSTEM ORGANIZATION":
 #   just mig-autogen "update tables" user,message  # Multiple schemas
 #   just mig-autogen "todo" todo               # Only todo schema
 [no-cd]
-mig-autogen MESSAGE SCHEMA="all" REGISTER_ENTITIES="0":
+mig-autogen MESSAGE SCHEMA="all" REGISTER_ENTITIES="1":
     @echo "🔍 Generating migration for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
     REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini revision --autogenerate -m "{{MESSAGE}}"
 
 # Apply all pending migrations (optionally filter by schema)
 # Usage: just mig-upgrade [revision] [schema] [REGISTER_ENTITIES=true|false]
 [no-cd]
-mig-upgrade REVISION="head" SCHEMA="all" REGISTER_ENTITIES="1":
+mig-upgrade REVISION="head" SCHEMA="all" REGISTER_ENTITIES="0":
     @echo "⬆️  Upgrading migrations for schema(s): {{SCHEMA}} (REGISTER_ENTITIES={{REGISTER_ENTITIES}})"
     REGISTER_PG_ENTITIES={{REGISTER_ENTITIES}} ALEMBIC_SCHEMA_FILTER={{SCHEMA}} alembic -c alembic/alembic.ini upgrade {{REVISION}}
 
