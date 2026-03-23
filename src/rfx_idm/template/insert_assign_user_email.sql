@@ -13,10 +13,10 @@ INSERT INTO rfx_template.template (
     is_active
 ) VALUES (
     gen_random_uuid(),
-    'create-user-email',
+    'assign-profile-email',
     1,
-    'Welcome Email',
-    'Email template for sending welcome message to new users.',
+    'Profile Assignment Email',
+    'Email template for notifying users when a new profile is assigned to them.',
     'en',
     'EMAIL',
     $html$<!DOCTYPE html>
@@ -24,7 +24,7 @@ INSERT INTO rfx_template.template (
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Welcome to {{ company }}</title>
+    <title>New Profile Assigned - {{ company }}</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -114,22 +114,23 @@ INSERT INTO rfx_template.template (
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to {{ company }}!</h1>
+            <h1>New Access Granted!</h1>
         </div>
         <div class="content">
             <p>Hello <strong>{{ user_name }}</strong>,</p>
-            <p>Your account has been successfully created. You can now sign in to our platform using the credentials
-                below:</p>
+            <p>A new profile has been assigned to you for <strong>{{ company }}</strong>. You can now access the system using your existing credentials.</p>
 
             <div class="credentials">
                 <div class="credential-item">
                     <span class="credential-label">Username:</span>
                     <span class="credential-value">{{ username }}</span>
                 </div>
-                <div class="credential-item">
-                    <span class="credential-label">Password:</span>
-                    <span class="credential-value">{{ password }}</span>
-                </div>
+            </div>
+
+            <p>Click the button below to go to your realm:</p>
+
+            <div class="button-wrapper">
+                <a href="{{ action_link }}" class="button">Go to system</a>
             </div>
 
             <p>If you have any questions, please don't hesitate to reach out to our support team.</p>
@@ -143,6 +144,6 @@ INSERT INTO rfx_template.template (
 </html>$html$,
     'jinja2',
     '{}'::jsonb,
-    '{"subject": "Welcome to {{ company }}"}'::jsonb,
+    '{"subject": "New Profile Assigned - {{ company }}"}'::jsonb,
     true
 );
