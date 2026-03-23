@@ -1,5 +1,5 @@
 from fluvius.casbin import PolicyManager, PolicySchema
-from rfx_schema import RFXTodoConnector
+from rfx_schema.rfx_todo import RFXTodoConnector
 from . import config
 
 

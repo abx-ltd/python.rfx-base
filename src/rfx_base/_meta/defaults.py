@@ -36,6 +36,21 @@ RFX_USER_SCHEMA = "rfx_user"
 RFX_QR_SCHEMA = "rfx_qr"
 RFX_TODO_SCHEMA = "rfx_todo"
 RFX_TEMPLATE_SCHEMA = "rfx_template"
+RFX_HATCHET_SCHEMA = "rfx_hatchet"
+RFX_IDM_SCHEMA = "rfx_idm"
+
+RFX_CLIENT_DB_DSN = None
+RFX_DISCUSS_DB_DSN = None
+RFX_MEDIA_DB_DSN = None
+RFX_MESSAGE_DB_DSN = None
+RFX_NOTIFY_DB_DSN = None
+RFX_POLICY_DB_DSN = None
+RFX_USER_DB_DSN = None
+RFX_QR_DB_DSN = None
+RFX_TODO_DB_DSN = None
+RFX_TEMPLATE_DB_DSN = None
+RFX_HATCHET_DB_DSN = None
+RFX_IDM_DB_DSN = None
 
 LOG_LEVEL = None
 >>>>>>> 06811eb (update: rfx schema)
