@@ -101,7 +101,7 @@ class IDMAggregate(Aggregate):
             "user",
             data,
             _id=user_id,
-            status='NEW',
+            status='ACTIVE',
             verified_email=data.get("verified_email") or data.get("telecom__email"),
         )
         await self.statemgr.insert(record)

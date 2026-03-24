@@ -1,7 +1,8 @@
 from rfx_base import config as base_config
+from rfx_schema._meta import config as schema_config
 
 LOG_LEVEL = base_config.LOG_LEVEL
-DB_DSN = base_config.RFX_NOTIFY_DB_DSN
+DB_DSN = schema_config.RFX_NOTIFY_DB_DSN
 
 NOTIFY_SERVICE_SCHEMA = "rfx_notify"
 POLICY_SCHEMA = "rfx_policy"

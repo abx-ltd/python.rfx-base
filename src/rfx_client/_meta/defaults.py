@@ -1,6 +1,7 @@
 from rfx_base import config as base_config
+from rfx_schema import config as schema_config
 
-DB_DSN = base_config.RFX_CLIENT_DB_DSN
+DB_DSN = schema_config.RFX_CLIENT_DB_DSN
 RFX_CLIENT_SCHEMA = "rfx_client"
 RFX_POLICY_SCHEMA = None
 RFX_USER_SCHEMA = base_config.RFX_USER_SCHEMA

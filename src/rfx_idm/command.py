@@ -216,6 +216,60 @@ class CreateUser(Command):
             except Exception as e:
                 logger.warning(f"Failed to assign sys_admin role in Keycloak for {kc_user.id}: {e}")
 
+        # Send welcome email
+        context = agg.get_context()
+        notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
+
+        if notify_service:
+            target_realm = config.REALM
+            # Extract company name from realm
+            realm_parts = target_realm.split(".") if target_realm else []
+            company_name = (
+                realm_parts[1].capitalize()
+                if len(realm_parts) > 1
+                else (target_realm or "Our Company")
+            )
+
+            try:
+                await notify_service.send(
+                    f"{config.NOTIFY_NAMESPACE}:send-notification",
+                    command="send-notification",
+                    resource="notification",
+                    payload={
+                        "channel": "EMAIL",
+                        "recipients": [payload.email],
+                        "template_key": "create-user-email",
+                        "content_type": "HTML",
+                        "template_data": {
+                            "user_name": f"{payload.first_name or ''} {payload.last_name or ''}".strip()
+                            or payload.username
+                            or "User",
+                            "username": payload.username,
+                            "password": payload.password,
+                            "company": company_name,
+                        },
+                    },
+                    identifier=UUID_GENR(),
+                    _headers={},
+                    _context={
+                        "audit": {
+                            "user_id": str(context.user_id) if context.user_id else None,
+                            "profile_id": str(context.profile_id)
+                            if context.profile_id
+                            else None,
+                            "organization_id": str(context.organization_id)
+                            if context.organization_id
+                            else None,
+                            "realm": context.realm,
+                        },
+                        "source": "rfx-idm",
+                    },
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to send welcome email for user {kc_user.id}: {e}"
+                )
+
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
 
@@ -1004,7 +1058,7 @@ class CreateProfileInOrg(Command):
                         payload={
                             "channel": "EMAIL",
                             "recipients": [profile_data.get("telecom__email")],
-                            "template_key": "create-user-email",
+                            "template_key": "assign-profile-email",
                             "content_type": "HTML",
                             "template_data": {
                                 "user_name": f"{profile_data.get('name__given') or ''} {profile_data.get('name__family') or ''}".strip() or profile_data.get('username') or "User",
@@ -1026,7 +1080,7 @@ class CreateProfileInOrg(Command):
                         },
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to send welcome email for profile {result.get('profile_id')}: {e}")
+                    logger.warning(f"Failed to send assignment email for profile {result.get('profile_id')}: {e}")
 
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
