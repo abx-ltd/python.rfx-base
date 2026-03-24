@@ -19,6 +19,7 @@ RFX_TEMPLATE_SCHEMA = "rfx_template"
 RFX_HATCHET_SCHEMA = "rfx_hatchet"
 RFX_IDM_SCHEMA = "rfx_idm"
 RFX_DOCMAN_SCHEMA = "rfx_docman"
+RFX_CQRS_SCHEMA = "domain-audit"
 
 RFX_CLIENT_DB_DSN = None
 RFX_DISCUSS_DB_DSN = None
