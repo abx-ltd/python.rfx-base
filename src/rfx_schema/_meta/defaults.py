@@ -26,5 +26,6 @@ RFX_QR_DB_DSN = base_config.DB_DSN
 RFX_TODO_DB_DSN = base_config.DB_DSN
 RFX_TEMPLATE_DB_DSN = base_config.DB_DSN
 RFX_HATCHET_DB_DSN = base_config.DB_DSN
+RFX_CQRS_DB_DSN=base_config.DB_DSN
 
 MAX_MUTATIONS = 50
