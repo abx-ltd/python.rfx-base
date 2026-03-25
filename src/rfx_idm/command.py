@@ -1141,6 +1141,7 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
 
         if user_was_created:
             # Brand-new user: create an ACTIVE profile and assign roles immediately.
+            profile_data["status"] = "ACTIVE"
             result = await agg.create_profile_in_org(profile_data)
 
             try:
