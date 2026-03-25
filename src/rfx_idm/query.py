@@ -217,14 +217,15 @@ async def check_user_email(
     Returns:
         {"exists": true|false}
     """
-    email = request.query_params.get("email")
-    if not email:
-        return {"error": "email query parameter is required"}
+    async with query_manager.data_manager.transaction():
+        email = request.query_params.get("email")
+        if not email:
+            return {"error": "email query parameter is required"}
 
-    exists = await query_manager.data_manager.exist(
-        "user", where=dict(telecom__email=email)
-    )
-    return {"exists": bool(exists)}
+        exists = await query_manager.data_manager.exist(
+            "user", where=dict(telecom__email=email)
+        )
+        return {"exists": bool(exists)}
 
 
 @resource("user")
