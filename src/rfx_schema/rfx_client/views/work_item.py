@@ -1,5 +1,5 @@
-from .. import SCHEMA, domain_config
-
+from .. import SCHEMA
+from alembic_utils.pg_view import PGView
 
 work_item_view = PGView(
     schema=SCHEMA,

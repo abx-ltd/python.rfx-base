@@ -10,7 +10,7 @@ from sqlalchemy import pool
 from alembic import context
 
 # STEP 1: Load schema config (centralized domain schemas)
-from rfx_schema import config as schema_config
+from rfx_base import config as schema_config
 from rfx_schema import _schema, _pgentity  # noqa: F401
 
 # Import domain connectors individually
@@ -48,8 +48,6 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-logger = logging.getLogger("alembic.env")
-
 sync_url = schema_config.DB_DSN.replace("+asyncpg://", "+psycopg2://")
 
 # All available schemas
@@ -71,7 +69,6 @@ else:
     schema_names = list(DOMAIN_SCHEMAS.keys())
 
 if not schema_names:
-    logger.warning("⚠️  No valid schemas selected, defaulting to all")
     schema_names = list(DOMAIN_SCHEMAS.keys())
 
 SCHEMAS = tuple(DOMAIN_SCHEMAS[name] for name in schema_names)
@@ -82,7 +79,6 @@ target_metadata = [
     connector.__data_schema_base__.metadata for connector in selected_connectors
 ]
 
-logger.info(f"📋 Using schemas: {schema_names} -> {SCHEMAS}")
 
 
 def include_server_default(
@@ -110,7 +106,6 @@ def include_object(object, name, type_, reflected, compare_to):
         return False
 
     if hasattr(object, "info") and object.info.get("is_view"):
-        logger.warning(f"include_object: skipping {name} because it is a view")
         return False
 
     return True

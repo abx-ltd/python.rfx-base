@@ -1,4 +1,4 @@
-from . import SCHEMA, domain_config
+from . import SCHEMA
 
 
 # from alembic_utils.pg_view import PGView

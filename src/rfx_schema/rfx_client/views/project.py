@@ -3,9 +3,10 @@ Project-related database views
 """
 
 from alembic_utils.pg_view import PGView
-from .. import SCHEMA, domain_config
+from .. import SCHEMA
 from rfx_schema.rfx_user import SCHEMA as USER_SCHEMA
 from rfx_schema.rfx_media import SCHEMA as MEDIA_SCHEMA
+from alembic_utils.pg_function import PGFunction
 
 
 project_view = PGView(
