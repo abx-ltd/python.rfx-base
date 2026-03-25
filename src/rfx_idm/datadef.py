@@ -32,7 +32,6 @@ class CreateUserPayload(DataModel):
     phone: Optional[str] = None       # -> telecom__phone
 
     # Authentication
-    password: Optional[str] = None
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
 
@@ -196,6 +195,15 @@ class CreateProfileInOrgPayload(CreateProfilePayload):
     organization_id: str
 
 
+class CreateProfileUserInOrgPayload(CreateProfileInOrgPayload):
+    assign_to_existed_user: bool = False
+
+    username: Optional[str] = None  # type: ignore[assignment]  # overrides CreateProfilePayload's absence
+
+    is_active: Optional[bool] = True
+    is_superuser: Optional[bool] = False
+
+
 class UpdateProfilePayload(DataModel):
     """Payload for updating user profiles within organizations."""
     address__city: Optional[str] = None
@@ -272,6 +280,7 @@ class SendInvitationPayload(DataModel):
     email: str
     duration: Optional[int] = Field(default=10)
     message: str | None = None
+    role_keys: Optional[List[str]] = Field(default_factory=lambda: ["VIEWER"])
 
 class AssignRolePayload(DataModel):
     """Payload for assigning roles to profiles."""

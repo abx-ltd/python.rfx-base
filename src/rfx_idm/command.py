@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fluvius.data import serialize_mapping, UUID_GENR
 from fluvius.data.exceptions import ItemNotFoundError
 from fluvius.error import BadRequestError
@@ -58,6 +58,98 @@ class SyncUserMixin:
         return synced_user, {"status": "success", "user_id": str(user_id)}
 
 
+class UserProvisionMixin:
+    """Provides reusable logic for provisioning users in Keycloak and local system."""
+
+    async def _find_kc_user_by_identifiers(self, username=None, email=None):
+        """Exact-match lookup in Keycloak by username then email."""
+        kc_user = None
+        if username:
+            candidates = await kc_admin.find_user(username)
+            for u in candidates:
+                if u.username == username:
+                    kc_user = u
+                    break
+
+        if not kc_user and email:
+            candidates = await kc_admin.find_user(email)
+            for u in candidates:
+                if u.email == email:
+                    kc_user = u
+                    break
+        return kc_user
+
+    async def _trigger_kc_onboarding(self, user_id):
+        """Trigger Keycloak required-action onboarding emails."""
+        try:
+            await kc_admin.execute_actions(
+                user_id=user_id,
+                actions=["UPDATE_PASSWORD", "VERIFY_EMAIL"],
+                redirect_uri=config.REDIRECT_URL,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to execute Keycloak actions for user {user_id}: {e}")
+
+    async def _ensure_local_user(self, stm, agg, kc_user, is_superuser=False, **extra_data):
+        """Standardized local user synchronization and upsert logic."""
+        import copy
+        try:
+            return await stm.fetch("user", kc_user.id)
+        except Exception:
+            pass
+
+        realm_access = copy.deepcopy(DEFAULT_REALM_ACCESS)
+        if config.ALLOW_CREATE_SYS_ADMIN:
+            if is_superuser and "sys_admin" not in realm_access["roles"]:
+                realm_access["roles"].append("sys_admin")
+        resource_access = copy.deepcopy(DEFAULT_RESOURCE_ACCESS)
+
+        # Build standard user data mapping
+        user_data = {
+            "_id": kc_user.id,
+            "username": getattr(kc_user, "username", None) or extra_data.get("username"),
+            "active": getattr(kc_user, "enabled", True),
+            "is_super_admin": is_superuser,
+            "telecom__email": getattr(kc_user, "email", None) or extra_data.get("telecom__email"),
+            "realm_access": realm_access,
+            "resource_access": resource_access,
+        }
+
+        # Merge names and telecom info from Keycloak if available, or fall back to extra_data
+        user_data.update({
+            "name__given": getattr(kc_user, "firstName", None) or extra_data.get("name__given"),
+            "name__family": getattr(kc_user, "lastName", None) or extra_data.get("name__family"),
+            "name__middle": extra_data.get("name__middle"),
+            "name__prefix": extra_data.get("name__prefix"),
+            "name__suffix": extra_data.get("name__suffix"),
+            "telecom__phone": extra_data.get("telecom__phone"),
+        })
+
+        # Multi-field verification data
+        user_data.update({
+            "verified_email": extra_data.get("verified_email")
+            or (
+                getattr(kc_user, "email", None)
+                if getattr(kc_user, "emailVerified", False)
+                else None
+            ),
+            "verified_phone": extra_data.get("verified_phone"),
+        })
+
+        user = await agg.create_user(user_data)
+
+        # Sync sys_admin role to Keycloak if needed
+        if config.ALLOW_CREATE_SYS_ADMIN and is_superuser:
+            try:
+                await kc_admin.add_user_roles(kc_user.id, ["sys_admin"])
+            except Exception as e:
+                logger.warning(
+                    f"Failed to assign sys_admin role in Keycloak for {kc_user.id}: {e}"
+                )
+
+        return user
+
+
 # ============ User Context =============
 
 
@@ -81,7 +173,7 @@ DEFAULT_RESOURCE_ACCESS = {
 }
 
 
-class CreateUser(Command):
+class CreateUser(Command, UserProvisionMixin):
     """
     Create new user in Keycloak and local system.
     Establishes user account with initial settings and verification status.
@@ -104,7 +196,7 @@ class CreateUser(Command):
         elif payload.verified_email:
             email_verified = True
 
-        # Prepare Keycloak user data
+        # Prepare Keycloak user data.
         kc_user_data = {
             "email": payload.email,
             "username": payload.username,
@@ -112,163 +204,46 @@ class CreateUser(Command):
             "lastName": payload.last_name or "",
             "enabled": payload.is_active,
             "emailVerified": email_verified,
-            "requiredActions": [],
+            "requiredActions": ["UPDATE_PASSWORD", "VERIFY_EMAIL"],
         }
 
-        # Add password credentials if provided
-        if payload.password:
-            kc_user_data["credentials"] = [
-                {
-                    "value": payload.password,
-                    "temporary": False,
-                    "type": "password",
-                }
-            ]
-        else:
-            # If no password provided, require user to update password
-            kc_user_data["requiredActions"].append("UPDATE_PASSWORD")
-        if not email_verified:
-            kc_user_data["requiredActions"].append("VERIFY_EMAIL")
-
-        # Create user in Keycloak
+        # Create or update user in Keycloak
         try:
             kc_user = await kc_admin.create_user(kc_user_data)
         except BadRequestError as e:
-            # Check if error is due to user already existing
-            error_msg = str(e).lower()
-            if "exists" not in error_msg:
-                # Re-raise if it's a different error
+            if "exists" not in str(e).lower():
                 raise
 
-            existing_users = await kc_admin.find_user(payload.username)
-
-            # Filter for exact username match
-            kc_user = None
-            for user in existing_users:
-                if user.username == payload.username:
-                    kc_user = user
-                    break
-
-            # If not found by username, try by email
-            if not kc_user and payload.email:
-                existing_users = await kc_admin.find_user(payload.email)
-                for user in existing_users:
-                    if user.email == payload.email:
-                        kc_user = user
-                        break
-
+            kc_user = await self._find_kc_user_by_identifiers(
+                username=payload.username, email=payload.email
+            )
             if not kc_user:
                 raise
 
-            update_payload = {
-                "email": payload.email,
-                "username": payload.username,
-                "firstName": payload.first_name or "",
-                "lastName": payload.last_name or "",
-                "enabled": payload.is_active,
-                "emailVerified": email_verified,
-            }
+            await kc_admin.update_user(kc_user.id, kc_user_data)
 
-            await kc_admin.update_user(kc_user.id, update_payload)
-
-            if payload.password:
-                await kc_admin.set_user_password(
-                    kc_user.id, payload.password, temporary=False
-                )
-
-        import copy
-        realm_access = copy.deepcopy(DEFAULT_REALM_ACCESS)
-        if config.ALLOW_CREATE_SYS_ADMIN:
-            if payload.is_superuser and "sys_admin" not in realm_access['roles']:
-                realm_access['roles'].append("sys_admin")
-        resource_access = copy.deepcopy(DEFAULT_RESOURCE_ACCESS)
-
-        # Prepare local database user data with proper field mapping
-        user_data = {
-            "_id": kc_user.id,  # Use Keycloak user ID as primary key
-            "username": payload.username,
-            "active": payload.is_active,
-            "is_super_admin": payload.is_superuser,
-            # Name fields (with double underscore prefix)
-            "name__given": payload.first_name,
-            "name__family": payload.last_name,
-            "name__middle": payload.middle_name,
-            "name__prefix": payload.name_prefix,
-            "name__suffix": payload.name_suffix,
-            # Telecom fields (with double underscore prefix)
-            "telecom__email": payload.email,
-            "telecom__phone": payload.phone,
-            # Verification fields
-            "verified_email": (
+        # Ensure local record is synced
+        user = await self._ensure_local_user(
+            stm,
+            agg,
+            kc_user,
+            is_superuser=payload.is_superuser,
+            username=payload.username,
+            telecom__email=payload.email,
+            name__given=payload.first_name,
+            name__family=payload.last_name,
+            name__middle=payload.middle_name,
+            name__prefix=payload.name_prefix,
+            name__suffix=payload.name_suffix,
+            telecom__phone=payload.phone,
+            verified_email=(
                 payload.verified_email or (payload.email if email_verified else None)
             ),
-            "verified_phone": payload.verified_phone,
-            # Access control (JSON fields)
-            "realm_access": realm_access,
-            "resource_access": resource_access,
-        }
-        # Create user in local database
-        user = await agg.create_user(user_data)
+            verified_phone=payload.verified_phone,
+        )
 
-        if config.ALLOW_CREATE_SYS_ADMIN and payload.is_superuser:
-            try:
-                await kc_admin.add_user_roles(kc_user.id, ["sys_admin"])
-            except Exception as e:
-                logger.warning(f"Failed to assign sys_admin role in Keycloak for {kc_user.id}: {e}")
-
-        # Send welcome email
-        context = agg.get_context()
-        notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
-
-        if notify_service:
-            target_realm = config.REALM
-            # Extract company name from realm
-            realm_parts = target_realm.split(".") if target_realm else []
-            company_name = (
-                realm_parts[1].capitalize()
-                if len(realm_parts) > 1
-                else (target_realm or "Our Company")
-            )
-
-            try:
-                await notify_service.send(
-                    f"{config.NOTIFY_NAMESPACE}:send-notification",
-                    command="send-notification",
-                    resource="notification",
-                    payload={
-                        "channel": "EMAIL",
-                        "recipients": [payload.email],
-                        "template_key": "create-user-email",
-                        "content_type": "HTML",
-                        "template_data": {
-                            "user_name": f"{payload.first_name or ''} {payload.last_name or ''}".strip()
-                            or payload.username
-                            or "User",
-                            "username": payload.username,
-                            "password": payload.password,
-                            "company": company_name,
-                        },
-                    },
-                    identifier=UUID_GENR(),
-                    _headers={},
-                    _context={
-                        "audit": {
-                            "user_id": str(context.user_id) if context.user_id else None,
-                            "profile_id": str(context.profile_id)
-                            if context.profile_id
-                            else None,
-                            "organization_id": str(context.organization_id)
-                            if context.organization_id
-                            else None,
-                            "realm": context.realm,
-                        },
-                        "source": "rfx-idm",
-                    },
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Failed to send welcome email for user {kc_user.id}: {e}"
-                )
+        # Trigger onboarding emails
+        await self._trigger_kc_onboarding(kc_user.id)
 
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
@@ -423,7 +398,7 @@ class SyncUser(Command, SyncUserMixin):
             user = agg.get_rootobj()
             if getattr(user, "last_sync", None):
                 # Don't sync if last sync was less than 5 minutes ago
-                if (datetime.utcnow() - user.last_sync).total_seconds() < 300:
+                if (datetime.now(timezone.utc) - user.last_sync).total_seconds() < 300:
                     yield agg.create_response(
                         {"status": "skipped", "reason": "Recently synced"},
                         _type="idm-response",
@@ -495,7 +470,7 @@ class SendVerification(Command):
     async def _process(self, agg, stm, payload):
         rootobj = agg.get_rootobj()
         await kc_admin.send_verify_email(rootobj._id)
-        await agg.update_user(dict(last_verified_request=datetime.utcnow()))
+        await agg.update_user(dict(last_verified_request=datetime.now(timezone.utc)))
 
 
 class DeactivateUser(Command):
@@ -592,7 +567,7 @@ class SendUserAction(Command):
 
         window_minutes = userconf.RATE_LIMIT_WINDOW_MINUTES
         max_requests = userconf.MAX_REQUESTS_PER_WINDOW
-        window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+        window_start = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         user = agg.get_rootobj()
         if not user:
@@ -1036,53 +1011,169 @@ class CreateProfileInOrg(Command):
             # Re-raise to trigger transaction rollback
             raise ValueError(f"Failed to assign roles to profile: {str(e)}")
 
-        # Send welcome email
-        if profile_data.get("realm"):
-            context = agg.get_context()
-            notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
+        yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
-            if notify_service:
-                target_realm = profile_data.get("realm")
-                base_url = userconf.REALM_URL_MAPPER.get(target_realm, "/") if target_realm and userconf.REALM_URL_MAPPER else "/"
-                action_link = base_url
 
-                # Extract company name from realm
-                realm_parts = target_realm.split('.') if target_realm else []
-                company_name = realm_parts[1].capitalize() if len(realm_parts) > 1 else (target_realm or "Our Company")
+class CreateProfileUserInOrg(Command, UserProvisionMixin):
+    """
+    Create a profile within an organization for a user, optionally creating the
+    Keycloak user on the fly.
 
+    Behaviour is controlled by ``assign_to_existed_user``:
+
+    - ``True``  → look up the user by username/email in Keycloak; raise if not found.
+    - ``False`` → look up first; if not found, create the user in Keycloak with
+                  required actions (UPDATE_PASSWORD + VERIFY_EMAIL).  If already
+                  present, the existing account is reused (idempotent).
+
+    In both cases a local ``user`` record is created when absent, then a profile
+    is created in the target organization.
+    """
+
+    class Meta:
+        key = "create-profile-user-in-org"
+        resources = ("profile",)
+        tags = ["profile", "user"]
+        auth_required = True
+        resource_init = True
+        policy_required = True
+
+    Data = datadef.CreateProfileUserInOrgPayload
+
+    # ------------------------------------------------------------------
+    # Main process
+    # ------------------------------------------------------------------
+
+    async def _process(self, agg, stm, payload):
+        profile_data = serialize_mapping(payload)
+
+        # Strip user-resolution-only fields before building the profile record
+        assign_to_existed_user = profile_data.pop("assign_to_existed_user", False)
+        is_active = profile_data.pop("is_active", True)
+        is_superuser = profile_data.pop("is_superuser", False)
+
+        # Validate realm
+        if config.OPERATION_VALID_REALMS is not None:
+            target_realm = profile_data.get("realm")
+            if target_realm not in config.OPERATION_VALID_REALMS:
+                raise ValueError(f"Realm '{target_realm}' is not valid for profile creation.")
+
+        role_keys = profile_data.pop("role_keys", ["VIEWER"])
+
+        # Validate org authorization (mirrors CreateProfileInOrg)
+        intended_organization_id = str(profile_data.get("organization_id"))
+        context = agg.get_context()
+        current_org_id = str(context.organization_id)
+        if intended_organization_id != current_org_id:
+            curr_user = await stm.fetch("user", context.user_id)
+            roles = curr_user.realm_access.get("roles", []) if curr_user.realm_access else []
+            is_admin = "sys_admin" in roles
+            is_system_org = (
+                config.SYSTEM_ORGANIZATION_ID is not None
+                and current_org_id == str(config.SYSTEM_ORGANIZATION_ID)
+            )
+            if not is_system_org and not is_admin:
+                raise ValueError("You are not a member of that organization")
+
+        # Pre-validate OWNER uniqueness (mirrors CreateProfileInOrg)
+        if "OWNER" in role_keys:
+            organization_id = profile_data.get("organization_id")
+            all_profile_in_orgs = await stm.find_all(
+                "profile", where=dict(organization_id=organization_id, status="ACTIVE")
+            )
+            for p in all_profile_in_orgs:
                 try:
-                    await notify_service.send(
-                        f"{config.NOTIFY_NAMESPACE}:send-notification",
-                        command="send-notification",
-                        resource="notification",
-                        payload={
-                            "channel": "EMAIL",
-                            "recipients": [profile_data.get("telecom__email")],
-                            "template_key": "assign-profile-email",
-                            "content_type": "HTML",
-                            "template_data": {
-                                "user_name": f"{profile_data.get('name__given') or ''} {profile_data.get('name__family') or ''}".strip() or profile_data.get('username') or "User",
-                                "username": profile_data.get("username") or profile_data.get("telecom__email"),
-                                "action_link": action_link,
-                                "company": company_name,
-                            },
-                        },
-                        identifier=UUID_GENR(),
-                        _headers={},
-                        _context={
-                            "audit": {
-                                "user_id": str(context.user_id) if context.user_id else None,
-                                "profile_id": str(context.profile_id) if context.profile_id else None,
-                                "organization_id": str(context.organization_id) if context.organization_id else None,
-                                "realm": context.realm,
-                            },
-                            "source": "rfx-idm",
-                        },
+                    await stm.find_one(
+                        "profile_role", where=dict(profile_id=p._id, role_key="OWNER")
                     )
-                except Exception as e:
-                    logger.warning(f"Failed to send assignment email for profile {result.get('profile_id')}: {e}")
+                    raise ValueError(
+                        f"Organization already has an owner: {p.name__family} {p.name__given}"
+                    )
+                except ItemNotFoundError:
+                    pass
+
+        # Resolve the Keycloak user
+        kc_user = await self._find_kc_user_by_identifiers(
+            username=payload.username, email=payload.telecom__email
+        )
+        user_was_created = False
+
+        if not kc_user:
+            if assign_to_existed_user:
+                lookup_key = payload.username or payload.telecom__email
+                raise ValueError(
+                    f"User not found in Keycloak for identifier '{lookup_key}'. "
+                    "Set assign_to_existed_user=false to create a new user."
+                )
+
+            # Create new user in Keycloak
+            kc_user_data = {
+                "email": payload.telecom__email,
+                "username": payload.username or payload.telecom__email,
+                "firstName": payload.name__given or "",
+                "lastName": payload.name__family or "",
+                "enabled": is_active,
+                "emailVerified": False,
+                "requiredActions": ["UPDATE_PASSWORD", "VERIFY_EMAIL"],
+            }
+            kc_user = await kc_admin.create_user(kc_user_data)
+            user_was_created = True
+
+            # Trigger onboarding emails
+            await self._trigger_kc_onboarding(kc_user.id)
+
+        # Ensure local record is synced
+        await self._ensure_local_user(
+            stm,
+            agg,
+            kc_user,
+            is_superuser=is_superuser,
+            username=payload.username or payload.telecom__email,
+            telecom__email=payload.telecom__email,
+            name__given=payload.name__given,
+            name__family=payload.name__family,
+            telecom__phone=payload.telecom__phone,
+        )
+
+        # Inject resolved user_id; username belongs on user, not profile
+        profile_data["user_id"] = kc_user.id
+        profile_data.pop("username", None)
+
+        if user_was_created:
+            # Brand-new user: create an ACTIVE profile and assign roles immediately.
+            result = await agg.create_profile_in_org(profile_data)
+
+            try:
+                await agg.update_profile_roles({
+                    "profile_id": result.get("profile_id"),
+                    "role_keys": role_keys,
+                })
+            except Exception as e:
+                raise ValueError(f"Failed to assign roles to profile: {str(e)}")
+        else:
+            # Existing user: create an INACTIVE placeholder profile, then send an invitation.
+            profile_data["status"] = "INACTIVE"
+            result = await agg.create_profile_in_org(profile_data)
+            profile_id = result.get("profile_id")
+
+            invitation_data = {
+                "email": payload.telecom__email,
+                "duration": 7,
+                "message": "",
+                "role_keys": role_keys,
+                "user_id": str(kc_user.id),
+                "profile_id": str(profile_id),
+                "realm": profile_data.get("realm"),
+            }
+            try:
+                await agg.send_invitation(invitation_data)
+            except Exception as e:
+                logger.warning(
+                    f"Profile {profile_id} created (INACTIVE) but invitation send failed: {e}"
+                )
 
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
+
 
 
 # class SwitchProfile(Command):

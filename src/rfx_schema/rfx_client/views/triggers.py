@@ -1,6 +1,6 @@
-from .. import SCHEMA, domain_config
-
-
+from .. import SCHEMA
+from alembic_utils.pg_view import PGView
+from alembic_utils.pg_function import PGFunction
 fn_update_pwp_date_complete = PGFunction(
     schema=SCHEMA,
     signature="fn_update_pwp_date_complete()",
