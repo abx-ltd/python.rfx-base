@@ -21,6 +21,8 @@ from fluvius.data.exceptions import ItemNotFoundError
 from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum, InvitationStatusEnum
 from . import config, logger
 
+from rfx_user import config as userconf
+
 class IDMAggregate(Aggregate):
     """
     Main aggregate for RFX IDM domain operations.
@@ -394,9 +396,13 @@ class IDMAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links
-            base_url = config.API_BASE_URL
-            accept_link = f"{base_url}/{config.IDM_NAMESPACE}.accept-invitation/{record._id}?token={record.token}"
-            reject_link = f"{base_url}/{config.IDM_NAMESPACE}.reject-invitation/{record._id}?token={record.token}"
+            
+            accept_url, reject_url = config.INVITATION_REALM_URL_MAPPER.get(realm, None) if config.INVITATION_REALM_URL_MAPPER else None
+            if not accept_url or not reject_url:
+                raise ValueError(f"Realm {realm} is not supported")
+            
+            accept_link = accept_url.format(invitation_id=record._id, token=record.token)
+            reject_link = reject_url.format(invitation_id=record._id, token=record.token)
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
