@@ -132,7 +132,8 @@ async def accept_invitation(
                     role_source="INVITATION",
                 )
 
-            return {"success": True, "profile_id": str(existing._id)}
+            redirect_url = userconf.REALM_URL_MAPPER.get(invitation.realm, "/") if userconf.REALM_URL_MAPPER else "/"
+            return RedirectResponse(redirect_url, status_code=303)
 
         # No pre-created profile — create a fresh one (standalone invitation flow)
         profile_record = dict(
@@ -141,7 +142,6 @@ async def accept_invitation(
             user_id=user._id,
             name__family=user.name__family,
             name__given=user.name__given,
-            name__family=user.name__family,
             telecom__email=user.telecom__email,
             realm=invitation.realm,
             status="ACTIVE",
