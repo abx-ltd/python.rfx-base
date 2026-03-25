@@ -168,7 +168,7 @@ class CreateProfilePayload(DataModel):
 
     telecom__email: str
     telecom__fax: Optional[str] = None
-    telecom__phone: str
+    telecom__phone: Optional[str] = None
 
 
     tfa_method: Optional[str] = None
