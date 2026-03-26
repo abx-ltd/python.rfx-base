@@ -1104,16 +1104,16 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
         if kc_user and not assign_to_existed_user:
             lookup_key = payload.username or payload.telecom__email
             raise ValueError(
-                f"User with identifier '{lookup_key}' already exists in Keycloak. "
-                "Set 'assign_to_existed_user': true to assign a profile to this existing user."
+                f"User with identifier '{lookup_key}' already exists"
+                "Check the box to create a new profile to the user."
             )
 
         if not kc_user:
             if assign_to_existed_user:
                 lookup_key = payload.username or payload.telecom__email
                 raise ValueError(
-                    f"User not found in Keycloak for identifier '{lookup_key}'. "
-                    "Set 'assign_to_existed_user': false to create a new user."
+                    f"User not found for identifier '{lookup_key}'. "
+                    "Uncheck the box to create a new user."
                 )
 
             # Create new user in Keycloak
