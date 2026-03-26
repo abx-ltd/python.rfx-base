@@ -13,6 +13,14 @@ realm_view = PGView(
         r.*,
         COALESCE(
             (
+                SELECT json_object_agg(m.key, m.value)
+                FROM "{config.RFX_DOCMAN_SCHEMA}".realm_meta m
+                WHERE m.realm_id = r._id
+            ),
+            '{{}}'::json
+        ) AS realm_meta,
+        COALESCE(
+            (
                 SELECT json_agg(
                     json_build_object(
                         '_id',            s._id,

@@ -21,6 +21,7 @@ class RealmView(TableBase):
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
+    realm_meta: Mapped[Any] = mapped_column(JSON, nullable=False, default=dict)
     # Aggregated shelves with counts
     shelves: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
 
