@@ -396,13 +396,18 @@ class IDMAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links
+            mapper = config.INVITATION_REALM_URL_MAPPER or {}
+            links = mapper.get(realm) or mapper.get("default")
+            if not links or len(links) < 2:
+                raise ValueError(f"Realm {realm} is not supported (no invitation links defined)")
 
-            accept_url, reject_url = config.INVITATION_REALM_URL_MAPPER.get(realm, None) if config.INVITATION_REALM_URL_MAPPER else None
-            if not accept_url or not reject_url:
-                raise ValueError(f"Realm {realm} is not supported")
+            accept_url, reject_url = links
 
-            accept_link = accept_url.format(invitation_id=record._id, token=record.token)
-            reject_link = reject_url.format(invitation_id=record._id, token=record.token)
+            # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
+            realm_url = config.REALM_URL_MAPPER.get(realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
+
+            accept_link = accept_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+            reject_link = reject_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
@@ -462,9 +467,18 @@ class IDMAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links with updated token
-            base_url = config.API_BASE_URL
-            accept_link = f"{base_url}/{config.NAMESPACE}.accept-invitation/{invitation._id}?token={invitation.token}"
-            reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{invitation._id}?token={invitation.token}"
+            mapper = config.INVITATION_REALM_URL_MAPPER or {}
+            links = mapper.get(invitation.realm) or mapper.get("default")
+            if not links or len(links) < 2:
+                raise ValueError(f"Realm {invitation.realm} is not supported (no invitation links defined)")
+
+            accept_url, reject_url = links
+
+            # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
+            realm_url = config.REALM_URL_MAPPER.get(invitation.realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
+
+            accept_link = accept_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
+            reject_link = reject_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
