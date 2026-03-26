@@ -181,7 +181,7 @@ class EntryQuery(DomainQueryResource):
     type: str = StringField("Type")
     size: Optional[int] = IntegerField("Size")
     mime_type: Optional[str] = StringField("MIME Type")
-    author: Optional[str] = StringField("Author")
+    author_name: Optional[str] = StringField("Author Name")
 
     parent_path: Optional[str] = StringField("Parent Path")
 
@@ -208,6 +208,8 @@ class TagQuery(DomainQueryResource):
         query = {}
         if (cabinet_id := scope_data.get("cabinet_id")) is not None:
             query["cabinet_id"] = cabinet_id
+        if( realm_id := scope_data.get("realm_id")) is not None :
+            query["realm_id"] = realm_id
         return query
 
     id: UUID_TYPE = PrimaryID("Tag ID")
