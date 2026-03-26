@@ -267,12 +267,13 @@ class CreateUser(Command, UserProvisionMixin):
                 payload.verified_email or (payload.email if email_verified else None)
             ),
             verified_phone=payload.verified_phone,
+            required_actions=getattr(kc_user, "requiredActions", None),
         )
 
         # Trigger onboarding emails
         await self._trigger_kc_onboarding(kc_user.id, target_realm)
 
-        return user
+        yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
 
 class UpdateUser(Command, SyncUserMixin):
@@ -1167,12 +1168,8 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
             name__given=payload.name__given,
             name__family=payload.name__family,
             telecom__phone=payload.telecom__phone,
-            required_actions=kc_user_data.get("required_actions"),
+            required_actions=getattr(kc_user, "requiredActions", None),
         )
-
-        # Proactively sync to record actions (VERIFY_EMAIL, etc.) in local DB
-        # user_agg = self.domain.get_aggregate("user", kc_user.id)
-        await self._sync_from_keycloak(user_agg, force_sync=True)
 
         # Inject resolved user_id; username belongs on user, not profile
         profile_data["user_id"] = kc_user.id
