@@ -21,7 +21,7 @@ SYSTEM_ORGANIZATION_ID = None
 OPERATION_VALID_REALMS = userconf.OPERATION_VALID_REALMS
 RATE_LIMIT_WINDOW_MINUTES=10
 INVITATION_MAX_REQUESTS_PER_WINDOW=10
-API_BASE_URL = None
+API_BASE_URL = userconf.API_BASE_URL
 # REDIRECT_URL = fastapi_config.DEFAULT_SIGNIN_REDIRECT_URI
 INVITATION_REALM_URL_MAPPER = {
     "default": ["{realm_url}/rfx_user.accept-invitation/{invitation_id}?token={token}", "{realm_url}/rfx_user.reject-invitation/{invitation_id}?token={token}"]
