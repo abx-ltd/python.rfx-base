@@ -93,7 +93,9 @@ class UserProvisionMixin:
         except Exception as e:
             logger.warning(f"Failed to execute Keycloak actions for user {user_id}: {e}")
 
-    async def _ensure_local_user(self, stm, agg, kc_user, is_superuser=False, **extra_data):
+    async def _ensure_local_user(
+        self, stm, agg, kc_user, is_superuser=False, required_actions=None, **extra_data
+    ):
         """Standardized local user synchronization and upsert logic."""
         import copy
         try:
@@ -141,6 +143,28 @@ class UserProvisionMixin:
 
         user = await agg.create_user(user_data)
 
+        # Record initial required actions in local DB if reference table allows
+        if required_actions:
+            for action_key in required_actions:
+                # Resilience check: Ensure action exists in ref__action to avoid ForeignKeyViolationError
+                ref_action = await stm.exist("ref__action", where=dict(key=action_key))
+                if not ref_action:
+                    logger.warning(
+                        f"Required action '{action_key}' not found in ref__action. Skipping initial recording."
+                    )
+                    continue
+
+                await stm.add_entry(
+                    "user_action",
+                    _id=UUID_GENR(),
+                    user_id=user._id,
+                    action=action_key,
+                    name=action_key,
+                    status="PENDING",
+                )
+
+        return user
+
         # Sync sys_admin role to Keycloak if needed
         if config.ALLOW_CREATE_SYS_ADMIN and is_superuser:
             try:
@@ -176,7 +200,7 @@ DEFAULT_RESOURCE_ACCESS = {
 }
 
 
-class CreateUser(Command, UserProvisionMixin, SyncUserMixin):
+class CreateUser(Command, UserProvisionMixin):
     """
     Create new user in Keycloak and local system.
     Establishes user account with initial settings and verification status.
@@ -246,12 +270,9 @@ class CreateUser(Command, UserProvisionMixin, SyncUserMixin):
         )
 
         # Trigger onboarding emails
-        await self._trigger_kc_onboarding(kc_user.id)
+        await self._trigger_kc_onboarding(kc_user.id, target_realm)
 
-        # Proactively sync to record actions (VERIFY_EMAIL, etc.) in local DB
-        await self._sync_from_keycloak(agg, force_sync=True)
-
-        yield agg.create_response(serialize_mapping(user), _type="idm-response")
+        return user
 
 
 class UpdateUser(Command, SyncUserMixin):
@@ -1146,10 +1167,11 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
             name__given=payload.name__given,
             name__family=payload.name__family,
             telecom__phone=payload.telecom__phone,
+            required_actions=kc_user_data.get("required_actions"),
         )
 
         # Proactively sync to record actions (VERIFY_EMAIL, etc.) in local DB
-        user_agg = self.domain.get_aggregate("user", kc_user.id)
+        # user_agg = self.domain.get_aggregate("user", kc_user.id)
         await self._sync_from_keycloak(user_agg, force_sync=True)
 
         # Inject resolved user_id; username belongs on user, not profile
