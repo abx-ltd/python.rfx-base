@@ -1153,34 +1153,32 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
                 raise ValueError(f"Failed to assign roles to profile: {str(e)}")
         else:
             # Existing user: create an INACTIVE placeholder profile, then send an invitation.
-            profile_data["status"] = "ACTIVE"
+            profile_data["status"] = "INACTIVE"
             result = await agg.create_profile_in_org(profile_data)
+            profile_id = result.get("profile_id")
             try:
                 await agg.update_profile_roles({
-                    "profile_id": result.get("profile_id"),
+                    "profile_id": profile_id,
                     "role_keys": role_keys,
                 })
             except Exception as e:
                 raise ValueError(f"Failed to assign roles to profile: {str(e)}")
 
-            # profile_id = result.get("profile_id")
-
-            # invitation_data = {
-            #     "email": payload.telecom__email,
-            #     "duration": 7,
-            #     "message": "",
-            #     "role_keys": role_keys,
-            #     "user_id": str(kc_user.id),
-            #     "profile_id": str(profile_id),
-            #     "realm": profile_data.get("realm"),
-            # }
-            # try:
-            #     await agg.send_invitation(invitation_data)
-            # except Exception as e:
-            #     logger.warning(
-            #         f"Profile {profile_id} created (INACTIVE) but invitation send failed: {e}"
-            #     )
-
+            invitation_data = {
+                "email": payload.telecom__email,
+                "duration": 7,
+                "message": "",
+                "role_keys": role_keys,
+                "user_id": str(kc_user.id),
+                "profile_id": str(profile_id),
+                "realm": profile_data.get("realm")
+            }
+            try:
+                await agg.send_invitation(invitation_data)
+            except Exception as e:
+                logger.warning(
+                    f"Profile {profile_id} created (INACTIVE) but invitation send failed: {e}"
+                )
         yield agg.create_response(serialize_mapping(result), _type="idm-response")
 
 
