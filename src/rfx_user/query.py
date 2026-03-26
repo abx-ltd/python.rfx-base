@@ -2,6 +2,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import Request
 from fastapi.responses import RedirectResponse
+from urllib.parse import quote
+from fluvius.error import ForbiddenError
 from fluvius.data import UUID_TYPE, UUID_GENR
 from fluvius.query import DomainQueryManager, DomainQueryResource, endpoint
 from fluvius.query.field import (
@@ -40,13 +42,25 @@ async def accept_invitation(
     async with query_manager.data_manager.transaction():
         token = request.query_params.get("token")
         invitation = await query_manager.data_manager.fetch("invitation", invitation_id)
-        context = request.state.auth_context
         if not invitation:
             return {"error": "Invitation not found"}
+
+        context = request.state.auth_context
+        if not context:
+            signin_url = f"/api/auth/sign-in?next={quote(str(request.url))}"
+            return RedirectResponse(signin_url)
+
         if token != invitation.token:
             return {"error": "Invalid invitation token"}
+
         if str(invitation.user_id) != str(context.profile.usr_id):
-            return {"error": "Invitation does not belong to the current user"}
+            signout_url = f"/api/auth/sign-out?redirect_uri={quote(str(request.url))}"
+            raise ForbiddenError(
+                "IDM.403.01",
+                f"This invitation (for {invitation.email}) does not belong to your current account ({context.profile.email}).",
+                errdata={"sign_out_url": signout_url}
+            )
+
         if invitation.status.value != InvitationStatusEnum.PENDING.value:
             return {"error": f"Invitation status is {invitation.status}, cannot accept"}
         existing_profile = await query_manager.data_manager.exist(
@@ -158,13 +172,25 @@ async def reject_invitation(
     async with query_manager.data_manager.transaction():
         token = request.query_params.get("token")
         invitation = await query_manager.data_manager.fetch("invitation", invitation_id)
-        context = request.state.auth_context
         if not invitation:
             return {"error": "Invitation not found"}
+
+        context = request.state.auth_context
+        if not context:
+            signin_url = f"/api/auth/sign-in?next={quote(str(request.url))}"
+            return RedirectResponse(signin_url)
+
         if token != invitation.token:
             return {"error": "Invalid invitation token"}
-        if invitation.user_id == context.profile.usr_id:
-            return {"error": "Invitation does not belong to the current user"}
+
+        if str(invitation.user_id) != str(context.profile.usr_id):
+            signout_url = f"/api/auth/sign-out?redirect_uri={quote(str(request.url))}"
+            raise ForbiddenError(
+                "IDM.403.01",
+                f"This invitation (for {invitation.email}) does not belong to your current account ({context.profile.email}).",
+                errdata={"sign_out_url": signout_url}
+            )
+
         if invitation.status.value != "PENDING":
             return {"error": f"Invitation status is {invitation.status}, cannot reject"}
         await query_manager.data_manager.update(invitation, status="REJECTED")

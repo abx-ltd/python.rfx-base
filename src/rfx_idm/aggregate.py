@@ -396,11 +396,11 @@ class IDMAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links
-            
+
             accept_url, reject_url = config.INVITATION_REALM_URL_MAPPER.get(realm, None) if config.INVITATION_REALM_URL_MAPPER else None
             if not accept_url or not reject_url:
                 raise ValueError(f"Realm {realm} is not supported")
-            
+
             accept_link = accept_url.format(invitation_id=record._id, token=record.token)
             reject_link = reject_url.format(invitation_id=record._id, token=record.token)
 
