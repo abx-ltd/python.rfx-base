@@ -21,7 +21,7 @@ class BaseUpdatePayload(DataModel):
 
 
 def validate_shelf_code(code: str) -> str:
-    code = code.strip().upper()
+    code = code.strip().upper() 
     if not re.match(r"^[A-Z]$", code):
         raise ValueError("Shelf code must be a single letter (e.g., A, B, C)")
     return code
@@ -240,9 +240,9 @@ class CreateEntryPayload(DataModel):
         description="MIME type of the file. MUST be null if type is 'folder'.",
         examples=["application/pdf"],
     )
-    author: Optional[str] = Field(
+    author_name: Optional[str] = Field(
         default=None,
-        description="Author or creator of the entry",
+        description="Author or creator's name of the entry",
         examples=["John Doe"],
     )
 

@@ -51,6 +51,7 @@ class RealmQuery(DomainQueryResource):
     color: str = StringField("Color")
 
     # Aggregated child shelves from _realm view
+    realm_meta : Optional[dict] = JSONField("Realm Meta", default = None)
     shelves: Optional[list] = JSONField("Shelves", default=None)
 
 
