@@ -176,7 +176,7 @@ DEFAULT_RESOURCE_ACCESS = {
 }
 
 
-class CreateUser(Command, UserProvisionMixin):
+class CreateUser(Command, UserProvisionMixin, SyncUserMixin):
     """
     Create new user in Keycloak and local system.
     Establishes user account with initial settings and verification status.
@@ -247,6 +247,9 @@ class CreateUser(Command, UserProvisionMixin):
 
         # Trigger onboarding emails
         await self._trigger_kc_onboarding(kc_user.id)
+
+        # Proactively sync to record actions (VERIFY_EMAIL, etc.) in local DB
+        await self._sync_from_keycloak(agg, force_sync=True)
 
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
@@ -1144,6 +1147,10 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
             name__family=payload.name__family,
             telecom__phone=payload.telecom__phone,
         )
+
+        # Proactively sync to record actions (VERIFY_EMAIL, etc.) in local DB
+        user_agg = self.domain.get_aggregate("user", kc_user.id)
+        await self._sync_from_keycloak(user_agg, force_sync=True)
 
         # Inject resolved user_id; username belongs on user, not profile
         profile_data["user_id"] = kc_user.id

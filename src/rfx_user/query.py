@@ -61,6 +61,18 @@ async def accept_invitation(
                 errdata={"sign_out_url": signout_url}
             )
 
+        # Ensure user is verified before accepting invitation
+        user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
+        if not user:
+            return {"error": "User not found"}
+
+        if not user.verified_email:
+            raise ForbiddenError(
+                "IDM.403.02",
+                "Please verify your email address before accepting invitations.",
+                errdata={"email": user.telecom__email}
+            )
+
         if invitation.status.value != InvitationStatusEnum.PENDING.value:
             return {"error": f"Invitation status is {invitation.status}, cannot accept"}
         existing_profile = await query_manager.data_manager.exist(
@@ -189,6 +201,15 @@ async def reject_invitation(
                 "IDM.403.01",
                 f"This invitation (for {invitation.email}) does not belong to your current account ({context.profile.email}).",
                 errdata={"sign_out_url": signout_url}
+            )
+
+        # Ensure user is verified before rejecting invitation
+        user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
+        if not user or not user.verified_email:
+            raise ForbiddenError(
+                "IDM.403.02",
+                "Please verify your email address before rejecting invitations.",
+                errdata={"email": user.telecom__email if user else None}
             )
 
         if invitation.status.value != "PENDING":
