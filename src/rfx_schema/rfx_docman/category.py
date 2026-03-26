@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import Index, String, UniqueConstraint
+from sqlalchemy import Index, String,text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,9 +28,14 @@ class Category(TableBase):
 
     __tablename__ = "category"
     __table_args__ = (
-        UniqueConstraint("realm_id", "shelf_id","code", name="uq_category_shelf_code"),
         Index("ix_category_realm_id", "realm_id"),
         Index("ix_category_shelf_id", "shelf_id"),
+        Index(
+            "uq_category_shelf_code_active",
+            "shelf_id","code",
+            unique=True,
+            postgresql_where = text(" _deleted IS NULL")
+        ),
         {"schema": SCHEMA},
     )
 

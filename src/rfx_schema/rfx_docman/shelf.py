@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import Index, String, UniqueConstraint
+from sqlalchemy import Index, String,text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,8 +24,14 @@ class Shelf(TableBase):
 
     __tablename__ = "shelf"
     __table_args__ = (
-        UniqueConstraint("realm_id", "code", name="uq_shelf_realm_code"),
         Index("ix_shelf_realm_id", "realm_id"),
+        Index(
+            "uq_shelf_realm_code_active",
+            "realm_id",
+            "code",
+            unique=True,
+            postgresql_where=text("_deleted IS NULL"),
+        ),
         {"schema": SCHEMA},
     )
 
