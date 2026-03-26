@@ -1104,7 +1104,7 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
         if kc_user and not assign_to_existed_user:
             lookup_key = payload.username or payload.telecom__email
             raise ValueError(
-                f"User with identifier '{lookup_key}' already exists"
+                f"User with identifier '{lookup_key}' already exists. "
                 "Check the box to create a new profile to the user."
             )
 
