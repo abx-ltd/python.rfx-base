@@ -42,4 +42,4 @@ class Entry(TableBase):
     )
     size:       Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     mime_type:  Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    author:     Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    author_name:     Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

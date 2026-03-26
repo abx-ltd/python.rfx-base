@@ -33,37 +33,18 @@ class RFXDocmanAggregate(Aggregate):
     @action("realm-removed", resources="realm")
     async def remove_realm(self, /):
         realm = self.rootobj
-        for child_model in ("realm_meta", "shelf", "category", "cabinet", "entry"):
-            exists = await self.statemgr.exist(
-                child_model, where={"realm_id": realm._id}
-            )
-            if exists:
-                raise ValueError(
-                    f"Cannot remove realm with existing {child_model} records"
-                )
         await self.statemgr.invalidate(realm)
 
     @action("realm-meta-created", resources="realm")
     async def create_realm_meta(self, /, data):
         data = serialize_mapping(data)
         realm = self.rootobj
-        key = data["key"]
-        value = data["value"]
-
-        existing = await self.statemgr.exist(
-            "realm_meta",
-            where={"realm_id": realm._id, "key": key},
-        )
-        if existing:
-            raise ValueError(f"Realm meta key {key} already exists in this realm")
-
         record = self.init_resource(
             "realm_meta",
             {
                 "realm_id": realm._id,
-                "key": key,
-                "value": value,
             },
+            data,
             _id=UUID_GENR(),
         )
         await self.statemgr.insert(record)
@@ -85,22 +66,12 @@ class RFXDocmanAggregate(Aggregate):
     async def create_shelf(self, /, data):
         data = serialize_mapping(data)
         realm = self.rootobj
-        code = data["code"]
-
-        duplicated = await self.statemgr.exist(
-            "shelf",
-            where={"realm_id": realm._id, "code": code},
-        )
-        if duplicated:
-            raise ValueError(f"Shelf code {code} already exists in this realm")
 
         record = self.init_resource(
             "shelf",
             {
+                **data,
                 "realm_id": realm._id,
-                "code": code,
-                "name": data["name"],
-                "description": data.get("description"),
             },
             _id=UUID_GENR(),
         )
@@ -304,13 +275,11 @@ class RFXDocmanAggregate(Aggregate):
     @action("entry-updated", resources="entry")
     async def update_entry(self, /, data):
         entry = self.rootobj
-        # Dùng serialize_mapping nhất quán với create_entry
         updates = _clean_updates(serialize_mapping(data))
 
         new_path = data.get_computed_path(entry)
         old_path = entry.path
 
-        # Check type hiệu lực sau update: ưu tiên type mới, fallback type cũ
         effective_type = data.type if data.type is not None else entry.type
         if effective_type == EntryTypeEnum.FOLDER:
             updates.pop("size", None)
@@ -341,26 +310,37 @@ class RFXDocmanAggregate(Aggregate):
                 new_prefix = f"{new_path}/"
                 descendant_ids = {str(item._id) for item in descendants}
 
+                # Pre-compute target paths for all descendants
+                target_paths_by_child_id = {}
+                target_paths = set()
                 for child in descendants:
-                    target_child_path = child.path.replace(old_prefix, new_prefix, 1)
-                    existing_entries = await self.statemgr.find_all(
+                    target_child_path = new_prefix + child.path[len(old_prefix):]
+                    target_paths_by_child_id[str(child._id)] = target_child_path
+                    target_paths.add(target_child_path)
+
+                if target_paths:
+                    # Batch check for any existing entries that would conflict
+                    existing_under_new_prefix = await self.statemgr.find_all(
                         "entry",
                         where={
                             "cabinet_id": entry.cabinet_id,
-                            "path": target_child_path,
+                            "path:has": f"{new_prefix}%",
                         },
                     )
-                    if any(
-                        str(item._id) not in descendant_ids
-                        and str(item._id) != str(entry._id)
-                        for item in existing_entries
-                    ):
-                        raise ValueError(
-                            f"Path '{target_child_path}' already exists in this cabinet"
-                        )
+                    for item in existing_under_new_prefix:
+                        item_id = str(item._id)
+                        # Only care about entries whose path matches one of the target paths
+                        if (
+                            item.path in target_paths
+                            and item_id not in descendant_ids
+                            and item_id != str(entry._id)
+                        ):
+                            raise ValueError(
+                                f"Path '{item.path}' already exists in this cabinet"
+                            )
 
                 for child in descendants:
-                    target_child_path = child.path.replace(old_prefix, new_prefix, 1)
+                    target_child_path = target_paths_by_child_id[str(child._id)]
                     await self.statemgr.update(
                         child,
                         path=target_child_path,
