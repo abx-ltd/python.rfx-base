@@ -153,6 +153,12 @@ class IDMAggregate(Aggregate):
                         # Action already exists, mark as seen
                         processed_actions.add(existing._id)
                     else:
+                        # Ensure action exists in reference table to avoid ForeignKeyViolationError
+                        ref_action = await self.statemgr.exist('ref__action', where=dict(key=action))
+                        if not ref_action:
+                            logger.warning(f"Required action '{action}' not found in ref__action reference table. Skipping synchronization for this action.")
+                            continue
+
                         # Create new action record
                         record = self.init_resource('user_action', dict(
                             user_id=user._id,
