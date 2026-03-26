@@ -124,60 +124,50 @@ async def accept_invitation(
         if not user:
             return {"error": "User not found"}
 
-        if invitation.profile_id:
-            # A profile was pre-created (INACTIVE) by CreateProfileUserInOrg.
-            # Activate it instead of creating a duplicate.
-            existing = await query_manager.data_manager.fetch("profile", invitation.profile_id)
-            if not existing:
-                return {"error": "Pre-created profile not found"}
-
-            await query_manager.data_manager.update(existing, status="ACTIVE")
-
-            profile_status_record = dict(
-                _id=UUID_GENR(),
-                profile_id=existing._id,
-                src_state="INACTIVE",
-                dst_state="ACTIVE",
+        # Check for existing profile (possibly INACTIVE) to activate
+        existing_profile_rec = await query_manager.data_manager.exist(
+            "profile",
+            where=dict(
+                user_id=user._id,
+                organization_id=invitation.organization_id,
+                realm=invitation.realm
             )
-            await query_manager.data_manager.add_entry("profile_status", **profile_status_record)
-
-            # Assign roles from the invitation
-            role_keys = invitation.role_keys or ["VIEWER"]
-            for role_key in role_keys:
-                role = await query_manager.data_manager.exist(
-                    "ref__system_role", where=dict(key=role_key)
-                )
-                if not role:
-                    continue
-                await query_manager.data_manager.add_entry(
-                    "profile_role",
-                    _id=UUID_GENR(),
-                    profile_id=existing._id,
-                    role_key=role_key,
-                    role_id=role._id,
-                    role_source="INVITATION",
-                )
-
-            redirect_url = userconf.REALM_URL_MAPPER.get(invitation.realm, "/") if userconf.REALM_URL_MAPPER else "/"
-            return RedirectResponse(redirect_url, status_code=303)
-
-        # No pre-created profile — create a fresh one (standalone invitation flow)
-        profile_record = dict(
-            _id=UUID_GENR(),
-            organization_id=invitation.organization_id,
-            user_id=user._id,
-            name__family=user.name__family,
-            name__given=user.name__given,
-            telecom__email=user.telecom__email,
-            realm=invitation.realm,
-            status="ACTIVE",
         )
-        await query_manager.data_manager.add_entry("profile", **profile_record)
+
+        if existing_profile_rec:
+            # Activate existing profile
+            src_status = existing_profile_rec.status
+            await query_manager.data_manager.update(
+                existing_profile_rec,
+                status="ACTIVE",
+                # Synchronize name/contact info from user record
+                name__family=user.name__family,
+                name__given=user.name__given,
+                telecom__email=user.telecom__email,
+            )
+            profile_id = existing_profile_rec._id
+        else:
+            # Create a brand new profile
+            src_status = "ACTIVE"
+            profile_record = dict(
+                _id=UUID_GENR(),
+                organization_id=invitation.organization_id,
+                user_id=user._id,
+                name__family=user.name__family,
+                name__given=user.name__given,
+                telecom__email=user.telecom__email,
+                realm=invitation.realm,
+                status="ACTIVE",
+            )
+            await query_manager.data_manager.add_entry("profile", **profile_record)
+            profile_id = profile_record["_id"]
+
+        # Record status transition
         profile_status_record = dict(
             _id=UUID_GENR(),
-            profile_id=profile_record["_id"],
-            src_state=profile_record["status"],
-            dst_state=profile_record["status"],
+            profile_id=profile_id,
+            src_state=src_status,
+            dst_state="ACTIVE",
         )
         await query_manager.data_manager.add_entry(
             "profile_status", **profile_status_record
@@ -194,7 +184,7 @@ async def accept_invitation(
             await query_manager.data_manager.add_entry(
                 "profile_role",
                 _id=UUID_GENR(),
-                profile_id=profile_record["_id"],
+                profile_id=profile_id,
                 role_key=role_key,
                 role_id=role._id,
                 role_source="INVITATION",
