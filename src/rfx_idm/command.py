@@ -79,13 +79,16 @@ class UserProvisionMixin:
                     break
         return kc_user
 
-    async def _trigger_kc_onboarding(self, user_id):
+    async def _trigger_kc_onboarding(self, user_id, realm=None):
         """Trigger Keycloak required-action onboarding emails."""
+        realm = realm or config.REALM
+        # Use realm URL mapper if available, otherwise fallback to root
+        redirect_url = config.REALM_URL_MAPPER.get(realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
         try:
             await kc_admin.execute_actions(
                 user_id=user_id,
                 actions=["UPDATE_PASSWORD", "VERIFY_EMAIL"],
-                redirect_uri=config.REDIRECT_URL,
+                redirect_uri=redirect_url,
             )
         except Exception as e:
             logger.warning(f"Failed to execute Keycloak actions for user {user_id}: {e}")
@@ -1053,8 +1056,8 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
         is_superuser = profile_data.pop("is_superuser", False)
 
         # Validate realm
+        target_realm = profile_data.get("realm")
         if config.OPERATION_VALID_REALMS is not None:
-            target_realm = profile_data.get("realm")
             if target_realm not in config.OPERATION_VALID_REALMS:
                 raise ValueError(f"Realm '{target_realm}' is not valid for profile creation.")
 
@@ -1120,7 +1123,7 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
             user_was_created = True
 
             # Trigger onboarding emails
-            await self._trigger_kc_onboarding(kc_user.id)
+            await self._trigger_kc_onboarding(kc_user.id, target_realm)
 
         # Ensure local record is synced
         await self._ensure_local_user(

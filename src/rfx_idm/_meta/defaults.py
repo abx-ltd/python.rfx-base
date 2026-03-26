@@ -13,6 +13,7 @@ IDM_SCHEMA = "rfx__user"
 IDM_NAMESPACE = "rfx-idm"
 NOTIFY_NAMESPACE = "rfx-notify"
 NOTIFY_CLIENT = baseconf.NOTIFY_CLIENT
+REALM_URL_MAPPER = userconf.REALM_URL_MAPPER
 
 CHANGE_PASSWORD_PATH="/change-password"
 ALLOW_CREATE_SYS_ADMIN = False
@@ -21,7 +22,7 @@ OPERATION_VALID_REALMS = userconf.OPERATION_VALID_REALMS
 RATE_LIMIT_WINDOW_MINUTES=10
 INVITATION_MAX_REQUESTS_PER_WINDOW=10
 API_BASE_URL = None
-REDIRECT_URL = fastapi_config.DEFAULT_SIGNIN_REDIRECT_URI
+# REDIRECT_URL = fastapi_config.DEFAULT_SIGNIN_REDIRECT_URI
 INVITATION_REALM_URL_MAPPER = {
     "default": ["{realm_url}/rfx_user.accept-invitation/{invitation_id}?token={token}", "{realm_url}/rfx_user.reject-invitation/{invitation_id}?token={token}"]
 }
