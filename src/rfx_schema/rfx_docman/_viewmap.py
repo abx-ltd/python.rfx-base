@@ -104,7 +104,7 @@ class EntryView(TableBase):
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     mime_type: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    author_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Calculated field from PGView
     parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)
@@ -121,6 +121,9 @@ class TagView(TableBase):
     __tablename__ = "_tag"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
+    realm_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), nullable=False
+    )  
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

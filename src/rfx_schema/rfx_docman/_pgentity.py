@@ -144,7 +144,8 @@ shelf_view = PGView(
             ),
             '[]'::json
         ) AS categories
-    FROM "{config.RFX_DOCMAN_SCHEMA}".shelf s;
+    FROM "{config.RFX_DOCMAN_SCHEMA}".shelf s
+    WHERE s._deleted IS NULL ;
     """,
 )
 
@@ -195,7 +196,8 @@ category_view = PGView(
             ),
             '[]'::json
         ) AS cabinets
-    FROM "{config.RFX_DOCMAN_SCHEMA}".category c;
+    FROM "{config.RFX_DOCMAN_SCHEMA}".category c
+    WHERE c._deleted IS NULL;
     """,
 )
 
@@ -221,7 +223,7 @@ cabinet_view = PGView(
                         'type',       e.type,
                         'size',       e.size,
                         'mime_type',  e.mime_type,
-                        'author',     e.author,
+                        'author_name',     e.author_name,
                         'parent_path', COALESCE(SUBSTRING(e.path FROM '(.*)/'), ''),
                         'tags',       COALESCE(
                             (
@@ -250,7 +252,8 @@ cabinet_view = PGView(
             ),
             '[]'::json
         ) AS entries
-    FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb;
+    FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+    WHERE cb._deleted IS NULL;
     """,
 )
 
@@ -279,7 +282,8 @@ entry_view = PGView(
             ),
             '[]'::json
         ) AS tags
-    FROM "{config.RFX_DOCMAN_SCHEMA}".entry e;
+    FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+    WHERE e._deleted IS NULL;
     """,
 )
 

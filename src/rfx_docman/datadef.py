@@ -61,7 +61,7 @@ def validate_tag_name(name: str) -> str:
     return stripped
 
 
-_FOLDER_FORBIDDEN = re.compile(r'[.*?"<>|:\\\/]')
+_FOLDER_FORBIDDEN = re.compile(r'[.\*?"<>|:\\/]')
 
 
 def validate_folder_name(name: str) -> str:
@@ -227,7 +227,7 @@ class CreateEntryPayload(DataModel):
     type: EntryTypeEnum = Field(
         ...,
         description="Entry type (e.g., folder, document, pdf, image)",
-        examples=["pdf"],
+        examples=["PDF"],
     )
     size: Optional[int] = Field(
         default=None,
@@ -297,22 +297,22 @@ class UpdateEntryPayload(BaseUpdatePayload):
                 raise ValueError(
                     "A folder cannot have 'size' or 'mime_type' attributes"
                 )
-        else:
-            if self.size is None:
-                raise ValueError(
-                    f"A file of type '{self.type.value}' must have a 'size' attribute"
-                )
+        # NOTE:
+        # For non-folder types, we intentionally do NOT enforce that `size` is present
+        # here. This update payload only sees the new fields, not the existing entry
+        # state. Validation that a file has a size must be done in the business logic
+        # layer where both old and new values are available.
         return self
 
     def get_computed_path(self, entry) -> str:
         """Compute the new absolute path based on updated name/parent_path fields."""
-        parent = (
-            self.parent_path
-            if self.parent_path is not None
-            else entry.path.rsplit("/", 1)[0]
-            if "/" in entry.path
-            else ""
-        )
+        if self.parent_path is not None:
+            parent = self.parent_path
+        else:
+            if "/" in entry.path:
+                parent = entry.path.rsplit("/", 1)[0]
+            else:
+                parent = ""
         name = self.name if self.name is not None else entry.name
         return f"{parent}/{name}" if parent else name
 

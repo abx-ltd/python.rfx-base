@@ -363,3 +363,4 @@ class RemoveEntryTag(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.remove_entry_tag(payload)
+
