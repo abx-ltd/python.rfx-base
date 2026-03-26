@@ -18,7 +18,7 @@ from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Import from local types to avoid rfx_user module initialization
@@ -64,6 +64,7 @@ class Invitation(TableBase):
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     message: Mapped[Optional[str]] = mapped_column(Text)
     duration: Mapped[Optional[int]] = mapped_column(Integer)
+    role_keys: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 
     organization: Mapped["Organization"] = relationship(back_populates="invitations")
     sender: Mapped["User"] = relationship(

@@ -1,4 +1,4 @@
-from .. import SCHEMA, domain_config
+from .. import SCHEMA
 from rfx_schema.rfx_user import SCHEMA as USER_SCHEMA
 
 from alembic_utils.pg_view import PGView

@@ -1,7 +1,7 @@
-from .. import SCHEMA, domain_config
+from .. import SCHEMA
 from rfx_schema.rfx_user import SCHEMA as USER_SCHEMA
-
-
+from alembic_utils.pg_view import PGView
+from alembic_utils.pg_function import PGFunction
 inquiry_view = PGView(
     schema=SCHEMA,
     signature="_inquiry",

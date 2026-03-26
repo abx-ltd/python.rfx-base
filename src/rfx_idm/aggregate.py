@@ -14,12 +14,14 @@ and status history tracking.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fluvius.domain.aggregate import Aggregate, action
 from fluvius.data import serialize_mapping, UUID_GENR
 from fluvius.data.exceptions import ItemNotFoundError
 from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum, InvitationStatusEnum
 from . import config, logger
+
+from rfx_user import config as userconf
 
 class IDMAggregate(Aggregate):
     """
@@ -75,7 +77,7 @@ class IDMAggregate(Aggregate):
     # ==========================================================================
 
     # =========== User Context ============
-    @action("user-action-tracked", resources="user")
+    @action("user-action-tracked", resources=("user", "profile"))
     async def track_user_action(self, data):
         """Track user actions (e.g., password reset, email verification) for audit purposes."""
         for _action in data.actions:
@@ -86,7 +88,7 @@ class IDMAggregate(Aggregate):
             ))
             await self.statemgr.insert(record)
 
-    @action("user-created", resources="user")
+    @action("user-created", resources=("user", "profile"))
     async def create_user(self, data):
         """Create new user with initial NEW status and verified email."""
         # Use provided _id (from Keycloak) if available, otherwise generate new one
@@ -108,7 +110,7 @@ class IDMAggregate(Aggregate):
         await self.set_user_status(record, record.status)
         return record
 
-    @action("user-updated", resources="user")
+    @action("user-updated", resources=("user", "profile"))
     async def update_user(self, data):
         """Update user information and track status changes."""
         item = self.rootobj
@@ -117,7 +119,7 @@ class IDMAggregate(Aggregate):
             await self.set_user_status(item, data.status)
         return item
 
-    @action("user-synced", resources="user")
+    @action("user-synced", resources=("user", "profile"))
     async def sync_user(self, data):
         """
         Synchronize user data from Keycloak and manage required actions.
@@ -171,21 +173,21 @@ class IDMAggregate(Aggregate):
 
         return user
 
-    @action("user-deactivated", resources="user")
+    @action("user-deactivated", resources=("user", "profile"))
     async def deactivate_user(self, data=None):
         """Deactivate user account and record status change."""
         item = self.rootobj
         await self.statemgr.update(item, status=UserStatusEnum.DEACTIVATED.value)
         await self.set_user_status(item, UserStatusEnum.DEACTIVATED.value)
 
-    @action("user-activated", resources="user")
+    @action("user-activated", resources=("user", "profile"))
     async def activate_user(self, data=None):
         """Activate user account and record status change."""
         item = self.rootobj
         await self.statemgr.update(item, status=UserStatusEnum.ACTIVE.value)
         await self.set_user_status(item, UserStatusEnum.ACTIVE.value)
 
-    @action("user-action-recorded", resources=("user", "user_action"))
+    @action("user-action-recorded", resources=("user", "user_action", "profile"))
     async def record_user_action(self, data):
         user_id = data.get("user_id")
         action_type = data.get("action_type")
@@ -293,7 +295,7 @@ class IDMAggregate(Aggregate):
 
     # =========== Invitation Context ============
 
-    @action("invitation-status-set", resources="invitation")
+    @action("invitation-status-set", resources=("invitation", "profile"))
     async def set_invitation_status(self, invitation, new_status: InvitationStatusEnum):
         """Track invitation status changes with audit trail."""
         status_record = self.init_resource("invitation_status",
@@ -303,51 +305,52 @@ class IDMAggregate(Aggregate):
                                            )
         await self.statemgr.insert(status_record)
 
-    @action("invitation-sent", resources="invitation")
+    @action("invitation-sent", resources=("invitation", "profile"))
     async def send_invitation(self, data):
         email = data.get("email")
         duration = data.get("duration")
         message = data.get("message", "")
         realm = data.get("realm")
+        role_keys = data.get("role_keys") or ["VIEWER"]
+
+        # profile_id may be pre-created (INACTIVE) by CreateProfileUserInOrg
+        pre_created_profile_id = data.get("profile_id")
+
+        # Allow callers to pass user_id directly (e.g. CreateProfileUserInOrg) to
+        # skip the verified_email lookup — useful when the user hasn't verified yet.
+        provided_user_id = data.get("user_id")
+
         realm_exist = await self.statemgr.exist("realm", where=dict(key=realm))
         if not realm_exist:
             raise ValueError(f"realm {realm} is not existed")
-        user = await self.statemgr.exist("user", where=dict(verified_email=email))
-        if not user:
-            raise ValueError(f"User with email {email} not found!")
-        exist_profile = self.statemgr.exist(
-            "profile",
-            realm=realm,
-            organization_id=self.context.organization_id,
-            user_id=user._id,
-            status='ACTIVE'
-        )
-        if exist_profile:
-            raise ValueError(f"User already have an ACTIVE profile in the current organization")
 
-        # Check for existing pending invitations
-        existing_invitations = await self.statemgr.find_all(
-            "invitation",
+        if provided_user_id:
+            user = await self.statemgr.exist("user", where=dict(_id=provided_user_id))
+            if not user:
+                raise ValueError(f"User with id {provided_user_id} not found!")
+        else:
+            user = await self.statemgr.exist("user", where=dict(verified_email=email))
+            if not user:
+                raise ValueError(f"User with email {email} not found!")
+
+        # Only block if there is already an ACTIVE profile (INACTIVE pre-created ones are fine)
+        exist_active_profile = await self.statemgr.exist(
+            "profile",
             where=dict(
-                user_id=user._id,
-                organization_id=self.context.organization_id,
                 realm=realm,
-                status=InvitationStatusEnum.PENDING.value
+                organization_id=self.context.organization_id,
+                user_id=user._id,
+                status='ACTIVE',
             )
         )
-
-        current_time = datetime.utcnow()
-        for inv in existing_invitations:
-            if inv.expires_at and inv.expires_at > current_time:
-                 raise ValueError("User already has a pending invitation for this organization and realm.")
+        if exist_active_profile:
+            raise ValueError("User already has an ACTIVE profile in the current organization")
 
         # Rate limit check
         window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
         max_requests = config.INVITATION_MAX_REQUESTS_PER_WINDOW
-        window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+        window_start = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
-        # We need to fetch all invitations for this user to check the rate limit
-        # reusing existing_invitations is not enough because it only fetches PENDING ones
         all_recent_invitations = await self.statemgr.find_all(
             "invitation",
             where=dict(
@@ -365,13 +368,15 @@ class IDMAggregate(Aggregate):
             sender_id=self.context.user_id,
             organization_id=self.context.organization_id,
             user_id=user._id,
-            email=email,
+            profile_id=pre_created_profile_id,  # links to pre-created INACTIVE profile if set
+            email=email or user.telecom__email,
             token=secrets.token_urlsafe(48),
             status=InvitationStatusEnum.PENDING.value,
-            expires_at=datetime.utcnow() + timedelta(days=duration),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=duration or 7),
             message=message,
             duration=duration,
             realm=realm,
+            role_keys=role_keys,
         )
 
         record = self.init_resource("invitation", invitation_record)
@@ -391,9 +396,13 @@ class IDMAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links
-            base_url = config.API_BASE_URL
-            accept_link = f"{base_url}/{config.NAMESPACE}.accept-invitation/{record._id}?token={record.token}"
-            reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{record._id}?token={record.token}"
+
+            accept_url, reject_url = config.INVITATION_REALM_URL_MAPPER.get(realm, None) if config.INVITATION_REALM_URL_MAPPER else None
+            if not accept_url or not reject_url:
+                raise ValueError(f"Realm {realm} is not supported")
+
+            accept_link = accept_url.format(invitation_id=record._id, token=record.token)
+            reject_link = reject_url.format(invitation_id=record._id, token=record.token)
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
@@ -429,14 +438,14 @@ class IDMAggregate(Aggregate):
 
         return {"_id": record._id, "token": record.token}
 
-    @action("invitation-resent", resources="invitation")
+    @action("invitation-resent", resources=("invitation", "profile"))
     async def resend_invitation(self):
         """Resend invitation with new token and extended expiry."""
         invitation = self.rootobj
         updates = {
             "token": secrets.token_urlsafe(48),
             "status": InvitationStatusEnum.PENDING.value,
-            "expires_at": datetime.utcnow() + timedelta(days=7)
+            "expires_at": datetime.now(timezone.utc) + timedelta(days=7)
         }
         await self.statemgr.update(invitation, **updates)
         await self.set_invitation_status(invitation, InvitationStatusEnum.PENDING)
@@ -492,7 +501,7 @@ class IDMAggregate(Aggregate):
         return {"_id": invitation._id, "resend": True}
 
 
-    @action("invitation-revoked", resources="invitation")
+    @action("invitation-revoked", resources=("invitation", "profile"))
     async def revoke_invitation(self):
         """Cancel pending invitation to prevent acceptance."""
         invitation = self.rootobj

@@ -1,6 +1,7 @@
 from rfx_base import config as baseconf
 from rfx_user import config as userconf
 from rfx_schema import config as schema_config
+from fluvius.fastapi import config as fastapi_config
 
 LOG_LEVEL = baseconf.LOG_LEVEL
 DB_DSN = schema_config.RFX_USER_DB_DSN
@@ -17,3 +18,10 @@ CHANGE_PASSWORD_PATH="/change-password"
 ALLOW_CREATE_SYS_ADMIN = False
 SYSTEM_ORGANIZATION_ID = None
 OPERATION_VALID_REALMS = userconf.OPERATION_VALID_REALMS
+RATE_LIMIT_WINDOW_MINUTES=10
+INVITATION_MAX_REQUESTS_PER_WINDOW=10
+API_BASE_URL = None
+REDIRECT_URL = fastapi_config.DEFAULT_SIGNIN_REDIRECT_URI
+INVITATION_REALM_URL_MAPPER = {
+    "default": ["{realm_url}/rfx_user.accept-invitation/{invitation_id}?token={token}", "{realm_url}/rfx_user.reject-invitation/{invitation_id}?token={token}"]
+}
