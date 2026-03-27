@@ -61,6 +61,18 @@ async def accept_invitation(
                 errdata={"sign_out_url": signout_url}
             )
 
+        # Ensure user is verified before accepting invitation
+        user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
+        if not user:
+            return {"error": "User not found"}
+
+        if not user.verified_email:
+            raise ForbiddenError(
+                "IDM.403.02",
+                "Please verify your email address before accepting invitations.",
+                errdata={"email": user.telecom__email}
+            )
+
         if invitation.status.value != InvitationStatusEnum.PENDING.value:
             return {"error": f"Invitation status is {invitation.status}, cannot accept"}
         existing_profile = await query_manager.data_manager.exist(
@@ -117,27 +129,60 @@ async def accept_invitation(
         )
         for profile in realm_profiles:
             await query_manager.data_manager.update(profile, current_profile=False)
-        profile_record = dict(
-            _id=UUID_GENR(),
-            organization_id=invitation.organization_id,
-            user_id=user._id,
-            name__family=user.name__family,
-            name__given=user.name__given,
-            name__middle=user.name__middle,
-            name__prefix=user.name__prefix,
-            name__suffix=user.name__suffix,
-            telecom__email=user.telecom__email,
-            telecom__phone=user.telecom__phone,
-            status="ACTIVE",
-            current_profile=True,
-            realm=invitation.realm
+        # Check for existing profile (possibly INACTIVE) to activate
+        existing_profile_rec = await query_manager.data_manager.exist(
+            "profile",
+            where=dict(
+                user_id=user._id,
+                organization_id=invitation.organization_id,
+                realm=invitation.realm
+            )
         )
-        await query_manager.data_manager.add_entry("profile", **profile_record)
+
+        if existing_profile_rec:
+            # Activate existing profile
+            src_status = existing_profile_rec.status
+            await query_manager.data_manager.update(
+                existing_profile_rec,
+                status="ACTIVE",
+                current_profile=True,
+                # Synchronize name/contact info from user record
+                name__family=user.name__family,
+                name__given=user.name__given,
+                name__middle=user.name__middle,
+                name__prefix=user.name__prefix,
+                name__suffix=user.name__suffix,
+                telecom__email=user.telecom__email,
+                telecom__phone=user.telecom__phone,
+            )
+            profile_id = existing_profile_rec._id
+        else:
+            # Create a brand new profile
+            src_status = "ACTIVE"
+            profile_record = dict(
+                _id=UUID_GENR(),
+                organization_id=invitation.organization_id,
+                user_id=user._id,
+                name__family=user.name__family,
+                name__given=user.name__given,
+                name__middle=user.name__middle,
+                name__prefix=user.name__prefix,
+                name__suffix=user.name__suffix,
+                telecom__email=user.telecom__email,
+                telecom__phone=user.telecom__phone,
+                status="ACTIVE",
+                current_profile=True,
+                realm=invitation.realm
+            )
+            await query_manager.data_manager.add_entry("profile", **profile_record)
+            profile_id = profile_record["_id"]
+
+        # Record status transition
         profile_status_record = dict(
             _id=UUID_GENR(),
-            profile_id=profile_record["_id"],
-            src_state=profile_record["status"],
-            dst_state=profile_record["status"],
+            profile_id=profile_id,
+            src_state=src_status,
+            dst_state="ACTIVE",
         )
         await query_manager.data_manager.add_entry(
             "profile_status", **profile_status_record
@@ -152,7 +197,7 @@ async def accept_invitation(
 
         profile_role_record = dict(
             _id=UUID_GENR(),
-            profile_id=profile_record["_id"],
+            profile_id=profile_id,
             role_key="VIEWER",
             role_id=viewer_role._id,
             role_source="system",
@@ -189,6 +234,15 @@ async def reject_invitation(
                 "IDM.403.01",
                 f"This invitation (for {invitation.email}) does not belong to your current account ({context.profile.email}).",
                 errdata={"sign_out_url": signout_url}
+            )
+
+        # Ensure user is verified before rejecting invitation
+        user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
+        if not user or not user.verified_email:
+            raise ForbiddenError(
+                "IDM.403.02",
+                "Please verify your email address before rejecting invitations.",
+                errdata={"email": user.telecom__email if user else None}
             )
 
         if invitation.status.value != "PENDING":

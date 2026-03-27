@@ -289,17 +289,20 @@ class UserProfileAggregate(Aggregate):
         user = await self.statemgr.exist("user", where=dict(verified_email=email))
         if not user:
             raise ValueError(f"User with email {email} not found!")
-        exist_profile = self.statemgr.exist(
+        # Check for existing profile (any status) in this organization
+        existing_profile = await self.statemgr.exist(
             "profile",
-            realm=realm,
-            organization_id=self.context.organization_id,
-            user_id=user._id,
-            status='ACTIVE'
+            where=dict(
+                realm=realm,
+                organization_id=self.context.organization_id,
+                user_id=user._id,
+            )
         )
-        if exist_profile:
-            raise ValueError(f"User already have an ACTIVE profile in the current organization")
+        if existing_profile:
+            status_msg = "ACTIVE" if existing_profile.status == 'ACTIVE' else "waiting for verification"
+            raise ValueError(f"User already has a profile in this organization (status: {status_msg}).")
 
-        # Check for existing pending invitations
+        # Check for existing pending invitations (additional safety)
         existing_invitations = await self.statemgr.find_all(
             "invitation",
             where=dict(
@@ -310,7 +313,7 @@ class UserProfileAggregate(Aggregate):
             )
         )
 
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         for inv in existing_invitations:
             if inv.expires_at and inv.expires_at > current_time:
                  raise ValueError("User already has a pending invitation for this organization and realm.")
@@ -365,9 +368,22 @@ class UserProfileAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links
-            base_url = config.API_BASE_URL
-            accept_link = f"{base_url}/{config.NAMESPACE}.accept-invitation/{record._id}?token={record.token}"
-            reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{record._id}?token={record.token}"
+            mapper = getattr(config, "INVITATION_REALM_URL_MAPPER", {}) or {}
+            links = mapper.get(realm) or mapper.get("default")
+            if not links or len(links) < 2:
+                raise ValueError(f"Realm {realm} is not supported (no invitation links defined)")
+
+            accept_url, reject_url = links
+
+            # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
+            realm_url = getattr(config, "REALM_URL_MAPPER", {}).get(realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
+
+            actual_accept_url = accept_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+            actual_reject_url = reject_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+
+            from urllib.parse import quote
+            accept_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_accept_url)}"
+            reject_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_reject_url)}"
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
@@ -427,9 +443,22 @@ class UserProfileAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links with updated token
-            base_url = config.API_BASE_URL
-            accept_link = f"{base_url}/{config.NAMESPACE}.accept-invitation/{invitation._id}?token={invitation.token}"
-            reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{invitation._id}?token={invitation.token}"
+            mapper = getattr(config, "INVITATION_REALM_URL_MAPPER", {}) or {}
+            links = mapper.get(invitation.realm) or mapper.get("default")
+            if not links or len(links) < 2:
+                raise ValueError(f"Realm {invitation.realm} is not supported (no invitation links defined)")
+
+            accept_url, reject_url = links
+
+            # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
+            realm_url = getattr(config, "REALM_URL_MAPPER", {}).get(invitation.realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
+
+            actual_accept_url = accept_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
+            actual_reject_url = reject_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
+
+            from urllib.parse import quote
+            accept_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_accept_url)}"
+            reject_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_reject_url)}"
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",

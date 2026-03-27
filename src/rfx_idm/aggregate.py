@@ -153,6 +153,12 @@ class IDMAggregate(Aggregate):
                         # Action already exists, mark as seen
                         processed_actions.add(existing._id)
                     else:
+                        # Ensure action exists in reference table to avoid ForeignKeyViolationError
+                        ref_action = await self.statemgr.exist('ref__action', where=dict(key=action))
+                        if not ref_action:
+                            logger.warning(f"Required action '{action}' not found in ref__action reference table. Skipping synchronization for this action.")
+                            continue
+
                         # Create new action record
                         record = self.init_resource('user_action', dict(
                             user_id=user._id,
@@ -333,18 +339,20 @@ class IDMAggregate(Aggregate):
             if not user:
                 raise ValueError(f"User with email {email} not found!")
 
-        # Only block if there is already an ACTIVE profile (INACTIVE pre-created ones are fine)
-        exist_active_profile = await self.statemgr.exist(
+        # Check for existing profile (any status) in this organization
+        existing_profile = await self.statemgr.exist(
             "profile",
             where=dict(
                 realm=realm,
                 organization_id=self.context.organization_id,
                 user_id=user._id,
-                status='ACTIVE',
             )
         )
-        if exist_active_profile:
-            raise ValueError("User already has an ACTIVE profile in the current organization")
+        if existing_profile:
+            # Only allow if it's the one we're explicitly provisioning in this flow
+            if not pre_created_profile_id or str(existing_profile._id) != str(pre_created_profile_id):
+                status_msg = "ACTIVE" if existing_profile.status == 'ACTIVE' else "waiting for verification"
+                raise ValueError(f"User already has a profile in this organization (status: {status_msg}).")
 
         # Rate limit check
         window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
@@ -396,13 +404,22 @@ class IDMAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links
+            mapper = config.INVITATION_REALM_URL_MAPPER or {}
+            links = mapper.get(realm) or mapper.get("default")
+            if not links or len(links) < 2:
+                raise ValueError(f"Realm {realm} is not supported (no invitation links defined)")
 
-            accept_url, reject_url = config.INVITATION_REALM_URL_MAPPER.get(realm, None) if config.INVITATION_REALM_URL_MAPPER else None
-            if not accept_url or not reject_url:
-                raise ValueError(f"Realm {realm} is not supported")
+            accept_url, reject_url = links
 
-            accept_link = accept_url.format(invitation_id=record._id, token=record.token)
-            reject_link = reject_url.format(invitation_id=record._id, token=record.token)
+            # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
+            realm_url = config.REALM_URL_MAPPER.get(realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
+
+            actual_accept_url = accept_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+            actual_reject_url = reject_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+
+            from urllib.parse import quote
+            accept_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_accept_url)}"
+            reject_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_reject_url)}"
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
@@ -462,9 +479,22 @@ class IDMAggregate(Aggregate):
             org_name = org.name if org else "Organization"
 
             # Construct invitation links with updated token
-            base_url = config.API_BASE_URL
-            accept_link = f"{base_url}/{config.NAMESPACE}.accept-invitation/{invitation._id}?token={invitation.token}"
-            reject_link = f"{base_url}/{config.NAMESPACE}.reject-invitation/{invitation._id}?token={invitation.token}"
+            mapper = config.INVITATION_REALM_URL_MAPPER or {}
+            links = mapper.get(invitation.realm) or mapper.get("default")
+            if not links or len(links) < 2:
+                raise ValueError(f"Realm {invitation.realm} is not supported (no invitation links defined)")
+
+            accept_url, reject_url = links
+
+            # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
+            realm_url = config.REALM_URL_MAPPER.get(invitation.realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
+
+            actual_accept_url = accept_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
+            actual_reject_url = reject_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
+
+            from urllib.parse import quote
+            accept_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_accept_url)}"
+            reject_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_reject_url)}"
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",

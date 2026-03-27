@@ -93,7 +93,9 @@ class UserProvisionMixin:
         except Exception as e:
             logger.warning(f"Failed to execute Keycloak actions for user {user_id}: {e}")
 
-    async def _ensure_local_user(self, stm, agg, kc_user, is_superuser=False, **extra_data):
+    async def _ensure_local_user(
+        self, stm, agg, kc_user, is_superuser=False, required_actions=None, **extra_data
+    ):
         """Standardized local user synchronization and upsert logic."""
         import copy
         try:
@@ -140,6 +142,14 @@ class UserProvisionMixin:
         })
 
         user = await agg.create_user(user_data)
+
+        # Record initial required actions in local DB if reference table allows
+        if required_actions:
+            for action_key in required_actions:
+                # Ensure action exists in ref__action; let it error if not found
+                await stm.find_one("ref__action", where=dict(key=action_key))
+
+        return user
 
         # Sync sys_admin role to Keycloak if needed
         if config.ALLOW_CREATE_SYS_ADMIN and is_superuser:
@@ -210,20 +220,8 @@ class CreateUser(Command, UserProvisionMixin):
             "requiredActions": ["UPDATE_PASSWORD", "VERIFY_EMAIL"],
         }
 
-        # Create or update user in Keycloak
-        try:
-            kc_user = await kc_admin.create_user(kc_user_data)
-        except BadRequestError as e:
-            if "exists" not in str(e).lower():
-                raise
-
-            kc_user = await self._find_kc_user_by_identifiers(
-                username=payload.username, email=payload.email
-            )
-            if not kc_user:
-                raise
-
-            await kc_admin.update_user(kc_user.id, kc_user_data)
+        # Create user in Keycloak
+        kc_user = await kc_admin.create_user(kc_user_data)
 
         # Ensure local record is synced
         user = await self._ensure_local_user(
@@ -243,10 +241,11 @@ class CreateUser(Command, UserProvisionMixin):
                 payload.verified_email or (payload.email if email_verified else None)
             ),
             verified_phone=payload.verified_phone,
+            required_actions=getattr(kc_user, "requiredActions", None),
         )
 
         # Trigger onboarding emails
-        await self._trigger_kc_onboarding(kc_user.id)
+        await self._trigger_kc_onboarding(kc_user.id, target_realm)
 
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
@@ -1025,11 +1024,11 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
     Behaviour is controlled by ``assign_to_existed_user``:
 
     - ``True``  → look up the user by username/email in Keycloak; raise if not found.
-    - ``False`` → look up first; if not found, create the user in Keycloak with
-                  required actions (UPDATE_PASSWORD + VERIFY_EMAIL).  If already
-                  present, the existing account is reused (idempotent).
+    - ``False`` → Intent is to create a NEW user. If the user already exists in Keycloak,
+                  raises an error. If NOT found, creates the user with required actions
+                  (UPDATE_PASSWORD + VERIFY_EMAIL).
 
-    In both cases a local ``user`` record is created when absent, then a profile
+    In both cases a local ``user`` record is synchronized/created, then a profile
     is created in the target organization.
     """
 
@@ -1101,12 +1100,19 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
         )
         user_was_created = False
 
+        if kc_user and not assign_to_existed_user:
+            lookup_key = payload.username or payload.telecom__email
+            raise ValueError(
+                f"User with identifier '{lookup_key}' already exists. "
+                "Check the box to create a new profile to the user."
+            )
+
         if not kc_user:
             if assign_to_existed_user:
                 lookup_key = payload.username or payload.telecom__email
                 raise ValueError(
-                    f"User not found in Keycloak for identifier '{lookup_key}'. "
-                    "Set assign_to_existed_user=false to create a new user."
+                    f"User not found for identifier '{lookup_key}'. "
+                    "Uncheck the box to create a new user."
                 )
 
             # Create new user in Keycloak
@@ -1125,6 +1131,23 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
             # Trigger onboarding emails
             await self._trigger_kc_onboarding(kc_user.id, target_realm)
 
+        # Check for existing profile in this organization's realm
+        if not user_was_created:
+            try:
+                existing_profile = await stm.find_one(
+                    "profile",
+                    where=dict(
+                        user_id=kc_user.id,
+                        organization_id=intended_organization_id,
+                        realm=target_realm,
+                    ),
+                )
+            except ItemNotFoundError:
+                existing_profile = None
+            if existing_profile:
+                status_msg = "ACTIVE" if existing_profile.status == 'ACTIVE' else "waiting for verification"
+                raise ValueError(f"User already has a profile in this organization (status: {status_msg}).")
+
         # Ensure local record is synced
         await self._ensure_local_user(
             stm,
@@ -1136,6 +1159,7 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
             name__given=payload.name__given,
             name__family=payload.name__family,
             telecom__phone=payload.telecom__phone,
+            required_actions=getattr(kc_user, "requiredActions", None),
         )
 
         # Inject resolved user_id; username belongs on user, not profile
