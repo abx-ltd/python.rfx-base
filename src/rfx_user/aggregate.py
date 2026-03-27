@@ -390,8 +390,12 @@ class UserProfileAggregate(Aggregate):
             # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
             realm_url = getattr(config, "REALM_URL_MAPPER", {}).get(realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
 
-            accept_link = accept_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
-            reject_link = reject_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+            actual_accept_url = accept_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+            actual_reject_url = reject_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+
+            from urllib.parse import quote
+            accept_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_accept_url)}"
+            reject_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_reject_url)}"
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
@@ -461,8 +465,12 @@ class UserProfileAggregate(Aggregate):
             # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
             realm_url = getattr(config, "REALM_URL_MAPPER", {}).get(invitation.realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
 
-            accept_link = accept_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
-            reject_link = reject_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
+            actual_accept_url = accept_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
+            actual_reject_url = reject_url.format(realm_url=realm_url, invitation_id=invitation._id, token=invitation.token)
+
+            from urllib.parse import quote
+            accept_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_accept_url)}"
+            reject_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_reject_url)}"
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
