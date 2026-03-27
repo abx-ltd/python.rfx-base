@@ -184,10 +184,9 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("entry-created", resources="cabinet")
     async def create_entry(self, /, data):
-
         cabinet = self.rootobj
         full_path = data.computed_path
-    
+
         entry_data = serialize_mapping(data)
         entry_data.update(
             {
@@ -211,43 +210,51 @@ class RFXDocmanAggregate(Aggregate):
         entry = self.rootobj
         updates = serialize_mapping(data)
 
-        # 1. Handle Type changes - Block conversion between File and Folder
         old_type = entry.type
         new_type = data.type
-        if new_type is not None and (new_type == EntryTypeEnum.FOLDER) != (old_type == EntryTypeEnum.FOLDER):
-            raise ValueError(f"Cannot change between file and folder types ('{old_type.value}' -> '{new_type.value}')")
+        if new_type is not None and new_type != old_type:
+            raise ValueError(
+                f"Entry type cannot be changed after creation "
+                f"('{old_type.value}' \u2192 '{new_type.value}')"
+            )
 
-        effective_type = old_type
-        if effective_type == EntryTypeEnum.FOLDER:
+        # Force folder entries to always have null size/mime_type.
+        if old_type == EntryTypeEnum.FOLDER:
             updates["size"] = None
             updates["mime_type"] = None
 
-        # 2. Handle Path changes and descendant updates
+        # Handle path changes.
         new_path = data.get_computed_path(entry)
         old_path = entry.path
 
         if new_path != old_path:
+
+            conflict = await self.statemgr.exist(
+                "entry",
+                where={"cabinet_id": entry.cabinet_id, "path": new_path},
+            )
+            if conflict:
+                raise ValueError(
+                    f"An entry already exists at path '{new_path}'"
+                )
+
             updates["path"] = new_path
-            # If it's a folder, we MUST update all its descendants
+            updates["name"] = new_path.rsplit("/", 1)[-1]
+
             if old_type == EntryTypeEnum.FOLDER:
                 old_prefix = f"{old_path}/"
                 new_prefix = f"{new_path}/"
-                
-                descendants = await self.statemgr.find_all(
+                await self.statemgr.bulk_update(
                     "entry",
                     where={
                         "cabinet_id": entry.cabinet_id,
-                        "path:has": f"{old_prefix}%",
+                        "path:startswith": old_prefix,
+                    },
+                    values={
+                        "path": {"$reprefix": (old_prefix, new_prefix)},
+                        "name": {"$basename_after_reprefix": (old_prefix, new_prefix)},
                     },
                 )
-
-                for child in descendants:
-                    target_child_path = new_prefix + child.path[len(old_prefix):]
-                    await self.statemgr.update(
-                        child,
-                        path=target_child_path,
-                        name=target_child_path.rsplit("/", 1)[-1],
-                    )
 
         updates.pop("parent_path", None)
         await self.statemgr.update(entry, **updates)
@@ -255,27 +262,40 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("entry-removed", resources="entry")
     async def remove_entry(self, /):
+        """
+        Soft-delete a single entry (file or FOLDER metadata row).
+        """
         entry = self.rootobj
-        if entry.type == EntryTypeEnum.FOLDER:
-            if await self.statemgr.find_all(
-                "entry",
-                where={
-                    "cabinet_id": entry.cabinet_id,
-                    "path:has": f"{entry.path}/%",
-                },
-            ):
-                raise ValueError(f"Cannot remove folder '{entry.name}' because it still contains child items")
+        await self.statemgr.invalidate(entry)
+
+    @action("entry-purged", resources="entry")
+    async def purge_entry(self, /):
+        """Recursively soft-delete a FOLDER row and all its active descendants.
+
+        """
+        entry = self.rootobj
+        if entry.type != EntryTypeEnum.FOLDER:
+            raise ValueError("purge-entry is only valid for FOLDER entries")
+
+        # Bulk soft-delete all descendants first, then the FOLDER row itself.
+        await self.statemgr.invalidate_where(
+            "entry",
+            {
+                "cabinet_id": entry.cabinet_id,
+                "path:startswith": f"{entry.path}/",
+            },
+        )
         await self.statemgr.invalidate(entry)
 
     # =========================================================================
     # TAG 
     # =========================================================================
 
-    @action("tag-created", resources="entry")
+    @action("tag-created", resources="tag")
     async def create_tag(self, /, data):
-        """Create a new tag in context of an entry, auto-link via entry_tag."""
+        """Create a globally shared tag.
+        """
         data = serialize_mapping(data)
-        entry = self.rootobj
         tag = self.init_resource(
             "tag",
             {
@@ -286,12 +306,6 @@ class RFXDocmanAggregate(Aggregate):
             _id=UUID_GENR(),
         )
         await self.statemgr.insert(tag)
-
-        link = self.init_resource(
-            "entry_tag",
-            {"entry_id": entry._id, "tag_id": tag._id},
-        )
-        await self.statemgr.insert(link)
         return tag
 
     @action("tag-updated", resources="tag")

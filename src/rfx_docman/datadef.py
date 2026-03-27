@@ -1,5 +1,5 @@
 import re
-from typing import Optional, Annotated
+from typing import Optional, Annotated, cast
 from pydantic import Field, model_validator, AfterValidator
 from fluvius.data import DataModel, UUID_TYPE
 from .types import EntryTypeEnum
@@ -80,8 +80,8 @@ def validate_folder_name(name: str) -> str:
 
 
 def validate_parent_path(path: str) -> str:
-    if not path:
-        return path
+    if not path or not path.strip("/"):
+        return ""
     cleaned = re.sub(r"/+", "/", path.strip("/"))
     for segment in cleaned.split("/"):
         validate_folder_name(segment)
@@ -286,7 +286,7 @@ class UpdateEntryPayload(BaseUpdatePayload):
     mime_type: Optional[str] = Field(
         default=None, description="New mime type of the file"
     )
-    author: Optional[str] = Field(default=None)
+    author_name: Optional[str] = Field(default=None, description="Author or creator's name")
 
     @model_validator(mode="after")
     def validate_type_consistency(self):
@@ -306,14 +306,14 @@ class UpdateEntryPayload(BaseUpdatePayload):
 
     def get_computed_path(self, entry) -> str:
         """Compute the new absolute path based on updated name/parent_path fields."""
-        if self.parent_path is not None:
-            parent = self.parent_path
-        else:
-            if "/" in entry.path:
-                parent = entry.path.rsplit("/", 1)[0]
-            else:
-                parent = ""
-        name = self.name if self.name is not None else entry.name
+        entry_path: str = str(entry.path)
+        entry_name: str = str(entry.name)
+        parent: str = (
+            cast(str, self.parent_path)
+            if self.parent_path is not None
+            else (entry_path.rsplit("/", 1)[0] if "/" in entry_path else "")
+        )
+        name: str = str(self.name) if self.name is not None else entry_name
         return f"{parent}/{name}" if parent else name
 
 
