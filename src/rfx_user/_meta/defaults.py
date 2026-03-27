@@ -40,5 +40,5 @@ NAMESPACE = "user-profile"
 
 OPERATION_VALID_REALMS = None
 INVITATION_REALM_URL_MAPPER = {
-    "default": ["{realm_url}/rfx_user.accept-invitation/{invitation_id}?token={token}", "{realm_url}/rfx_user.reject-invitation/{invitation_id}?token={token}"]
+    "default": ["{realm_url}/user-profile.accept-invitation/{invitation_id}?token={token}", "{realm_url}/user-profile.reject-invitation/{invitation_id}?token={token}"]
 }
