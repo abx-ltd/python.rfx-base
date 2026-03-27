@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid
 from typing import Optional, Any
 
 from sqlalchemy import BigInteger, Integer, String
@@ -34,7 +35,7 @@ class ShelfView(TableBase):
     __tablename__ = "_shelf"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
-    realm_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     code: Mapped[str] = mapped_column(String(10), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
@@ -56,8 +57,8 @@ class CategoryView(TableBase):
     __tablename__ = "_category"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
-    realm_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
-    shelf_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    shelf_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     code: Mapped[str] = mapped_column(String(10), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
@@ -78,8 +79,8 @@ class CabinetView(TableBase):
     __tablename__ = "_cabinet"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
-    realm_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
-    category_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    category_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
@@ -99,7 +100,7 @@ class EntryView(TableBase):
     __tablename__ = "_entry"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
-    cabinet_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    cabinet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     path: Mapped[str] = mapped_column(String(2048), nullable=False)
     name: Mapped[str] = mapped_column(String(512), nullable=False)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -122,9 +123,7 @@ class TagView(TableBase):
     __tablename__ = "_tag"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
-    realm_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), nullable=False
-    )  
+    realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
