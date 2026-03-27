@@ -339,18 +339,20 @@ class IDMAggregate(Aggregate):
             if not user:
                 raise ValueError(f"User with email {email} not found!")
 
-        # Only block if there is already an ACTIVE profile (INACTIVE pre-created ones are fine)
-        exist_active_profile = await self.statemgr.exist(
+        # Check for existing profile (any status) in this organization
+        existing_profile = await self.statemgr.exist(
             "profile",
             where=dict(
                 realm=realm,
                 organization_id=self.context.organization_id,
                 user_id=user._id,
-                status='ACTIVE',
             )
         )
-        if exist_active_profile:
-            raise ValueError("User already has an ACTIVE profile in the current organization")
+        if existing_profile:
+            # Only allow if it's the one we're explicitly provisioning in this flow
+            if not pre_created_profile_id or str(existing_profile._id) != str(pre_created_profile_id):
+                status_msg = "ACTIVE" if existing_profile.status == 'ACTIVE' else "waiting for verification"
+                raise ValueError(f"User already has a profile in this organization (status: {status_msg}).")
 
         # Rate limit check
         window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
