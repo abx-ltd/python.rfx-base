@@ -1157,6 +1157,20 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
             # Trigger onboarding emails
             await self._trigger_kc_onboarding(kc_user.id, target_realm)
 
+        # Check for existing profile in this organization's realm
+        if not user_was_created:
+            existing_profile = await stm.exist(
+                "profile",
+                where=dict(
+                    user_id=kc_user.id,
+                    organization_id=intended_organization_id,
+                    realm=target_realm,
+                ),
+            )
+            if existing_profile:
+                status_msg = "ACTIVE" if existing_profile.status == 'ACTIVE' else "waiting for verification"
+                raise ValueError(f"User already has a profile in this organization (status: {status_msg}).")
+
         # Ensure local record is synced
         await self._ensure_local_user(
             stm,

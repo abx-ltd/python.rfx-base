@@ -304,17 +304,20 @@ class UserProfileAggregate(Aggregate):
         user = await self.statemgr.exist("user", where=dict(verified_email=email))
         if not user:
             raise ValueError(f"User with email {email} not found!")
-        exist_profile = self.statemgr.exist(
+        # Check for existing profile (any status) in this organization
+        existing_profile = await self.statemgr.exist(
             "profile",
-            realm=realm,
-            organization_id=self.context.organization_id,
-            user_id=user._id,
-            status='ACTIVE'
+            where=dict(
+                realm=realm,
+                organization_id=self.context.organization_id,
+                user_id=user._id,
+            )
         )
-        if exist_profile:
-            raise ValueError(f"User already have an ACTIVE profile in the current organization")
+        if existing_profile:
+            status_msg = "ACTIVE" if existing_profile.status == 'ACTIVE' else "waiting for verification"
+            raise ValueError(f"User already has a profile in this organization (status: {status_msg}).")
 
-        # Check for existing pending invitations
+        # Check for existing pending invitations (additional safety)
         existing_invitations = await self.statemgr.find_all(
             "invitation",
             where=dict(
@@ -325,7 +328,7 @@ class UserProfileAggregate(Aggregate):
             )
         )
 
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         for inv in existing_invitations:
             if inv.expires_at and inv.expires_at > current_time:
                  raise ValueError("User already has a pending invitation for this organization and realm.")
