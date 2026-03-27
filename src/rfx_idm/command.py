@@ -146,22 +146,8 @@ class UserProvisionMixin:
         # Record initial required actions in local DB if reference table allows
         if required_actions:
             for action_key in required_actions:
-                # Resilience check: Ensure action exists in ref__action to avoid ForeignKeyViolationError
-                ref_action = await stm.exist("ref__action", where=dict(key=action_key))
-                if not ref_action:
-                    logger.warning(
-                        f"Required action '{action_key}' not found in ref__action. Skipping initial recording."
-                    )
-                    continue
-
-                await stm.add_entry(
-                    "user_action",
-                    _id=UUID_GENR(),
-                    user_id=user._id,
-                    action=action_key,
-                    name=action_key,
-                    status="PENDING",
-                )
+                # Ensure action exists in ref__action; let it error if not found
+                await stm.find_one("ref__action", where=dict(key=action_key))
 
         return user
 
@@ -234,20 +220,8 @@ class CreateUser(Command, UserProvisionMixin):
             "requiredActions": ["UPDATE_PASSWORD", "VERIFY_EMAIL"],
         }
 
-        # Create or update user in Keycloak
-        try:
-            kc_user = await kc_admin.create_user(kc_user_data)
-        except BadRequestError as e:
-            if "exists" not in str(e).lower():
-                raise
-
-            kc_user = await self._find_kc_user_by_identifiers(
-                username=payload.username, email=payload.email
-            )
-            if not kc_user:
-                raise
-
-            await kc_admin.update_user(kc_user.id, kc_user_data)
+        # Create user in Keycloak
+        kc_user = await kc_admin.create_user(kc_user_data)
 
         # Ensure local record is synced
         user = await self._ensure_local_user(
@@ -1159,14 +1133,17 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
 
         # Check for existing profile in this organization's realm
         if not user_was_created:
-            existing_profile = await stm.exist(
-                "profile",
-                where=dict(
-                    user_id=kc_user.id,
-                    organization_id=intended_organization_id,
-                    realm=target_realm,
-                ),
-            )
+            try:
+                existing_profile = await stm.find_one(
+                    "profile",
+                    where=dict(
+                        user_id=kc_user.id,
+                        organization_id=intended_organization_id,
+                        realm=target_realm,
+                    ),
+                )
+            except ItemNotFoundError:
+                existing_profile = None
             if existing_profile:
                 status_msg = "ACTIVE" if existing_profile.status == 'ACTIVE' else "waiting for verification"
                 raise ValueError(f"User already has a profile in this organization (status: {status_msg}).")
