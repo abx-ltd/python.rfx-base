@@ -413,13 +413,16 @@ class IDMAggregate(Aggregate):
 
             # Resolve the base URL for this realm (e.g., from REALM_URL_MAPPER)
             realm_url = config.REALM_URL_MAPPER.get(realm, "/") if hasattr(config, "REALM_URL_MAPPER") else "/"
+            r_url = realm_url.rstrip("/")
 
-            actual_accept_url = accept_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
-            actual_reject_url = reject_url.format(realm_url=realm_url, invitation_id=record._id, token=record.token)
+            # Construct relative paths for the 'next' parameter to ensure they pass safe-redirect validation
+            # and avoid double slashes in the path.
+            accept_path = f"/api/{accept_url.format(realm_url='', invitation_id=record._id, token=record.token).lstrip('/')}".replace("//", "/")
+            reject_path = f"/api/{reject_url.format(realm_url='', invitation_id=record._id, token=record.token).lstrip('/')}".replace("//", "/")
 
             from urllib.parse import quote
-            accept_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_accept_url)}"
-            reject_link = f"{realm_url}/api/auth/sign-in?next={quote(actual_reject_url)}"
+            accept_link = f"{r_url}/api/auth/sign-in?next={quote(accept_path)}"
+            reject_link = f"{r_url}/api/auth/sign-in?next={quote(reject_path)}"
 
             await notify_client.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",

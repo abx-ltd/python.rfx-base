@@ -96,6 +96,7 @@ class ProjectWorkPackage(TableBase):
         comment="Timestamp when work package was completed (status changed to DONE)",
     )
     params: Mapped[Optional[dict]] = mapped_column(JSONB)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="work_packages")
@@ -120,6 +121,7 @@ class ProjectWorkPackageRelationship(TableBase):
     resource_name: Mapped[str] = mapped_column(String(100), nullable=False)
     resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     schema_relation: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
 class ProjectWorkItem(TableBase):
     """Project work items in ``rfx_client.project_work_item``."""

@@ -189,6 +189,7 @@ class RFXClientAggregate(Aggregate):
                 "work_package_is_custom": False,
                 "work_package_complexity_level": work_package.complexity_level,
                 "params": data.params or {},  # Store estimation parameters for later use in estimation
+                "organization_id": self.context.organization_id,
                 # work_package_estimate removed to avoid timedelta JSON serialization error
             },
             _id=UUID_GENR(),
@@ -533,7 +534,8 @@ class RFXClientAggregate(Aggregate):
                 "project_work_package_id": project_work_package._id,
                 "resource_name": data.resource_name,
                 "resource_id": data.resource_id,
-                "schema_relation": data.schema_relation
+                "schema_relation": data.schema_relation,
+                "organization_id": self.context.organization_id,
             }
         )
         await self.statemgr.insert(record)

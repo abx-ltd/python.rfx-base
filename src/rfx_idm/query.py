@@ -48,7 +48,8 @@ async def accept_invitation(
 
         context = request.state.auth_context
         if not context:
-            signin_url = f"/api/auth/sign-in?next={quote(str(request.url))}"
+            next_url = f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path
+            signin_url = f"/api/auth/sign-in?next={quote(next_url)}"
             return RedirectResponse(signin_url)
 
         if token != invitation.token:
@@ -56,7 +57,9 @@ async def accept_invitation(
 
         if str(invitation.user_id) != str(context.profile.usr_id):
             # Logged in but as the wrong user
-            signout_url = f"/api/auth/sign-out?redirect_uri={quote(str(request.url))}"
+            # Use relative URL for redirect_uri to ensure it passes safe redirect validation
+            next_url = f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path
+            signout_url = f"/api/auth/sign-out?redirect_uri={quote(next_url)}"
             raise ForbiddenError(
                 "IDM.403.01",
                 f"This invitation (for {invitation.email}) does not belong to your current account ({context.profile.email}).",
@@ -206,14 +209,16 @@ async def reject_invitation(
 
         context = request.state.auth_context
         if not context:
-            signin_url = f"/api/auth/sign-in?next={quote(str(request.url))}"
+            next_url = f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path
+            signin_url = f"/api/auth/sign-in?next={quote(next_url)}"
             return RedirectResponse(signin_url)
 
         if token != invitation.token:
             return {"error": "Invalid invitation token"}
 
         if str(invitation.user_id) != str(context.profile.usr_id):
-            signout_url = f"/api/auth/sign-out?redirect_uri={quote(str(request.url))}"
+            next_url = f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path
+            signout_url = f"/api/auth/sign-out?redirect_uri={quote(next_url)}"
             raise ForbiddenError(
                 "IDM.403.01",
                 f"This invitation (for {invitation.email}) does not belong to your current account ({context.profile.email}).",
