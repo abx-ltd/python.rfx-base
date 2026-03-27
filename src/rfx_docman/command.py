@@ -266,7 +266,11 @@ class UpdateEntry(Command):
 
 
 class RemoveEntry(Command):
-    """Remove an entry."""
+    """Remove an entry (soft-delete single row only).
+
+    For FOLDER rows: descendants are untouched. The virtual folder continues
+    to appear in listings as long as file descendants exist (Strategy 3).
+    """
 
     class Meta:
         key = "remove-entry"
@@ -278,13 +282,34 @@ class RemoveEntry(Command):
         await agg.remove_entry()
 
 
+class PurgeEntry(Command):
+    """Recursively soft-delete a FOLDER entry and all its active descendants.
+
+    Only valid for FOLDER type entries. Use remove-entry for a single-row
+    soft-delete without touching descendants.
+    """
+
+    class Meta:
+        key = "purge-entry"
+        resources = ("entry",)
+        tags = ["docman", "purge", "entry"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.purge_entry()
+
+
 # =============================================================================
 # TAG COMMANDS — globally shared tag CRUD
 # =============================================================================
 
 
 class CreateTag(Command):
-    """Create a new globally-shared tag."""
+    """Create a new globally-shared tag.
+
+    ISSUE-002: CreateTag is scoped to 'tag' resource with resource_init=True.
+    It does NOT link the tag to any entry — use add-entry-tag for that.
+    """
 
     Data = datadef.CreateTagPayload
 
