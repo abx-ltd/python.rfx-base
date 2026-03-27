@@ -10,6 +10,7 @@ Unique constraint: (realm_id, key) — each key appears at most once per realm.
 
 from __future__ import annotations
 
+import uuid
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -26,6 +27,6 @@ class RealmMeta(TableBase):
         {"schema": SCHEMA},
     )
 
-    realm_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
-    key:   Mapped[str] = mapped_column(String(255),  nullable=False)
+    realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    key: Mapped[str] = mapped_column(String(255), nullable=False)
     value: Mapped[str] = mapped_column(String(1024), nullable=False)
