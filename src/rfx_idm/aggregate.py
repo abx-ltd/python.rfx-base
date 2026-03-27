@@ -417,8 +417,8 @@ class IDMAggregate(Aggregate):
 
             # Construct relative paths for the 'next' parameter to ensure they pass safe-redirect validation
             # and avoid double slashes in the path.
-            accept_path = accept_url.format(realm_url="", invitation_id=record._id, token=record.token).replace("//", "/")
-            reject_path = reject_url.format(realm_url="", invitation_id=record._id, token=record.token).replace("//", "/")
+            accept_path = f"/api/{accept_url.format(realm_url='', invitation_id=record._id, token=record.token).lstrip('/')}".replace("//", "/")
+            reject_path = f"/api/{reject_url.format(realm_url='', invitation_id=record._id, token=record.token).lstrip('/')}".replace("//", "/")
 
             from urllib.parse import quote
             accept_link = f"{r_url}/api/auth/sign-in?next={quote(accept_path)}"
