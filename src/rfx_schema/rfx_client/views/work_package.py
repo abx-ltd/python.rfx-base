@@ -137,6 +137,7 @@ project_work_package_view = PGView(
         pwp.work_package_complexity_level,
         pwp.work_package_estimate,
         pwp.params,
+        pwp.organization_id,
         array_agg(DISTINCT rwt.alias)::character varying(50)[] AS type_list,
         count(DISTINCT wi.project_work_item_id) AS work_item_count,
         CASE
@@ -198,6 +199,7 @@ project_work_package_relationship_view = PGView(
         pwp.quantity,
         pwp.status AS project_work_package_status,
         pwp.work_package_name AS project_work_package_name,
+        pwp.organization_id,
         p.name AS project_name,
         wp.work_package_name AS work_package_name,
         res.resource_data
