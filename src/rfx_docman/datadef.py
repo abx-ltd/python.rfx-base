@@ -2,7 +2,7 @@ import re
 from typing import Optional, Annotated, cast
 from pydantic import Field, model_validator, AfterValidator
 from fluvius.data import DataModel, UUID_TYPE
-from .types import EntryTypeEnum
+from .types import EntryTypeEnum , RealmMetaKeyEnum
 
 
 class BaseUpdatePayload(DataModel):
@@ -126,8 +126,8 @@ class UpdateRealmPayload(BaseUpdatePayload):
 # REALM META PAYLOADS
 # ==========================================
 class CreateRealmMetaPayload(DataModel):
-    key: str = Field(
-        ..., description="Meta key", examples=["shelf_label", "cabinet_label"]
+    key: RealmMetaKeyEnum = Field(
+        ..., description="Meta key", examples=["REALM", "SHELF" ,"CABINET"]
     )
     value: str = Field(
         ..., description="Meta value", examples=["Function", "Transaction"]
