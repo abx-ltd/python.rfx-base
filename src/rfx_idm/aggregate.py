@@ -317,6 +317,7 @@ class IDMAggregate(Aggregate):
         duration = data.get("duration")
         message = data.get("message", "")
         realm = data.get("realm")
+        organization_id = data.get("organization_id") or self.context.organization_id
         role_keys = data.get("role_keys") or ["VIEWER"]
 
         # profile_id may be pre-created (INACTIVE) by CreateProfileUserInOrg
@@ -344,7 +345,7 @@ class IDMAggregate(Aggregate):
             "profile",
             where=dict(
                 realm=realm,
-                organization_id=self.context.organization_id,
+                organization_id=organization_id,
                 user_id=user._id,
             )
         )
@@ -374,7 +375,7 @@ class IDMAggregate(Aggregate):
         invitation_record = dict(
             _id=UUID_GENR(),
             sender_id=self.context.user_id,
-            organization_id=self.context.organization_id,
+            organization_id=organization_id,
             user_id=user._id,
             profile_id=pre_created_profile_id,  # links to pre-created INACTIVE profile if set
             email=email or user.telecom__email,
@@ -400,7 +401,7 @@ class IDMAggregate(Aggregate):
                 raise RuntimeError("Notification service client is not found")
 
             # Fetch organization name
-            org = await self.statemgr.fetch("organization", self.context.organization_id)
+            org = await self.statemgr.fetch("organization", organization_id)
             org_name = org.name if org else "Organization"
 
             # Construct invitation links
