@@ -146,10 +146,13 @@ class UserProvisionMixin:
         # Record initial required actions in local DB if reference table allows
         if required_actions:
             for action_key in required_actions:
-                # Ensure action exists in ref__action; let it error if not found
-                await stm.find_one("ref__action", where=dict(key=action_key))
-
-        return user
+                try:
+                    # Ensure action exists in ref__action
+                    await stm.find_one("ref__action", where=dict(key=action_key))
+                except ItemNotFoundError:
+                    logger.warning(
+                        f"Required action '{action_key}' for user {kc_user.id} not found in ref__action."
+                    )
 
         # Sync sys_admin role to Keycloak if needed
         if config.ALLOW_CREATE_SYS_ADMIN and is_superuser:
@@ -221,7 +224,39 @@ class CreateUser(Command, UserProvisionMixin):
         }
 
         # Create user in Keycloak
-        kc_user = await kc_admin.create_user(kc_user_data)
+        kc_user = await self._find_kc_user_by_identifiers(
+            username=payload.username, email=payload.email
+        )
+        user_already_in_kc = False
+
+        if not kc_user:
+            try:
+                kc_user = await kc_admin.create_user(kc_user_data)
+            except BadRequestError as e:
+                if any(term in str(e).lower() for term in ["conflict", "exists", "already"]):
+                    kc_user = await self._find_kc_user_by_identifiers(
+                        username=payload.username, email=payload.email
+                    )
+                    if not kc_user:
+                        raise e
+                    user_already_in_kc = True
+                else:
+                    raise
+        else:
+            user_already_in_kc = True
+
+        if user_already_in_kc:
+            # Check if local record exists
+            try:
+                await stm.find_one("user", where=dict(_id=kc_user.id))
+                # If we reach here, user exists both in KC and locally.
+                raise BadRequestError(
+                    "A00.400",
+                    f"User with identifier {payload.username or payload.email} already exists."
+                )
+            except ItemNotFoundError:
+                # User exists in KC but NOT locally. This is fine, proceed to sync.
+                pass
 
         # Ensure local record is synced
         user = await self._ensure_local_user(
@@ -245,7 +280,7 @@ class CreateUser(Command, UserProvisionMixin):
         )
 
         # Trigger onboarding emails
-        await self._trigger_kc_onboarding(kc_user.id, target_realm)
+        await self._trigger_kc_onboarding(kc_user.id, realm=None)
 
         yield agg.create_response(serialize_mapping(user), _type="idm-response")
 
@@ -1101,11 +1136,15 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
         user_was_created = False
 
         if kc_user and not assign_to_existed_user:
-            lookup_key = payload.username or payload.telecom__email
-            raise ValueError(
-                f"User with identifier '{lookup_key}' already exists. "
-                "Check the box to create a new profile to the user."
-            )
+            try:
+                await stm.find_one("user", where=dict(_id=kc_user.id))
+                lookup_key = payload.username or payload.telecom__email
+                raise ValueError(
+                    f"User with identifier '{lookup_key}' already exists. "
+                    "Check the box to create a new profile to the user."
+                )
+            except ItemNotFoundError:
+                pass
 
         if not kc_user:
             if assign_to_existed_user:
@@ -1125,8 +1164,19 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
                 "emailVerified": False,
                 "requiredActions": ["UPDATE_PASSWORD", "VERIFY_EMAIL"],
             }
-            kc_user = await kc_admin.create_user(kc_user_data)
-            user_was_created = True
+            try:
+                kc_user = await kc_admin.create_user(kc_user_data)
+                user_was_created = True
+            except BadRequestError as e:
+                if any(term in str(e).lower() for term in ["conflict", "exists", "already"]):
+                    kc_user = await self._find_kc_user_by_identifiers(
+                        username=payload.username, email=payload.telecom__email
+                    )
+                    if not kc_user:
+                        raise e
+                    user_was_created = False
+                else:
+                    raise
 
             # Trigger onboarding emails
             await self._trigger_kc_onboarding(kc_user.id, target_realm)
