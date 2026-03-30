@@ -44,7 +44,7 @@ project_view = PGView(
             FROM {SCHEMA}.project_work_package pwp
                 JOIN {SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
                 JOIN {SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
-            WHERE pwp.project_id = p._id AND pwp.status = 'DONE'::{SCHEMA}.workpackageenum AND pwp._deleted IS NULL), 0::numeric), 2) AS used_credit
+            WHERE pwp.project_id = p._id AND pwp.status = 'COMPLETED'::projectworkpackagestatusenum AND pwp._deleted IS NULL), 0::numeric), 2) AS used_credit
     FROM {SCHEMA}.project p
         LEFT JOIN {SCHEMA}.project_member pm ON pm.project_id = p._id
     WHERE p._deleted IS NULL
@@ -71,7 +71,7 @@ project_credit_summary_view = PGView(
         round(COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric), 2) AS total_credits,
         round(COALESCE(sum(
             CASE
-                WHEN pwp.status = 'DONE'::{SCHEMA}.workpackageenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                WHEN pwp.status = 'COMPLETED'::projectworkpackagestatusenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                 ELSE 0::numeric
             END), 0::numeric), 2) AS credit_used,
         round(COALESCE(( SELECT sum(cul.credits_used) AS sum
@@ -79,13 +79,13 @@ project_credit_summary_view = PGView(
               WHERE cul.project_id = p._id AND cul._deleted IS NULL), 0::numeric), 2) AS actual_total_credits,
         round(COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) - COALESCE(sum(
             CASE
-                WHEN pwp.status = 'DONE'::{SCHEMA}.workpackageenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                WHEN pwp.status = 'COMPLETED'::projectworkpackagestatusenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                 ELSE 0::numeric
             END), 0::numeric), 2) AS credits_remaining,
             CASE
                 WHEN COALESCE(sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric), 0::numeric) > 0::numeric THEN round(COALESCE(sum(
                 CASE
-                    WHEN pwp.status = 'DONE'::{SCHEMA}.workpackageenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                    WHEN pwp.status = 'COMPLETED'::projectworkpackagestatusenum THEN pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                     ELSE 0::numeric
                 END), 0::numeric) / sum(pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) * 100::numeric, 2)
                 ELSE 0::numeric
@@ -93,7 +93,7 @@ project_credit_summary_view = PGView(
         count(DISTINCT pwp._id)::integer AS total_work_packages,
         count(DISTINCT
             CASE
-                WHEN pwp.status = 'DONE'::{SCHEMA}.workpackageenum THEN pwp._id
+                WHEN pwp.status = 'COMPLETED'::projectworkpackagestatusenum THEN pwp._id
                 ELSE NULL::uuid
             END)::integer AS completed_work_packages,
         count(DISTINCT pwi._id)::integer AS total_work_items

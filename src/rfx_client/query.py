@@ -276,15 +276,14 @@ class ProjectWorkPackageRelationshipQuery(DomainQueryResource):
     """Project work package relationship queries"""
 
     class Meta(DomainQueryResource.Meta):
-        resource = "project"
-        include_all = True
-        allow_item_view = True
-        allow_list_view = True
-        allow_meta_view = True
-        allow_text_search = True
+        # resource = "project"
+        # include_all = True
+        # allow_item_view = True
+        # allow_list_view = True
+        # allow_meta_view = True
+        # allow_text_search = True
 
         backend_model = "_project_work_package_relationship"
-        scope_required = scope.ProjectWorkPackageRelationScopeSchema
         policy_required = True
 
     project_work_package_id: UUID_TYPE = UUIDField("Project Work Package ID")
@@ -295,9 +294,24 @@ class ProjectWorkPackageRelationshipQuery(DomainQueryResource):
     work_package_id: UUID_TYPE = UUIDField("Work Package ID")
     project_work_package_status: str = StringField("Project Work Package Status")
     project_work_package_name: str = StringField("Project Work Package Name")
+    expect_date: datetime = DatetimeField("Expected Date")
+    payment_id: UUID_TYPE = UUIDField("Payment ID")
+    payment_status: str = StringField("Payment Status")
+    payment_total_amount: float = FloatField("Payment Total Amount")
+    payment_deposited_amount: float = FloatField("Payment Deposited Amount")
+    payment_paid_amount: float = FloatField("Payment Paid Amount")
+    payment_currency: str = StringField("Payment Currency")
+    payment_method: str = StringField("Payment Method")
+    transaction_ref: str = StringField("Transaction Reference")
+    invoice_number: str = StringField("Invoice Number")
+    payment_due_date: datetime = DatetimeField("Payment Due Date")
+    payment_deposited_at: datetime = DatetimeField("Payment Deposited At")
+    payment_paid_at: datetime = DatetimeField("Payment Paid At")
     project_name: str = StringField("Project Name")
     work_package_name: str = StringField("Work Package Name")
-    resource_name_relation: str = StringField("Resource Name Relation")
+    resource_data_progress: str = StringField("Resource Data Process")
+    resource_data_status: str = StringField("Resource Data Status")
+    resource_data: dict = DictField("Resource Data")
 
 @resource("project-work-item")
 class ProjectWorkItemDetailQuery(DomainQueryResource):

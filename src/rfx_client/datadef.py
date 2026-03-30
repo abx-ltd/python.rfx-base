@@ -26,6 +26,7 @@ class CreateProjectPayload(DataModel):
     priority: Optional[PriorityEnum] = None
     start_date: datetime = Field(default_factory=datetime.now)
     duration: str = Field(default="P9D")
+    status: Optional[str] = None
 
 
 class UpdateProjectPayload(DataModel):

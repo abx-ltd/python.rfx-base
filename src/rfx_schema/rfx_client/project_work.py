@@ -26,7 +26,10 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import INTERVAL, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from . import TableBase, SCHEMA
-from .types import WorkPackageStatusEnum
+from .types import (
+    ProjectWorkPackagePaymentStatusEnum,
+    ProjectWorkPackageStatusEnum,
+)
 from .project import Project
 from .work_package import WorkPackage
 
@@ -85,9 +88,9 @@ class ProjectWorkPackage(TableBase):
     )
     work_package_estimate: Mapped[Optional[str]] = mapped_column(INTERVAL)
 
-    status: Mapped[WorkPackageStatusEnum] = mapped_column(
-        SQLEnum(WorkPackageStatusEnum, name="workpackageenum", schema=SCHEMA),
-        default=WorkPackageStatusEnum.TODO,
+    status: Mapped[ProjectWorkPackageStatusEnum] = mapped_column(
+        SQLEnum(ProjectWorkPackageStatusEnum),
+        default=ProjectWorkPackageStatusEnum.DRAFT,
         nullable=False,
     )
     date_complete: Mapped[Optional[datetime]] = mapped_column(
@@ -104,6 +107,75 @@ class ProjectWorkPackage(TableBase):
     work_items: Mapped[List["ProjectWorkPackageWorkItem"]] = relationship(
         back_populates="work_package", cascade="all, delete-orphan"
     )
+    payments: Mapped[List["ProjectWorkPackagePayment"]] = relationship(
+        back_populates="project_work_package", cascade="all, delete-orphan"
+    )
+
+
+class ProjectWorkPackagePayment(TableBase):
+    """Payment records for ``rfx_client.project_work_package``."""
+
+    __tablename__ = "project_work_package_payment"
+    __table_args__ = (
+        Index(
+            "idx_pwpp_project_work_package",
+            "project_work_package_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_pwpp_status",
+            "status",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "idx_pwpp_project",
+            "project_id",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        {"schema": SCHEMA},
+    )
+
+    project_work_package_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.project_work_package._id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.project._id"),
+    )
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    total_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    deposited_amount: Mapped[float] = mapped_column(
+        Numeric(12, 2), default=0, nullable=True
+    )
+    paid_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0, nullable=True)
+    currency: Mapped[str] = mapped_column(String(10), default="VND", nullable=False)
+
+    status: Mapped[ProjectWorkPackagePaymentStatusEnum] = mapped_column(
+        SQLEnum(
+            ProjectWorkPackagePaymentStatusEnum,
+            name="projectworkpackagepaymentstatusenum",
+            schema=SCHEMA,
+        ),
+        default=ProjectWorkPackagePaymentStatusEnum.NEW,
+        nullable=False,
+    )
+
+    payment_method: Mapped[Optional[str]] = mapped_column(String(50))
+    transaction_ref: Mapped[Optional[str]] = mapped_column(String(255))
+    invoice_number: Mapped[Optional[str]] = mapped_column(String(100))
+
+    due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    deposited_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    note: Mapped[Optional[str]] = mapped_column(Text)
+
+    project_work_package: Mapped["ProjectWorkPackage"] = relationship(
+        back_populates="payments"
+    )
+    project: Mapped[Optional["Project"]] = relationship()
 
 class ProjectWorkPackageRelationship(TableBase):
     """Generic relationships of project work packages in ``rfx_client.project_work_package_relationship``."""
