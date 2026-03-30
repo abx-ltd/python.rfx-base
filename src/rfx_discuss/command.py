@@ -313,7 +313,7 @@ class UnSubscribeComment(Command):
 
 @RFXDiscussDomain.subscribe(
     DomainSignal.TRIGGER_RECONCILIATION,
-    match=lambda cmd: cmd.command in ("create-comment", "reply-comment"),
+    match=lambda cmd: cmd.command in ("create-comment", "update-comment", "reply-comment"),
 )
 async def process(cmd, aggregate, ctx_data, **kwargs):
     try:
