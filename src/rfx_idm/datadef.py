@@ -280,6 +280,7 @@ class SendInvitationPayload(DataModel):
     email: str
     duration: Optional[int] = Field(default=10)
     message: str | None = None
+    organization_id: Optional[str] = None
     role_keys: Optional[List[str]] = Field(default_factory=lambda: ["VIEWER"])
 
 class AssignRolePayload(DataModel):
