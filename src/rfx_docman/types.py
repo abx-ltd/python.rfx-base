@@ -21,3 +21,9 @@ class EntryTypeEnum(str, Enum):
     CODE = "CODE"  # .py, .js, .sql
 
     OTHER = "OTHER"
+
+class RealmMetaKeyEnum(str, Enum):
+    REALM = "REALM"
+    SHELF = "SHELF"
+    CATEGORY = "CATEGORY"
+    CABINET = "CABINET"
