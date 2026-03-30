@@ -80,3 +80,10 @@ class InquiryStatusEnum(Enum):
     OPEN = "OPEN"
     DISCUSSION = "DISCUSSION"
     CLOSED = "CLOSED"
+
+
+class ProjectWorkPackagePaymentStatusEnum(Enum):
+    NEW = "NEW"
+    DEPOSITED = "DEPOSITED"
+    PARTIALLY_PAID = "PARTIALLY_PAID"
+    PAID = "PAID"

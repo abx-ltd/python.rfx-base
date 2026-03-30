@@ -85,9 +85,11 @@ class RFXClientAggregate(Aggregate):
         #     raise ValueError("Already is a project")
 
         target_date = data.start_date + parsed_delta
+        status = data.status or "ACTIVE"
 
         project_data = serialize_mapping(data)
         project_data.pop("duration", None)
+        project_data.update({"status": status})
 
         sync_status = SyncStatusEnum.PENDING
         if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
@@ -96,7 +98,6 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(
             project,
             **project_data,
-            status="ACTIVE",
             target_date=target_date,
             duration_text=duration_text,
             sync_status=sync_status,

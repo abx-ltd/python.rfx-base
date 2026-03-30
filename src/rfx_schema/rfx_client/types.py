@@ -20,6 +20,21 @@ class WorkPackageStatusEnum(str, Enum):
     PENDING = "PENDING"
     DONE = "DONE"
 
+class ProjectWorkPackageStatusEnum(str, Enum):
+    DRAFT = "DRAFT"
+    NEW = "NEW"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    INSUPPORT = "INSUPPORT"
+    CLOSED = "CLOSED"
+    CANCCELLED = "CANCELLED"
+
+
+class ProjectWorkPackagePaymentStatusEnum(str, Enum):
+    NEW = "NEW"
+    DEPOSITED = "DEPOSITED"
+    PARTIALLY_PAID = "PARTIALLY_PAID"
+    PAID = "PAID"
 
 class MemberRoleEnum(str, Enum):
     OWNER = "OWNER"
