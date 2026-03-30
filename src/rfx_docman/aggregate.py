@@ -291,17 +291,17 @@ class RFXDocmanAggregate(Aggregate):
     # TAG 
     # =========================================================================
 
-    @action("tag-created", resources="tag")
+    @action("tag-created", resources="realm")
     async def create_tag(self, /, data):
-        """Create a globally shared tag.
+        """Create a globally shared tag in realm
         """
         data = serialize_mapping(data)
+        realm = self.rootobj
         tag = self.init_resource(
             "tag",
             {
-                "name": data["name"],
-                "color": data.get("color"),
-                "icon": data.get("icon"),
+                **data,
+                "realm_id" : realm._id ,
             },
             _id=UUID_GENR(),
         )

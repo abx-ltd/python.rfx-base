@@ -306,19 +306,15 @@ class PurgeEntry(Command):
 
 class CreateTag(Command):
     """Create a new globally-shared tag.
-
-    ISSUE-002: CreateTag is scoped to 'tag' resource with resource_init=True.
-    It does NOT link the tag to any entry — use add-entry-tag for that.
     """
 
     Data = datadef.CreateTagPayload
 
     class Meta:
         key = "create-tag"
-        resources = ("tag",)
+        resources = ("realm",)
         tags = ["docman", "create", "tag"]
         auth_required = True
-        resource_init = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_tag(payload)
