@@ -3,12 +3,33 @@ from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
 from .types import EntryTypeEnum
 
+
 class RFXDocmanAggregate(Aggregate):
     """Docman Aggregate - CRUD operations for document items."""
 
+    def _serialize(self, data):
+        return serialize_mapping(data)
+
+    async def _ensure_no_children(
+        self,
+        parent,
+        child_type: str,
+        where_key: str,
+        label: str,
+        child_label: str,
+    ):
+        if await self.statemgr.find_all(child_type, where={where_key: parent._id}):
+            raise ValueError(
+                f"Cannot remove {label} '{parent.name}' because it still contains {child_label}"
+            )
+
+    def _ensure_code_prefix(self, code: str, prefix: str, label: str):
+        if not code.startswith(prefix):
+            raise ValueError(f"{label} code {code} must start with {prefix}")
+
     @action("realm-created", resources="realm")
     async def create_realm(self, /, data):
-        data = serialize_mapping(data)
+        data = self._serialize(data)
         record = self.init_resource(
             "realm",
             **data,
@@ -20,20 +41,19 @@ class RFXDocmanAggregate(Aggregate):
     @action("realm-updated", resources="realm")
     async def update_realm(self, /, data):
         realm = self.rootobj
-        updates = serialize_mapping(data)
+        updates = self._serialize(data)
         await self.statemgr.update(realm, **updates)
         return await self.statemgr.fetch("realm", realm._id)
 
     @action("realm-removed", resources="realm")
     async def remove_realm(self, /):
         realm = self.rootobj
-        if await self.statemgr.find_all("shelf", where={"realm_id": realm._id}):
-            raise ValueError(f"Cannot remove realm '{realm.name}' because it still contains shelves")
+        await self._ensure_no_children(realm, "shelf", "realm_id", "realm", "shelves")
         await self.statemgr.invalidate(realm)
 
     @action("realm-meta-created", resources="realm")
     async def create_realm_meta(self, /, data):
-        data = serialize_mapping(data)
+        data = self._serialize(data)
         realm = self.rootobj
         record = self.init_resource(
             "realm_meta",
@@ -49,7 +69,7 @@ class RFXDocmanAggregate(Aggregate):
     @action("realm-meta-updated", resources="realm_meta")
     async def update_realm_meta(self, /, data):
         realm_meta = self.rootobj
-        updates = serialize_mapping(data)
+        updates = self._serialize(data)
         await self.statemgr.update(realm_meta, **updates)
         return await self.statemgr.fetch("realm_meta", realm_meta._id)
 
@@ -60,7 +80,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("shelf-created", resources="realm")
     async def create_shelf(self, /, data):
-        data = serialize_mapping(data)
+        data = self._serialize(data)
         realm = self.rootobj
 
         record = self.init_resource(
@@ -77,28 +97,26 @@ class RFXDocmanAggregate(Aggregate):
     @action("shelf-updated", resources="shelf")
     async def update_shelf(self, /, data):
         shelf = self.rootobj
-        updates = serialize_mapping(data)
+        updates = self._serialize(data)
         await self.statemgr.update(shelf, **updates)
         return await self.statemgr.fetch("shelf", shelf._id)
 
     @action("shelf-removed", resources="shelf")
     async def remove_shelf(self, /):
         shelf = self.rootobj
-        if await self.statemgr.find_all("category", where={"shelf_id": shelf._id}):
-            raise ValueError(f"Cannot remove shelf '{shelf.name}' because it still contains categories")
+        await self._ensure_no_children(
+            shelf, "category", "shelf_id", "shelf", "categories"
+        )
         await self.statemgr.invalidate(shelf)
 
     @action("category-created", resources="shelf")
     async def create_category(self, /, data):
-        data = serialize_mapping(data)
+        data = self._serialize(data)
         shelf = self.rootobj
         code = data["code"]
 
-        if not code.startswith(shelf.code):
-            raise ValueError(
-                f"Category code {code} must start with shelf code {shelf.code}"
-            )
-        
+        self._ensure_code_prefix(code, shelf.code, "Category")
+
         record = self.init_resource(
             "category",
             {
@@ -114,15 +132,12 @@ class RFXDocmanAggregate(Aggregate):
     @action("category-updated", resources="category")
     async def update_category(self, /, data):
         category = self.rootobj
-        updates = serialize_mapping(data)
+        updates = self._serialize(data)
 
         if "code" in updates:
             new_code = updates["code"]
             shelf = await self.statemgr.fetch("shelf", category.shelf_id)
-            if not new_code.startswith(shelf.code):
-                raise ValueError(
-                    f"Category code {new_code} must start with shelf code {shelf.code}"
-                )
+            self._ensure_code_prefix(new_code, shelf.code, "Category")
 
         await self.statemgr.update(category, **updates)
         return await self.statemgr.fetch("category", category._id)
@@ -130,21 +145,19 @@ class RFXDocmanAggregate(Aggregate):
     @action("category-removed", resources="category")
     async def remove_category(self, /):
         category = self.rootobj
-        if await self.statemgr.find_all("cabinet", where={"category_id": category._id}):
-            raise ValueError(f"Cannot remove category '{category.name}' because it still contains cabinets")
+        await self._ensure_no_children(
+            category, "cabinet", "category_id", "category", "cabinets"
+        )
         await self.statemgr.invalidate(category)
 
     @action("cabinet-created", resources="category")
     async def create_cabinet(self, /, data):
-        data = serialize_mapping(data)
+        data = self._serialize(data)
         category = self.rootobj
         code = data["code"]
         prefix = f"{category.code}-"
 
-        if not code.startswith(prefix):
-            raise ValueError(
-                f"Cabinet code {code} must start with category prefix {prefix}"
-            )
+        self._ensure_code_prefix(code, prefix, "Cabinet")
 
         record = self.init_resource(
             "cabinet",
@@ -161,16 +174,13 @@ class RFXDocmanAggregate(Aggregate):
     @action("cabinet-updated", resources="cabinet")
     async def update_cabinet(self, /, data):
         cabinet = self.rootobj
-        updates = serialize_mapping(data)
+        updates = self._serialize(data)
 
         if "code" in updates:
             new_code = updates["code"]
             category = await self.statemgr.fetch("category", cabinet.category_id)
             prefix = f"{category.code}-"
-            if not new_code.startswith(prefix):
-                raise ValueError(
-                    f"Cabinet code {new_code} must start with category prefix {prefix}"
-                )
+            self._ensure_code_prefix(new_code, prefix, "Cabinet")
 
         await self.statemgr.update(cabinet, **updates)
         return await self.statemgr.fetch("cabinet", cabinet._id)
@@ -178,8 +188,9 @@ class RFXDocmanAggregate(Aggregate):
     @action("cabinet-removed", resources="cabinet")
     async def remove_cabinet(self, /):
         cabinet = self.rootobj
-        if await self.statemgr.find_all("entry", where={"cabinet_id": cabinet._id}):
-            raise ValueError(f"Cannot remove cabinet '{cabinet.name}' because it still contains entries")
+        await self._ensure_no_children(
+            cabinet, "entry", "cabinet_id", "cabinet", "entries"
+        )
         await self.statemgr.invalidate(cabinet)
 
     @action("entry-created", resources="cabinet")
@@ -187,7 +198,7 @@ class RFXDocmanAggregate(Aggregate):
         cabinet = self.rootobj
         full_path = data.computed_path
 
-        entry_data = serialize_mapping(data)
+        entry_data = self._serialize(data)
         entry_data.update(
             {
                 "cabinet_id": cabinet._id,
@@ -208,7 +219,7 @@ class RFXDocmanAggregate(Aggregate):
     @action("entry-updated", resources="entry")
     async def update_entry(self, /, data):
         entry = self.rootobj
-        updates = serialize_mapping(data)
+        updates = self._serialize(data)
 
         old_type = entry.type
         new_type = data.type
@@ -224,19 +235,16 @@ class RFXDocmanAggregate(Aggregate):
             updates["mime_type"] = None
 
         # Handle path changes.
-        new_path = data.get_computed_path(entry)
+        new_path = data.resolve_path(entry)
         old_path = entry.path
 
         if new_path != old_path:
-
             conflict = await self.statemgr.exist(
                 "entry",
                 where={"cabinet_id": entry.cabinet_id, "path": new_path},
             )
             if conflict:
-                raise ValueError(
-                    f"An entry already exists at path '{new_path}'"
-                )
+                raise ValueError(f"An entry already exists at path '{new_path}'")
 
             updates["path"] = new_path
             updates["name"] = new_path.rsplit("/", 1)[-1]
@@ -270,9 +278,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("entry-purged", resources="entry")
     async def purge_entry(self, /):
-        """Recursively soft-delete a FOLDER row and all its active descendants.
-
-        """
+        """Recursively soft-delete a FOLDER row and all its active descendants."""
         entry = self.rootobj
         if entry.type != EntryTypeEnum.FOLDER:
             raise ValueError("purge-entry is only valid for FOLDER entries")
@@ -288,20 +294,19 @@ class RFXDocmanAggregate(Aggregate):
         await self.statemgr.invalidate(entry)
 
     # =========================================================================
-    # TAG 
+    # TAG
     # =========================================================================
 
     @action("tag-created", resources="realm")
     async def create_tag(self, /, data):
-        """Create a globally shared tag in realm
-        """
-        data = serialize_mapping(data)
+        """Create a globally shared tag in realm"""
+        data = self._serialize(data)
         realm = self.rootobj
         tag = self.init_resource(
             "tag",
             {
                 **data,
-                "realm_id" : realm._id ,
+                "realm_id": realm._id,
             },
             _id=UUID_GENR(),
         )
@@ -312,7 +317,7 @@ class RFXDocmanAggregate(Aggregate):
     async def update_tag(self, /, data):
         """Update name/color/icon of an existing tag."""
         tag = self.rootobj
-        updates = serialize_mapping(data)
+        updates = self._serialize(data)
         await self.statemgr.update(tag, **updates)
         return await self.statemgr.fetch("tag", tag._id)
 
@@ -323,13 +328,13 @@ class RFXDocmanAggregate(Aggregate):
         await self.statemgr.invalidate(tag)
 
     # =========================================================================
-    # ENTRY TAG 
+    # ENTRY TAG
     # =========================================================================
 
     @action("entry-tag-added", resources="entry")
     async def add_entry_tag(self, /, data):
         """Attach a tag to an entry via entry_tag."""
-        data = serialize_mapping(data)
+        data = self._serialize(data)
         entry = self.rootobj
         tag_id = data["tag_id"]
 
@@ -347,7 +352,7 @@ class RFXDocmanAggregate(Aggregate):
     @action("entry-tag-removed", resources="entry")
     async def remove_entry_tag(self, /, data):
         """Detach a tag from an entry."""
-        data = serialize_mapping(data)
+        data = self._serialize(data)
         entry = self.rootobj
         tag_id = data["tag_id"]
 
