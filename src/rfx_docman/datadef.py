@@ -170,16 +170,7 @@ class CreateEntryPayload(DataModel):
 
     @model_validator(mode="after")
     def validate_logic_by_type(self):
-        if self.type == EntryTypeEnum.FOLDER:
-            if self.size is not None or self.mime_type is not None:
-                raise ValueError(
-                    "A folder cannot have 'size' or 'mime_type' attributes"
-                )
-        else:
-            if self.size is None:
-                raise ValueError(
-                    f"A file of type '{self.type.value}' must have a 'size' attribute"
-                )
+        self.type.validate_entry_fields(self.size, self.mime_type)
         return self
 
     @property
