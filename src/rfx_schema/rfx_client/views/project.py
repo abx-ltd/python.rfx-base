@@ -6,7 +6,6 @@ from alembic_utils.pg_view import PGView
 from .. import SCHEMA
 from rfx_schema.rfx_user import SCHEMA as USER_SCHEMA
 from rfx_schema.rfx_media import SCHEMA as MEDIA_SCHEMA
-from alembic_utils.pg_function import PGFunction
 
 
 project_view = PGView(
@@ -44,7 +43,13 @@ project_view = PGView(
             FROM {SCHEMA}.project_work_package pwp
                 JOIN {SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
                 JOIN {SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
-            WHERE pwp.project_id = p._id AND pwp.status = 'COMPLETED'::projectworkpackagestatusenum AND pwp._deleted IS NULL), 0::numeric), 2) AS used_credit
+            WHERE pwp.project_id = p._id AND pwp.status = 'COMPLETED'::projectworkpackagestatusenum AND pwp._deleted IS NULL), 0::numeric), 2) AS used_credit,
+        COALESCE((
+            SELECT count(*)::integer
+            FROM {SCHEMA}.project_work_package pwp_count
+            WHERE pwp_count.project_id = p._id
+              AND pwp_count._deleted IS NULL
+        ), 0) AS project_work_package_count
     FROM {SCHEMA}.project p
         LEFT JOIN {SCHEMA}.project_member pm ON pm.project_id = p._id
     WHERE p._deleted IS NULL

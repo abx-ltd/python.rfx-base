@@ -167,6 +167,7 @@ class ProjectView(TableBase):
     members: Mapped[List[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)))
     total_credit: Mapped[float] = mapped_column(Numeric(12, 2))
     used_credit: Mapped[float] = mapped_column(Numeric(12, 2))
+    project_work_package_count: Mapped[int] = mapped_column(Integer)
 
 
 class ProjectCreditSummaryView(TableBase):
@@ -253,43 +254,6 @@ class ProjectWorkPackageView(TableBase):
     upfront_cost: Mapped[float] = mapped_column(Numeric(12, 2))
     monthly_cost: Mapped[float] = mapped_column(Numeric(12, 2))
     params: Mapped[Optional[dict]] = mapped_column(JSONB)
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-
-
-class ProjectWorkPackageRelationshipView(TableBase):
-    """View: _project_work_package_relationship - PWP relationships with project/work package details"""
-
-    __tablename__ = "_project_work_package_relationship"
-    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
-
-    project_work_package_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    schema_relation: Mapped[Optional[str]] = mapped_column(String(255))
-    resource_name: Mapped[str] = mapped_column(String(100))
-    resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-
-    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    work_package_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    quantity: Mapped[Optional[int]] = mapped_column(Integer)
-    project_work_package_status: Mapped[Optional[str]] = mapped_column(String)
-    project_work_package_name: Mapped[Optional[str]] = mapped_column(String(255))
-    expect_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    payment_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    payment_status: Mapped[Optional[str]] = mapped_column(String(100))
-    payment_total_amount: Mapped[Optional[float]] = mapped_column(Numeric(12, 2))
-    payment_deposited_amount: Mapped[Optional[float]] = mapped_column(Numeric(12, 2))
-    payment_paid_amount: Mapped[Optional[float]] = mapped_column(Numeric(12, 2))
-    payment_currency: Mapped[Optional[str]] = mapped_column(String(10))
-    payment_method: Mapped[Optional[str]] = mapped_column(String(50))
-    transaction_ref: Mapped[Optional[str]] = mapped_column(String(255))
-    invoice_number: Mapped[Optional[str]] = mapped_column(String(100))
-    payment_due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    payment_deposited_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    payment_paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    project_name: Mapped[Optional[str]] = mapped_column(String(255))
-    work_package_name: Mapped[Optional[str]] = mapped_column(String(255))
-    resource_data: Mapped[Optional[dict]] = mapped_column(JSONB)
-    resource_data_progress = column_property(resource_data["progress"].astext)
-    resource_data_status = column_property(resource_data["status"].astext)
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
 

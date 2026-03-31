@@ -98,7 +98,7 @@ class ProjectQuery(DomainQueryResource):
     @classmethod
     def base_query(cls, context, scope):
         profile_id = context.profile._id
-        return {"members.ov": [profile_id], "status": "ACTIVE"}
+        return {"members.ov": [profile_id], "status.ne": "DRAFT"}
 
     class Meta(DomainQueryResource.Meta):
         resource = "project"
@@ -125,6 +125,7 @@ class ProjectQuery(DomainQueryResource):
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     total_credits: float = FloatField("Total Credits")
     used_credits: float = FloatField("Used Credits")
+    project_work_package_count: int = IntegerField("Project Work Package Count")
 
 
 @resource("project-bdm-contact")
@@ -271,47 +272,6 @@ class ProjectWorkPackageQuery(DomainQueryResource):
     total_deliverables: int = IntegerField("Total Deliverables")
     params: dict = DictField("Params")
 
-@resource("project-work-package-relationship")
-class ProjectWorkPackageRelationshipQuery(DomainQueryResource):
-    """Project work package relationship queries"""
-
-    class Meta(DomainQueryResource.Meta):
-        # resource = "project"
-        # include_all = True
-        # allow_item_view = True
-        # allow_list_view = True
-        # allow_meta_view = True
-        # allow_text_search = True
-
-        backend_model = "_project_work_package_relationship"
-        policy_required = True
-
-    project_work_package_id: UUID_TYPE = UUIDField("Project Work Package ID")
-    resource_name: str = StringField("Resource Name")
-    resource_id: UUID_TYPE = UUIDField("Resource ID")
-    schema_relation: str = StringField("Schema Relation")
-    project_id: UUID_TYPE = UUIDField("Project ID")
-    work_package_id: UUID_TYPE = UUIDField("Work Package ID")
-    project_work_package_status: str = StringField("Project Work Package Status")
-    project_work_package_name: str = StringField("Project Work Package Name")
-    expect_date: datetime = DatetimeField("Expected Date")
-    payment_id: UUID_TYPE = UUIDField("Payment ID")
-    payment_status: str = StringField("Payment Status")
-    payment_total_amount: float = FloatField("Payment Total Amount")
-    payment_deposited_amount: float = FloatField("Payment Deposited Amount")
-    payment_paid_amount: float = FloatField("Payment Paid Amount")
-    payment_currency: str = StringField("Payment Currency")
-    payment_method: str = StringField("Payment Method")
-    transaction_ref: str = StringField("Transaction Reference")
-    invoice_number: str = StringField("Invoice Number")
-    payment_due_date: datetime = DatetimeField("Payment Due Date")
-    payment_deposited_at: datetime = DatetimeField("Payment Deposited At")
-    payment_paid_at: datetime = DatetimeField("Payment Paid At")
-    project_name: str = StringField("Project Name")
-    work_package_name: str = StringField("Work Package Name")
-    resource_data_progress: str = StringField("Resource Data Process")
-    resource_data_status: str = StringField("Resource Data Status")
-    resource_data: dict = DictField("Resource Data")
 
 @resource("project-work-item")
 class ProjectWorkItemDetailQuery(DomainQueryResource):
@@ -1110,6 +1070,21 @@ class DocumentQuery(DomainQueryResource):
 
 # ------ supplier service --------
 
+@resource("supplier")
+class SupplierQuery(DomainQueryResource):
+    """Supplier queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        description = "Query supplier information"
+        backend_model = "supplier"
+        # scope_required = scope.SupplierScopeSchema
+    code: str = StringField("Code")
+    supplier_name: str = StringField("Supplier Name")
+    status: str = StringField("Supplier Status")
+    tax_code: str = StringField("Tax Code")
+    contact_email: str = StringField("Contact Email")
+    contact_phone: str = StringField("Contact Phone")
+
 @resource("supplier-service")
 class SupplierServiceQuery(DomainQueryResource):
     """Supplier Service queries"""
@@ -1135,3 +1110,18 @@ class SupplierServiceQuery(DomainQueryResource):
 
     supplier_service_status: str = StringField("Supplier Service Status")
     supplier_service_description: str = StringField("Supplier Service Description")
+
+@resource("service-category")
+class ServiceCategoryQuery(DomainQueryResource):
+    """Service Category queries"""
+
+    class Meta(DomainQueryResource.Meta):
+        description = "Query service category information"
+        backend_model = "service_category"
+        
+    code: str = StringField("Code")
+    service_name: str = StringField("Name")
+    category: str = StringField("Category")
+    description: str = StringField("Description")
+    status: str = StringField("Status")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
