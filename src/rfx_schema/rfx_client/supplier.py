@@ -32,7 +32,7 @@ class ServiceCategory(TableBase):
 
     __tablename__ = "service_category"
 
-    code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
     service_name: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[ServiceCategoryEnum] = mapped_column(SQLEnum(ServiceCategoryEnum), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -44,7 +44,7 @@ class Supplier(TableBase):
 
     __tablename__ = "supplier"
 
-    code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
     supplier_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
     tax_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
