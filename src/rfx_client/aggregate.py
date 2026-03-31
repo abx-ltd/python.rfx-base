@@ -2081,7 +2081,7 @@ class RFXClientAggregate(Aggregate):
         supplier = self.rootobj
         service_category = await self.statemgr.find_one(
             "service_category",
-            where=dict(_id=data.service_id, organization_id=self.context.organization_id),
+            where=dict(_id=data.service_id),
         )
         if not service_category:
             raise ValueError("Service category not found")
