@@ -39,7 +39,7 @@ class RFXClientAggregate(Aggregate):
             "project_member",
             {
                 "member_id": self.context.profile_id,
-                "role": "CLIENT",
+                "role": "OWNER",
                 "project_id": self.aggroot.identifier,
             },
             _id=UUID_GENR(),
