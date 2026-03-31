@@ -11,7 +11,7 @@ import uuid
 
 from sqlalchemy import ARRAY, Boolean, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import INTERVAL, JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, column_property, mapped_column
 from sqlalchemy import Enum as SQLEnum
 
 from . import TableBase, SCHEMA
@@ -167,6 +167,7 @@ class ProjectView(TableBase):
     members: Mapped[List[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)))
     total_credit: Mapped[float] = mapped_column(Numeric(12, 2))
     used_credit: Mapped[float] = mapped_column(Numeric(12, 2))
+    project_work_package_count: Mapped[int] = mapped_column(Integer)
 
 
 class ProjectCreditSummaryView(TableBase):
@@ -254,27 +255,6 @@ class ProjectWorkPackageView(TableBase):
     monthly_cost: Mapped[float] = mapped_column(Numeric(12, 2))
     params: Mapped[Optional[dict]] = mapped_column(JSONB)
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-
-
-class ProjectWorkPackageRelationshipView(TableBase):
-    """View: _project_work_package_relationship - PWP relationships with project/work package details"""
-
-    __tablename__ = "_project_work_package_relationship"
-    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
-
-    project_work_package_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    schema_relation: Mapped[Optional[str]] = mapped_column(String(255))
-    resource_name: Mapped[str] = mapped_column(String(100))
-    resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-
-    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    work_package_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    quantity: Mapped[Optional[int]] = mapped_column(Integer)
-    project_work_package_status: Mapped[Optional[str]] = mapped_column(String)
-    project_work_package_name: Mapped[Optional[str]] = mapped_column(String(255))
-    project_name: Mapped[Optional[str]] = mapped_column(String(255))
-    work_package_name: Mapped[Optional[str]] = mapped_column(String(255))
-    resource_data: Mapped[Optional[dict]] = mapped_column(JSONB)
 
 
 # ============================================================================

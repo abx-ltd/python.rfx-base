@@ -194,12 +194,32 @@ project_work_package_relationship_view = PGView(
         pwpr.schema_relation,
         pwpr.resource_name,
         pwpr.resource_id,
+        pwpr.organization_id,
         pwp.project_id,
         pwp.work_package_id,
         pwp.quantity,
         pwp.status AS project_work_package_status,
         pwp.work_package_name AS project_work_package_name,
-        pwp.organization_id,
+        (
+            pwp._created
+            + COALESCE(
+                pwp.work_package_estimate,
+                wp.estimate,
+                '00:00:00'::interval
+            )
+        ) AS expect_date,
+        pay.payment_id,
+        pay.payment_status,
+        pay.total_amount AS payment_total_amount,
+        pay.deposited_amount AS payment_deposited_amount,
+        pay.paid_amount AS payment_paid_amount,
+        pay.currency AS payment_currency,
+        pay.payment_method,
+        pay.transaction_ref,
+        pay.invoice_number,
+        pay.due_date AS payment_due_date,
+        pay.deposited_at AS payment_deposited_at,
+        pay.paid_at AS payment_paid_at,
         p.name AS project_name,
         wp.work_package_name AS work_package_name,
         res.resource_data
@@ -207,6 +227,25 @@ project_work_package_relationship_view = PGView(
         JOIN {SCHEMA}.project_work_package pwp ON pwp._id = pwpr.project_work_package_id AND pwp._deleted IS NULL
         LEFT JOIN {SCHEMA}.project p ON p._id = pwp.project_id AND p._deleted IS NULL
         LEFT JOIN {SCHEMA}.work_package wp ON wp._id = pwp.work_package_id AND wp._deleted IS NULL
+        LEFT JOIN LATERAL (
+            SELECT pwpp._id AS payment_id,
+                pwpp.status AS payment_status,
+                pwpp.total_amount,
+                pwpp.deposited_amount,
+                pwpp.paid_amount,
+                pwpp.currency,
+                pwpp.payment_method,
+                pwpp.transaction_ref,
+                pwpp.invoice_number,
+                pwpp.due_date,
+                pwpp.deposited_at,
+                pwpp.paid_at
+            FROM {SCHEMA}.project_work_package_payment pwpp
+            WHERE pwpp.project_work_package_id = pwp._id
+                AND pwpp._deleted IS NULL
+            ORDER BY pwpp._created DESC
+            LIMIT 1
+        ) pay ON TRUE
         LEFT JOIN LATERAL (
             SELECT {SCHEMA}.fn_get_resource_json(
                 COALESCE(NULLIF(trim(pwpr.schema_relation), ''), '{SCHEMA}'),

@@ -1245,6 +1245,7 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
                 "email": payload.telecom__email,
                 "duration": 7,
                 "message": "",
+                "organization_id": profile_data.get("organization_id"),
                 "role_keys": role_keys,
                 "user_id": str(kc_user.id),
                 "profile_id": str(profile_id),
