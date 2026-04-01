@@ -24,6 +24,12 @@ class CodeBase:
                 f"(example: {self.EXAMPLE})"
             )
 
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.value!r})"
+    
     # --- Pydantic v2 integration ---
     @classmethod
     def _pydantic_validate(cls, value: str) -> "CodeBase":
