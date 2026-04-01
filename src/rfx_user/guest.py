@@ -6,7 +6,7 @@ from fastapi import HTTPException, FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fluvius.data import UUID_GENR
 from fluvius.error import BadRequestError
-from fluvius.fastapi.helper import generate_client_token, generate_session_id, validate_direct_url
+from fluvius.fastapi.helper import generate_session_id
 from fluvius.fastapi.auth import validate_csrf_token
 from fluvius.auth import event as auth_event
 from authlib.jose import jwt
