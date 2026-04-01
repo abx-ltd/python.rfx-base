@@ -1,5 +1,5 @@
-from .code import CodeBase, ShelfCode, CategoryCode, CabinetCode, InvalidCodeError
-from .entry_name import EntryName, FolderName, TagName, InvalidNameError
+from .code import CodeBase, ShelfCode, CategoryCode, CabinetCode
+from .entry_name import EntryName, FolderName, TagName
 from .path import Path
 
 __all__ = [
@@ -7,10 +7,8 @@ __all__ = [
     "ShelfCode",
     "CategoryCode",
     "CabinetCode",
-    "InvalidCodeError",
     "EntryName",
     "FolderName",
-    "TagName",
-    "InvalidNameError",
+    "TagName", 
     "Path",
 ]
