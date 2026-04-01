@@ -57,8 +57,8 @@ class AcknowledgeComment(Command):
 
     async def _process(self, agg, stm, payload):
         """Acknowledge comment"""
-        is_new = await agg.acknowledge_comment()
-        if is_new:
+        result = await agg.acknowledge_comment()
+        if result.get("is_new"):
             await agg.reply_comment(
                 data=datadef.ReplyCommentPayload(content="<i>Acknowledged</i>")
             )
@@ -313,7 +313,7 @@ class UnSubscribeComment(Command):
 
 @RFXDiscussDomain.subscribe(
     DomainSignal.TRIGGER_RECONCILIATION,
-    match=lambda cmd: cmd.command in ("create-comment", "update-comment", "reply-comment"),
+    match=lambda cmd: cmd.command in ("create-comment", "update-comment", "reply-comment", "acknowledge-comment"),
 )
 async def process(cmd, aggregate, ctx_data, **kwargs):
     try:
