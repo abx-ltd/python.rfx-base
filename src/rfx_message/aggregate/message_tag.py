@@ -16,6 +16,7 @@ class MessageTagMixin:
         if existing_tag:
             return
 
+   
         message_tag = self.init_resource(
             "message_tag",
             {

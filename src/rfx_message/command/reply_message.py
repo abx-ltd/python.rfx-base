@@ -27,11 +27,9 @@ class ReplyMessage(Command):
         message_result = await agg.reply_message(data=message_payload)
         message_id = message_result._id
 
-        # 2. Add sender to message_sender and ensure the member box exists
+        # 2. Add sender to message_sender
         await agg.add_sender(
-            message_id=message_id,
-            sender_id=agg.get_context().profile_id,
-            recipients=recipients,
+            message_id=message_id, sender_id=agg.get_context().profile_id
         )
 
         # 4. Determine processing mode and get client
@@ -44,12 +42,9 @@ class ReplyMessage(Command):
             agg, message_id, message_payload, processing_mode
         )
 
-        # 6. Get recipients from root message and add them to the shared member box
-        await agg.add_recipients(
-            data=recipients,
-            message_id=message_id,
-            sender=agg.get_context().profile_id,
-        )
+        # 6. Get recipients from root message and add them
+        await agg.add_recipients(data=recipients, message_id=message_id)
+
 
         # 7. Notify recipients
         await helper.notify_recipients(

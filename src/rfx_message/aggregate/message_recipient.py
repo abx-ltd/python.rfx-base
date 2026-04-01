@@ -29,39 +29,37 @@ class MessageRecipientMixin:
             where={"message_id": message_id, "recipient_id": profile_id},
         )
 
-    @action("recipients-added",resources=("message"),)
-    async def add_recipients(self, *, data, message_id, sender=None, sender_result=None):
-        """Add recipients to a message using the shared member box."""
-        recipients = data or []
-        if not recipients:
-            return {"message_id": message_id, "recipients_count": 0}
-
-        member_box_id = None
-        if sender_result:
-            member_box_id = sender_result.get("box_id")
-
-        if not member_box_id:
-            sender_id = sender or self.get_context().profile_id
-            member_box = await self.get_or_create_member_box(sender_id, recipients)
-            member_box_id = member_box._id
+    @action("recipients-added", resources=("message", "message_recipient"))
+    async def add_recipients(self, *, data, message_id):
+        """Action to add recipients to a message."""
+        recipients = data
+        # Get the inbox box
+        inbox = await self.statemgr.find_one(
+            "message_box",
+            where={"key": "inbox"},
+        )
+        outbox = await self.statemgr.find_one(
+            "message_box",
+            where={"key": "outbox"},
+        )
 
         records = []
         for recipient_id in recipients:
             recipient_data = {
                 "message_id": message_id,
                 "recipient_id": recipient_id,
-                "read": self.get_context().profile_id == recipient_id,
-                "box_id": member_box_id,
+                "read": False,
+                "box_id": inbox._id,
                 "direction": "INBOUND",
             }
+
+            if self.get_context().profile_id == recipient_id:
+                recipient_data["read"] = True
+                recipient_data["box_id"] = outbox._id
 
             recipient = self.init_resource("message_recipient", recipient_data)
             records.append(serialize_mapping(recipient))
 
         await self.statemgr.insert_data("message_recipient", *records)
 
-        return {
-            "message_id": message_id,
-            "recipients_count": len(recipients),
-            "box_id": member_box_id,
-        }
+        return {"message_id": message_id, "recipients_count": len(recipients)}
