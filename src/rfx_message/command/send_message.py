@@ -35,11 +35,17 @@ class SendMessage(Command):
         )
         message_id = message_result._id
 
-        # 2. Add sender to message_sender
-        await agg.add_sender(message_id=message_id, sender_id=profile_id)
+        # 2. Add sender to message_sender and ensure the member box exists
+        sender_result = await agg.add_sender(
+            message_id=message_id, 
+            sender_id=profile_id,
+            recipients=recipients
+            )
 
         # 3. Add recipients and set message category
-        await agg.add_recipients(data=recipients, message_id=message_id)
+        await agg.add_recipients(data=recipients, 
+                                 message_id=message_id, 
+                                 sender_result=sender_result)
 
         # 3. Determine processing mode and get client
         processing_mode, client = await helper.get_processing_mode_and_client(
