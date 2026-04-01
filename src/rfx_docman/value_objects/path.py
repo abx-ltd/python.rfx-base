@@ -5,7 +5,7 @@ from typing import List
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema, PydanticCustomError
 
-from .entry_name import FolderName, InvalidNameError
+from .entry_name import FolderName
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class Path:
 
         cleaned = posixpath.normpath(path).strip("/")
         if cleaned.startswith(".."):
-            raise InvalidNameError("Path traversal is not allowed")
+            raise ValueError("Path traversal is not allowed")
         segments: List[str] = [str(FolderName(seg)) for seg in cleaned.split("/")]
         return "/".join(segments)
 
@@ -68,7 +68,7 @@ class Path:
         def validate(value: str) -> "Path":
             try:
                 return cls.from_string(value)
-            except InvalidNameError as exc:
+            except ValueError as exc:
                 raise PydanticCustomError(
                     "invalid_path", "{message}", {"message": str(exc)}
                 ) from exc

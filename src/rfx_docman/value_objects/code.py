@@ -6,10 +6,6 @@ from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema, PydanticCustomError
 
 
-class InvalidCodeError(ValueError):
-    pass
-
-
 @dataclass(frozen=True)
 class CodeBase:
     value: str
@@ -23,19 +19,19 @@ class CodeBase:
         object.__setattr__(self, "value", normalized)
 
         if not self.PATTERN.match(normalized):
-            raise InvalidCodeError(
+            raise ValueError(
                 f"{self.NAME} must match {self.PATTERN.pattern} "
                 f"(example: {self.EXAMPLE})"
             )
 
-    def __str__(self) -> str:
-        return self.value
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.value!r})"
-
     # --- Pydantic v2 integration ---
-
+    @classmethod
+    def _pydantic_validate(cls, value: str) -> "CodeBase":
+        try:
+            return cls(value)
+        except ValueError as exc:
+            raise PydanticCustomError("invalid_code", "{message}", {"message": str(exc)}) from exc
+        
     @classmethod
     def __get_pydantic_core_schema__(
         cls,
@@ -50,12 +46,6 @@ class CodeBase:
             serialization=core_schema.plain_serializer_function_ser_schema(str),
         )
 
-    @classmethod
-    def _pydantic_validate(cls, value: str) -> "CodeBase":
-        try:
-            return cls(value)
-        except InvalidCodeError as exc:
-            raise PydanticCustomError("invalid_code", "{message}", {"message": str(exc)}) from exc
 
     @classmethod
     def __get_pydantic_json_schema__(cls, core_schema, handler):
@@ -85,7 +75,7 @@ class CategoryCode(CodeBase):
     EXAMPLE: ClassVar[str] = "A01"
 
     def belongs_to(self, shelf: ShelfCode) -> bool:
-        return self.value.startswith(str(shelf))
+        return self.value[0] == str(shelf)
 
 
 @dataclass(frozen=True)

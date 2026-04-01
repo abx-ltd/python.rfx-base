@@ -11,16 +11,13 @@ _TAG_MAX_LEN = 100
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 
-class InvalidNameError(ValueError):
-    pass
-
 
 def _pydantic_vo_schema(cls: type) -> core_schema.CoreSchema:
     """Shared Pydantic schema builder for str-based VO dataclasses."""
     def validate(value: str) -> object:
         try:
             return cls(value)
-        except InvalidNameError as exc:
+        except ValueError as exc:
             raise PydanticCustomError("invalid_name", "{message}", {"message": str(exc)}) from exc
 
     return core_schema.chain_schema(
@@ -42,13 +39,13 @@ class EntryName:
         name = self.value.strip()
 
         if not name:
-            raise InvalidNameError("Name cannot be empty")
+            raise ValueError("Name cannot be empty")
         if len(name) > _NAME_MAX_LEN:
-            raise InvalidNameError(f"Name cannot exceed {_NAME_MAX_LEN} characters")
+            raise ValueError(f"Name cannot exceed {_NAME_MAX_LEN} characters")
         if "/" in name or "\\" in name:
-            raise InvalidNameError("Name cannot contain '/' or '\\'")
+            raise ValueError("Name cannot contain '/' or '\\'")
         if _CONTROL_CHARS.search(name):
-            raise InvalidNameError("Name contains control characters")
+            raise ValueError("Name contains control characters")
 
         object.__setattr__(self, "value", name)
 
@@ -75,11 +72,11 @@ class FolderName:
         name = self.value.strip()
 
         if not name:
-            raise InvalidNameError("Folder name cannot be empty")
+            raise ValueError("Folder name cannot be empty")
         if len(name) > _NAME_MAX_LEN:
-            raise InvalidNameError(f"Folder name cannot exceed {_NAME_MAX_LEN} characters")
+            raise ValueError(f"Folder name cannot exceed {_NAME_MAX_LEN} characters")
         if not self._ALLOWED.match(name):
-            raise InvalidNameError(
+            raise ValueError(
                 "Folder name may only contain letters, digits, hyphens, underscores and spaces"
             )
 
@@ -106,9 +103,9 @@ class TagName:
         name = self.value.strip()
 
         if not name:
-            raise InvalidNameError("Tag name cannot be empty")
+            raise ValueError("Tag name cannot be empty")
         if len(name) > _TAG_MAX_LEN:
-            raise InvalidNameError(f"Tag name cannot exceed {_TAG_MAX_LEN} characters")
+            raise ValueError(f"Tag name cannot exceed {_TAG_MAX_LEN} characters")
 
         object.__setattr__(self, "value", name)
 
