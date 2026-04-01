@@ -38,6 +38,11 @@ class EntryTypeEnum(str, Enum):
                 raise ValueError(
                     f"A file of type '{self.value}' must have a 'size' attribute"
                 )
+            if mime_type is None :
+                raise ValueError(
+                    f"A file of type '{self.value}' must have a 'mime_type' attribute"
+                )
+            
 
 
 class RealmMetaKeyEnum(str, Enum):
