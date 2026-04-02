@@ -18,6 +18,46 @@ from .types import (
     PriorityLevelEnum,
 )
 
+class MessageSenderDetailView(Base):
+    __table_name__ = "_message_sender_detail"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+    
+    sender_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+
+    # Message information
+    message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    subject: Mapped[str] = mapped_column(String)
+    content: Mapped[str] = mapped_column(String)
+    thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    content_type: Mapped[Optional[ContentTypeEnum]] = mapped_column(
+        SQLEnum(ContentTypeEnum, name="contenttypeenum", schema=SCHEMA)
+    )
+    priority: Mapped[Optional[PriorityLevelEnum]] = mapped_column(
+        SQLEnum(PriorityLevelEnum, name="prioritylevelenum", schema=SCHEMA)
+    )
+    message_type: Mapped[Optional[MessageTypeEnum]] = mapped_column(
+        SQLEnum(MessageTypeEnum, name="messagetypeenum", schema=SCHEMA)
+    )
+    category: Mapped[Optional[MessageCategoryEnum]] = mapped_column(
+        SQLEnum(MessageCategoryEnum, name="messagecategoryenum", schema=SCHEMA)
+    )
+    message_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    message_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    box_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    box_key: Mapped[Optional[str]] = mapped_column(String)
+    box_name: Mapped[Optional[str]] = mapped_column(String)
+    box_type_enum: Mapped[Optional[BoxTypeEnum]] = mapped_column(
+        SQLEnum(BoxTypeEnum, name="boxtypeenum", schema=SCHEMA)
+    )
+    
+    direction: Mapped[Optional[DirectionTypeEnum]] = mapped_column(
+        SQLEnum(DirectionTypeEnum, name="directiontypeenum", schema=SCHEMA)
+    )
+    is_archived: Mapped[bool] = mapped_column(Boolean)
+    is_starred: Mapped[bool] = mapped_column(Boolean)
+    
+    sender_profile: Mapped[Optional[dict]] = mapped_column(JSON)    
 
 class MessageBoxView(Base):
     """

@@ -2,13 +2,13 @@ from rfx_base import config
 from alembic_utils.pg_view import PGView
 
 message_box_view = PGView(
-    schema=config.RFX_MESSAGE_SCHEMA,
+    schema=config.RFX_2DMESSAGE_SCHEMA,
     signature="_message_box",
     definition=f"""
 WITH thread_agg AS (
          SELECT m.thread_id,
             count(*) AS message_count
-           FROM {config.RFX_MESSAGE_SCHEMA}.message m
+           FROM {config.RFX_2DMESSAGE_SCHEMA}.message m
           WHERE m._deleted IS NULL
           GROUP BY m.thread_id
         ), base AS (
@@ -43,13 +43,13 @@ WITH thread_agg AS (
             'RECIPIENT'::text AS root_type,
             r.direction,
             array_agg(DISTINCT t.key) FILTER (WHERE t.key IS NOT NULL) AS tags
-           FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient r
-             JOIN {config.RFX_MESSAGE_SCHEMA}.message m ON m._id = r.message_id
-             JOIN {config.RFX_MESSAGE_SCHEMA}.message_sender s ON s.message_id = m._id AND s._deleted IS NULL
+           FROM {config.RFX_2DMESSAGE_SCHEMA}.message_recipient r
+             JOIN {config.RFX_2DMESSAGE_SCHEMA}.message m ON m._id = r.message_id
+             JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_sender s ON s.message_id = m._id AND s._deleted IS NULL
              LEFT JOIN thread_agg ta ON ta.thread_id = m.thread_id
-             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb ON mb._id = r.box_id AND mb._deleted IS NULL
-             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt ON mt.resource::text = 'message_recipient'::text AND mt.resource_id = r._id AND mt._deleted IS NULL
-             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.tag t ON t._id = mt.tag_id AND t._deleted IS NULL
+             LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_box mb ON mb._id = r.box_id AND mb._deleted IS NULL
+             LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_tag mt ON mt.resource::text = 'message_recipient'::text AND mt.resource_id = r._id AND mt._deleted IS NULL
+             LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t ON t._id = mt.tag_id AND t._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp ON sp._id = s.sender_id AND sp._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp ON rp._id = r.recipient_id AND rp._deleted IS NULL
           WHERE r._deleted IS NULL AND NOT (s.sender_id = r.recipient_id AND s.box_id = r.box_id)
@@ -86,13 +86,13 @@ WITH thread_agg AS (
             'SENDER'::text AS root_type,
             s.direction,
             array_agg(DISTINCT t.key) FILTER (WHERE t.key IS NOT NULL) AS tags
-           FROM {config.RFX_MESSAGE_SCHEMA}.message_sender s
-             JOIN {config.RFX_MESSAGE_SCHEMA}.message m ON m._id = s.message_id
-             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_recipient r ON r.message_id = m._id AND r._deleted IS NULL
+           FROM {config.RFX_2DMESSAGE_SCHEMA}.message_sender s
+             JOIN {config.RFX_2DMESSAGE_SCHEMA}.message m ON m._id = s.message_id
+             LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_recipient r ON r.message_id = m._id AND r._deleted IS NULL
              LEFT JOIN thread_agg ta ON ta.thread_id = m.thread_id
-             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb ON mb._id = s.box_id AND mb._deleted IS NULL
-             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_tag mt ON mt.resource::text = 'message_sender'::text AND mt.resource_id = s._id AND mt._deleted IS NULL
-             LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.tag t ON t._id = mt.tag_id AND t._deleted IS NULL
+             LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_box mb ON mb._id = s.box_id AND mb._deleted IS NULL
+             LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_tag mt ON mt.resource::text = 'message_sender'::text AND mt.resource_id = s._id AND mt._deleted IS NULL
+             LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t ON t._id = mt.tag_id AND t._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp ON sp._id = s.sender_id AND sp._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp ON rp._id = r.recipient_id AND rp._deleted IS NULL
           WHERE s._deleted IS NULL
@@ -130,7 +130,7 @@ WITH thread_agg AS (
             b.direction,
             b.tags,
                 CASE
-                    WHEN b.direction = 'OUTBOUND'::{config.RFX_MESSAGE_SCHEMA}.directiontypeenum THEN row_number() OVER (PARTITION BY b.thread_id, b.box_key, b.target_profile_id ORDER BY b._created DESC)
+                    WHEN b.direction = 'OUTBOUND'::{config.RFX_2DMESSAGE_SCHEMA}.directiontypeenum THEN row_number() OVER (PARTITION BY b.thread_id, b.box_key, b.target_profile_id ORDER BY b._created DESC)
                     ELSE 1::bigint
                 END AS rn
            FROM base b
@@ -168,6 +168,6 @@ WITH thread_agg AS (
     ranked.tags,
     ranked.rn
    FROM ranked
-  WHERE ranked.direction = 'OUTBOUND'::{config.RFX_MESSAGE_SCHEMA}.directiontypeenum AND ranked.rn = 1 OR ranked.direction = 'INBOUND'::{config.RFX_MESSAGE_SCHEMA}.directiontypeenum;
+  WHERE ranked.direction = 'OUTBOUND'::{config.RFX_2DMESSAGE_SCHEMA}.directiontypeenum AND ranked.rn = 1 OR ranked.direction = 'INBOUND'::{config.RFX_2DMESSAGE_SCHEMA}.directiontypeenum;
     """,
 )

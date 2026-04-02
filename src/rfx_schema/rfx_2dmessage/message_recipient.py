@@ -66,6 +66,9 @@ class MessageRecipient(TableBase):
         back_populates="message_recipient", cascade="all, delete-orphan"
     )
 
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_starred: Mapped[bool] = mapped_column(Boolean, default=False)
+
 
 class MessageRecipientAction(TableBase):
     """Records execution of actions by recipients."""

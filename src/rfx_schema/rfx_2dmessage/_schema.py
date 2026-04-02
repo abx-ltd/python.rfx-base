@@ -4,6 +4,7 @@ from . import (
     # ref_role,
     message,
     message_box,
+    message_category,
     message_action,
     message_attachment,
     # message_embedded,
@@ -12,6 +13,7 @@ from . import (
     message_sender,
     # message_template,
     message_tag,
+    _viewmap,
 )
 
 __all__ = [
@@ -20,6 +22,7 @@ __all__ = [
     # "ref_role",
     "message",
     "message_box",
+    "message_category",
     "message_action",
     "message_attachment",
     # "message_embedded",
@@ -28,4 +31,5 @@ __all__ = [
     "message_sender",
     # "message_template",
     "message_tag",
+    "_viewmap",
 ]

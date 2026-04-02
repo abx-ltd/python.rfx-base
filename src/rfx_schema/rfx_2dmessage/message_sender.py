@@ -7,6 +7,7 @@ from sqlalchemy import (
     Enum as SQLEnum,
     ForeignKey,
     JSON,
+    Boolean,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -40,6 +41,9 @@ class MessageSender(TableBase):
 
     message: Mapped["Message"] = relationship(back_populates="senders")
     box: Mapped[Optional["MessageBox"]] = relationship(back_populates="senders")
+
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_starred: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class MessageSenderAction(TableBase):

@@ -2,7 +2,7 @@ from fluvius.domain import Domain, SQLDomainLogStore
 
 from .aggregate import RFX2DMessageAggregate
 from .state import RFX2DMessageStateManager
-from .policy import RFX2DMessagePolicyManager
+# from .policy import RFX2DMessagePolicyManager
 from . import config
 
 

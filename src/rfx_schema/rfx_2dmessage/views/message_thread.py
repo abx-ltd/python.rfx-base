@@ -2,7 +2,7 @@ from rfx_base import config
 from alembic_utils.pg_view import PGView
 
 message_thread_view = PGView(
-    schema=config.RFX_MESSAGE_SCHEMA,
+    schema=config.RFX_2DMESSAGE_SCHEMA,
     signature="_message_thread",
     definition=f"""
 SELECT
@@ -75,7 +75,7 @@ SELECT
 
         -- recipients (from table, not outer alias)
         SELECT mr.recipient_id AS uid
-        FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient mr
+        FROM {config.RFX_2DMESSAGE_SCHEMA}.message_recipient mr
         WHERE
             mr.message_id = m._id
             AND mr._deleted IS NULL
@@ -88,8 +88,8 @@ SELECT
 
         -- sender trashed
         SELECT ms.sender_id AS uid
-        FROM {config.RFX_MESSAGE_SCHEMA}.message_sender ms
-        JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb
+        FROM {config.RFX_2DMESSAGE_SCHEMA}.message_sender ms
+        JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_box mb
             ON mb._id = ms.box_id
         WHERE
             ms.message_id = m._id
@@ -100,8 +100,8 @@ SELECT
 
         -- recipient trashed
         SELECT mr.recipient_id AS uid
-        FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient mr
-        JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb
+        FROM {config.RFX_2DMESSAGE_SCHEMA}.message_recipient mr
+        JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_box mb
             ON mb._id = mr.box_id
         WHERE
             mr.message_id = m._id
@@ -123,13 +123,13 @@ SELECT
     m._deleted,
     m._etag
 
-FROM {config.RFX_MESSAGE_SCHEMA}.message m
+FROM {config.RFX_2DMESSAGE_SCHEMA}.message m
 
-JOIN {config.RFX_MESSAGE_SCHEMA}.message_sender s
+JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_sender s
     ON s.message_id = m._id
    AND s._deleted IS NULL
 
-LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_recipient r
+LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_recipient r
     ON r.message_id = m._id
    AND r._deleted IS NULL
 

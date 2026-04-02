@@ -1,19 +1,45 @@
-from .policy import RFX2DMessagePolicyManager
+# from .policy import RFX2DMessagePolicyManager
 from .domain import RFX2DMessageDomain
 from .state import RFX2DMessageStateManager
-from fluvius.query import DomainQueryManager
-
+from fluvius.query import DomainQueryManager, DomainQueryResource
+from fluvius.query.field import (
+    StringField, BooleanField, DateField, UUIDField, PrimaryID, EnumField,
+    ArrayField, IntegerField, JSONField, FloatField, DatetimeField, DateField
+)
+from typing import Optional, Dict, Any
 
 class RFX2DMessageQueryManager(DomainQueryManager):
     __data_manager__ = RFX2DMessageStateManager
-    __policymgr__ = RFX2DMessagePolicyManager
+    # __policymgr__ = RFX2DMessagePolicyManager
 
-    class Meta(DomainQueryManager.Meta):
+    class Meta(DomainQueryResource.Meta):
         prefix = RFX2DMessageDomain.Meta.namespace
         tags = RFX2DMessageDomain.Meta.tags
 
+resource = RFX2DMessageQueryManager.register_resource
+endpoint = RFX2DMessageQueryManager.register_endpoint
 
-# Add query resources here as needed
-# @RFX2DMessageQueryManager.register_resource("message")
-# class MessageQuery(DomainQueryResource):
-#     """Message queries"""
+@resource("message-sender-detail")
+class MessageSenderQuery(DomainQueryResource):
+    class Meta(DomainQueryResource.Meta):
+        include_all = False
+        allow_meta_view = True
+        allow_item_view = True
+        allow_list_view = True
+        # allow_text_search = True
+
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+
+        backend_model = "_message_sender_detail"
+
+
+    sender_id: str = UUIDField("sender_id")
+    subject: str = StringField("subject")
+    content: str = StringField("content")
+
+    send_at: str = DatetimeField("message_created_at")
+
+    box_name: str = StringField("box_name")
+    is_archived: bool = BooleanField("is_archived")
+    is_starred: bool = BooleanField("is_starred")
+    sender_profile: Optional[Dict[str, Any]] = JSONField("sender_profile")
