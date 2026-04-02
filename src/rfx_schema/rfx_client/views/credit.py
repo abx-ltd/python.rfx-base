@@ -64,7 +64,7 @@ organization_credit_summary_view = PGView(
                 sum((EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) AS total_allocated,
                 sum(
                     CASE
-                        WHEN pwp.status = 'COMPLETED'::projectworkpackagestatusenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        WHEN pwp.status::text = 'COMPLETED' THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                         ELSE 0::numeric
                     END) AS total_used,
                 sum(
@@ -74,7 +74,7 @@ organization_credit_summary_view = PGView(
                     END) AS ar_allocated,
                 sum(
                     CASE
-                        WHEN pwi.type::text = 'ARCHITECTURE'::text AND pwp.status = 'COMPLETED'::projectworkpackagestatusenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        WHEN pwi.type::text = 'ARCHITECTURE'::text AND pwp.status::text = 'COMPLETED' THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                         ELSE 0::numeric
                     END) AS ar_used,
                 sum(
@@ -84,7 +84,7 @@ organization_credit_summary_view = PGView(
                     END) AS de_allocated,
                 sum(
                     CASE
-                        WHEN pwi.type::text = 'DEVELOPMENT'::text AND pwp.status = 'COMPLETED'::projectworkpackagestatusenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        WHEN pwi.type::text = 'DEVELOPMENT'::text AND pwp.status::text = 'COMPLETED' THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                         ELSE 0::numeric
                     END) AS de_used,
                 sum(
@@ -94,7 +94,7 @@ organization_credit_summary_view = PGView(
                     END) AS op_allocated,
                 sum(
                     CASE
-                        WHEN pwi.type::text = 'OPERATION'::text AND pwp.status = 'COMPLETED'::projectworkpackagestatusenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        WHEN pwi.type::text = 'OPERATION'::text AND pwp.status::text = 'COMPLETED' THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                         ELSE 0::numeric
                     END) AS op_used
             FROM {SCHEMA}.project p
@@ -176,7 +176,7 @@ organization_weekly_credit_usage_view = PGView(
                 JOIN {SCHEMA}.project p ON pwp.project_id = p._id
                 JOIN {SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id
                 JOIN {SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
-            WHERE pwp.status = 'COMPLETED'::projectworkpackagestatusenum AND pwp.date_complete IS NOT NULL AND pwp._deleted IS NULL AND p._deleted IS NULL AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL
+            WHERE pwp.status::text = 'COMPLETED' AND pwp.date_complete IS NOT NULL AND pwp._deleted IS NULL AND p._deleted IS NULL AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL
             )
     SELECT md5(ci.organization_id::text || date_trunc('week'::text, ci.date_complete)::text)::uuid AS _id,
         now() AS _created,
