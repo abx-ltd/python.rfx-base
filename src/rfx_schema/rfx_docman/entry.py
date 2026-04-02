@@ -1,21 +1,18 @@
-"""
-Entry ORM Model
-===============
-
-Files and folders within a cabinet. Uses `type` discriminator (EntryType enum) to
-distinguish between file types. Folder rows are optional - only created when metadata
-(tags, description, etc.) must be stored explicitly.
-
-Unique constraint: (cabinet_id, path) - path unique within cabinet.
-Indexes: cabinet_id, type.
-"""
-
+# models/entry.py
 from __future__ import annotations
 
 import uuid
 from typing import Optional
 
-from sqlalchemy import Computed, Enum as SQLEnum, ForeignKey, Index, String, text , CheckConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Computed,
+    Enum as SQLEnum,
+    ForeignKey,
+    Index,
+    String,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,19 +23,28 @@ from .types import EntryTypeEnum, EntryStatusEnum
 
 
 class Entry(TableBase):
-    """A file or folder within a cabinet."""
+    """
+    A file or folder within a cabinet.
+
+    Virtual path hierarchy (S3-style):
+      - Folder rows are optional. A prefix like "A/B/" is a valid
+        parent_path even if no FOLDER row exists for "A/B".
+      - `path` is a persisted computed column: never written directly.
+      - Uniqueness is enforced by partial indexes on active rows (_deleted IS NULL).
+    """
 
     __tablename__ = "entry"
     __table_args__ = (
+        # ── Uniqueness ───────────────────────────────────────────────────
         Index(
-            "uq_entry_cabinet_id_path_active",
+            "uq_entry_cabinet_path_active",
             "cabinet_id",
             "path",
             unique=True,
             postgresql_where=text("_deleted IS NULL"),
         ),
         Index(
-            "uq_entry_cabinet_id_parent_path__name_active",
+            "uq_entry_cabinet_parent_name_active",
             "cabinet_id",
             "parent_path",
             "name",
@@ -70,24 +76,37 @@ class Entry(TableBase):
             "name",
             postgresql_where=text("_deleted IS NULL"),
         ),
+        Index(
+            "ix_entry_media_entry_id",
+            "media_entry_id",
+            postgresql_where=text("media_entry_id IS NOT NULL AND _deleted IS NULL"),
+        ),
         CheckConstraint(
-            "(type = 'FOLDER' AND media_entry_id IS NULL) OR "
-            "(type != 'FOLDER' AND media_entry_id IS NOT NULL)",
+            "(type = 'FOLDER' AND media_entry_id IS NULL) OR"
+            " (type != 'FOLDER' AND media_entry_id IS NOT NULL)",
             name="ck_entry_media_by_type",
         ),
         {"schema": SCHEMA},
     )
 
-    cabinet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)
-    name: Mapped[str] = mapped_column(String(512), nullable=False)
-
-    # Generated column from parent_path + name.
-    path: Mapped[str] = mapped_column(
+    cabinet_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+    )
+    parent_path: Mapped[str] = mapped_column(
         String(2048),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(
+        String(512),
+        nullable=False,
+    )
+    # Persisted computed column — never set directly.
+    # Formula: "" parent → name only; otherwise parent_path + "/" + name.
+    path: Mapped[str] = mapped_column(
+        String(2561),
         Computed(
-            "CASE WHEN parent_path = '' THEN name "
-            "ELSE parent_path || '/' || name END",
+            "CASE WHEN parent_path = '' THEN name ELSE parent_path || '/' || name END",
             persisted=True,
         ),
     )
@@ -95,13 +114,11 @@ class Entry(TableBase):
         SQLEnum(EntryTypeEnum, name="entrytypeenum", schema=SCHEMA),
         nullable=False,
     )
-
     media_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey(MediaEntry._id, name="fk_entry_media", ondelete="RESTRICT"),
         nullable=True,
     )
-
     status: Mapped[EntryStatusEnum] = mapped_column(
         SQLEnum(EntryStatusEnum, name="entrystatusenum", schema=SCHEMA),
         nullable=False,

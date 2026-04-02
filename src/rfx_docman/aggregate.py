@@ -1,7 +1,11 @@
+from asyncpg import UniqueViolationError
+
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
+
 from .types import EntryTypeEnum
+from . import helper
 
 
 class RFXDocmanAggregate(Aggregate):
@@ -213,56 +217,30 @@ class RFXDocmanAggregate(Aggregate):
         entry = self.rootobj
         updates = self._serialize(data)
 
-        # Handle path changes.
         new_path = data.resolve_path(entry)
         old_path = entry.path
 
         if new_path != old_path:
-            conflict = await self.statemgr.exist(
-                "entry",
-                where={"cabinet_id": entry.cabinet_id, "path": new_path},
+            await helper.ensure_entry_path_available(
+                self.statemgr,
+                cabinet_id=entry.cabinet_id,
+                path=new_path,
             )
-            if conflict:
+            helper.apply_move_updates(updates, new_path=new_path)
+
+            try:
+                await helper.move_folder_descendants(
+                    self.statemgr,
+                    entry=entry,
+                    old_path=old_path,
+                    new_path=new_path,
+                )
+                await self.statemgr.update(entry, **updates)
+            except UniqueViolationError:
                 raise ValueError(f"An entry already exists at path '{new_path}'")
+        else:
+            await self.statemgr.update(entry, **updates)
 
-            if "/" in new_path:
-                new_parent_path, new_name = new_path.rsplit("/", 1)
-            else:
-                new_parent_path, new_name = "", new_path
-
-            updates["parent_path"] = new_parent_path
-            updates["name"] = new_name
-
-            # If this is a folder, move all descendants by rewriting parent_path.
-            if entry.type == EntryTypeEnum.FOLDER:
-                old_prefix = f"{old_path}/"
-                new_prefix = f"{new_path}/"
-
-                # Direct children: parent_path == old_path
-                direct_children = await self.statemgr.find_all(
-                    "entry",
-                    where={
-                        "cabinet_id": entry.cabinet_id,
-                        "parent_path": old_path,
-                    },
-                )
-                for child in direct_children:
-                    await self.statemgr.update(child, parent_path=new_path)
-
-                # Deeper descendants: parent_path starts with old_path + "/"
-                descendants = await self.statemgr.find_all(
-                    "entry",
-                    where={
-                        "cabinet_id": entry.cabinet_id,
-                    },
-                )
-                for desc in descendants:
-                    if not str(desc.parent_path).startswith(old_prefix):
-                        continue
-                    updated_parent = str(desc.parent_path).replace(old_prefix, new_prefix, 1)
-                    await self.statemgr.update(desc, parent_path=updated_parent)
-
-        await self.statemgr.update(entry, **updates)
         return await self.statemgr.fetch("entry", entry._id)
 
     @action("entry-removed", resources="entry")
