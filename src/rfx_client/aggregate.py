@@ -524,11 +524,11 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.invalidate_data(
             "project_work_package", project_work_package._id
         )
-    
+
     @action("create-project-work-package-relationship", resources="project_work_package")
     async def create_project_work_package_relationship(self, /, data):
         project_work_package = self.rootobj
-        
+
         record = self.init_resource(
             "project_work_package_relationship",
             {
@@ -826,8 +826,8 @@ class RFXClientAggregate(Aggregate):
     @action("work-item-created", resources="work_item")
     async def create_work_item(self, /, data):
         try:
-            parsed_estimate = parse_duration_for_db(data.estimate)
-            data = data.set(estimate=parsed_estimate)
+            _, _, duration_interval = parse_duration_for_db(data.estimate)
+            data = data.set(estimate=duration_interval)
         except Exception:
             raise ValueError(f"Invalid estimate format: {data.estimate}")
 
@@ -846,10 +846,10 @@ class RFXClientAggregate(Aggregate):
         """Update work item"""
         work_item = self.rootobj
 
-        if data.estimate:
+        if getattr(data, "estimate", None):
             try:
-                parsed_estimate = parse_duration_for_db(data.estimate)
-                data = data.set(estimate=parsed_estimate)
+                _, _, duration_interval = parse_duration_for_db(data.estimate)
+                data = data.set(estimate=duration_interval)
             except Exception:
                 raise ValueError(f"Invalid estimate format: {data.estimate}")
 

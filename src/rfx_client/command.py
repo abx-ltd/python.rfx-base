@@ -1887,10 +1887,10 @@ class AddNewWorkItemToProjectWorkPackage(Command):
         profile = await stm.get_profile(profile_id)
 
         project_work_package = await stm.find_one(
-            "project-work-package", where={"_id": payload.project_work_package_id}
+            "project_work_package", where={"_id": payload.project_work_package_id}
         )
 
-        work_item = await stm.find_one("work-item", where={"_id": payload.work_item_id})
+        work_item = await stm.find_one("work_item", where={"_id": payload.work_item_id})
 
         user_ids, project = await get_project_member_user_ids(
             stm, agg.get_aggroot().identifier
