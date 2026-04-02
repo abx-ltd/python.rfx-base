@@ -3,6 +3,7 @@ from typing import Optional, Protocol
 from pydantic import Field, model_validator
 
 from fluvius.data import DataModel, UUID_TYPE
+
 from .types import EntryTypeEnum, RealmMetaKeyEnum
 from .value_objects import (
     ShelfCode,
@@ -69,9 +70,7 @@ class UpdateRealmMetaPayload(BaseUpdatePayload):
 
 
 class CreateShelfPayload(DataModel):
-    code: ShelfCode = Field(
-        ..., description="Single uppercase letter", examples=["A"]
-    )
+    code: ShelfCode = Field(..., description="Single uppercase letter", examples=["A"])
     name: str = Field(
         ..., description="Shelf name", examples=["Governance & Management"]
     )
@@ -91,9 +90,7 @@ class CreateCategoryPayload(DataModel):
         ..., description="Category code (Shelf prefix + 2 digits)", examples=["A01"]
     )
     name: str = Field(..., description="Category name", examples=["Strategic Planning"])
-    description: Optional[str] = Field(
-        default=None, description="Category description"
-    )
+    description: Optional[str] = Field(default=None, description="Category description")
 
 
 class UpdateCategoryPayload(BaseUpdatePayload):
@@ -103,14 +100,14 @@ class UpdateCategoryPayload(BaseUpdatePayload):
         examples=["A02"],
     )
     name: Optional[str] = Field(default=None, description="Category name")
-    description: Optional[str] = Field(
-        default=None, description="Category description"
-    )
+    description: Optional[str] = Field(default=None, description="Category description")
 
 
 class CreateCabinetPayload(DataModel):
     code: CabinetCode = Field(
-        ..., description="Cabinet code (Category prefix + 3 digits)", examples=["A01-001"]
+        ...,
+        description="Cabinet code (Category prefix + 3 digits)",
+        examples=["A01-001"],
     )
     name: str = Field(..., description="Cabinet name", examples=["Annual Reports 2026"])
     description: Optional[str] = Field(default=None, description="Cabinet description")
@@ -127,14 +124,6 @@ class UpdateCabinetPayload(BaseUpdatePayload):
 
 
 # --- Entry (file / folder) ---
-
-
-class _EntryLike(Protocol):
-    """Minimal interface expected of an entry domain object."""
-    path: str
-    name: str
-
-
 class CreateEntryPayload(DataModel):
     parent_path: Path = Field(
         default="",
@@ -151,65 +140,45 @@ class CreateEntryPayload(DataModel):
         description="Entry type: folder, document, pdf, image, ...",
         examples=["PDF"],
     )
-    size: Optional[int] = Field(
+    media_entry_id: Optional[UUID_TYPE] = Field(
         default=None,
-        ge=0,
-        description="File size in bytes. Must be null for folders.",
-        examples=[1048576],
-    )
-    mime_type: Optional[str] = Field(
-        default=None,
-        description="MIME type. Must be null for folders.",
-        examples=["application/pdf"],
-    )
-    author_name: Optional[str] = Field(
-        default=None,
-        description="Author name",
-        examples=["John Doe"],
+        description="ID returned by media upload API. Required for all types except FOLDER.",
+        examples=["3c012cc7-54a6-423a-b226-085623c09898"],
     )
 
     @model_validator(mode="after")
     def validate_logic_by_type(self):
-        self.type.validate_entry_fields(self.size, self.mime_type)
+        if self.type == EntryTypeEnum.FOLDER:
+            if self.media_entry_id is not None:
+                raise ValueError("FOLDER cannot have media_entry_id.")
+        else:
+            if self.media_entry_id is None:
+                raise ValueError(f"type={self.type.value} requires media_entry_id.")
         return self
 
-    @property
-    def computed_path(self) -> str:
-        """Absolute path for DB storage."""
-        return str(self.parent_path.join(str(self.name)))
+
+class _EntryLike(Protocol):
+    """Minimal interface expected of an entry domain object."""
+
+    parent_path: str
+    name: str
 
 
 class UpdateEntryPayload(BaseUpdatePayload):
     parent_path: Optional[Path] = Field(
         default=None, description="New parent path (move entry)."
     )
-    name: Optional[EntryName] = Field(
-        default=None, description="New name."
-    )
-    type: Optional[EntryTypeEnum] = Field(
-        default=None, description="New entry type."
-    )
-    size: Optional[int] = Field(default=None, ge=0)
-    mime_type: Optional[str] = Field(default=None, description="New MIME type.")
-    author_name: Optional[str] = Field(default=None, description="Author name.")
-
-    @model_validator(mode="after")
-    def validate_type_consistency(self):
-        if self.type is None:
-            return self
-        if self.type == EntryTypeEnum.FOLDER:
-            if self.size is not None or self.mime_type is not None:
-                raise ValueError(
-                    "A folder cannot have 'size' or 'mime_type' attributes"
-                )
-        return self
+    name: Optional[EntryName] = Field(default=None, description="New name.")
 
     def resolve_path(self, entry: _EntryLike) -> str:
         """Resolve the new absolute path given the current entry state."""
-        current = Path.from_string(str(entry.path))
-        parent = self.parent_path if self.parent_path is not None else current.parent()
+        current_parent = Path.from_string(str(entry.parent_path))
+        parent = self.parent_path if self.parent_path is not None else current_parent
         name = str(self.name) if self.name is not None else str(entry.name)
-        return str(parent.join(name))
+        parent_str = str(parent)
+        if not parent_str:
+            return name
+        return f"{parent_str}/{name}"
 
 
 # --- Tag ---

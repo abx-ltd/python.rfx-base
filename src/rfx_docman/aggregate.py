@@ -196,20 +196,12 @@ class RFXDocmanAggregate(Aggregate):
     @action("entry-created", resources="cabinet")
     async def create_entry(self, /, data):
         cabinet = self.rootobj
-        full_path = data.computed_path
 
-        entry_data = self._serialize(data)
-        entry_data.update(
-            {
-                "cabinet_id": cabinet._id,
-                "path": full_path,
-            }
-        )
-        entry_data.pop("parent_path", None)
+        data = self._serialize(data)
 
         record = self.init_resource(
             "entry",
-            **entry_data,
+            {**data, "cabinet_id": cabinet._id},
             _id=UUID_GENR(),
         )
 
@@ -220,19 +212,6 @@ class RFXDocmanAggregate(Aggregate):
     async def update_entry(self, /, data):
         entry = self.rootobj
         updates = self._serialize(data)
-
-        old_type = entry.type
-        new_type = data.type
-        if new_type is not None and new_type != old_type:
-            raise ValueError(
-                f"Entry type cannot be changed after creation "
-                f"('{old_type.value}' \u2192 '{new_type.value}')"
-            )
-
-        # Force folder entries to always have null size/mime_type.
-        if old_type == EntryTypeEnum.FOLDER:
-            updates["size"] = None
-            updates["mime_type"] = None
 
         # Handle path changes.
         new_path = data.resolve_path(entry)
@@ -246,25 +225,43 @@ class RFXDocmanAggregate(Aggregate):
             if conflict:
                 raise ValueError(f"An entry already exists at path '{new_path}'")
 
-            updates["path"] = new_path
-            updates["name"] = new_path.rsplit("/", 1)[-1]
+            if "/" in new_path:
+                new_parent_path, new_name = new_path.rsplit("/", 1)
+            else:
+                new_parent_path, new_name = "", new_path
 
-            if old_type == EntryTypeEnum.FOLDER:
+            updates["parent_path"] = new_parent_path
+            updates["name"] = new_name
+
+            # If this is a folder, move all descendants by rewriting parent_path.
+            if entry.type == EntryTypeEnum.FOLDER:
                 old_prefix = f"{old_path}/"
                 new_prefix = f"{new_path}/"
-                await self.statemgr.bulk_update(
+
+                # Direct children: parent_path == old_path
+                direct_children = await self.statemgr.find_all(
                     "entry",
                     where={
                         "cabinet_id": entry.cabinet_id,
-                        "path:startswith": old_prefix,
-                    },
-                    values={
-                        "path": {"$reprefix": (old_prefix, new_prefix)},
-                        "name": {"$basename_after_reprefix": (old_prefix, new_prefix)},
+                        "parent_path": old_path,
                     },
                 )
+                for child in direct_children:
+                    await self.statemgr.update(child, parent_path=new_path)
 
-        updates.pop("parent_path", None)
+                # Deeper descendants: parent_path starts with old_path + "/"
+                descendants = await self.statemgr.find_all(
+                    "entry",
+                    where={
+                        "cabinet_id": entry.cabinet_id,
+                    },
+                )
+                for desc in descendants:
+                    if not str(desc.parent_path).startswith(old_prefix):
+                        continue
+                    updated_parent = str(desc.parent_path).replace(old_prefix, new_prefix, 1)
+                    await self.statemgr.update(desc, parent_path=updated_parent)
+
         await self.statemgr.update(entry, **updates)
         return await self.statemgr.fetch("entry", entry._id)
 

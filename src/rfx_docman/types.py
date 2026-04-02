@@ -22,31 +22,12 @@ class EntryTypeEnum(str, Enum):
     CODE = "CODE"  # .py, .js, .sql
 
     OTHER = "OTHER"
-
-    @property
-    def is_folder(self) -> bool:
-        return self == self.FOLDER
-
-    def validate_entry_fields(self, size: int | None, mime_type: str | None) -> None:
-        if self.is_folder:
-            if size is not None or mime_type is not None:
-                raise ValueError(
-                    "A folder cannot have 'size' or 'mime_type' attributes"
-                )
-        else:
-            if size is None:
-                raise ValueError(
-                    f"A file of type '{self.value}' must have a 'size' attribute"
-                )
-            if mime_type is None :
-                raise ValueError(
-                    f"A file of type '{self.value}' must have a 'mime_type' attribute"
-                )
-            
-
-
 class RealmMetaKeyEnum(str, Enum):
     REALM = "REALM"
     SHELF = "SHELF"
     CATEGORY = "CATEGORY"
     CABINET = "CABINET"
+
+class EntryStatusEnum(str, Enum):
+    PENDING = "PENDING"
+    READY = "READY"
