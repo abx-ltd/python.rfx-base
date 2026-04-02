@@ -109,7 +109,7 @@ class AddCustomWorkPackageToProjectPayload(DataModel):
 
 class AddWorkPackageToProjectPayload(DataModel):
     work_package_id: UUID_TYPE
-    project_work_package_id: Optional[UUID_TYPE] = None
+    # project_work_package_id: Optional[UUID_TYPE] = None
     params: Optional[Dict[str, Any]] = None
 
 
