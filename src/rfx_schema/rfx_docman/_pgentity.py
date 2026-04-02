@@ -4,6 +4,7 @@ from rfx_base import config
 
 from alembic_utils.pg_view import PGView
 from alembic_utils.replaceable_entity import register_entities
+from .types import RealmMetaKeyEnum
 
 realm_view = PGView(
     schema=config.RFX_DOCMAN_SCHEMA,
@@ -16,6 +17,14 @@ realm_view = PGView(
                 SELECT json_object_agg(m.key, m.value)
                 FROM "{config.RFX_DOCMAN_SCHEMA}".realm_meta m
                 WHERE m.realm_id = r._id
+                  AND m.key = ANY (
+                      ARRAY[
+                          '{RealmMetaKeyEnum.REALM.value}',
+                          '{RealmMetaKeyEnum.SHELF.value}',
+                          '{RealmMetaKeyEnum.CATEGORY.value}',
+                          '{RealmMetaKeyEnum.CABINET.value}'
+                      ]::"{config.RFX_DOCMAN_SCHEMA}".realmmetakeyenum[]
+                  )
             ),
             '{{}}'::json
         ) AS realm_meta,
@@ -37,31 +46,25 @@ realm_view = PGView(
                         'cabinet_count', (
                             SELECT COUNT(*)::int
                             FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-                            WHERE cb.realm_id = s.realm_id
+                            JOIN "{config.RFX_DOCMAN_SCHEMA}".category c2
+                              ON c2._id = cb.category_id
+                             AND c2._deleted IS NULL
+                            WHERE c2.shelf_id = s._id
+                              AND cb.realm_id = s.realm_id
                               AND cb._deleted IS NULL
-                              AND cb.category_id IN (
-                                  SELECT c2._id
-                                  FROM "{config.RFX_DOCMAN_SCHEMA}".category c2
-                                  WHERE c2.shelf_id = s._id
-                                    AND c2._deleted IS NULL
-                              )
                         ),
                         'entry_count', (
                             SELECT COUNT(*)::int
                             FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-                            WHERE e._deleted IS NULL
-                              AND e.cabinet_id IN (
-                                  SELECT cb2._id
-                                  FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
-                                  WHERE cb2.realm_id = s.realm_id
-                                    AND cb2._deleted IS NULL
-                                    AND cb2.category_id IN (
-                                        SELECT c3._id
-                                        FROM "{config.RFX_DOCMAN_SCHEMA}".category c3
-                                        WHERE c3.shelf_id = s._id
-                                          AND c3._deleted IS NULL
-                                    )
-                              )
+                            JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
+                              ON cb2._id = e.cabinet_id
+                             AND cb2._deleted IS NULL
+                            JOIN "{config.RFX_DOCMAN_SCHEMA}".category c3
+                              ON c3._id = cb2.category_id
+                             AND c3._deleted IS NULL
+                            WHERE c3.shelf_id = s._id
+                              AND cb2.realm_id = s.realm_id
+                              AND e._deleted IS NULL
                         )
                     )
                     ORDER BY s.code
@@ -91,29 +94,25 @@ shelf_view = PGView(
         (
             SELECT COUNT(*)::int
             FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-            WHERE cb.realm_id = s.realm_id 
+            JOIN "{config.RFX_DOCMAN_SCHEMA}".category c2
+              ON c2._id = cb.category_id
+             AND c2._deleted IS NULL
+            WHERE c2.shelf_id = s._id
+              AND cb.realm_id = s.realm_id
               AND cb._deleted IS NULL
-              AND cb.category_id IN (
-                  SELECT c2._id 
-                  FROM "{config.RFX_DOCMAN_SCHEMA}".category c2 
-                  WHERE c2.shelf_id = s._id AND c2._deleted IS NULL
-              )
         ) AS cabinet_count,
         (
             SELECT COUNT(*)::int
             FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-            WHERE e._deleted IS NULL
-              AND e.cabinet_id IN (
-                  SELECT cb2._id
-                  FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
-                  WHERE cb2.realm_id = s.realm_id
-                    AND cb2._deleted IS NULL
-                    AND cb2.category_id IN (
-                        SELECT c3._id
-                        FROM "{config.RFX_DOCMAN_SCHEMA}".category c3
-                        WHERE c3.shelf_id = s._id AND c3._deleted IS NULL
-                    )
-              )
+            JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
+              ON cb2._id = e.cabinet_id
+             AND cb2._deleted IS NULL
+            JOIN "{config.RFX_DOCMAN_SCHEMA}".category c3
+              ON c3._id = cb2.category_id
+             AND c3._deleted IS NULL
+            WHERE c3.shelf_id = s._id
+              AND cb2.realm_id = s.realm_id
+              AND e._deleted IS NULL
         ) AS entry_count
         ,
         COALESCE(
@@ -135,13 +134,11 @@ shelf_view = PGView(
                         'entry_count', (
                             SELECT COUNT(*)::int
                             FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-                            WHERE e._deleted IS NULL
-                              AND e.cabinet_id IN (
-                                  SELECT cb2._id
-                                  FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
-                                  WHERE cb2.category_id = c._id
-                                    AND cb2._deleted IS NULL
-                              )
+                            JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
+                              ON cb2._id = e.cabinet_id
+                             AND cb2._deleted IS NULL
+                            WHERE cb2.category_id = c._id
+                              AND e._deleted IS NULL
                         )
                     )
                     ORDER BY c.code
@@ -171,12 +168,11 @@ category_view = PGView(
         (
             SELECT COUNT(*)::int
             FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-            WHERE e._deleted IS NULL
-              AND e.cabinet_id IN (
-                  SELECT cb2._id
-                  FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
-                  WHERE cb2.category_id = c._id AND cb2._deleted IS NULL
-              )
+            JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
+              ON cb2._id = e.cabinet_id
+             AND cb2._deleted IS NULL
+            WHERE cb2.category_id = c._id
+              AND e._deleted IS NULL
         ) AS entry_count
         ,
         COALESCE(
@@ -229,10 +225,9 @@ cabinet_view = PGView(
                         'path',       e.path,
                         'name',       e.name,
                         'type',       e.type,
-                        'size',       e.size,
-                        'mime_type',  e.mime_type,
-                        'author_name',     e.author_name,
-                        'parent_path', COALESCE(SUBSTRING(e.path FROM '(.*)/'), ''),
+                        'status',     e.status,
+                        'media_entry_id',  e.media_entry_id,
+                        'parent_path', e.parent_path,
                         'tags',       COALESCE(
                             (
                                 SELECT json_agg(
@@ -270,8 +265,21 @@ entry_view = PGView(
     signature="_entry",
     definition=f"""
     SELECT
-        e.*,
-        COALESCE(SUBSTRING(e.path FROM '(.*)/'), '') AS parent_path,
+        e.cabinet_id,
+        e.parent_path,
+        e.name,
+        e.path,
+        e.type,
+        e.media_entry_id,
+        e.status,
+        e._id,
+        e._created,
+        e._updated,
+        e._creator,
+        e._updater,
+        e._deleted,
+        e._etag,
+        e._realm,
         COALESCE(
             (
                 SELECT json_agg(

@@ -2,11 +2,12 @@ from __future__ import annotations
 import uuid
 from typing import Optional, Any
 
-from sqlalchemy import BigInteger, Integer, String
+from sqlalchemy import Integer, String , Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import TableBase, SCHEMA
+from . import TableBase, SCHEMA 
+from  .types import EntryTypeEnum , RealmMetaKeyEnum, EntryStatusEnum
 
 
 class RealmView(TableBase):
@@ -22,7 +23,9 @@ class RealmView(TableBase):
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    realm_meta: Mapped[Any] = mapped_column(JSON, nullable=False, default=dict)
+    realm_meta: Mapped[dict[RealmMetaKeyEnum, str]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
     # Aggregated shelves with counts
     shelves: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
 
@@ -94,7 +97,7 @@ class CabinetView(TableBase):
 
 class EntryView(TableBase):
     """
-    Entry view with parent_path calculation.
+    Entry view aligned with entry table columns plus tags aggregation.
     """
 
     __tablename__ = "_entry"
@@ -103,16 +106,19 @@ class EntryView(TableBase):
     cabinet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     path: Mapped[str] = mapped_column(String(2048), nullable=False)
     name: Mapped[str] = mapped_column(String(512), nullable=False)
-    type: Mapped[str] = mapped_column(String(50), nullable=False)
-    size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
-    mime_type: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    author_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    # Calculated field from PGView
+    type: Mapped[EntryTypeEnum] = mapped_column(
+        SQLEnum(EntryTypeEnum, name="entrytypeenum", schema=SCHEMA), nullable=False
+    )
+    media_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    status: Mapped[EntryStatusEnum] = mapped_column(
+        SQLEnum(EntryStatusEnum, name="entrystatusenum", schema=SCHEMA),
+        nullable=False,
+    )
     parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)
 
-    # Aggregated tags (JSON array from entry_tag JOIN tag)
-    tags: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
+    tags: Mapped[Any] = mapped_column(JSON, nullable=False)
 
 
 class TagView(TableBase):
@@ -128,5 +134,4 @@ class TagView(TableBase):
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    # Aggregated entries (JSON array from entry_tag JOIN entry)
-    entries: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
+    entries: Mapped[Any] = mapped_column(JSON, nullable=False)
