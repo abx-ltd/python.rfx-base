@@ -12,7 +12,7 @@ Extra index: tag_id — allows efficient lookups of all entries for a given tag.
 from __future__ import annotations
 
 import uuid
-from sqlalchemy import Index
+from sqlalchemy import ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,5 +28,13 @@ class EntryTag(Base):
         {"schema": SCHEMA},
     )
 
-    entry_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    tag_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    entry_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.entry._id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.tag._id", ondelete="CASCADE"),
+        primary_key=True,
+    )

@@ -10,7 +10,6 @@ from typing import Optional
 from sqlalchemy import Index, String, UUID, text
 from sqlalchemy.orm import Mapped, mapped_column
 
-
 from . import TableBase, SCHEMA
 
 

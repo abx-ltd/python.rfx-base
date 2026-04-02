@@ -19,3 +19,8 @@ class RealmMetaKeyEnum(str, Enum) :
     SHELF = "SHELF"
     CATEGORY = "CATEGORY"
     CABINET = "CABINET"
+
+
+class EntryStatusEnum(str, Enum):
+    PENDING = "PENDING"  
+    READY = "READY" 
