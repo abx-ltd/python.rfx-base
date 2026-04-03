@@ -40,6 +40,15 @@ comment_view = PGView(
         c.resource,
         c.resource_id,
         COALESCE(BOOL_OR(ca._id IS NOT NULL), false) AS is_acknowledged,
+        COALESCE(
+            EXISTS (
+                SELECT 1
+                FROM {SCHEMA}.comment_acknowledge ca2
+                WHERE ca2.comment_id = c.parent_id
+                AND ca2._deleted IS NULL
+            ),
+            false
+        ) AS is_acknowledge_reply,
         jsonb_build_object('id', p._id, 'name', COALESCE(p.preferred_name, ((p.name__given::text || ' '::text) || p.name__family::text)::character varying), 'avatar', p.picture_id) AS creator,
         COALESCE(( SELECT count(*) AS count
                FROM {SCHEMA}.comment_attachment ca
