@@ -21,7 +21,7 @@ class CreateRealm(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_realm(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="realm-response")
 
 
 class UpdateRealm(Command):
@@ -37,7 +37,7 @@ class UpdateRealm(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_realm(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="realm-response")
 
 
 class RemoveRealm(Command):
@@ -66,7 +66,7 @@ class CreateRealmMeta(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_realm_meta(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="realm-meta-response")
 
 
 class UpdateRealmMeta(Command):
@@ -82,7 +82,7 @@ class UpdateRealmMeta(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_realm_meta(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="realm-meta-response")
 
 
 class RemoveRealmMeta(Command):
@@ -111,7 +111,7 @@ class CreateShelf(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_shelf(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="shelf-response")
 
 
 class UpdateShelf(Command):
@@ -127,7 +127,7 @@ class UpdateShelf(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_shelf(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="shelf-response")
 
 
 class RemoveShelf(Command):
@@ -156,7 +156,7 @@ class CreateCategory(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_category(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="category-response")
 
 
 class UpdateCategory(Command):
@@ -172,7 +172,7 @@ class UpdateCategory(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_category(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="category-response")
 
 
 class RemoveCategory(Command):
@@ -201,7 +201,7 @@ class CreateCabinet(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_cabinet(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="cabinet-response")
 
 
 class UpdateCabinet(Command):
@@ -217,7 +217,7 @@ class UpdateCabinet(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_cabinet(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="cabinet-response")
 
 
 class RemoveCabinet(Command):
@@ -246,7 +246,7 @@ class CreateEntry(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_entry(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="entry-response")
 
 
 class UpdateEntry(Command):
@@ -262,7 +262,7 @@ class UpdateEntry(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_entry(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="entry-response")
 
 
 class RemoveEntry(Command):
@@ -318,7 +318,7 @@ class CreateTag(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_tag(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="tag-response")
 
 
 class UpdateTag(Command):
@@ -334,7 +334,7 @@ class UpdateTag(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_tag(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="tag-response")
 
 
 class RemoveTag(Command):
@@ -368,7 +368,7 @@ class AddEntryTag(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.add_entry_tag(payload)
-        yield agg.create_response(serialize_mapping(result), _type="docman-response")
+        yield agg.create_response(serialize_mapping(result), _type="entry-tag-response")
 
 
 class RemoveEntryTag(Command):

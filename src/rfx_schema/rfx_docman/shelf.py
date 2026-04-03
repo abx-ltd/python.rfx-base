@@ -31,6 +31,11 @@ class Shelf(TableBase):
             unique=True,
             postgresql_where=text("_deleted IS NULL"),
         ),
+        Index(
+            "idx_shelf_realm_id_active",
+            "realm_id",
+            postgresql_where=text("_deleted IS NULL"),
+        ),
         {"schema": SCHEMA},
     )
 
