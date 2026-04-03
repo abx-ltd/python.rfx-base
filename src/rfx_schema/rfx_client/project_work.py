@@ -41,10 +41,9 @@ class ProjectWorkPackage(TableBase):
     __table_args__ = (
         # In DB, this is a UNIQUE INDEX with a WHERE clause, not a simple UniqueConstraint
         Index(
-            "uq_project_work_package",
+            "idx_project_work_package",
             "project_id",
             "work_package_id",
-            unique=True,
             postgresql_where=text("(_deleted IS NULL)"),
         ),
         # Other specific indexes from DDL
