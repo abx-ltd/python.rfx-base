@@ -112,12 +112,15 @@ class RFXClientAggregate(Aggregate):
     @action("project-updated", resources="project")
     async def update_project(self, /, data):
         """Update a project"""
-        try:
-            parsed_delta, duration_text, duration_interval = parse_duration_for_db(
-                data.duration
-            )
-        except Exception:
-            raise ValueError(f"Invalid duration format: {data.duration}")
+        duration_text = None
+        duration_interval = None
+        if data.duration:
+            try:
+                parsed_delta, duration_text, duration_interval = parse_duration_for_db(
+                    data.duration
+                )
+            except Exception:
+                raise ValueError(f"Invalid duration format: {data.duration}")
 
         project = self.rootobj
 
@@ -146,8 +149,8 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(
             project,
             **project_data,
-            target_date=data.target_date,
-            duration_text=duration_text,
+            target_date=data.target_date or project.target_date,
+            duration_text=duration_text or project.duration_text,
             sync_status=sync_status,
         )
         return project
