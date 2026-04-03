@@ -73,6 +73,7 @@ class CommentQuery(DomainQueryResource):
     flag_count: int = IntegerField("Flag Count")
     requires_acknowledgement: bool = BooleanField("Requires Acknowledgement")
     is_acknowledged: bool = BooleanField("Is Acknowledged")
+    is_acknowledge_reply: bool = BooleanField("Is Acknowledge Reply")
 
 
 @resource("comment-acknowledge")
