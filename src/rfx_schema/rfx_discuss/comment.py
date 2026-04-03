@@ -436,7 +436,11 @@ class CommentSubscription(TableBase):
         nullable=True,
         server_default=text("true"),
     )
-
+    is_acknowledge_reply: Mapped[Optional[bool]] = mapped_column(
+        Boolean,
+        nullable=True,
+        server_default=text("false"),
+    )
     # Relationships
     comment: Mapped[Comment] = relationship("Comment", back_populates="subscriptions")
 
