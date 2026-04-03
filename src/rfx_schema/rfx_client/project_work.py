@@ -89,7 +89,11 @@ class ProjectWorkPackage(TableBase):
     work_package_estimate: Mapped[Optional[str]] = mapped_column(INTERVAL)
 
     status: Mapped[ProjectWorkPackageStatusEnum] = mapped_column(
-        SQLEnum(ProjectWorkPackageStatusEnum),
+        SQLEnum(
+            ProjectWorkPackageStatusEnum,
+            name="projectworkpackagestatusenum",
+            schema=SCHEMA,
+        ),
         default=ProjectWorkPackageStatusEnum.DRAFT,
         nullable=False,
     )

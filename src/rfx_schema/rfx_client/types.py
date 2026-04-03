@@ -113,7 +113,7 @@ class PurchaseStatusEnum(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     REFUNDED = "REFUNDED"
-    
+
 class InquiryStatusEnum(str, Enum):
     """ Inquiry status enum """
     DRAFT = "DRAFT"
@@ -126,11 +126,11 @@ class MethodCalculatedEnum(str, Enum):
     WORKPACKAGE = "WORKPACKAGE"
     WORKITEM = "WORKITEM"
     PROJECT = "PROJECT"
-    
+
 class RecordStatusEnum(str, Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
-    
+
 class ServiceCategoryEnum(str, Enum):
     DIGITAL_SIGNATURE = "DIGITAL_SIGNATURE"
     E_INVOICE = "E_INVOICE"
