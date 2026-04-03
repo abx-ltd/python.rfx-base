@@ -78,9 +78,6 @@ class CreateShelfPayload(DataModel):
 
 
 class UpdateShelfPayload(BaseUpdatePayload):
-    code: Optional[ShelfCode] = Field(
-        default=None, description="Single uppercase letter", examples=["B"]
-    )
     name: Optional[str] = Field(default=None, description="Shelf name")
     description: Optional[str] = Field(default=None, description="Shelf description")
 
@@ -94,11 +91,6 @@ class CreateCategoryPayload(DataModel):
 
 
 class UpdateCategoryPayload(BaseUpdatePayload):
-    code: Optional[CategoryCode] = Field(
-        default=None,
-        description="Category code (Shelf prefix + 2 digits)",
-        examples=["A02"],
-    )
     name: Optional[str] = Field(default=None, description="Category name")
     description: Optional[str] = Field(default=None, description="Category description")
 
@@ -114,11 +106,6 @@ class CreateCabinetPayload(DataModel):
 
 
 class UpdateCabinetPayload(BaseUpdatePayload):
-    code: Optional[CabinetCode] = Field(
-        default=None,
-        description="Cabinet code (Category prefix + 3 digits)",
-        examples=["A01-002"],
-    )
     name: Optional[str] = Field(default=None, description="Cabinet name")
     description: Optional[str] = Field(default=None, description="Cabinet description")
 

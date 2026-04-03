@@ -50,9 +50,8 @@ class RealmQuery(DomainQueryResource):
     icon: str = StringField("Icon")
     color: str = StringField("Color")
 
-    # Aggregated child shelves from _realm view
-    realm_meta : Optional[dict] = JSONField("Realm Meta", default = None)
-    shelves: Optional[list] = JSONField("Shelves", default=None)
+    realm_meta: Optional[dict] = JSONField("Realm Meta", default=None)
+    shelf_count: int = IntegerField("Shelf Count")
 
 
 @resource("shelf")
@@ -81,12 +80,6 @@ class ShelfQuery(DomainQueryResource):
 
     # Aggregate information
     category_count: int = IntegerField("Category Count")
-    cabinet_count: int = IntegerField("Cabinet Count")
-    entry_count: int = IntegerField("Entry Count")
-
-    # Aggregated child categories from _shelf view
-    categories: Optional[list] = JSONField("Categories", default=None)
-
 
 @resource("category")
 class CategoryQuery(DomainQueryResource):
@@ -115,10 +108,6 @@ class CategoryQuery(DomainQueryResource):
 
     # Aggregate information
     cabinet_count: int = IntegerField("Cabinet Count")
-    entry_count: int = IntegerField("Entry Count")
-
-    # Aggregated child cabinets from _category view
-    cabinets: Optional[list] = JSONField("Cabinets", default=None)
 
 
 @resource("cabinet")
@@ -149,8 +138,6 @@ class CabinetQuery(DomainQueryResource):
     # Aggregate information
     entry_count: int = IntegerField("Entry Count")
 
-    # Aggregated child entries from _cabinet view
-    entries: Optional[list] = JSONField("Entries", default=None)
 
 
 @resource("entry")
@@ -172,7 +159,7 @@ class EntryQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "_entry"
+        backend_model = "entry"
         scope_required = scope.EntryScopeSchema
 
     id: UUID_TYPE = PrimaryID("Entry ID")
@@ -192,7 +179,7 @@ class EntryQuery(DomainQueryResource):
 
 @resource("tag")
 class TagQuery(DomainQueryResource):
-    """Tag queries — globally shared tags, each exposes a list of entries."""
+    """Tag queries."""
 
     class Meta(DomainQueryResource.Meta):
         resource = "tag"
@@ -209,14 +196,16 @@ class TagQuery(DomainQueryResource):
         query = {}
         if (cabinet_id := scope_data.get("cabinet_id")) is not None:
             query["cabinet_id"] = cabinet_id
-        if( realm_id := scope_data.get("realm_id")) is not None :
+        else:
+            # Keep one canonical row per tag when not filtering by cabinet.
+            query["cabinet_id"] = None
+        if (realm_id := scope_data.get("realm_id")) is not None:
             query["realm_id"] = realm_id
         return query
 
     id: UUID_TYPE = PrimaryID("Tag ID")
+    cabinet_id: Optional[UUID_TYPE] = UUIDField("Cabinet ID")
+    realm_id: UUID_TYPE = UUIDField("Realm ID")
     name: str = StringField("Name")
     color: Optional[str] = StringField("Color")
     icon: Optional[str] = StringField("Icon")
-
-    # Aggregated from entry_tag JOIN entry in _tag view
-    entries: Optional[list] = JSONField("Entries", default=None)

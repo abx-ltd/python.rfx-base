@@ -3,8 +3,6 @@ from asyncpg import UniqueViolationError
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
-
-from .types import EntryTypeEnum
 from . import helper
 
 
@@ -138,11 +136,6 @@ class RFXDocmanAggregate(Aggregate):
         category = self.rootobj
         updates = self._serialize(data)
 
-        if "code" in updates:
-            new_code = updates["code"]
-            shelf = await self.statemgr.fetch("shelf", category.shelf_id)
-            self._ensure_code_prefix(new_code, shelf.code, "Category")
-
         await self.statemgr.update(category, **updates)
         return await self.statemgr.fetch("category", category._id)
 
@@ -179,12 +172,6 @@ class RFXDocmanAggregate(Aggregate):
     async def update_cabinet(self, /, data):
         cabinet = self.rootobj
         updates = self._serialize(data)
-
-        if "code" in updates:
-            new_code = updates["code"]
-            category = await self.statemgr.fetch("category", cabinet.category_id)
-            prefix = f"{category.code}-"
-            self._ensure_code_prefix(new_code, prefix, "Cabinet")
 
         await self.statemgr.update(cabinet, **updates)
         return await self.statemgr.fetch("cabinet", cabinet._id)
@@ -245,28 +232,9 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("entry-removed", resources="entry")
     async def remove_entry(self, /):
-        """
-        Soft-delete a single entry (file or FOLDER metadata row).
-        """
         entry = self.rootobj
         await self.statemgr.invalidate(entry)
 
-    @action("entry-purged", resources="entry")
-    async def purge_entry(self, /):
-        """Recursively soft-delete a FOLDER row and all its active descendants."""
-        entry = self.rootobj
-        if entry.type != EntryTypeEnum.FOLDER:
-            raise ValueError("purge-entry is only valid for FOLDER entries")
-
-        # Bulk soft-delete all descendants first, then the FOLDER row itself.
-        await self.statemgr.invalidate_where(
-            "entry",
-            {
-                "cabinet_id": entry.cabinet_id,
-                "path:startswith": f"{entry.path}/",
-            },
-        )
-        await self.statemgr.invalidate(entry)
 
     # =========================================================================
     # TAG

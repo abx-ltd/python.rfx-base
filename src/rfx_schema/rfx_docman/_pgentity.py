@@ -11,12 +11,24 @@ realm_view = PGView(
     signature="_realm",
     definition=f"""
     SELECT
-        r.*,
+        r._created,
+        r._creator,
+        r._deleted,
+        r._etag,
+        r._id,
+        r._updated,
+        r._updater,
+        r._realm,
+        r.name,
+        r.description,
+        r.icon,
+        r.color,
         COALESCE(
             (
                 SELECT json_object_agg(m.key, m.value)
                 FROM "{config.RFX_DOCMAN_SCHEMA}".realm_meta m
                 WHERE m.realm_id = r._id
+                  AND m._deleted IS NULL
                   AND m.key = ANY (
                       ARRAY[
                           '{RealmMetaKeyEnum.REALM.value}',
@@ -28,53 +40,12 @@ realm_view = PGView(
             ),
             '{{}}'::json
         ) AS realm_meta,
-        COALESCE(
-            (
-                SELECT json_agg(
-                    json_build_object(
-                        '_id',            s._id,
-                        'realm_id',       s.realm_id,
-                        'code',           s.code,
-                        'name',           s.name,
-                        'description',    s.description,
-                        'category_count', (
-                            SELECT COUNT(*)::int
-                            FROM "{config.RFX_DOCMAN_SCHEMA}".category c
-                            WHERE c.shelf_id = s._id
-                              AND c._deleted IS NULL
-                        ),
-                        'cabinet_count', (
-                            SELECT COUNT(*)::int
-                            FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-                            JOIN "{config.RFX_DOCMAN_SCHEMA}".category c2
-                              ON c2._id = cb.category_id
-                             AND c2._deleted IS NULL
-                            WHERE c2.shelf_id = s._id
-                              AND cb.realm_id = s.realm_id
-                              AND cb._deleted IS NULL
-                        ),
-                        'entry_count', (
-                            SELECT COUNT(*)::int
-                            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-                            JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
-                              ON cb2._id = e.cabinet_id
-                             AND cb2._deleted IS NULL
-                            JOIN "{config.RFX_DOCMAN_SCHEMA}".category c3
-                              ON c3._id = cb2.category_id
-                             AND c3._deleted IS NULL
-                            WHERE c3.shelf_id = s._id
-                              AND cb2.realm_id = s.realm_id
-                              AND e._deleted IS NULL
-                        )
-                    )
-                    ORDER BY s.code
-                )
-                FROM "{config.RFX_DOCMAN_SCHEMA}".shelf s
-                WHERE s.realm_id = r._id
-                  AND s._deleted IS NULL
-            ),
-            '[]'::json
-        ) AS shelves
+        (
+            SELECT COUNT(*)::int
+            FROM "{config.RFX_DOCMAN_SCHEMA}".shelf s
+            WHERE s.realm_id = r._id
+              AND s._deleted IS NULL
+        ) AS shelf_count
     FROM "{config.RFX_DOCMAN_SCHEMA}".realm r
     WHERE r._deleted IS NULL;
     """,
@@ -85,72 +56,37 @@ shelf_view = PGView(
     signature="_shelf",
     definition=f"""
     SELECT
-        s.*,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".category c
-            WHERE c.shelf_id = s._id AND c._deleted IS NULL
-        ) AS category_count,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-            JOIN "{config.RFX_DOCMAN_SCHEMA}".category c2
-              ON c2._id = cb.category_id
-             AND c2._deleted IS NULL
-            WHERE c2.shelf_id = s._id
-              AND cb.realm_id = s.realm_id
-              AND cb._deleted IS NULL
-        ) AS cabinet_count,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-            JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
-              ON cb2._id = e.cabinet_id
-             AND cb2._deleted IS NULL
-            JOIN "{config.RFX_DOCMAN_SCHEMA}".category c3
-              ON c3._id = cb2.category_id
-             AND c3._deleted IS NULL
-            WHERE c3.shelf_id = s._id
-              AND cb2.realm_id = s.realm_id
-              AND e._deleted IS NULL
-        ) AS entry_count
-        ,
-        COALESCE(
-            (
-                SELECT json_agg(
-                    json_build_object(
-                        '_id',           c._id,
-                        'realm_id',      c.realm_id,
-                        'shelf_id',      c.shelf_id,
-                        'code',          c.code,
-                        'name',          c.name,
-                        'description',   c.description,
-                        'cabinet_count', (
-                            SELECT COUNT(*)::int
-                            FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-                            WHERE cb.category_id = c._id
-                              AND cb._deleted IS NULL
-                        ),
-                        'entry_count', (
-                            SELECT COUNT(*)::int
-                            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-                            JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
-                              ON cb2._id = e.cabinet_id
-                             AND cb2._deleted IS NULL
-                            WHERE cb2.category_id = c._id
-                              AND e._deleted IS NULL
-                        )
-                    )
-                    ORDER BY c.code
-                )
-                FROM "{config.RFX_DOCMAN_SCHEMA}".category c
-                WHERE c.shelf_id = s._id
-                  AND c._deleted IS NULL
-            ),
-            '[]'::json
-        ) AS categories
+        s._created,
+        s._creator,
+        s._deleted,
+        s._etag,
+        s._id,
+        s._updated,
+        s._updater,
+        s._realm,
+        s.realm_id,
+        s.code,
+        s.name,
+        s.description,
+        COUNT(c._id)::int AS category_count
     FROM "{config.RFX_DOCMAN_SCHEMA}".shelf s
-    WHERE s._deleted IS NULL ;
+    LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".category c
+           ON c.shelf_id = s._id
+          AND c._deleted IS NULL
+    WHERE s._deleted IS NULL
+    GROUP BY
+        s._created,
+        s._creator,
+        s._deleted,
+        s._etag,
+        s._id,
+        s._updated,
+        s._updater,
+        s._realm,
+        s.realm_id,
+        s.code,
+        s.name,
+        s.description;
     """,
 )
 
@@ -159,49 +95,39 @@ category_view = PGView(
     signature="_category",
     definition=f"""
     SELECT
-        c.*,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-            WHERE cb.category_id = c._id AND cb._deleted IS NULL
-        ) AS cabinet_count,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-            JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb2
-              ON cb2._id = e.cabinet_id
-             AND cb2._deleted IS NULL
-            WHERE cb2.category_id = c._id
-              AND e._deleted IS NULL
-        ) AS entry_count
-        ,
-        COALESCE(
-            (
-                SELECT json_agg(
-                    json_build_object(
-                        '_id',         cb._id,
-                        'realm_id',    cb.realm_id,
-                        'category_id', cb.category_id,
-                        'code',        cb.code,
-                        'name',        cb.name,
-                        'description', cb.description,
-                        'entry_count', (
-                            SELECT COUNT(*)::int
-                            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-                            WHERE e.cabinet_id = cb._id
-                              AND e._deleted IS NULL
-                        )
-                    )
-                    ORDER BY cb.code
-                )
-                FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-                WHERE cb.category_id = c._id
-                  AND cb._deleted IS NULL
-            ),
-            '[]'::json
-        ) AS cabinets
+        c._created,
+        c._creator,
+        c._deleted,
+        c._etag,
+        c._id,
+        c._updated,
+        c._updater,
+        c._realm,
+        c.realm_id,
+        c.shelf_id,
+        c.code,
+        c.name,
+        c.description,
+        COUNT(cb._id)::int AS cabinet_count
     FROM "{config.RFX_DOCMAN_SCHEMA}".category c
-    WHERE c._deleted IS NULL;
+    LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+           ON cb.category_id = c._id
+          AND cb._deleted    IS NULL
+    WHERE c._deleted IS NULL
+    GROUP BY
+        c._created,
+        c._creator,
+        c._deleted,
+        c._etag,
+        c._id,
+        c._updated,
+        c._updater,
+        c._realm,
+        c.realm_id,
+        c.shelf_id,
+        c.code,
+        c.name,
+        c.description;
     """,
 )
 
@@ -210,96 +136,39 @@ cabinet_view = PGView(
     signature="_cabinet",
     definition=f"""
     SELECT
-        cb.*,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-            WHERE e.cabinet_id = cb._id AND e._deleted IS NULL
-        ) AS entry_count,
-        COALESCE(
-            (
-                SELECT json_agg(
-                    json_build_object(
-                        '_id',        e._id,
-                        'cabinet_id', e.cabinet_id,
-                        'path',       e.path,
-                        'name',       e.name,
-                        'type',       e.type,
-                        'status',     e.status,
-                        'media_entry_id',  e.media_entry_id,
-                        'parent_path', e.parent_path,
-                        'tags',       COALESCE(
-                            (
-                                SELECT json_agg(
-                                    json_build_object(
-                                        '_id',   t._id,
-                                        'name',  t.name,
-                                        'color', t.color,
-                                        'icon',  t.icon
-                                    )
-                                    ORDER BY t.name
-                                )
-                                FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
-                                JOIN "{config.RFX_DOCMAN_SCHEMA}".tag t ON t._id = et.tag_id
-                                                                       AND t._deleted IS NULL
-                                WHERE et.entry_id = e._id
-                            ),
-                            '[]'::json
-                        )
-                    )
-                    ORDER BY e.path
-                )
-                FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-                WHERE e.cabinet_id = cb._id
-                  AND e._deleted IS NULL
-            ),
-            '[]'::json
-        ) AS entries
+        cb._created,
+        cb._creator,
+        cb._deleted,
+        cb._etag,
+        cb._id,
+        cb._updated,
+        cb._updater,
+        cb._realm,
+        cb.realm_id,
+        cb.category_id,
+        cb.code,
+        cb.name,
+        cb.description,
+        COUNT(e._id)::int AS entry_count
     FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-    WHERE cb._deleted IS NULL;
-    """,
-)
-
-entry_view = PGView(
-    schema=config.RFX_DOCMAN_SCHEMA,
-    signature="_entry",
-    definition=f"""
-    SELECT
-        e.cabinet_id,
-        e.parent_path,
-        e.name,
-        e.path,
-        e.type,
-        e.media_entry_id,
-        e.status,
-        e._id,
-        e._created,
-        e._updated,
-        e._creator,
-        e._updater,
-        e._deleted,
-        e._etag,
-        e._realm,
-        COALESCE(
-            (
-                SELECT json_agg(
-                    json_build_object(
-                        '_id',    t._id,
-                        'name',  t.name,
-                        'color', t.color,
-                        'icon',  t.icon
-                    )
-                    ORDER BY t.name
-                )
-                FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
-                JOIN "{config.RFX_DOCMAN_SCHEMA}".tag         t  ON t._id = et.tag_id
-                                                                   AND t._deleted IS NULL
-                WHERE et.entry_id = e._id
-            ),
-            '[]'::json
-        ) AS tags
-    FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-    WHERE e._deleted IS NULL;
+    LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e
+           ON e.cabinet_id = cb._id
+          AND e._deleted   IS NULL
+    WHERE cb._deleted IS NULL
+    GROUP BY
+        cb._created,
+        cb._creator,
+        cb._deleted,
+        cb._etag,
+        cb._id,
+        cb._updated,
+        cb._updater,
+        cb._realm,
+        cb.realm_id,
+        cb.category_id,
+        cb.code,
+        cb.name,
+        cb.description;
     """,
 )
 
@@ -307,29 +176,54 @@ tag_view = PGView(
     schema=config.RFX_DOCMAN_SCHEMA,
     signature="_tag",
     definition=f"""
-    SELECT
-        t.*,
-        COALESCE(
-            (
-                SELECT json_agg(
-                    json_build_object(
-                        '_id',        e._id,
-                        'name',       e.name,
-                        'path',       e.path,
-                        'type',       e.type,
-                        'cabinet_id', e.cabinet_id
-                    )
-                    ORDER BY e.path
-                )
-                FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
-                JOIN "{config.RFX_DOCMAN_SCHEMA}".entry      e  ON e._id = et.entry_id
-                                                                  AND e._deleted IS NULL
-                WHERE et.tag_id = t._id
-            ),
-            '[]'::json
-        ) AS entries
+    SELECT DISTINCT ON (t._id, e.cabinet_id)
+        t._created,
+        t._creator,
+        t._deleted,
+        t._etag,
+        t._id,
+        t._updated,
+        t._updater,
+        t._realm,
+        t.realm_id,
+        e.cabinet_id,
+        t.name,
+        t.color,
+        t.icon
     FROM "{config.RFX_DOCMAN_SCHEMA}".tag t
-    WHERE t._deleted IS NULL;
+    JOIN "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
+      ON et.tag_id = t._id
+    JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e
+      ON e._id      = et.entry_id
+     AND e._deleted IS NULL
+    WHERE t._deleted IS NULL
+
+    UNION
+
+    SELECT
+        t._created,
+        t._creator,
+        t._deleted,
+        t._etag,
+        t._id,
+        t._updated,
+        t._updater,
+        t._realm,
+        t.realm_id,
+        NULL::uuid AS cabinet_id,
+        t.name,
+        t.color,
+        t.icon
+    FROM "{config.RFX_DOCMAN_SCHEMA}".tag t
+    WHERE t._deleted IS NULL
+      AND NOT EXISTS (
+          SELECT 1
+          FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et2
+          JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e2
+            ON e2._id      = et2.entry_id
+           AND e2._deleted IS NULL
+          WHERE et2.tag_id = t._id
+      );
     """,
 )
 
@@ -345,7 +239,6 @@ def register_pg_entities(allow):
             shelf_view,
             category_view,
             cabinet_view,
-            entry_view,
             tag_view,
         ]
     )

@@ -1,13 +1,13 @@
 from __future__ import annotations
 import uuid
-from typing import Optional, Any
+from typing import Optional
 
-from sqlalchemy import Integer, String , Enum as SQLEnum
+from sqlalchemy import Integer, String
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import TableBase, SCHEMA 
-from  .types import EntryTypeEnum , RealmMetaKeyEnum, EntryStatusEnum
+from  .types import  RealmMetaKeyEnum
 
 
 class RealmView(TableBase):
@@ -26,9 +26,7 @@ class RealmView(TableBase):
     realm_meta: Mapped[dict[RealmMetaKeyEnum, str]] = mapped_column(
         JSON, nullable=False, default=dict
     )
-    # Aggregated shelves with counts
-    shelves: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
-
+    shelf_count: Mapped[int] = mapped_column(Integer, default=0)
 
 class ShelfView(TableBase):
     """
@@ -45,19 +43,13 @@ class ShelfView(TableBase):
 
     # Aggregate fields
     category_count: Mapped[int] = mapped_column(Integer, default=0)
-    cabinet_count: Mapped[int] = mapped_column(Integer, default=0)
-    entry_count: Mapped[int] = mapped_column(Integer, default=0)
-
-    # Aggregated child categories
-    categories: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
-
 
 class CategoryView(TableBase):
     """
     Category view with cabinet and entry count.
     """
 
-    __tablename__ = "_category"
+    __tablename__ = "_category" 
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
@@ -68,11 +60,6 @@ class CategoryView(TableBase):
 
     # Aggregate fields
     cabinet_count: Mapped[int] = mapped_column(Integer, default=0)
-    entry_count: Mapped[int] = mapped_column(Integer, default=0)
-
-    # Aggregated child cabinets
-    cabinets: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
-
 
 class CabinetView(TableBase):
     """
@@ -88,50 +75,37 @@ class CabinetView(TableBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
-    # Aggregate fields
     entry_count: Mapped[int] = mapped_column(Integer, default=0)
-
-    # Aggregated child entries
-    entries: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
-
 
 class EntryView(TableBase):
     """
-    Entry view aligned with entry table columns plus tags aggregation.
+    Entry view.
     """
 
     __tablename__ = "_entry"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
+    realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     cabinet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    path: Mapped[str] = mapped_column(String(2048), nullable=False)
-    name: Mapped[str] = mapped_column(String(512), nullable=False)
-    type: Mapped[EntryTypeEnum] = mapped_column(
-        SQLEnum(EntryTypeEnum, name="entrytypeenum", schema=SCHEMA), nullable=False
-    )
-    media_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
-    status: Mapped[EntryStatusEnum] = mapped_column(
-        SQLEnum(EntryStatusEnum, name="entrystatusenum", schema=SCHEMA),
-        nullable=False,
-    )
-    parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)
+    code: Mapped[str] = mapped_column(String(20), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
-    tags: Mapped[Any] = mapped_column(JSON, nullable=False)
+    tags : Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
 
 
 class TagView(TableBase):
     """
-    Tag view — globally shared tags with aggregated entry list.
+    Tag view. Supports optional filtering by cabinet via _tag view rows.
     """
 
     __tablename__ = "_tag"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    cabinet_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    entries: Mapped[Any] = mapped_column(JSON, nullable=False)

@@ -11,6 +11,19 @@ class RFXDocmanDomain(Domain):
     __statemgr__ = RFXDocmanStateManager
     __logstore__ = SQLDomainLogStore
 
-
-class DocmanResponse(RFXDocmanDomain.Response):
+class RealmResponse(RFXDocmanDomain.Response):
+    pass
+class RealmMetaResponse(RFXDocmanDomain.Response):
+    pass
+class ShelfResponse(RFXDocmanDomain.Response):
+    pass
+class CategoryResponse(RFXDocmanDomain.Response):
+    pass
+class CabinetResponse(RFXDocmanDomain.Response):
+    pass
+class EntryResponse(RFXDocmanDomain.Response):
+    pass
+class TagResponse(RFXDocmanDomain.Response):
+    pass
+class EntryTagResponse(RFXDocmanDomain.Response):
     pass

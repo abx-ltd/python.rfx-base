@@ -32,6 +32,6 @@ class TagScopeSchema(BaseModel):
     cabinet_id: Optional[UUID_TYPE] = Field(
         default=None, description="Filter tags by cabinet ID"
     )
-    realm_id : Optional[UUID_TYPE] = Field(
-        default=None , description="Filter tags by realm ID"
+    realm_id: Optional[UUID_TYPE] = Field(
+        default=None, description="Filter tags by realm ID"
     )

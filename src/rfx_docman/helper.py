@@ -60,11 +60,11 @@ async def move_folder_descendants(
            AND (parent_path = $3 OR parent_path LIKE $6)
            AND _deleted IS NULL
         """,
-        new_path,  # $1  direct children
-        new_prefix,  # $2  deep descendants prefix
-        old_path,  # $3  equality match
-        old_prefix_len,  # $4  SUBSTR offset
-        entry.cabinet_id,  # $5
-        f"{old_prefix}%",  # $6  prefix scan
+        new_path,              # $1  direct children
+        new_prefix,            # $2  deep descendants prefix
+        old_path,              # $3  equality match
+        old_prefix_len,        # $4  SUBSTR offset
+        entry.cabinet_id,      # $5
+        f"{old_prefix}%",      # $6  prefix scan
         unwrapper=None,
     )
