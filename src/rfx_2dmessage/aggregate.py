@@ -1,6 +1,7 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR, UUID_TYPE
+from fluvius.error import BadRequestError
 from typing import Optional, Dict, Any
 from .types import RenderStatusEnum
 
@@ -410,6 +411,8 @@ class RFX2DMessageAggregate(Aggregate):
 
     @action("create-category", resources="category")
     async def create_category(self, data, profile_id):
+
+        
         category = self.init_resource(
             "category",
             serialize_mapping(data),
@@ -420,16 +423,143 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.insert(category)
 
         return category
-    
-    @action("add-message-to-category", resources="category")
-    async def add_message_to_category(self, data, profile_id):
-        message_category = self.init_resource(
+
+    @action("remove-category", resources="category")
+    async def remove_category(self, category_id, profile_id):
+        # Remove category by category_id and profile_id
+        category = await self.statemgr.find_one(
+            "category",
+            where={"_id": category_id, "profile_id": profile_id},
+        )
+        await self.statemgr.invalidate(category)
+
+        # Delete all message-category associations for this category
+        message_category = await self.statemgr.find_all(
             "message_category",
+            where={"category_id": category_id}
+        )
+        for mc in message_category:
+            await self.statemgr.invalidate(mc)
+
+    @action("create-mailbox", resources="mailbox")
+    async def create_mailbox(self, data, profile_id):
+        mailbox = self.init_resource(
+            "mailbox",
             serialize_mapping(data),
             _id=UUID_GENR(),
-            profile_id=profile_id
+            profile_id=profile_id,
         )
 
-        await self.statemgr.insert(message_category)
+        await self.statemgr.insert(mailbox)
 
-        return message_category
+        return mailbox
+
+    @action("remove-mailbox", resources="mailbox")
+    async def remove_mailbox(self, mailbox_id, profile_id):
+        mailbox = await self.statemgr.find_one(
+            "mailbox",
+            where={"_id": mailbox_id, "profile_id": profile_id},
+        )
+        await self.statemgr.invalidate(mailbox)
+
+        mailbox_messages = await self.statemgr.find_all(
+            "mailbox_message",
+            where={"mailbox_id": mailbox_id},
+        )
+        for m in mailbox_messages:
+            await self.statemgr.invalidate(m)
+
+        return mailbox
+
+    @action("create-mailbox-message", resources="mailbox")
+    async def create_mailbox_message(self, data, mailbox_id, profile_id):
+        message_id = data.get("message_id")
+        if not message_id:
+            raise BadRequestError("D00.452", "message_id is required for mailbox_message")
+
+        source = data.get("source")
+        source_id = data.get("source_id")
+        if source and source_id:
+            existing = await self.statemgr.exist(
+                "mailbox_message",
+                where={"mailbox_id": mailbox_id, "source": source, "source_id": source_id, "_deleted": None},
+            )
+            if existing:
+                raise BadRequestError(
+                    "D00.451",
+                    f"Mailbox message already exists for source={source} source_id={source_id}"
+                )
+
+        mailbox_message = self.init_resource(
+            "mailbox_message",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+            mailbox_id=mailbox_id,
+            profile_id=profile_id,
+        )
+
+        await self.statemgr.insert(mailbox_message)
+
+        return mailbox_message
+
+    @action("remove-mailbox-message", resources="mailbox")
+    async def remove_mailbox_message(self, mailbox_message_id, profile_id):
+        mailbox_message = await self.statemgr.find_one(
+            "mailbox_message",
+            where={"_id": mailbox_message_id, "profile_id": profile_id},
+        )
+        await self.statemgr.invalidate(mailbox_message)
+
+        return mailbox_message
+
+    @action("add-message-to-category", resources="category")
+    async def add_message_to_category(self, data, category_id, profile_id):
+        messages = data.pop("message_id", [])
+
+        categories = await self.statemgr.find_all(
+            "category",
+            where={"profile_id": profile_id, "_deleted": None},
+        )
+
+        message_category_exists = []
+        
+        for message_id in messages:
+            # Check if message is already in any category for this profile (non-deleted)
+            # First, find all categories for this profile
+            mc_exist = False
+            for cat in categories:
+                # Then check if message is associated with any of these categories
+                existing_mc = await self.statemgr.exist(
+                    "message_category",
+                    where={"message_id": message_id, "category_id": cat._id, "_deleted": None},
+                )
+                if existing_mc:
+                    message_category_exists.append(message_id)
+                    mc_exist = True
+                    break
+                    # raise BadRequestError("D00.450", f"Message {message_id} is already assigned to a category for this profile. A message can only belong to one category per profile.")
+
+            if mc_exist:
+                continue
+
+            mc_data = self.init_resource(
+                "message_category",
+                _id=UUID_GENR(),
+                message_id=message_id,
+                category_id=category_id
+            )
+
+            await self.statemgr.insert(mc_data)
+        
+        if len(message_category_exists) > 0:
+            return {
+                "message_category_exists": message_category_exists,
+                "message_category_added": list(set(messages) - set(message_category_exists))
+            }
+        else:
+            return {
+                "message_category_added": messages
+            }
+        
+    # @action("remove-message-from-category", resource="category")
+    # async def 

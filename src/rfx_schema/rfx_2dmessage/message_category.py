@@ -7,7 +7,10 @@ from sqlalchemy import (
     Enum as SQLEnum,
     ForeignKey,
     String,
-    Index
+    Index,
+    UniqueConstraint,
+    Text,
+    text
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,11 +19,16 @@ from . import TableBase, SCHEMA
 from .types import DirectionTypeEnum
 
 class Category(TableBase):
+    __tablename__ = "category"
+    __table_args__ = (
+        UniqueConstraint(
+            "profile_id", "key", "_deleted", name="idx_category_profile_id_key_deleted"
+        ),
+        {"schema": SCHEMA},
+    )
 
-    __table_name__ = "category"
-
-    key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    name: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
+    key: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(1024), nullable=False)
     profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
 
     messages: Mapped[List["MessageCategory"]] = relationship(
@@ -29,9 +37,11 @@ class Category(TableBase):
 
 
 class MessageCategory(TableBase):
-    __table_name__ = "message_category"
+    __tablename__ = "message_category"
     __table_args__ = (
-        Index("message_id", "category_id", unique=True),
+        Index("idx_message_category_unique","message_id", "category_id", unique=True, postgresql_where=text("_deleted = null"),),
+        {"schema": SCHEMA},
+        
     )
 
     message_id: Mapped[uuid.UUID] = mapped_column(

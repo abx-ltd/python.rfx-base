@@ -1,7 +1,7 @@
 """
 RFX Message Domain Type Definitions (Schema Layer)
 
-This module mirrors the enums declared in ``rfx_message.types`` so we can
+This module mirrors the enums declared in ``rfx_2dmessage.types`` so we can
 reference them inside the schema package (Alembic, metadata reflection)
 without importing the full service layer.
 """
@@ -95,3 +95,20 @@ class MessageCategoryEnum(Enum):
     IMPORTANT = "IMPORTANT"
     URGENT = "URGENT"
     INFORMATION = "INFORMATION"
+
+
+class MailBoxTypeEnum(Enum):
+    EMAIL = "EMAIL"
+    SMS = "SMS"
+    NOTIFICATION = "NOTIFICATION"
+    SOCIAL_MEDIA = "SOCIAL_MEDIA"
+    SYSTEM = "SYSTEM"
+    WEBHOOK = "WEBHOOK"
+    WORK = "WORK"
+
+class MailBoxMessageStatusTypeEnum(Enum):
+    NEW = "NEW"
+    IN_PROGRESS = "IN_PROGRESS"
+    PENDING = "PENDING"
+    DONE = "DONE"
+    

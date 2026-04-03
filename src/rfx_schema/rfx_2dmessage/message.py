@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from .message_recipient import MessageRecipient
     from .message_reference import MessageReference
     from .message_sender import MessageSender
+    from .mailbox import MailboxMessage
 
 
 class Message(TableBase):
@@ -132,3 +133,8 @@ class Message(TableBase):
     references: Mapped[List["MessageReference"]] = relationship(
         back_populates="message", cascade="all, delete-orphan"
     )
+    mailbox_message: Mapped[Optional["MailboxMessage"]] = relationship(
+        back_populates="message", uselist=False
+    )
+    # Alias for compatibility: each Message has at most one MailboxMessage
+    mailbox_messages: Mapped[Optional["MailboxMessage"]] = mailbox_message

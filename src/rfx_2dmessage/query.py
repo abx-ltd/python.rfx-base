@@ -42,4 +42,27 @@ class MessageSenderQuery(DomainQueryResource):
     box_name: str = StringField("box_name")
     is_archived: bool = BooleanField("is_archived")
     is_starred: bool = BooleanField("is_starred")
+
+
+@resource("mailbox-message")
+class MailboxMessageQuery(DomainQueryResource):
+    class Meta(DomainQueryResource.Meta):
+        include_all = False
+        allow_meta_view = True
+        allow_item_view = True
+        allow_list_view = True
+
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+
+        backend_model = "mailbox_message"
+
+    mailbox_id: str = UUIDField("mailbox_id")
+    source: Optional[str] = StringField("source")
+    source_id: Optional[str] = StringField("source_id")
+    category_id: Optional[str] = UUIDField("category_id")
+    direction: Optional[str] = StringField("direction")
+    status: Optional[str] = StringField("status")
+    subject: Optional[str] = StringField("subject")
+    body: Optional[str] = StringField("body")
+    profile_id: str = UUIDField("profile_id")
     sender_profile: Optional[Dict[str, Any]] = JSONField("sender_profile")

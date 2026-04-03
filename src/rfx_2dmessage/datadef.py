@@ -187,10 +187,49 @@ class CreateCategoryPayload(DataModel):
     key: Optional[str] = Field(None, description="Key of category")
     name: str = Field(..., description="Name of the category" )
 
+
+class CreateMailboxPayload(DataModel):
+    """Payload for creating a new mailbox"""
+    name: str = Field(..., description="Display name of the mailbox")
+    channel: Optional[str] = Field(..., description="Channel identifier (email/webhook/etc)")
+    telecom_phone: Optional[str] = Field(None, description="Phone number for SMS mailbox")
+    telecom_email: Optional[str] = Field(None, description="Email address for mailbox")
+    description: Optional[str] = Field(None, description="Optional description")
+    resource: Optional[str] = Field(None, description="External resource source key")
+    url: Optional[str] = Field(None, description="Callback or service URL")
+    mailbox_type: Optional[str] = Field(None, description="Type of mailbox (EMAIL,SMS,NOTIFICATION etc)")
+
+
+class UpdateMailboxPayload(DataModel):
+    """Payload for update mailbox"""
+    name: Optional[str] = Field(None, description="Display name of the mailbox")
+    channel: Optional[str] = Field(None, description="Channel identifier (email/webhook/etc)")
+    telecom_phone: Optional[str] = Field(None, description="Phone number for SMS mailbox")
+    telecom_email: Optional[str] = Field(None, description="Email address for mailbox")
+    description: Optional[str] = Field(None, description="Optional description")
+    resource: Optional[str] = Field(None, description="External resource source key")
+    url: Optional[str] = Field(None, description="Callback or service URL")
+    mailbox_type: Optional[str] = Field(None, description="Type of mailbox (EMAIL,SMS,NOTIFICATION etc)")
+
+
+class CreateMailboxMessagePayload(DataModel):
+    """Payload for adding a mailbox message"""
+    message_id: UUID_TYPE = Field(..., description="Message id from canonical message table")
+    source: Optional[str] = Field(None, description="Source channel alias")
+    source_id: Optional[str] = Field(None, description="External message id")
+    category_id: Optional[UUID_TYPE] = Field(None, description="Associated category")
+    direction: Optional[str] = Field("INBOUND", description="INBOUND or OUTBOUND")
+    status: Optional[str] = Field("NEW", description="Message status")
+
+
 class AddMessageCategoryPayload(DataModel):
-    """Payload for add message to a category"""
-    message_id: UUID_TYPE = Field(..., description="ID of the message")
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to remove: INBOUND (inbox) or OUTBOUND (outbox). If None, remove both if user sent to themselves.",
-    )
+    """Payload for add messages to a category"""
+    message_id: List[UUID_TYPE] = Field(..., description="IDs of the messages")
+    # direction: Optional[DirectionTypeEnum] = Field(
+    #     default=DirectionTypeEnum.INBOUND,
+    #     description="Direction to remove: INBOUND (inbox) or OUTBOUND (outbox). If None, remove both if user sent to themselves.",
+    # )
+
+class RemoveMessageCategoryPayload(DataModel):
+    """Payload for remove a message from a category"""
+    message_id: List[UUID_TYPE] = Field(..., description="IDs of the messages")

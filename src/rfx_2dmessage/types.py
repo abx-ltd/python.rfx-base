@@ -145,3 +145,15 @@ class MessageCategoryEnum(str, Enum):
     IMPORTANT = "IMPORTANT"  # Important messages requiring attention
     URGENT = "URGENT"  # Urgent messages requiring immediate action
     INFORMATION = "INFORMATION"  # Informational messages for reference
+
+class MailBoxTypeEnum(str, Enum):
+    """
+    Mailbox type classifications for categorizing message mailboxes.
+    """
+
+    EMAIL = "EMAIL"
+    SMS = "SMS"
+    NOTIFICATION = "NOTIFICATION"
+    SOCIAL_MEDIA = "SOCIAL_MEDIA"
+    SYSTEM = "SYSTEM"
+    WEBHOOK = "WEBHOOK"
