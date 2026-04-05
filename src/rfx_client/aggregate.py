@@ -246,9 +246,16 @@ class RFXClientAggregate(Aggregate):
             project_work_item_data.pop("organization_id", None)
             project_work_item_data.pop("estimate", None)  # Remove timedelta to avoid JSON serialization error
 
+            # Remove credit and unit fields not in project_work_item
+            project_work_item_data.pop("estimated_credits", None)
+            project_work_item_data.pop("actual_credits_consumed", None)
+            project_work_item_data.pop("actual_units_consumed", None)
+            project_work_item_data.pop("estimated_units", None)
+
             project_work_item_id = UUID_GENR()
             project_work_item_data["_id"] = project_work_item_id
             project_work_item_data["project_id"] = project._id
+
 
             project_work_items_batch.append(project_work_item_data)
 
@@ -288,15 +295,15 @@ class RFXClientAggregate(Aggregate):
             project_wp_work_items_batch.append(project_wp_work_item_data)
 
         if project_work_items_batch:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "project_work_item", *project_work_items_batch
             )
         if project_deliverables_batch:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "project_work_item_deliverable", *project_deliverables_batch
             )
         if project_wp_work_items_batch:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "project_work_package_work_item", *project_wp_work_items_batch
             )
 
@@ -323,6 +330,15 @@ class RFXClientAggregate(Aggregate):
         pwp_data.pop("_created", None)
         pwp_data.pop("_updated", None)
         pwp_data.pop("_etag", None)
+
+        # Remove credit-related fields from project-level record
+        for key in [
+            "total_ar_credits", "total_de_credits", "total_op_credits",
+            "total_credits", "credits_consumed", "credits_remaining",
+            "method_calculated", "category"
+        ]:
+            pwp_data.pop(key, None)
+
         await self.statemgr.insert(self.init_resource("project_work_package", pwp_data))
 
         # --- STEP 3: Lấy các liên kết project-work-package-work-item ---
@@ -362,9 +378,16 @@ class RFXClientAggregate(Aggregate):
             data_pwi.pop("_updated", None)
             data_pwi.pop("_etag", None)
             data_pwi.pop("estimate", None)  # Remove timedelta to avoid JSON serialization error
+
+            # Remove credit and unit fields not in project_work_item
+            data_pwi.pop("estimated_credits", None)
+            data_pwi.pop("actual_credits_consumed", None)
+            data_pwi.pop("actual_units_consumed", None)
+            data_pwi.pop("estimated_units", None)
+
             new_pwis.append(data_pwi)
         if new_pwis:
-            await self.statemgr.insert_many("project_work_item", *new_pwis)
+            await self.statemgr.insert_data("project_work_item", *new_pwis)
 
         # --- STEP 8: Clone project-work-item-deliverable ---
         new_deliverables = []
@@ -378,7 +401,7 @@ class RFXClientAggregate(Aggregate):
             data_d.pop("_etag", None)
             new_deliverables.append(data_d)
         if new_deliverables:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "project_work_item_deliverable", *new_deliverables
             )
 
@@ -395,7 +418,7 @@ class RFXClientAggregate(Aggregate):
             data_l.pop("_etag", None)
             new_links.append(data_l)
         if new_links:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "project_work_package_work_item", *new_links
             )
 
@@ -466,6 +489,12 @@ class RFXClientAggregate(Aggregate):
             data_pwi.pop("organization_id", None)
             data_pwi.pop("estimate", None)  # Remove timedelta to avoid JSON serialization error
 
+            # Remove credit and unit fields not in project_work_item
+            data_pwi.pop("estimated_credits", None)
+            data_pwi.pop("actual_credits_consumed", None)
+            data_pwi.pop("actual_units_consumed", None)
+            data_pwi.pop("estimated_units", None)
+
             new_pwi_id = UUID_GENR()
             data_pwi["_id"] = new_pwi_id
             data_pwi["project_id"] = None
@@ -501,15 +530,15 @@ class RFXClientAggregate(Aggregate):
 
         # --- STEP 6: Insert batch ---
         if project_work_items_batch:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "project_work_item", *project_work_items_batch
             )
         if project_deliverables_batch:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "project_work_item_deliverable", *project_deliverables_batch
             )
         if project_wp_work_items_batch:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "project_work_package_work_item", *project_wp_work_items_batch
             )
 
@@ -818,7 +847,7 @@ class RFXClientAggregate(Aggregate):
             new_wp_items_batch.append(wp_item_data)
 
         if new_wp_items_batch:
-            await self.statemgr.insert_many(
+            await self.statemgr.insert_data(
                 "work_package_work_item", *new_wp_items_batch
             )
 
