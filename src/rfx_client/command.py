@@ -1642,7 +1642,10 @@ class AddWorkItemToWorkPackage(Command):
     async def _process(self, agg, stm, payload):
         result = await agg.add_work_item_to_work_package(payload.work_item_id)
         yield agg.create_response(
-            {"status": "OK", **serialize_mapping(result)}, _type="work-package-response"
+            {
+                "status": "OK",
+                **serialize_mapping(result)
+            }, _type="work-package-response"
         )
 
 
