@@ -1635,14 +1635,14 @@ class AddWorkItemToWorkPackage(Command):
         resources = ("work_package",)
         tags = ["work-package", "work-item", "add"]
         policy_required = True
-        response_key = "work-package-work-item-response"
+        # response_key = "work-package-work-item-response"
 
     Data = datadef.AddWorkItemToWorkPackagePayload
 
     async def _process(self, agg, stm, payload):
         result = await agg.add_work_item_to_work_package(payload.work_item_id)
         yield agg.create_response(
-            serialize_mapping(result), _type="work-package-work-item-response"
+            serialize_mapping(result), _type="work-package-response"
         )
 
 
