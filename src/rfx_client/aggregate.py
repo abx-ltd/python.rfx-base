@@ -942,7 +942,11 @@ class RFXClientAggregate(Aggregate):
         """Add work item to work package"""
         work_package = self.rootobj
         data = {"work_package_id": work_package._id, "work_item_id": work_item_id}
-        record = self.init_resource("work_package_work_item", serialize_mapping(data))
+        record = self.init_resource(
+            "work_package_work_item",
+            serialize_mapping(data),
+            _id=UUID_GENR()
+        )
         await self.statemgr.insert(record)
         return record
 
