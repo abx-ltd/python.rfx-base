@@ -847,18 +847,18 @@ class AddProjectMember(Command):
         result = await agg.add_project_member(
             member_id=payload.member_id, role=payload.role
         )
-
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} added a member",
-            msglabel="add-member-to-project",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "member_id": result.member_id,
-                "role": result.role,
-                "created_by": f"{profile.name__given} {profile.name__family}",
-            },
-        )
+        if result:
+            yield agg.create_activity(
+                logroot=agg.get_aggroot(),
+                message=f"{profile.name__given} {profile.name__family} added a member",
+                msglabel="add-member-to-project",
+                msgtype=ActivityType.USER_ACTION,
+                data={
+                    "member_id": result.member_id,
+                    "role": result.role,
+                    "created_by": f"{profile.name__given} {profile.name__family}",
+                },
+            )
 
         yield agg.create_response(
             {"status": "OK"}, _type="project-response"
