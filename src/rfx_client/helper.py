@@ -16,8 +16,11 @@ async def get_project_member_user_ids(stm, project_id: str) -> tuple[list[str], 
         List of user IDs for all project members
     """
     project_data = await stm.find_one("_project", where=dict(_id=project_id))
-    member_ids = project_data.members if hasattr(project_data, "members") else []
-    members = await stm.get_profiles(member_ids) if member_ids else []
+    member_ids = [m for m in project_data.members if m] if project_data.members else []
+    if member_ids:
+        members = await stm.get_profiles(member_ids)
+    else:
+        members = []
     user_ids = [member.user_id for member in members]
     return user_ids, project_data
 
