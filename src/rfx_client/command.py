@@ -860,12 +860,15 @@ class AddProjectMember(Command):
             },
         )
 
-        user_ids, project = await get_project_member_user_ids(
-            stm, agg.get_aggroot().identifier
+        yield agg.create_response(
+            {"status": "OK"}, _type="project-response"
         )
-        member = await stm.get_profile(payload.member_id)
 
         if config.MESSAGE_ENABLED:
+            user_ids, project = await get_project_member_user_ids(
+                stm, agg.get_aggroot().identifier
+            )
+            member = await stm.get_profile(payload.member_id)
             context = agg.get_context()
             service_proxy = context.service_proxy
             logger.info(f"service proxy: {service_proxy}")
