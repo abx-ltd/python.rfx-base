@@ -665,6 +665,15 @@ class RFXClientAggregate(Aggregate):
     @action("member-added", resources="project")
     async def add_project_member(self, /, member_id: str, role: str):
         project = self.rootobj
+        exist_member = await self.statemgr.exist(
+            "project_member",
+            where=dict(
+                member_id=member_id,
+                project_id=project._id,
+                role=role
+            ))
+        if exist_member:
+            return None
 
         """Add member to project"""
         record = self.init_resource(
