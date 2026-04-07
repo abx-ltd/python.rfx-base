@@ -47,7 +47,7 @@ WITH thread_agg AS (
              JOIN {config.RFX_2DMESSAGE_SCHEMA}.message m ON m._id = r.message_id
              JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_sender s ON s.message_id = m._id AND s._deleted IS NULL
              LEFT JOIN thread_agg ta ON ta.thread_id = m.thread_id
-             LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_box mb ON mb._id = r.box_id AND mb._deleted IS NULL
+            #  LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_box mb ON mb._id = r.box_id AND mb._deleted IS NULL
              LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_tag mt ON mt.resource::text = 'message_recipient'::text AND mt.resource_id = r._id AND mt._deleted IS NULL
              LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t ON t._id = mt.tag_id AND t._deleted IS NULL
              LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp ON sp._id = s.sender_id AND sp._deleted IS NULL

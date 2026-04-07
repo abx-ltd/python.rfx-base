@@ -41,10 +41,20 @@ class DirectionTypeEnum(Enum):
     INBOUND = "INBOUND"
     OUTBOUND = "OUTBOUND"
 
+class ExecutionModeEnum(Enum):
+    API = "API"
+    EMBED = "EMBED"
 
 class ActionTypeEnum(Enum):
-    HTTP = "HTTP"
-    LINK = "LINK"
+    FORM = "FORM"
+    ATOMIC = "ATOMIC"
+    EMBEDDED = "EMBEDDED"
+
+class ActionExecutionStatus(Enum):
+    PENDING = "PENDING"
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"
+    CANCEL = "CANCEL"
 
 
 class HTTPMethodEnum(Enum):

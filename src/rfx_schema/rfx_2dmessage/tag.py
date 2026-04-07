@@ -11,6 +11,7 @@ service stack.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
+import uuid
 
 from sqlalchemy import (
     String,
@@ -50,3 +51,22 @@ class Tag(TableBase):
         ),
         {"schema": SCHEMA},
     )
+
+class MessageTag(TableBase):
+    __tablename__ = "message_tag"
+    __table_args__ = {"schema": SCHEMA}
+
+    resource: Mapped[str] = mapped_column(String(255))
+    resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    tag_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "resource",
+            "resource_id",
+            "tag_id",
+            "_deleted",
+            name="uix_message_tag_deleted",
+        ),
+    )
+

@@ -30,6 +30,9 @@ class Category(TableBase):
     key: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(1024), nullable=False)
     profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    mailbox_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.mailbox._id"), nullable=True
+    )
 
     messages: Mapped[List["MessageCategory"]] = relationship(
         back_populates="category", cascade="all, delete-orphan"

@@ -42,7 +42,6 @@ if TYPE_CHECKING:
     from .message_recipient import MessageRecipient
     from .message_reference import MessageReference
     from .message_sender import MessageSender
-    from .mailbox import MailboxMessage
 
 
 class Message(TableBase):
@@ -50,7 +49,7 @@ class Message(TableBase):
 
     __tablename__ = "message"
 
-    thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    # thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     # parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
     subject: Mapped[Optional[str]] = mapped_column(String(1024))
@@ -80,34 +79,34 @@ class Message(TableBase):
     message_type: Mapped[Optional[MessageTypeEnum]] = mapped_column(
         SQLEnum(MessageTypeEnum, name="messagetypeenum", schema=SCHEMA)
     )
-    delivery_status: Mapped[DeliveryStatusEnum] = mapped_column(
-        SQLEnum(DeliveryStatusEnum, name="deliverystatusenum", schema=SCHEMA),
-        default=DeliveryStatusEnum.PENDING,
-        nullable=False,
-    )
+    # delivery_status: Mapped[DeliveryStatusEnum] = mapped_column(
+    #     SQLEnum(DeliveryStatusEnum, name="deliverystatusenum", schema=SCHEMA),
+    #     default=DeliveryStatusEnum.PENDING,
+    #     nullable=False,
+    # )
 
-    data: Mapped[dict] = mapped_column(JSONB, default=dict)
-    context: Mapped[dict] = mapped_column(JSONB, default=dict)
-    category: Mapped[Optional[MessageCategoryEnum]] = mapped_column(
-        SQLEnum(MessageCategoryEnum, name="messagecategoryenum", schema=SCHEMA)
-    )
+    # data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # context: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # category: Mapped[Optional[MessageCategoryEnum]] = mapped_column(
+    #     SQLEnum(MessageCategoryEnum, name="messagecategoryenum", schema=SCHEMA)
+    # )
 
-    template_key: Mapped[Optional[str]] = mapped_column(String(255))
-    template_version: Mapped[Optional[int]]
-    template_locale: Mapped[Optional[str]] = mapped_column(String(10))
-    template_engine: Mapped[Optional[str]] = mapped_column(String(32))
-    template_data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # template_key: Mapped[Optional[str]] = mapped_column(String(255))
+    # template_version: Mapped[Optional[int]]
+    # template_locale: Mapped[Optional[str]] = mapped_column(String(10))
+    # template_engine: Mapped[Optional[str]] = mapped_column(String(32))
+    # template_data: Mapped[dict] = mapped_column(JSONB, default=dict)
 
-    render_strategy: Mapped[Optional[RenderStrategyEnum]] = mapped_column(
-        SQLEnum(RenderStrategyEnum, name="renderstrategyenum", schema=SCHEMA)
-    )
-    render_status: Mapped[Optional[RenderStatusEnum]] = mapped_column(
-        SQLEnum(RenderStatusEnum, name="renderstatusenum", schema=SCHEMA)
-    )
-    rendered_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
-    )
-    render_error: Mapped[Optional[str]] = mapped_column(Text)
+    # render_strategy: Mapped[Optional[RenderStrategyEnum]] = mapped_column(
+    #     SQLEnum(RenderStrategyEnum, name="renderstrategyenum", schema=SCHEMA)
+    # )
+    # render_status: Mapped[Optional[RenderStatusEnum]] = mapped_column(
+    #     SQLEnum(RenderStatusEnum, name="renderstatusenum", schema=SCHEMA)
+    # )
+    # rendered_at: Mapped[Optional[datetime]] = mapped_column(
+    #     DateTime(timezone=True), default=datetime.utcnow
+    # )
+    # render_error: Mapped[Optional[str]] = mapped_column(Text)
 
     actions: Mapped[List["MessageAction"]] = relationship(
         back_populates="message", cascade="all, delete-orphan"
@@ -133,8 +132,4 @@ class Message(TableBase):
     references: Mapped[List["MessageReference"]] = relationship(
         back_populates="message", cascade="all, delete-orphan"
     )
-    mailbox_message: Mapped[Optional["MailboxMessage"]] = relationship(
-        back_populates="message", uselist=False
-    )
-    # Alias for compatibility: each Message has at most one MailboxMessage
-    mailbox_messages: Mapped[Optional["MailboxMessage"]] = mailbox_message
+

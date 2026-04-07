@@ -471,46 +471,46 @@ class RFX2DMessageAggregate(Aggregate):
 
         return mailbox
 
-    @action("create-mailbox-message", resources="mailbox")
-    async def create_mailbox_message(self, data, mailbox_id, profile_id):
-        message_id = data.get("message_id")
-        if not message_id:
-            raise BadRequestError("D00.452", "message_id is required for mailbox_message")
+    # @action("create-mailbox-message", resources="mailbox")
+    # async def create_mailbox_message(self, data, mailbox_id, profile_id):
+    #     message_id = data.get("message_id")
+    #     if not message_id:
+    #         raise BadRequestError("D00.452", "message_id is required for mailbox_message")
 
-        source = data.get("source")
-        source_id = data.get("source_id")
-        if source and source_id:
-            existing = await self.statemgr.exist(
-                "mailbox_message",
-                where={"mailbox_id": mailbox_id, "source": source, "source_id": source_id, "_deleted": None},
-            )
-            if existing:
-                raise BadRequestError(
-                    "D00.451",
-                    f"Mailbox message already exists for source={source} source_id={source_id}"
-                )
+    #     source = data.get("source")
+    #     source_id = data.get("source_id")
+    #     if source and source_id:
+    #         existing = await self.statemgr.exist(
+    #             "mailbox_message",
+    #             where={"mailbox_id": mailbox_id, "source": source, "source_id": source_id, "_deleted": None},
+    #         )
+    #         if existing:
+    #             raise BadRequestError(
+    #                 "D00.451",
+    #                 f"Mailbox message already exists for source={source} source_id={source_id}"
+    #             )
 
-        mailbox_message = self.init_resource(
-            "mailbox_message",
-            serialize_mapping(data),
-            _id=UUID_GENR(),
-            mailbox_id=mailbox_id,
-            profile_id=profile_id,
-        )
+    #     mailbox_message = self.init_resource(
+    #         "mailbox_message",
+    #         serialize_mapping(data),
+    #         _id=UUID_GENR(),
+    #         mailbox_id=mailbox_id,
+    #         profile_id=profile_id,
+    #     )
 
-        await self.statemgr.insert(mailbox_message)
+    #     await self.statemgr.insert(mailbox_message)
 
-        return mailbox_message
+    #     return mailbox_message
 
-    @action("remove-mailbox-message", resources="mailbox")
-    async def remove_mailbox_message(self, mailbox_message_id, profile_id):
-        mailbox_message = await self.statemgr.find_one(
-            "mailbox_message",
-            where={"_id": mailbox_message_id, "profile_id": profile_id},
-        )
-        await self.statemgr.invalidate(mailbox_message)
+    # @action("remove-mailbox-message", resources="mailbox")
+    # async def remove_mailbox_message(self, mailbox_message_id, profile_id):
+    #     mailbox_message = await self.statemgr.find_one(
+    #         "mailbox_message",
+    #         where={"_id": mailbox_message_id, "profile_id": profile_id},
+    #     )
+    #     await self.statemgr.invalidate(mailbox_message)
 
-        return mailbox_message
+    #     return mailbox_message
 
     @action("add-message-to-category", resources="category")
     async def add_message_to_category(self, data, category_id, profile_id):

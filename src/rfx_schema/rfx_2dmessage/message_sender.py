@@ -31,30 +31,9 @@ class MessageSender(TableBase):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message._id"), nullable=False
     )
 
-    box_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message_box._id")
-    )
     direction: Mapped[Optional[DirectionTypeEnum]] = mapped_column(
         SQLEnum(DirectionTypeEnum, name="directiontypeenum", schema=SCHEMA),
         default=DirectionTypeEnum.OUTBOUND,
     )
 
     message: Mapped["Message"] = relationship(back_populates="senders")
-    box: Mapped[Optional["MessageBox"]] = relationship(back_populates="senders")
-
-    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_starred: Mapped[bool] = mapped_column(Boolean, default=False)
-
-
-class MessageSenderAction(TableBase):
-    __tablename__ = "message_sender_action"
-
-    message_sender_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message_sender._id"), nullable=False
-    )
-
-    action_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message_action._id"), nullable=False
-    )
-
-    response: Mapped[dict] = mapped_column(JSON, default=dict)

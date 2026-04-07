@@ -52,44 +52,44 @@ class RemoveMailbox(Command):
         )
 
 
-class CreateMailboxMessage(Command):
-    Data = datadef.CreateMailboxMessagePayload
+# class CreateMailboxMessage(Command):
+#     Data = datadef.CreateMailboxMessagePayload
 
-    class Meta:
-        key = "create-mailbox-message"
-        resources = ("mailbox",)
-        tags = ["mailbox", "message", "create"]
-        auth_required = True
+#     class Meta:
+#         key = "create-mailbox-message"
+#         resources = ("mailbox",)
+#         tags = ["mailbox", "message", "create"]
+#         auth_required = True
 
-    async def _process(self, agg, stm, payload):
-        mailbox_id = agg.get_aggroot().identifier
-        profile_id = agg.get_context().profile_id
+#     async def _process(self, agg, stm, payload):
+#         mailbox_id = agg.get_aggroot().identifier
+#         profile_id = agg.get_context().profile_id
 
-        result = await agg.create_mailbox_message(data=payload, mailbox_id=mailbox_id, profile_id=profile_id)
+#         result = await agg.create_mailbox_message(data=payload, mailbox_id=mailbox_id, profile_id=profile_id)
 
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
+#         yield agg.create_response(
+#             serialize_mapping(result),
+#             _type="message-response",
+#         )
 
 
-class RemoveMailboxMessage(Command):
-    class Meta:
-        key = "remove-mailbox-message"
-        resources = ("mailbox",)
-        tags = ["mailbox", "message", "remove"]
-        auth_required = True
+# class RemoveMailboxMessage(Command):
+#     class Meta:
+#         key = "remove-mailbox-message"
+#         resources = ("mailbox",)
+#         tags = ["mailbox", "message", "remove"]
+#         auth_required = True
 
-    async def _process(self, agg, stm, payload):
-        mailbox_message_id = agg.get_aggroot().identifier
-        profile_id = agg.get_context().profile_id
+#     async def _process(self, agg, stm, payload):
+#         mailbox_message_id = agg.get_aggroot().identifier
+#         profile_id = agg.get_context().profile_id
 
-        result = await agg.remove_mailbox_message(mailbox_message_id=mailbox_message_id, profile_id=profile_id)
+#         result = await agg.remove_mailbox_message(mailbox_message_id=mailbox_message_id, profile_id=profile_id)
 
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
+#         yield agg.create_response(
+#             serialize_mapping(result),
+#             _type="message-response",
+#         )
 
 # class SendMessage(Command):
 #     """
