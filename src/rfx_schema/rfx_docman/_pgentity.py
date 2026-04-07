@@ -1,6 +1,7 @@
 import os
 from rfx_schema import logger
 from rfx_base import config
+from rfx_schema.rfx_media import SCHEMA as MEDIA_SCHEMA
 
 from alembic_utils.pg_view import PGView
 from alembic_utils.replaceable_entity import register_entities
@@ -172,6 +173,75 @@ cabinet_view = PGView(
     """,
 )
 
+entry_view = PGView(
+    schema=config.RFX_DOCMAN_SCHEMA,
+    signature="_entry",
+    definition=f"""
+    SELECT
+        e._created,
+        e._creator,
+        e._etag,
+        e._id,
+        e._updated,
+        e._updater,
+        e._deleted,
+        e._realm,
+        cb.realm_id AS realm_id,
+        e.cabinet_id,
+        e.parent_path,
+        e.path,
+        e.name,
+        e.type,
+        e.status,
+        e.media_entry_id,
+        me.filename,
+        me.filehash,
+        me.filemime,
+        me.length,
+        me.resource,
+        me.resource__id,
+        COALESCE(
+            json_agg(t.name ORDER BY t.name) FILTER (WHERE t._id IS NOT NULL),
+            '[]'::json
+        ) AS tags
+    FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+    JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+      ON cb._id = e.cabinet_id
+     AND cb._deleted IS NULL
+    LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
+      ON et.entry_id = e._id
+     AND et._deleted IS NULL
+    LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".tag t
+      ON t._id = et.tag_id
+     AND t._deleted IS NULL
+    LEFT JOIN "{MEDIA_SCHEMA}"."media-entry" me
+      ON me._id = e.media_entry_id
+    WHERE e._deleted IS NULL
+    GROUP BY
+        e._created,
+        e._creator,
+        e._etag,
+        e._id,
+        e._updated,
+        e._updater,
+        e._realm,
+        cb.realm_id,
+        e.cabinet_id,
+        e.parent_path,
+        e.path,
+        e.name,
+        e.type,
+        e.status,
+        e.media_entry_id,
+        me.filename,
+        me.filehash,
+        me.filemime,
+        me.length,
+        me.resource,
+        me.resource__id;
+    """,
+)
+
 tag_view = PGView(
     schema=config.RFX_DOCMAN_SCHEMA,
     signature="_tag",
@@ -239,6 +309,7 @@ def register_pg_entities(allow):
             shelf_view,
             category_view,
             cabinet_view,
+            entry_view,
             tag_view,
         ]
     )

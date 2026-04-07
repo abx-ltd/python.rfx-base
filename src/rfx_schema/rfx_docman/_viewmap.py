@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from sqlalchemy import Integer, String
+from sqlalchemy import BigInteger, Integer, String
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -87,11 +87,25 @@ class EntryView(TableBase):
 
     realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     cabinet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    code: Mapped[str] = mapped_column(String(20), nullable=False)
+    parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)
+    path: Mapped[str] = mapped_column(String(2561), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    type: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    media_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
 
-    tags : Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
+    filename: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    filehash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    filemime: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    length: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    resource: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    resource__id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+    tags: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
 
 
 class TagView(TableBase):
