@@ -2,6 +2,7 @@ from fluvius.domain import Domain, SQLDomainLogStore
 
 from .aggregate import RFXDocmanAggregate
 from .state import RFXDocmanStateManager
+from .policy import RFXDocmanPolicyManager, RFXDocmanPolicy  # noqa
 from . import config
 
 
@@ -10,6 +11,7 @@ class RFXDocmanDomain(Domain):
     __aggregate__ = RFXDocmanAggregate
     __statemgr__ = RFXDocmanStateManager
     __logstore__ = SQLDomainLogStore
+    __policymgr__ = RFXDocmanPolicyManager
 
 class RealmResponse(RFXDocmanDomain.Response):
     pass
