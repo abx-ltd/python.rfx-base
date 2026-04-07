@@ -19,9 +19,9 @@ project_integration_table = Table("project_integration", schema=client_s)
 project_ticket_table = Table("project_ticket", schema=client_s)
 
 ticket_table = Table("ticket", schema=discussion_s)
-status_table = Table("status", schema=discussion_s)
-status_key_table = Table("status_key", schema=discussion_s)
-status_transition_table = Table("status_transition", schema=discussion_s)
+status_table = Table("status", schema=client_s)
+status_key_table = Table("status_key", schema=client_s)
+status_transition_table = Table("status_transition", schema=client_s)
 
 
 class RFXClientStateManager(DataAccessManager):

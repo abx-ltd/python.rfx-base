@@ -847,25 +847,28 @@ class AddProjectMember(Command):
         result = await agg.add_project_member(
             member_id=payload.member_id, role=payload.role
         )
+        if result:
+            yield agg.create_activity(
+                logroot=agg.get_aggroot(),
+                message=f"{profile.name__given} {profile.name__family} added a member",
+                msglabel="add-member-to-project",
+                msgtype=ActivityType.USER_ACTION,
+                data={
+                    "member_id": result.member_id,
+                    "role": result.role,
+                    "created_by": f"{profile.name__given} {profile.name__family}",
+                },
+            )
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"{profile.name__given} {profile.name__family} added a member",
-            msglabel="add-member-to-project",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "member_id": result.member_id,
-                "role": result.role,
-                "created_by": f"{profile.name__given} {profile.name__family}",
-            },
+        yield agg.create_response(
+            {"status": "OK"}, _type="project-response"
         )
-
-        user_ids, project = await get_project_member_user_ids(
-            stm, agg.get_aggroot().identifier
-        )
-        member = await stm.get_profile(payload.member_id)
 
         if config.MESSAGE_ENABLED:
+            user_ids, project = await get_project_member_user_ids(
+                stm, agg.get_aggroot().identifier
+            )
+            member = await stm.get_profile(payload.member_id)
             context = agg.get_context()
             service_proxy = context.service_proxy
             logger.info(f"service proxy: {service_proxy}")
@@ -1635,11 +1638,18 @@ class AddWorkItemToWorkPackage(Command):
         resources = ("work_package",)
         tags = ["work-package", "work-item", "add"]
         policy_required = True
+        # response_key = "work-package-work-item-response"
 
     Data = datadef.AddWorkItemToWorkPackagePayload
 
     async def _process(self, agg, stm, payload):
-        await agg.add_work_item_to_work_package(payload.work_item_id)
+        result = await agg.add_work_item_to_work_package(payload.work_item_id)
+        yield agg.create_response(
+            {
+                "status": "OK",
+                **serialize_mapping(result)
+            }, _type="work-package-response"
+        )
 
 
 class RemoveWorkItemFromWorkPackage(Command):
