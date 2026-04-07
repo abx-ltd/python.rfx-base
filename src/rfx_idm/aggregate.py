@@ -887,9 +887,10 @@ class IDMAggregate(Aggregate):
             raise ValueError("Cannot delete the currently active profile.")
         # First remove all role associations
         roles = await self.statemgr.find_all('profile_role', where=dict(profile_id=self.aggroot.identifier))
+        profile = self.rootobj
         for role in roles:
-            if role.role_key == 'OWNER':
-                raise ValueError("Cannot delete profile with OWNER role assigned.")
+            if role.role_key == 'OWNER' and profile.status.value == 'ACTIVE':
+                raise ValueError("Cannot delete active profile with OWNER role assigned.")
             await self.statemgr.invalidate_data('profile_role', role._id)
 
         # Then remove all group associations

@@ -109,7 +109,52 @@ class RFXClientAggregate(Aggregate):
 
         return new_project
 
-    @action("project-updated", resources="project")
+    @action("project-created", resources="project")
+    async def create_project_direct(self, /, data):
+        """Create a new project directly from scratch without DRAFT check"""
+        try:
+            parsed_delta, duration_text, duration_interval = parse_duration_for_db(
+                data.duration
+            )
+        except Exception:
+            raise ValueError(f"Invalid duration format: {data.duration}")
+
+        target_date = data.start_date + parsed_delta
+        status = data.status or "PENDING"
+
+        project_data = serialize_mapping(data)
+        project_data.pop("duration", None)
+        project_data.update({"status": status})
+
+        sync_status = SyncStatusEnum.PENDING
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
+            sync_status = SyncStatusEnum.SYNCED
+
+        project = self.init_resource(
+            "project",
+            project_data,
+            organization_id=self.context.organization_id,
+            target_date=target_date,
+            duration_text=duration_text,
+            sync_status=sync_status,
+            _id=self.aggroot.identifier or UUID_GENR(),
+        )
+
+        project_member = self.init_resource(
+            "project_member",
+            {
+                "member_id": self.context.profile_id,
+                "role": "OWNER",
+                "project_id": project._id,
+            },
+            _id=UUID_GENR(),
+        )
+
+        await self.statemgr.insert(project)
+        await self.statemgr.insert(project_member)
+        return {"_id": project._id, "name": project.name, "status": "OK"}
+
+    action("project_updated", resources=("project"))
     async def update_project(self, /, data):
         """Update a project"""
         duration_text = None

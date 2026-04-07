@@ -129,6 +129,26 @@ class CreateProject(Command):
                 logger.error(f"✗ Failed to sync project: {str(e)}")
 
 
+class CreateProjectDirect(Command):
+    """Create Project Direct - Creates a new project from scratch without DRAFT check"""
+
+    class Meta:
+        key = "create-project-direct"
+        resources = ("project",)
+        tags = ["project"]
+        auth_required = True
+        description = "Create a new project directly with initial status"
+        resource_init = True
+        policy_required = True
+
+    Data = datadef.CreateProjectPayload
+
+    async def _process(self, agg, stm, payload):
+        """Create a new project directly"""
+        result = await agg.create_project_direct(data=payload)
+        yield agg.create_response(result, _type="project-response")
+
+
 class UpdateProject(Command):
     """Update Project - Updates a project"""
 
