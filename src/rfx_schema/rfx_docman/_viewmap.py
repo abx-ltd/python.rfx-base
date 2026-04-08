@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from sqlalchemy import BigInteger, Integer, String
+from sqlalchemy import BigInteger, Boolean, Integer, String
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -91,7 +91,8 @@ class EntryView(TableBase):
     path: Mapped[str] = mapped_column(String(2561), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(String(32), nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    is_virtual: Mapped[bool] = mapped_column(Boolean, nullable=False)
     media_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
