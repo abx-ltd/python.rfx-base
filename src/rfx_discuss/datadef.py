@@ -13,6 +13,7 @@ class CreateCommentPayload(DataModel):
 
 class ReplyCommentPayload(DataModel):
     content: str
+    is_acknowledge_reply: bool = False
 
 
 class UpdateCommentPayload(DataModel):

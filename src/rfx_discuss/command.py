@@ -60,7 +60,7 @@ class AcknowledgeComment(Command):
         result = await agg.acknowledge_comment()
         if result.get("is_new"):
             await agg.reply_comment(
-                data=datadef.ReplyCommentPayload(content="<i>Acknowledged</i>")
+                data=datadef.ReplyCommentPayload(content="<i>Acknowledged</i>", is_acknowledge_reply=True)
             )
 
 

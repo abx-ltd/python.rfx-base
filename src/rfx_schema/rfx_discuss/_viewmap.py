@@ -50,6 +50,7 @@ class CommentView(TableBase):
         JSONB, comment="Contains: {id, name, avatar}"
     )
     is_acknowledged: Mapped[bool] = mapped_column(Boolean)
+    is_acknowledge_reply: Mapped[bool] = mapped_column(Boolean)
     # Aggregate counts
     attachment_count: Mapped[int] = mapped_column(Integer)
     reaction_count: Mapped[int] = mapped_column(Integer)
