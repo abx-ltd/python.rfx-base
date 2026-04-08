@@ -3,6 +3,7 @@ from typing import Optional
 from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource
 from fluvius.query.field import (
+    BooleanField,
     PrimaryID,
     StringField,
     UUIDField,
@@ -31,10 +32,6 @@ endpoint = RFXDocmanQueryManager.register_endpoint
 class RealmQuery(DomainQueryResource):
     """Realm queries."""
 
-    @classmethod
-    def base_query(cls, context, scope):
-        return {}
-
     class Meta(DomainQueryResource.Meta):
         resource = "realm"
         include_all = True
@@ -58,10 +55,6 @@ class RealmQuery(DomainQueryResource):
 class ShelfQuery(DomainQueryResource):
     """Shelf queries."""
 
-    @classmethod
-    def base_query(cls, context, scope):
-        return {"realm_id": scope["realm_id"]}
-
     class Meta(DomainQueryResource.Meta):
         resource = "shelf"
         include_all = True
@@ -81,13 +74,10 @@ class ShelfQuery(DomainQueryResource):
     # Aggregate information
     category_count: int = IntegerField("Category Count")
 
+
 @resource("category")
 class CategoryQuery(DomainQueryResource):
     """Category queries."""
-
-    @classmethod
-    def base_query(cls, context, scope_data):
-        return {"shelf_id": scope_data["shelf_id"]}
 
     class Meta(DomainQueryResource.Meta):
         resource = "category"
@@ -114,10 +104,6 @@ class CategoryQuery(DomainQueryResource):
 class CabinetQuery(DomainQueryResource):
     """Cabinet queries."""
 
-    @classmethod
-    def base_query(cls, context, scope_data):
-        return {"category_id": scope_data["category_id"]}
-
     class Meta(DomainQueryResource.Meta):
         resource = "cabinet"
         include_all = True
@@ -139,18 +125,9 @@ class CabinetQuery(DomainQueryResource):
     entry_count: int = IntegerField("Entry Count")
 
 
-
 @resource("entry")
 class EntryQuery(DomainQueryResource):
     """Entry queries."""
-
-    @classmethod
-    def base_query(cls, context, scope_data):
-        query = {"cabinet_id": scope_data["cabinet_id"]}
-
-        if (parent_path := scope_data.get("parent_path")) is not None:
-            query["parent_path"] = parent_path
-        return query
 
     class Meta(DomainQueryResource.Meta):
         resource = "entry"
@@ -159,7 +136,7 @@ class EntryQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "entry"
+        backend_model = "_entry"
         scope_required = scope.EntryScopeSchema
 
     id: UUID_TYPE = PrimaryID("Entry ID")
@@ -172,6 +149,7 @@ class EntryQuery(DomainQueryResource):
     author_name: Optional[str] = StringField("Author Name")
 
     parent_path: Optional[str] = StringField("Parent Path")
+    is_virtual: bool = BooleanField("Is Virtual")
 
     # Aggregated from entry_tag JOIN tag in _entry view
     tags: Optional[list] = JSONField("Tags", default=None)
@@ -190,18 +168,6 @@ class TagQuery(DomainQueryResource):
 
         backend_model = "_tag"
         scope_required = scope.TagScopeSchema
-
-    @classmethod
-    def base_query(cls, context, scope_data):
-        query = {}
-        if (cabinet_id := scope_data.get("cabinet_id")) is not None:
-            query["cabinet_id"] = cabinet_id
-        else:
-            # Keep one canonical row per tag when not filtering by cabinet.
-            query["cabinet_id"] = None
-        if (realm_id := scope_data.get("realm_id")) is not None:
-            query["realm_id"] = realm_id
-        return query
 
     id: UUID_TYPE = PrimaryID("Tag ID")
     cabinet_id: Optional[UUID_TYPE] = UUIDField("Cabinet ID")

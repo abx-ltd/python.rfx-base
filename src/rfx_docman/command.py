@@ -281,24 +281,6 @@ class RemoveEntry(Command):
     async def _process(self, agg, stm, payload):
         await agg.remove_entry()
 
-
-class PurgeEntry(Command):
-    """Recursively soft-delete a FOLDER entry and all its active descendants.
-
-    Only valid for FOLDER type entries. Use remove-entry for a single-row
-    soft-delete without touching descendants.
-    """
-
-    class Meta:
-        key = "purge-entry"
-        resources = ("entry",)
-        tags = ["docman", "purge", "entry"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        await agg.purge_entry()
-
-
 # =============================================================================
 # TAG COMMANDS — globally shared tag CRUD
 # =============================================================================

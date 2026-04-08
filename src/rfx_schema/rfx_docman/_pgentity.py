@@ -177,68 +177,167 @@ entry_view = PGView(
     schema=config.RFX_DOCMAN_SCHEMA,
     signature="_entry",
     definition=f"""
-    SELECT
-        e._created,
-        e._creator,
-        e._etag,
-        e._id,
-        e._updated,
-        e._updater,
-        e._deleted,
-        e._realm,
-        cb.realm_id AS realm_id,
-        e.cabinet_id,
-        e.parent_path,
-        e.path,
-        e.name,
-        e.type,
-        e.status,
-        e.media_entry_id,
-        me.filename,
-        me.filehash,
-        me.filemime,
-        me.length,
-        me.resource,
-        me.resource__id,
-        COALESCE(
-            json_agg(t.name ORDER BY t.name) FILTER (WHERE t._id IS NOT NULL),
-            '[]'::json
-        ) AS tags
-    FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-    JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-      ON cb._id = e.cabinet_id
-     AND cb._deleted IS NULL
-    LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
-      ON et.entry_id = e._id
-     AND et._deleted IS NULL
-    LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".tag t
-      ON t._id = et.tag_id
-     AND t._deleted IS NULL
-    LEFT JOIN "{MEDIA_SCHEMA}"."media-entry" me
-      ON me._id = e.media_entry_id
-    WHERE e._deleted IS NULL
-    GROUP BY
-        e._created,
-        e._creator,
-        e._etag,
-        e._id,
-        e._updated,
-        e._updater,
-        e._realm,
-        cb.realm_id,
-        e.cabinet_id,
-        e.parent_path,
-        e.path,
-        e.name,
-        e.type,
-        e.status,
-        e.media_entry_id,
-        me.filename,
-        me.filehash,
-        me.filemime,
-        me.length,
-        me.resource,
-        me.resource__id;
+    WITH RECURSIVE
+    real_entries AS (
+        SELECT
+            e._created,
+            e._creator,
+            e._etag,
+            e._id,
+            e._updated,
+            e._updater,
+            e._deleted,
+            e._realm,
+            cb.realm_id AS realm_id,
+            e.cabinet_id,
+            e.parent_path,
+            e.path,
+            e.name,
+            e.type,
+            e.status,
+            e.media_entry_id,
+            me.filename,
+            me.filehash,
+            me.filemime,
+            me.length,
+            me.resource,
+            me.resource__id,
+            COALESCE(
+                json_agg(t.name ORDER BY t.name) FILTER (WHERE t._id IS NOT NULL),
+                '[]'::json
+            ) AS tags,
+            FALSE AS is_virtual
+        FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+        JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+          ON cb._id = e.cabinet_id
+         AND cb._deleted IS NULL
+        LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
+          ON et.entry_id = e._id
+         AND et._deleted IS NULL
+        LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".tag t
+          ON t._id = et.tag_id
+         AND t._deleted IS NULL
+        LEFT JOIN "{MEDIA_SCHEMA}"."media-entry" me
+          ON me._id = e.media_entry_id
+        WHERE e._deleted IS NULL
+        GROUP BY
+            e._created,
+            e._creator,
+            e._etag,
+            e._id,
+            e._updated,
+            e._updater,
+            e._deleted,
+            e._realm,
+            cb.realm_id,
+            e.cabinet_id,
+            e.parent_path,
+            e.path,
+            e.name,
+            e.type,
+            e.status,
+            e.media_entry_id,
+            me.filename,
+            me.filehash,
+            me.filemime,
+            me.length,
+            me.resource,
+            me.resource__id
+    ),
+    entry_paths AS (
+        SELECT DISTINCT
+            e.cabinet_id,
+            e.path
+        FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+        WHERE e._deleted IS NULL
+          AND e.path LIKE '%/%'
+    ),
+    path_parts AS (
+        SELECT
+            ep.cabinet_id,
+            string_to_array(ep.path, '/') AS parts
+        FROM entry_paths ep
+    ),
+    virtual_builder AS (
+        SELECT
+            pp.cabinet_id,
+            pp.parts[1] AS name,
+            ''::text AS parent_path,
+            pp.parts[1] AS path,
+            2 AS depth,
+            array_length(pp.parts, 1) AS total_depth,
+            pp.parts
+        FROM path_parts pp
+        WHERE array_length(pp.parts, 1) >= 2
+
+        UNION ALL
+
+        SELECT
+            vb.cabinet_id,
+            vb.parts[vb.depth] AS name,
+            vb.path AS parent_path,
+            vb.path || '/' || vb.parts[vb.depth] AS path,
+            vb.depth + 1 AS depth,
+            vb.total_depth,
+            vb.parts
+        FROM virtual_builder vb
+        WHERE vb.depth < vb.total_depth
+    ),
+    virtual_folders AS (
+        SELECT DISTINCT
+            vb.cabinet_id,
+            vb.path,
+            vb.name,
+            vb.parent_path
+        FROM virtual_builder vb
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+            WHERE e.cabinet_id = vb.cabinet_id
+              AND e.path = vb.path
+              AND e._deleted IS NULL
+        )
+    ),
+    virtual_entries AS (
+        SELECT
+            NOW() AS _created,
+            NULL::uuid AS _creator,
+            NULL::text AS _etag,
+            (
+                substr(md5(vf.cabinet_id::text || ':' || vf.path), 1, 8) || '-' ||
+                substr(md5(vf.cabinet_id::text || ':' || vf.path), 9, 4) || '-' ||
+                substr(md5(vf.cabinet_id::text || ':' || vf.path), 13, 4) || '-' ||
+                substr(md5(vf.cabinet_id::text || ':' || vf.path), 17, 4) || '-' ||
+                substr(md5(vf.cabinet_id::text || ':' || vf.path), 21, 12)
+            )::uuid AS _id,
+            NOW() AS _updated,
+            NULL::uuid AS _updater,
+            NULL::timestamp with time zone AS _deleted,
+            cb._realm,
+            cb.realm_id,
+            vf.cabinet_id,
+            vf.parent_path,
+            vf.path,
+            vf.name,
+            'FOLDER'::"{config.RFX_DOCMAN_SCHEMA}".entrytypeenum AS type,
+            NULL::"{config.RFX_DOCMAN_SCHEMA}".entrystatusenum AS status,
+            NULL::uuid AS media_entry_id,
+            NULL::text AS filename,
+            NULL::text AS filehash,
+            NULL::text AS filemime,
+            NULL::bigint AS length,
+            NULL::text AS resource,
+            NULL::uuid AS resource__id,
+            '[]'::json AS tags,
+            TRUE AS is_virtual
+        FROM virtual_folders vf
+        JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+          ON cb._id = vf.cabinet_id
+         AND cb._deleted IS NULL
+    )
+    SELECT * FROM real_entries
+    UNION ALL
+    SELECT * FROM virtual_entries;
     """,
 )
 
