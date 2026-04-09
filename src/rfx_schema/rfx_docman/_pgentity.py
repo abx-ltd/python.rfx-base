@@ -14,19 +14,21 @@ realm_view = PGView(
         r.*,
         COALESCE(m.meta, '{{}}'::json) AS realm_meta,
         COALESCE(s.shelf_count, 0) AS shelf_count
-    FROM {config.RFX_DOCMAN_SCHEMA}.realm r
+    FROM "{config.RFX_DOCMAN_SCHEMA}".realm r
     LEFT JOIN (
         SELECT realm_id,
             json_object_agg(key, value) AS meta
-        FROM {config.RFX_DOCMAN_SCHEMA}.realm_meta
+        FROM "{config.RFX_DOCMAN_SCHEMA}".realm_meta
         WHERE _deleted IS NULL
-        AND key = ANY (ARRAY['REALM','SHELF','CATEGORY','CABINET']::{config.RFX_DOCMAN_SCHEMA}.realmmetakeyenum[])
+        AND key = ANY (
+            ARRAY['REALM','SHELF','CATEGORY','CABINET']::"{config.RFX_DOCMAN_SCHEMA}".realmmetakeyenum[]
+        )
         GROUP BY realm_id
     ) m ON m.realm_id = r._id
     LEFT JOIN (
         SELECT realm_id,
             COUNT(*)::int AS shelf_count
-        FROM {config.RFX_DOCMAN_SCHEMA}.shelf
+        FROM "{config.RFX_DOCMAN_SCHEMA}".shelf
         WHERE _deleted IS NULL
         GROUP BY realm_id
     ) s ON s.realm_id = r._id
@@ -40,13 +42,16 @@ shelf_view = PGView(
     definition=f"""
     SELECT
         s.*,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".category c
-            WHERE c.shelf_id = s._id
-              AND c._deleted IS NULL
-        ) AS category_count
+        COALESCE(c.category_count, 0) AS category_count
     FROM "{config.RFX_DOCMAN_SCHEMA}".shelf s
+    LEFT JOIN (
+        SELECT
+            c.shelf_id,
+            COUNT(*)::int AS category_count
+        FROM "{config.RFX_DOCMAN_SCHEMA}".category c
+        WHERE c._deleted IS NULL
+        GROUP BY c.shelf_id
+    ) c ON c.shelf_id = s._id
     WHERE s._deleted IS NULL;
     """,
 )
@@ -57,13 +62,16 @@ category_view = PGView(
     definition=f"""
     SELECT
         c.*,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-            WHERE cb.category_id = c._id
-              AND cb._deleted IS NULL
-        ) AS cabinet_count
+        COALESCE(cb.cabinet_count, 0) AS cabinet_count
     FROM "{config.RFX_DOCMAN_SCHEMA}".category c
+    LEFT JOIN (
+        SELECT
+            cb.category_id,
+            COUNT(*)::int AS cabinet_count
+        FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+        WHERE cb._deleted IS NULL
+        GROUP BY cb.category_id
+    ) cb ON cb.category_id = c._id
     WHERE c._deleted IS NULL;
     """,
 )
@@ -74,13 +82,16 @@ cabinet_view = PGView(
     definition=f"""
     SELECT
         cb.*,
-        (
-            SELECT COUNT(*)::int
-            FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-            WHERE e.cabinet_id = cb._id
-              AND e._deleted IS NULL
-        ) AS entry_count
+        COALESCE(e.entry_count, 0) AS entry_count
     FROM "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+    LEFT JOIN (
+        SELECT
+            e.cabinet_id,
+            COUNT(*)::int AS entry_count
+        FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+        WHERE e._deleted IS NULL
+        GROUP BY e.cabinet_id
+    ) e ON e.cabinet_id = cb._id
     WHERE cb._deleted IS NULL;
     """,
 )
@@ -139,7 +150,8 @@ entry_view = PGView(
             e.path
         FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
         WHERE e._deleted IS NULL
-          AND e.path LIKE '%/%'
+          AND e.path IS NOT NULL
+          AND position('/' in e.path) > 0
     ),
     path_parts AS (
         SELECT
@@ -190,13 +202,7 @@ entry_view = PGView(
             NOW() AS _created,
             NULL::uuid AS _creator,
             NULL::text AS _etag,
-            (
-                substr(md5(vf.cabinet_id::text || ':' || vf.path), 1, 8) || '-' ||
-                substr(md5(vf.cabinet_id::text || ':' || vf.path), 9, 4) || '-' ||
-                substr(md5(vf.cabinet_id::text || ':' || vf.path), 13, 4) || '-' ||
-                substr(md5(vf.cabinet_id::text || ':' || vf.path), 17, 4) || '-' ||
-                substr(md5(vf.cabinet_id::text || ':' || vf.path), 21, 12)
-            )::uuid AS _id,
+            uuid_generate_v5(uuid_ns_url(), vf.cabinet_id::text || ':' || vf.path) AS _id,
             NOW() AS _updated,
             NULL::uuid AS _updater,
             NULL::timestamp with time zone AS _deleted,
@@ -245,17 +251,21 @@ tag_view = PGView(
         tc.cabinet_id,
         t.name,
         t.color,
-        t.icon
+        t.icon,
+        COALESCE(tc.cabinet_ids, '[]'::json) AS cabinet_ids
     FROM "{config.RFX_DOCMAN_SCHEMA}".tag t
-    LEFT JOIN LATERAL (
-        SELECT DISTINCT e.cabinet_id
+    LEFT JOIN (
+        SELECT
+            et.tag_id,
+            MIN(e.cabinet_id::text)::uuid cabinet_id,
+            json_agg(DISTINCT e.cabinet_id) AS cabinet_ids
         FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
         JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e
           ON e._id = et.entry_id
          AND e._deleted IS NULL
-        WHERE et.tag_id = t._id
-          AND et._deleted IS NULL
-    ) tc ON TRUE
+        WHERE et._deleted IS NULL
+        GROUP BY et.tag_id
+    ) tc ON tc.tag_id = t._id
     WHERE t._deleted IS NULL;
     """,
 )
