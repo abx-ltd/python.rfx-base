@@ -20,8 +20,6 @@ from . import Base, SCHEMA
 
 
 class EntryTag(Base):
-    """M:N junction between Entry and Tag. No audit trail."""
-
     __tablename__ = "entry_tag"
     __table_args__ = (
         Index("ix_entry_tag_tag_id", "tag_id"),
