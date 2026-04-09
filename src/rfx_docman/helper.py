@@ -1,7 +1,6 @@
 # helper.py
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
 from ._meta import config
@@ -12,17 +11,6 @@ def split_path(path: str) -> tuple[str, str]:
     if "/" in path:
         return path.rsplit("/", 1)
     return "", path
-
-
-async def ensure_entry_path_available(
-    statemgr: Any,
-    *,
-    cabinet_id: uuid.UUID,
-    path: str,
-) -> None:
-    """Optimistic check — unique index is the true safety net."""
-    if await statemgr.exist("entry", where={"cabinet_id": cabinet_id, "path": path}):
-        raise ValueError(f"An entry already exists at path '{path}'")
 
 
 def apply_move_updates(updates: dict[str, Any], *, new_path: str) -> None:
@@ -60,11 +48,11 @@ async def move_folder_descendants(
            AND (parent_path = $3 OR parent_path LIKE $6)
            AND _deleted IS NULL
         """,
-        new_path,              # $1  direct children
-        new_prefix,            # $2  deep descendants prefix
-        old_path,              # $3  equality match
-        old_prefix_len,        # $4  SUBSTR offset
-        entry.cabinet_id,      # $5
-        f"{old_prefix}%",      # $6  prefix scan
+        new_path,  # $1  direct children
+        new_prefix,  # $2  deep descendants prefix
+        old_path,  # $3  equality match
+        old_prefix_len,  # $4  SUBSTR offset
+        entry.cabinet_id,  # $5
+        f"{old_prefix}%",  # $6  prefix scan
         unwrapper=None,
     )
