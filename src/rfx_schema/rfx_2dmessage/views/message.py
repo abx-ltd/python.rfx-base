@@ -45,7 +45,7 @@ message_view = PGView(
     LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_sender s ON s.message_id = m._id AND s._deleted IS NULL
     LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_recipient r ON r.message_id = m._id AND r._deleted IS NULL
     LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_attachment a ON a.message_id = m._id AND a._deleted IS NULL
-    LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.mailbox_message ma ON ma.message_id = m._id
+    LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_mailbox_state ma ON ma.message_id = m._id
     WHERE m._deleted IS NULL
     GROUP BY
         m._id, m.subject, m.content, m.rendered_content, m.content_type,

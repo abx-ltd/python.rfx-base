@@ -157,3 +157,23 @@ class MailBoxTypeEnum(str, Enum):
     SOCIAL_MEDIA = "SOCIAL_MEDIA"
     SYSTEM = "SYSTEM"
     WEBHOOK = "WEBHOOK"
+
+class MailBoxMessageStatusTypeEnum(str, Enum):
+    NEW = "NEW"
+    IN_PROGRESS = "IN_PROGRESS"
+    PENDING = "PENDING"
+    DONE = "DONE"
+    
+class MailBoxMemberRoleEnum(str, Enum):
+    OWNER = "OWNER"
+    CONTRIBUTOR = "CONTRIBUTOR"
+    VIEWER = "VIEWER"
+
+
+class MediaTypeEnum(str, Enum):
+    IMAGE = "IMAGE"
+    VIDEO = "VIDEO"
+    AUDIO = "AUDIO"
+    DOCUMENT = "DOCUMENT"
+    ARCHIVE = "ARCHIVE"
+    OTHER = "OTHER"

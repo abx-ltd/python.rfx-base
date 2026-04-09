@@ -18,30 +18,28 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Enum as SQLEnum,
+    ForeignKey,
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA
 from .types import (
     ContentTypeEnum,
-    DeliveryStatusEnum,
     MessageTypeEnum,
     PriorityLevelEnum,
-    RenderStatusEnum,
-    RenderStrategyEnum,
-    MessageCategoryEnum,
 )
 
 if TYPE_CHECKING:
-    from .message_action import MessageAction
     from .message_attachment import MessageAttachment
-    # from .message_embedded import MessageEmbedded
     from .message_recipient import MessageRecipient
     from .message_reference import MessageReference
     from .message_sender import MessageSender
+    from .tag import Tag
+    from .mailbox import Mailbox
+    from .tag import MessageTag
 
 
 class Message(TableBase):
@@ -49,10 +47,12 @@ class Message(TableBase):
 
     __tablename__ = "message"
 
-    # thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    # parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    sender_mailbox_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.mailbox._id"), nullable=True  
+    )
 
     subject: Mapped[Optional[str]] = mapped_column(String(1024))
+    preview: Mapped[Optional[str]] = mapped_column(Text)
     content: Mapped[Optional[str]] = mapped_column(Text)
     rendered_content: Mapped[Optional[str]] = mapped_column(Text)
     content_type: Mapped[Optional[ContentTypeEnum]] = mapped_column(
@@ -79,38 +79,15 @@ class Message(TableBase):
     message_type: Mapped[Optional[MessageTypeEnum]] = mapped_column(
         SQLEnum(MessageTypeEnum, name="messagetypeenum", schema=SCHEMA)
     )
-    # delivery_status: Mapped[DeliveryStatusEnum] = mapped_column(
-    #     SQLEnum(DeliveryStatusEnum, name="deliverystatusenum", schema=SCHEMA),
-    #     default=DeliveryStatusEnum.PENDING,
-    #     nullable=False,
-    # )
 
-    # data: Mapped[dict] = mapped_column(JSONB, default=dict)
-    # context: Mapped[dict] = mapped_column(JSONB, default=dict)
-    # category: Mapped[Optional[MessageCategoryEnum]] = mapped_column(
-    #     SQLEnum(MessageCategoryEnum, name="messagecategoryenum", schema=SCHEMA)
-    # )
+    external_message_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), unique=True, nullable=True)
 
-    # template_key: Mapped[Optional[str]] = mapped_column(String(255))
-    # template_version: Mapped[Optional[int]]
-    # template_locale: Mapped[Optional[str]] = mapped_column(String(10))
-    # template_engine: Mapped[Optional[str]] = mapped_column(String(32))
-    # template_data: Mapped[dict] = mapped_column(JSONB, default=dict)
-
-    # render_strategy: Mapped[Optional[RenderStrategyEnum]] = mapped_column(
-    #     SQLEnum(RenderStrategyEnum, name="renderstrategyenum", schema=SCHEMA)
-    # )
-    # render_status: Mapped[Optional[RenderStatusEnum]] = mapped_column(
-    #     SQLEnum(RenderStatusEnum, name="renderstatusenum", schema=SCHEMA)
-    # )
-    # rendered_at: Mapped[Optional[datetime]] = mapped_column(
-    #     DateTime(timezone=True), default=datetime.utcnow
-    # )
-    # render_error: Mapped[Optional[str]] = mapped_column(Text)
-
-    actions: Mapped[List["MessageAction"]] = relationship(
-        back_populates="message", cascade="all, delete-orphan"
+    mailbox: Mapped["Mailbox"] = relationship(
+        "Mailbox",
+        back_populates="messages",
+        foreign_keys=[sender_mailbox_id],
     )
+
     senders: Mapped[List["MessageSender"]] = relationship(
         "MessageSender",
         back_populates="message",
@@ -124,12 +101,23 @@ class Message(TableBase):
         foreign_keys="MessageRecipient.message_id",
     )
     attachments: Mapped[List["MessageAttachment"]] = relationship(
-        back_populates="message", cascade="all, delete-orphan"
+        "MessageAttachment",
+        back_populates="message", 
+        cascade="all, delete-orphan"
     )
-    # embeds: Mapped[List["MessageEmbedded"]] = relationship(
-    #     back_populates="message", cascade="all, delete-orphan"
-    # )
+
     references: Mapped[List["MessageReference"]] = relationship(
         back_populates="message", cascade="all, delete-orphan"
     )
 
+    # message_tags = relationship(
+    #     "MessageTag",
+    #     back_populates="message"
+    # )
+
+    # tags: Mapped[List["Tag"]] = relationship(
+    #     "Tag",
+    #     secondary=f"{SCHEMA}.message_tag",
+    #     back_populates="messages",
+    #     viewonly=True
+    # )

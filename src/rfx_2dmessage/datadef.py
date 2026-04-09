@@ -7,71 +7,37 @@ from pydantic import Field, model_validator
 
 
 from fluvius.data import DataModel, UUID_TYPE
-from .types import MessageCategoryEnum, DirectionTypeEnum
+from .types import MessageCategoryEnum, DirectionTypeEnum, MailBoxMessageStatusTypeEnum
 
 
 # class CreateMessagePayload(BaseModel):
 #     ...
 
-class SendMessagePayload(DataModel):
+class SendMessageToMailboxPayload(DataModel):
     """
-    Enhanced payload for sending notification messages.
+    Payload for sending notification messages.
     Supports both template-based and direct content messages.
     """
 
     # Recipients (required)
-    recipients: List[UUID_TYPE] = Field(
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the target mailbox to send the message to")
+    send_all: Optional[bool] = Field(True, description="Whether to send to all members of the mailbox (if True, recipient_ids will be ignored)")
+    
+    recipients: Optional[List[UUID_TYPE]] = Field(
         default_factory=list, description="List of recipient user IDs"
     )
 
     # Message metadata
     subject: Optional[str] = Field(None, description="Message subject")
-    message_type: str = Field("NOTIFICATION", description="Type of message")
-    priority: str = Field("MEDIUM", description="Message priority")
-
+    
     # Content source (one of these must be provided)
     content: Optional[str] = Field(
         None, description="Direct message content (no template)"
     )
     content_type: Optional[str] = Field("TEXT", description="Content type")
 
-    # # Template-based content
-    # template_key: Optional[str] = Field(None, description="Template key for rendering")
-    # template_data: Optional[Dict[str, Any]] = Field(
-    #     None, description="Data for template rendering"
-    # )
-    # template_version: Optional[int] = Field(
-    #     None, description="Specific template version"
-    # )
-
-    # # Rendering control
-    # render_strategy: Optional[str] = Field(
-    #     None, description="Override rendering strategy"
-    # )
-
-    # # Context for template resolution
-    # template_locale: Optional[str] = Field(
-    #     "en", description="Locale for template resolution"
-    # )
-    # template_channel: Optional[str] = Field(
-    #     None, description="Channel for template resolution"
-    # )
-    # tenant_id: Optional[UUID_TYPE] = Field(
-    #     None, description="Tenant ID for scoped templates"
-    # )
-    # app_id: Optional[str] = Field(None, description="App ID for scoped templates")
-
-    # # Additional metadata
-    # tags: Optional[List[str]] = Field([], description="Message tags")
-    # data: Optional[Dict[str, Any]] = Field(
-    #     None, description="Additional data for the message"
-    # )
-    # expiration_date: Optional[datetime] = Field(
-    #     None, description="Message expiration time"
-    # )
-    # category: Optional[MessageCategoryEnum] = Field(
-    #     None, description="Message category"
-    # )
+    message_type: str = Field("NOTIFICATION", description="Type of message")
+    priority: str = Field("MEDIUM", description="Message priority")
 
 # DTO for response Message
 class Notification(DataModel):
@@ -155,11 +121,6 @@ class UpdateTagPayload(DataModel):
 
 class AddMessageTagPayload(DataModel):
     """Payload for adding a tag to a message."""
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to add tag: INBOUND (inbox) or OUTBOUND (outbox). If None, add tag for both if user sent to themselves.",
-    )
     tag_ids: List[UUID_TYPE] = Field(..., description="IDs of the tags")
 
 
@@ -188,6 +149,10 @@ class CreateCategoryPayload(DataModel):
     name: str = Field(..., description="Name of the category" )
 
 
+    # =====================================
+    # MAILBOX PAYLOAD
+    # =====================================
+
 class CreateMailboxPayload(DataModel):
     """Payload for creating a new mailbox"""
     name: str = Field(..., description="Display name of the mailbox")
@@ -197,6 +162,8 @@ class CreateMailboxPayload(DataModel):
     resource: Optional[str] = Field(None, description="External resource source key")
     url: Optional[str] = Field(None, description="Callback or service URL")
     mailbox_type: Optional[str] = Field(None, description="Type of mailbox (EMAIL,SMS,NOTIFICATION etc)")
+
+    profile_ids: Optional[List[UUID_TYPE]] = Field(None, description="Profile IDs to share the mailbox with. The creator will always have access regardless of this field.")
 
 class UpdateMailboxPayload(DataModel):
     """Payload for update mailbox"""
@@ -208,6 +175,9 @@ class UpdateMailboxPayload(DataModel):
     url: Optional[str] = Field(None, description="Callback or service URL")
     mailbox_type: Optional[str] = Field(None, description="Type of mailbox (EMAIL,SMS,NOTIFICATION etc)")
 
+class AddMemberToMailboxPayload(DataModel):
+    """Payload for adding a member to a mailbox"""
+    profile_ids: List[UUID_TYPE] = Field(None, description="Profile IDs of the members to add")
 
 # class CreateMailboxMessagePayload(DataModel):
 #     """Payload for adding a mailbox message"""
@@ -230,3 +200,55 @@ class AddMessageCategoryPayload(DataModel):
 class RemoveMessageCategoryPayload(DataModel):
     """Payload for remove a message from a category"""
     message_id: List[UUID_TYPE] = Field(..., description="IDs of the messages")
+
+
+class AssignMessagePayload(DataModel):
+    """Payload for assigning a message within a mailbox."""
+
+    mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID in which the message is assigned")
+    assignee_profile_id: UUID_TYPE = Field(..., description="Profile ID of the assignee")
+
+
+class SetMessageStatusPayload(DataModel):
+    """Payload for updating canonical message status."""
+
+    mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID in which the message is assigned")
+    message_status: str = Field(default=MailBoxMessageStatusTypeEnum.NEW, description="Canonical status to set on the message")
+    # note: Optional[str] = Field(None, description="Optional note explaining the status change")
+
+
+class MoveMessagePayload(DataModel):
+    """Payload for moving a message inside a mailbox."""
+
+    mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID for the target mailbox view")
+    folder: str = Field(..., description="Folder to move the message into, e.g. inbox or starred")
+
+
+class SetMessageStarPayload(DataModel):
+    """Payload for toggling a mailbox-specific star state."""
+
+    mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID for the target mailbox view")
+    starred: bool = Field(..., description="True to star the message, False to unstar")
+
+
+class SetPriorityPayload(DataModel):
+    """Payload for updating a message priority."""
+
+    priority: str = Field(..., description="Priority to set on the message, e.g. high, medium, low")
+
+
+class LinkRelatedMessagePayload(DataModel):
+    """Payload for linking related messages."""
+
+    related_message_id: UUID_TYPE = Field(..., description="ID of the related message")
+    link_type: Optional[str] = Field("related", description="Type of relation between messages")
+
+
+class UploadAttachmentMetadataPayload(DataModel):
+    """Payload for registering uploaded attachment metadata."""
+
+    storage_key: str = Field(..., description="Storage key for the uploaded attachment")
+    filename: str = Field(..., description="Original filename of the uploaded attachment")
+    media_type: Optional[str] = Field(None, description="Media type or MIME type of the attachment")
+    size_bytes: Optional[int] = Field(None, description="Attachment file size in bytes")
+    checksum: Optional[str] = Field(None, description="Optional checksum for the uploaded attachment")

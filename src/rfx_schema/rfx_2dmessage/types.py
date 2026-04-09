@@ -122,3 +122,16 @@ class MailBoxMessageStatusTypeEnum(Enum):
     PENDING = "PENDING"
     DONE = "DONE"
     
+class MailBoxMemberRoleEnum(Enum):
+    OWNER = "OWNER"
+    CONTRIBUTOR = "CONTRIBUTOR"
+    VIEWER = "VIEWER"
+
+
+class MediaTypeEnum(Enum):
+    IMAGE = "IMAGE"
+    VIDEO = "VIDEO"
+    AUDIO = "AUDIO"
+    DOCUMENT = "DOCUMENT"
+    ARCHIVE = "ARCHIVE"
+    OTHER = "OTHER"

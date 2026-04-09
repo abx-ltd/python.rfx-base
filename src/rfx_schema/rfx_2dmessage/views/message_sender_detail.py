@@ -80,7 +80,7 @@ message_sender_detail_view = PGView(
         ) AS mailbox_owner
     FROM {config.RFX_2DMESSAGE_SCHEMA}.message_sender ms
     JOIN {config.RFX_2DMESSAGE_SCHEMA}.message m ON m._id = ms.message_id AND m._deleted IS NULL
-    LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.mailbox_message mm ON mm.message_id = m._id AND mm._deleted IS NULL
+    LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_mailbox_state mm ON mm.message_id = m._id AND mm._deleted IS NULL
     LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.mailbox mb_temp ON mb_temp._id = mm.mailbox_id AND mb_temp._deleted IS NULL
     LEFT JOIN {config.RFX_USER_SCHEMA}.profile pmb ON pmb._id = mb_temp.profile_id AND pmb._deleted IS NULL
     LEFT JOIN {config.RFX_USER_SCHEMA}.profile p ON p._id = ms.sender_id AND p._deleted IS NULL

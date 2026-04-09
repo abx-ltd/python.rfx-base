@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     JSON,
     Boolean,
+    String,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,7 +19,6 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    from .message_box import MessageBox
     from .message import Message
 
 
@@ -27,8 +27,14 @@ class MessageSender(TableBase):
 
     sender_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
 
+    # external sender info for cases where sender is outside of system (e.g. email from external)
+    external_sender_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    external_sender_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
     message_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message._id"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.message._id", ondelete="CASCADE"),
+        nullable=False
     )
 
     direction: Mapped[Optional[DirectionTypeEnum]] = mapped_column(
@@ -36,4 +42,7 @@ class MessageSender(TableBase):
         default=DirectionTypeEnum.OUTBOUND,
     )
 
-    message: Mapped["Message"] = relationship(back_populates="senders")
+    message: Mapped["Message"] = relationship(
+        "Message",
+        back_populates="senders"
+    )

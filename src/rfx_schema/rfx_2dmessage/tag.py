@@ -10,23 +10,40 @@ service stack.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List
 import uuid
 
 from sqlalchemy import (
+    ForeignKey,
     String,
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import TableBase, SCHEMA
 from fluvius.data import UUID_TYPE
 from sqlalchemy.dialects.postgresql import UUID
 
 if TYPE_CHECKING:
+    from .message import Message
     pass
 
+
+class MessageTag(TableBase):
+    __tablename__ = "message_tag"
+    __table_args__ = {"schema": SCHEMA}
+
+    message_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message._id"), primary_key=True
+    )
+
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.tag._id"), primary_key=True
+    )
+
+    # message = relationship("Message", back_populates="message_tags")
+    # tag = relationship("Tag", back_populates="message_tags")
 
 class Tag(TableBase):
     """Global tags for message classification."""
@@ -45,6 +62,16 @@ class Tag(TableBase):
 
     # Ensure (profile_id, key) is unique per profile; the name is the constraint name,
     # not a column name.
+
+    # messages: Mapped[List["Message"]] = relationship(
+    #     "Message",
+    #     secondary=f"{SCHEMA}.message_tag",
+    #     back_populates="tags",
+    #     viewonly=True
+    # )
+
+    # message_tags = relationship("MessageTag", back_populates="tag")
+
     __table_args__ = (
         UniqueConstraint(
             "profile_id", "key", "_deleted", name="idx_tag_profile_id_key_deleted"
@@ -52,21 +79,6 @@ class Tag(TableBase):
         {"schema": SCHEMA},
     )
 
-class MessageTag(TableBase):
-    __tablename__ = "message_tag"
-    __table_args__ = {"schema": SCHEMA}
 
-    resource: Mapped[str] = mapped_column(String(255))
-    resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    tag_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 
-    __table_args__ = (
-        UniqueConstraint(
-            "resource",
-            "resource_id",
-            "tag_id",
-            "_deleted",
-            name="uix_message_tag_deleted",
-        ),
-    )
 
