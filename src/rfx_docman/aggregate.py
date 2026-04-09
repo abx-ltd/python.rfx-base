@@ -4,6 +4,7 @@ from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
 from . import helper
+from .value_objects import CabinetCode, CategoryCode, ShelfCode
 
 
 class RFXDocmanAggregate(Aggregate):
@@ -24,10 +25,6 @@ class RFXDocmanAggregate(Aggregate):
             raise ValueError(
                 f"Cannot remove {label} '{parent.name}' because it still contains {child_label}"
             )
-
-    def _ensure_code_prefix(self, code: str, prefix: str, label: str):
-        if not code.startswith(prefix):
-            raise ValueError(f"{label} code {code} must start with {prefix}")
 
     @action("realm-created", resources="realm")
     async def create_realm(self, /, data):
@@ -118,9 +115,13 @@ class RFXDocmanAggregate(Aggregate):
     async def create_category(self, /, data):
         data = self._serialize(data)
         shelf = self.rootobj
-        code = data["code"]
+        category_code = CategoryCode(str(data["code"]))
+        shelf_code = ShelfCode(str(shelf.code))
 
-        self._ensure_code_prefix(code, shelf.code, "Category")
+        if not category_code.belongs_to(shelf_code):
+            raise ValueError(
+                f"Category code {category_code} must belong to shelf {shelf_code}"
+            )
 
         record = self.init_resource(
             "category",
@@ -154,10 +155,13 @@ class RFXDocmanAggregate(Aggregate):
     async def create_cabinet(self, /, data):
         data = self._serialize(data)
         category = self.rootobj
-        code = data["code"]
-        prefix = f"{category.code}-"
+        cabinet_code = CabinetCode(str(data["code"]))
+        category_code = CategoryCode(str(category.code))
 
-        self._ensure_code_prefix(code, prefix, "Cabinet")
+        if not cabinet_code.belongs_to(category_code):
+            raise ValueError(
+                f"Cabinet code {cabinet_code} must belong to category {category_code}"
+            )
 
         record = self.init_resource(
             "cabinet",
@@ -237,7 +241,6 @@ class RFXDocmanAggregate(Aggregate):
     async def remove_entry(self, /):
         entry = self.rootobj
         await self.statemgr.invalidate(entry)
-
 
     # =========================================================================
     # TAG
