@@ -14,9 +14,10 @@ and status history tracking.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fluvius.domain.aggregate import Aggregate, action
 from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.helper import timestamp
 from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum, InvitationStatusEnum
 from . import config, logger
 
@@ -313,7 +314,7 @@ class UserProfileAggregate(Aggregate):
             )
         )
 
-        current_time = datetime.now(timezone.utc)
+        current_time = timestamp().replace(tzinfo=None)
         for inv in existing_invitations:
             if inv.expires_at and inv.expires_at > current_time:
                  raise ValueError("User already has a pending invitation for this organization and realm.")
@@ -321,7 +322,7 @@ class UserProfileAggregate(Aggregate):
         # Rate limit check
         window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
         max_requests = config.INVITATION_MAX_REQUESTS_PER_WINDOW
-        window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+        window_start = timestamp().replace(tzinfo=None) - timedelta(minutes=window_minutes)
 
         # We need to fetch all invitations for this user to check the rate limit
         # reusing existing_invitations is not enough because it only fetches PENDING ones
@@ -345,7 +346,7 @@ class UserProfileAggregate(Aggregate):
             email=email,
             token=secrets.token_urlsafe(48),
             status=InvitationStatusEnum.PENDING.value,
-            expires_at=datetime.utcnow() + timedelta(days=duration),
+            expires_at=timestamp().replace(tzinfo=None) + timedelta(days=duration),
             message=message,
             duration=duration,
             realm=realm,
@@ -426,7 +427,7 @@ class UserProfileAggregate(Aggregate):
         updates = {
             "token": secrets.token_urlsafe(48),
             "status": InvitationStatusEnum.PENDING.value,
-            "expires_at": datetime.utcnow() + timedelta(days=7)
+            "expires_at": timestamp().replace(tzinfo=None) + timedelta(days=7)
         }
         await self.statemgr.update(invitation, **updates)
         await self.set_invitation_status(invitation, InvitationStatusEnum.PENDING)

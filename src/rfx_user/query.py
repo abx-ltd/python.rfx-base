@@ -1,5 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+from fluvius.helper import timestamp
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from urllib.parse import quote
@@ -321,7 +323,7 @@ async def verify_password_change(
             raise ValueError("Invalid verification code")
 
         code_expires_at = action_data.get("code_expires_at")
-        if code_expires_at and datetime.fromisoformat(code_expires_at) < datetime.utcnow():
+        if code_expires_at and datetime.fromisoformat(code_expires_at) < timestamp().replace(tzinfo=None):
             raise ValueError("Verification code has expired")
 
         encrypted_password = action_data.get("password")

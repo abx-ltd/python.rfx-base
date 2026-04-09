@@ -14,7 +14,8 @@ and status history tracking.
 """
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
+from fluvius.helper import timestamp
 from fluvius.domain.aggregate import Aggregate, action
 from fluvius.data import serialize_mapping, UUID_GENR
 from fluvius.data.exceptions import ItemNotFoundError
@@ -358,7 +359,7 @@ class IDMAggregate(Aggregate):
         # Rate limit check
         window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
         max_requests = config.INVITATION_MAX_REQUESTS_PER_WINDOW
-        window_start = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+        window_start = timestamp().replace(tzinfo=None) - timedelta(minutes=window_minutes)
 
         all_recent_invitations = await self.statemgr.find_all(
             "invitation",
@@ -381,7 +382,7 @@ class IDMAggregate(Aggregate):
             email=email or user.telecom__email,
             token=secrets.token_urlsafe(48),
             status=InvitationStatusEnum.PENDING.value,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=duration or 7),
+            expires_at=timestamp().replace(tzinfo=None) + timedelta(days=duration or 7),
             message=message,
             duration=duration,
             realm=realm,
@@ -466,7 +467,7 @@ class IDMAggregate(Aggregate):
         updates = {
             "token": secrets.token_urlsafe(48),
             "status": InvitationStatusEnum.PENDING.value,
-            "expires_at": datetime.now(timezone.utc) + timedelta(days=7)
+            "expires_at": timestamp().replace(tzinfo=None) + timedelta(days=7)
         }
         await self.statemgr.update(invitation, **updates)
         await self.set_invitation_status(invitation, InvitationStatusEnum.PENDING)

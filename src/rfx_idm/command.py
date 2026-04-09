@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
+from fluvius.helper import timestamp
 from fluvius.data import serialize_mapping, UUID_GENR
 from fluvius.data.exceptions import ItemNotFoundError
 from fluvius.error import BadRequestError
@@ -435,7 +436,7 @@ class SyncUser(Command, SyncUserMixin):
             user = agg.get_rootobj()
             if getattr(user, "last_sync", None):
                 # Don't sync if last sync was less than 5 minutes ago
-                if (datetime.now(timezone.utc) - user.last_sync).total_seconds() < 300:
+                if (timestamp().replace(tzinfo=None) - user.last_sync).total_seconds() < 300:
                     yield agg.create_response(
                         {"status": "skipped", "reason": "Recently synced"},
                         _type="idm-response",
@@ -507,7 +508,7 @@ class SendVerification(Command):
     async def _process(self, agg, stm, payload):
         rootobj = agg.get_rootobj()
         await kc_admin.send_verify_email(rootobj._id)
-        await agg.update_user(dict(last_verified_request=datetime.now(timezone.utc)))
+        await agg.update_user(dict(last_verified_request=timestamp().replace(tzinfo=None)))
 
 
 class DeactivateUser(Command):
@@ -604,7 +605,7 @@ class SendUserAction(Command):
 
         window_minutes = userconf.RATE_LIMIT_WINDOW_MINUTES
         max_requests = userconf.MAX_REQUESTS_PER_WINDOW
-        window_start = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+        window_start = timestamp().replace(tzinfo=None) - timedelta(minutes=window_minutes)
 
         user = agg.get_rootobj()
         if not user:

@@ -22,8 +22,9 @@ Integration Points:
 - Policy engine for authorization decisions
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fluvius.data import serialize_mapping, UUID_GENR
+from fluvius.helper import timestamp
 
 from .domain import UserProfileDomain
 from .integration import kc_admin
@@ -249,7 +250,7 @@ class UpdateUser(Command, SyncUserMixin):
 #     async def _process(self, agg, stm, payload):
 #         rootobj = agg.get_rootobj()
 #         await kc_admin.send_verify_email(rootobj._id)
-#         await agg.update_user(dict(last_verified_request=datetime.utcnow()))
+#         await agg.update_user(dict(last_verified_request=timestamp()))
 
 
 # class DeactivateUser(Command):
@@ -307,7 +308,7 @@ class SyncUser(Command, SyncUserMixin):
             user = agg.get_rootobj()
             if getattr(user, "last_sync", None):
                 # Don't sync if last sync was less than 5 minutes ago
-                if (datetime.utcnow() - user.last_sync).total_seconds() < 300:
+                if (timestamp().replace(tzinfo=None) - user.last_sync).total_seconds() < 300:
                     yield agg.create_response(
                         {"status": "skipped", "reason": "Recently synced"},
                         _type="user-profile-response",
@@ -405,7 +406,7 @@ class UpdatePassword(Command):
         # --- Rate limit check (mirrors send-user-action logic) ---
         window_minutes = config.RATE_LIMIT_WINDOW_MINUTES
         max_requests = config.MAX_REQUESTS_PER_WINDOW
-        window_start = datetime.utcnow() - timedelta(minutes=window_minutes)
+        window_start = timestamp().replace(tzinfo=None) - timedelta(minutes=window_minutes)
 
         all_recent_actions = await stm.find_all(
             "user_action",
@@ -428,7 +429,7 @@ class UpdatePassword(Command):
 
         code = "".join(str(secrets.randbelow(10)) for _ in range(6))
 
-        expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+        expires_at = (timestamp().replace(tzinfo=None) + timedelta(minutes=15)).isoformat()
 
         action_data_update = {
             "password": encrypted_password,
@@ -469,7 +470,7 @@ class UpdatePassword(Command):
                     "template_data": {
                         "user_name": recipient_name,
                         "code": code,
-                        "current_year": datetime.utcnow().year,
+                        "current_year": timestamp().year,
                         "company": company_name
                     },
                 },

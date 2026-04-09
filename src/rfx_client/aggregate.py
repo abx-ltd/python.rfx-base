@@ -2,7 +2,7 @@ from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.error import BadRequestError
 from fluvius.data import serialize_mapping, UUID_GENR, logger
-from datetime import datetime, timezone
+from fluvius.helper import timestamp
 from .helper import parse_duration_for_db
 from rfx_schema.rfx_client.types import SyncStatusEnum, InquiryStatusEnum, RecordStatusEnum
 from . import config
@@ -63,7 +63,7 @@ class RFXClientAggregate(Aggregate):
         if promotion.max_uses <= promotion.current_uses:
             raise ValueError("Promotion code has reached the maximum number of uses")
 
-        now = datetime.now(timezone.utc)
+        now = timestamp().replace(tzinfo=None)
         if promotion.valid_from > now or promotion.valid_until < now:
             raise ValueError("Promotion code is not valid")
 
