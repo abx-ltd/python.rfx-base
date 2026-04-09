@@ -34,3 +34,6 @@ class Realm(TableBase):
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     icon:        Mapped[Optional[str]] = mapped_column(String(255),  nullable=True)
     color:       Mapped[Optional[str]] = mapped_column(String(64),   nullable=True)
+
+    #policy
+    organization_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=False)

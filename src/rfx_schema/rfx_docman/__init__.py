@@ -1,4 +1,5 @@
 from fluvius.data import DomainSchema, SqlaDriver
+from sqlalchemy.orm import synonym
 from .._meta import config as schema_config
 from rfx_base import config
 
@@ -13,14 +14,19 @@ class Base(RFXDocmanConnector.__data_schema_base__, DomainSchema):
     __table_args__ = {"schema": config.RFX_DOCMAN_SCHEMA}
 
 
+class PolicyBase(RFXDocmanConnector.__data_schema_base__):
+    __abstract__ = True
+    __table_args__ = {"schema": config.RFX_POLICY_SCHEMA, "info": {"is_view": True}}
+
+
 class TableBase(Base):
     __abstract__ = True
 
 
 SCHEMA = config.RFX_DOCMAN_SCHEMA
+RFX_POLICY_SCHEMA = config.RFX_POLICY_SCHEMA
 
 # Ensure ORM schemas and view maps register when module loads.
 from . import _schema  # noqa: F401
 from . import _viewmap  # noqa: F401
 from . import _pgentity  # noqa: F401
-

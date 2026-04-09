@@ -13,11 +13,13 @@ from fluvius.query.field import (
 
 from .domain import RFXDocmanDomain
 from .state import RFXDocmanStateManager
+from .policy import RFXDocmanPolicyManager
 from . import scope
 
 
 class RFXDocmanQueryManager(DomainQueryManager):
     __data_manager__ = RFXDocmanStateManager
+    __policymgr__ = RFXDocmanPolicyManager
 
     class Meta(DomainQueryManager.Meta):
         prefix = RFXDocmanDomain.Meta.namespace
@@ -38,7 +40,7 @@ class RealmQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_meta_view = True
-
+        policy_required = True
         backend_model = "_realm"
 
     id: UUID_TYPE = PrimaryID("Realm ID")

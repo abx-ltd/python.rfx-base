@@ -1,9 +1,9 @@
 from . import SCHEMA
 
-
-# from alembic_utils.pg_view import PGView
-# from alembic_utils.replaceable_entity import register_entities
-
+from rfx_base import config
+from alembic_utils.pg_view import PGView
+from alembic_utils.replaceable_entity import register_entities
+import os
 
 # policy_user_profile_view = PGView(
 #     schema=schema_config.RFX_POLICY_SCHEMA,
@@ -343,15 +343,68 @@ from . import SCHEMA
 #      """
 # )
 
+POLICY_SCHEMA = config.RFX_POLICY_SCHEMA
+USER_SCHEMA = config.RFX_USER_SCHEMA
+policy_docman_view = PGView(
+    schema=POLICY_SCHEMA,
+    signature="_policy__docman_profile",
+    definition=f"""
+SELECT uuid_generate_v4() AS _id,
+    'p'::character varying(255) AS ptype,
+    pol_rol.role_key AS role,
+    NULL::character varying(255) AS usr,
+    NULL::character varying(255) AS pro,
+    NULL::character varying(255) AS org,
+    NULL::character varying(255) AS rid,
+    pol_rol.scope::character varying(255) AS scope,
+    pol_res.action::character varying(255) AS act,
+    pol_res.cqrs::character varying(255) AS cqrs,
+    pol_res.meta::text AS meta,
+    NULL::timestamp without time zone AS _deleted
+   FROM {POLICY_SCHEMA}.policy_role pol_rol
+     JOIN {POLICY_SCHEMA}.policy_resource pol_res ON pol_rol.policy_key::text = pol_res.policy_key::text
+  WHERE pol_res.domain::text = ANY (ARRAY['cpo-docman'::text, '*'::text])
+UNION ALL
+ SELECT uuid_generate_v4() AS _id,
+    'g'::character varying(255) AS ptype,
+    NULL::character varying(255) AS role,
+    profile.user_id::character varying(255) AS usr,
+    profile._id::character varying(255) AS pro,
+    profile.organization_id::character varying(255) AS org,
+    NULL::character varying(255) AS rid,
+    NULL::character varying(255) AS scope,
+    NULL::character varying(255) AS act,
+    NULL::character varying(255) AS cqrs,
+    NULL::text AS meta,
+    NULL::timestamp without time zone AS _deleted
+   FROM {USER_SCHEMA}.profile
+  WHERE profile._deleted IS NULL AND profile.user_id IS NOT NULL AND profile.organization_id IS NOT NULL
+UNION ALL
+ SELECT uuid_generate_v4() AS _id,
+    'g2'::character varying(255) AS ptype,
+    pro_rol.role_key AS role,
+    NULL::character varying(255) AS usr,
+    profile._id::character varying(255) AS pro,
+    NULL::character varying(255) AS org,
+    NULL::character varying(255) AS rid,
+    NULL::character varying(255) AS scope,
+    NULL::character varying(255) AS act,
+    NULL::character varying(255) AS cqrs,
+    NULL::text AS meta,
+    NULL::timestamp without time zone AS _deleted
+   FROM {USER_SCHEMA}.profile_role pro_rol
+     JOIN {USER_SCHEMA}.profile profile ON profile._id = pro_rol.profile_id
+  WHERE pro_rol._deleted IS NULL
+    AND profile._deleted IS NULL
+    AND profile.organization_id IS NOT NULL
+    """,
+)
 
-# def register_pg_entities(allow):
-#     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
-#     if not allow_flag:
-#         logger.info('REGISTER_PG_ENTITIES is disabled or not set.')
-#         return
-#     logger.info(
-#         "Skipping rfx_policy PG entity registration; policy views are now "
-#         "managed inside their respective domain schemas."
-#     )
+def register_pg_entities(allow):
+    register_entities(
+        [
+            policy_docman_view
+        ]
+    )
 
-# register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))
+register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))
