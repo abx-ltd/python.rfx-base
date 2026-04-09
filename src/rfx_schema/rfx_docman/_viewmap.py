@@ -29,7 +29,9 @@ class RealmView(TableBase):
         JSON, nullable=False, default=dict
     )
     shelf_count: Mapped[int] = mapped_column(Integer, default=0)
-    organization_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=False)
+    organization_id: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True, unique=False
+    )
 
 
 class ShelfView(TableBase):
@@ -118,16 +120,14 @@ class EntryView(TableBase):
 
 class TagView(TableBase):
     """
-    Tag view. Supports optional filtering by cabinet via _tag view rows.
+    Tag view. cabinet_ids contains all cabinets where the tag is used.
     """
 
     __tablename__ = "_tag"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    cabinet_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    cabinet_ids: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
