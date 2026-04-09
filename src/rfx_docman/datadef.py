@@ -162,10 +162,7 @@ class UpdateEntryPayload(BaseUpdatePayload):
         current_parent = Path.from_string(str(entry.parent_path))
         parent = self.parent_path if self.parent_path is not None else current_parent
         name = str(self.name) if self.name is not None else str(entry.name)
-        parent_str = str(parent)
-        if not parent_str:
-            return name
-        return f"{parent_str}/{name}"
+        return str(parent.join(name))
 
 
 # --- Tag ---

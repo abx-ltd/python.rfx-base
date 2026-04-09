@@ -140,7 +140,6 @@ entry_view = PGView(
               ON t._id = et.tag_id
              AND t._deleted IS NULL
             WHERE et.entry_id = e._id
-              AND et._deleted IS NULL
         ) tag_agg ON TRUE
         WHERE e._deleted IS NULL
     ),
@@ -263,7 +262,6 @@ tag_view = PGView(
         JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e
           ON e._id = et.entry_id
          AND e._deleted IS NULL
-        WHERE et._deleted IS NULL
         GROUP BY et.tag_id
     ) tc ON tc.tag_id = t._id
     WHERE t._deleted IS NULL;
