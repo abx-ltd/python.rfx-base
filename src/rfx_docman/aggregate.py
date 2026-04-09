@@ -215,11 +215,6 @@ class RFXDocmanAggregate(Aggregate):
         old_path = entry.path
 
         if new_path != old_path:
-            await helper.ensure_entry_path_available(
-                self.statemgr,
-                cabinet_id=entry.cabinet_id,
-                path=new_path,
-            )
             helper.apply_move_updates(updates, new_path=new_path)
 
             try:
