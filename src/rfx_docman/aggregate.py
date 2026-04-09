@@ -34,7 +34,10 @@ class RFXDocmanAggregate(Aggregate):
         data = self._serialize(data)
         record = self.init_resource(
             "realm",
-            **data,
+            {
+                **data,
+                "organization_id": str(self.context.organization_id),
+            },
             _id=UUID_GENR(),
         )
         await self.statemgr.insert(record)

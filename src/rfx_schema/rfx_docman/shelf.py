@@ -32,7 +32,7 @@ class Shelf(TableBase):
             postgresql_where=text("_deleted IS NULL"),
         ),
         Index(
-            "idx_shelf_realm_id_active",
+            "idx_shelf_realm_active",
             "realm_id",
             postgresql_where=text("_deleted IS NULL"),
         ),

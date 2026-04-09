@@ -2,7 +2,7 @@ from fluvius.domain import Domain, SQLDomainLogStore
 
 from .aggregate import RFXDocmanAggregate
 from .state import RFXDocmanStateManager
-from .policy import RFXDocmanPolicyManager, RFXDocmanPolicy  # noqa
+from .policy import RFXDocmanPolicyManager  # noqa
 from . import config
 
 

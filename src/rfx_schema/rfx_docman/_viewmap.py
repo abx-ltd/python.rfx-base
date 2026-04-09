@@ -2,12 +2,14 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
+from fluvius.casbin import PolicySchema
+
 from sqlalchemy import BigInteger, Boolean, Integer, String
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import TableBase, SCHEMA 
-from  .types import  RealmMetaKeyEnum
+from . import TableBase, PolicyBase, SCHEMA, RFX_POLICY_SCHEMA
+from .types import RealmMetaKeyEnum
 
 
 class RealmView(TableBase):
@@ -27,6 +29,8 @@ class RealmView(TableBase):
         JSON, nullable=False, default=dict
     )
     shelf_count: Mapped[int] = mapped_column(Integer, default=0)
+    organization_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=False)
+
 
 class ShelfView(TableBase):
     """
@@ -44,12 +48,13 @@ class ShelfView(TableBase):
     # Aggregate fields
     category_count: Mapped[int] = mapped_column(Integer, default=0)
 
+
 class CategoryView(TableBase):
     """
     Category view with cabinet and entry count.
     """
 
-    __tablename__ = "_category" 
+    __tablename__ = "_category"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
@@ -60,6 +65,7 @@ class CategoryView(TableBase):
 
     # Aggregate fields
     cabinet_count: Mapped[int] = mapped_column(Integer, default=0)
+
 
 class CabinetView(TableBase):
     """
@@ -76,6 +82,7 @@ class CabinetView(TableBase):
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     entry_count: Mapped[int] = mapped_column(Integer, default=0)
+
 
 class EntryView(TableBase):
     """
@@ -124,3 +131,8 @@ class TagView(TableBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+
+class PolicyDocmanView(PolicyBase, PolicySchema):
+    __tablename__ = "_policy__docman_profile"
+    __table_args__ = {"schema": RFX_POLICY_SCHEMA, "info": {"is_view": True}}

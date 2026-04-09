@@ -4,5 +4,5 @@ DB_DSN = config.DB_DSN
 
 RFX_DOCMAN_SCHEMA = config.RFX_DOCMAN_SCHEMA
 NAMESPACE = "rfx-docman"
-RFX_POLICY_SCHEMA = None
-POLICY_TABLE = "_policy__cpo_docman"
+RFX_POLICY_SCHEMA = config.RFX_POLICY_SCHEMA
+POLICY_TABLE = "_policy__docman_profile"
