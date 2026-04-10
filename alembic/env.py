@@ -6,9 +6,6 @@ from logging.config import fileConfig
 
 from sqlalchemy import create_engine
 from sqlalchemy import pool
-from sqlalchemy.dialects.postgresql.base import ischema_names
-from sqlalchemy.types import UserDefinedType
-
 from alembic import context
 
 # STEP 1: Load schema config (centralized domain schemas)
@@ -41,21 +38,6 @@ DOMAIN_CONNECTORS = {
     "template": RFXTemplateConnector,
     "docman": RFXDocmanConnector,
 }
-
-
-class LtreeType(UserDefinedType):
-    """PostgreSQL ltree type used for Alembic reflection/autogenerate."""
-
-    cache_ok = True
-
-    def get_col_spec(self, **kw):
-        return "LTREE"
-
-
-# Ensure reflected DB type `ltree` is recognized during autogenerate.
-ischema_names["ltree"] = LtreeType
-
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

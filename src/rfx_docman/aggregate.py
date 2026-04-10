@@ -4,6 +4,7 @@ from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR
 from . import helper
+from .types import EntryTypeEnum
 from .value_objects import CabinetCode, CategoryCode, ShelfCode
 
 
@@ -25,6 +26,69 @@ class RFXDocmanAggregate(Aggregate):
             raise ValueError(
                 f"Cannot remove {label} '{parent.name}' because it still contains {child_label}"
             )
+
+    async def _ensure_parent_hierarchy(self, *, cabinet_id, parent_path: str):
+        """Ensure full folder hierarchy exists for parent_path and return last parent."""
+        if not parent_path:
+            return None
+
+        parent = None
+        current_parent_path = ""
+
+        for segment in parent_path.split("/"):
+            current_path = (
+                segment if not current_parent_path else f"{current_parent_path}/{segment}"
+            )
+            existing = await self.statemgr.exist(
+                "entry",
+                where={"cabinet_id": cabinet_id, "path": current_path},
+            )
+            if existing:
+                if existing.type != EntryTypeEnum.FOLDER:
+                    raise ValueError(
+                        f"Parent path '{current_path}' exists but is not a folder"
+                    )
+                parent = existing
+                current_parent_path = current_path
+                continue
+
+            folder = self.init_resource(
+                "entry",
+                {
+                    "cabinet_id": cabinet_id,
+                    "parent_path": current_parent_path,
+                    "name": segment,
+                    "type": EntryTypeEnum.FOLDER,
+                    "media_entry_id": None,
+                    "is_virtual": True,
+                },
+                _id=UUID_GENR(),
+            )
+            try:
+                await self.statemgr.insert(folder)
+                await helper.insert_entry_ancestor_rows(
+                    self.statemgr,
+                    entry_id=folder._id,
+                    parent_id=parent._id if parent else None,
+                )
+                parent = folder
+            except UniqueViolationError:
+                # Concurrent create of same folder path: re-fetch and continue.
+                existing = await self.statemgr.exist(
+                    "entry",
+                    where={"cabinet_id": cabinet_id, "path": current_path},
+                )
+                if not existing:
+                    raise
+                if existing.type != EntryTypeEnum.FOLDER:
+                    raise ValueError(
+                        f"Parent path '{current_path}' exists but is not a folder"
+                    )
+                parent = existing
+
+            current_parent_path = current_path
+
+        return parent
 
     @action("realm-created", resources="realm")
     async def create_realm(self, /, data):
@@ -196,15 +260,57 @@ class RFXDocmanAggregate(Aggregate):
         cabinet = self.rootobj
 
         data = self._serialize(data)
+        parent_path = str(data.get("parent_path", ""))
+        entry_name = str(data["name"])
+        target_path = f"{parent_path}/{entry_name}" if parent_path else entry_name
+        is_folder_request = str(data.get("type")) == EntryTypeEnum.FOLDER.value
 
-        record = self.init_resource(
-            "entry",
-            {**data, "cabinet_id": cabinet._id},
-            _id=UUID_GENR(),
-        )
+        try:
+            async with self.statemgr.transaction():
+                parent = await self._ensure_parent_hierarchy(
+                    cabinet_id=cabinet._id,
+                    parent_path=str(data.get("parent_path", "")),
+                )
+                existing = await self.statemgr.exist(
+                    "entry",
+                    where={"cabinet_id": cabinet._id, "path": target_path},
+                )
+                if existing:
+                    if (
+                        is_folder_request
+                        and existing.type == EntryTypeEnum.FOLDER
+                        and bool(existing.is_virtual)
+                    ):
+                        await self.statemgr.update(existing, is_virtual=False)
+                        return await self.statemgr.fetch("entry", existing._id)
+                    raise ValueError(f"An entry already exists at path '{target_path}'")
 
-        await self.statemgr.insert(record)
-        return record
+                record = self.init_resource(
+                    "entry",
+                    {**data, "cabinet_id": cabinet._id, "is_virtual": False},
+                    _id=UUID_GENR(),
+                )
+                await self.statemgr.insert(record)
+                await helper.insert_entry_ancestor_rows(
+                    self.statemgr,
+                    entry_id=record._id,
+                    parent_id=parent._id if parent else None,
+                )
+                return record
+        except UniqueViolationError:
+            existing = await self.statemgr.exist(
+                "entry",
+                where={"cabinet_id": cabinet._id, "path": target_path},
+            )
+            if (
+                existing
+                and is_folder_request
+                and existing.type == EntryTypeEnum.FOLDER
+                and bool(existing.is_virtual)
+            ):
+                await self.statemgr.update(existing, is_virtual=False)
+                return await self.statemgr.fetch("entry", existing._id)
+            raise ValueError(f"An entry already exists at path '{target_path}'")
 
     @action("entry-updated", resources="entry")
     async def update_entry(self, /, data):
@@ -213,18 +319,34 @@ class RFXDocmanAggregate(Aggregate):
 
         new_path = data.resolve_path(entry)
         old_path = entry.path
+        new_parent_path, _ = helper.split_path(new_path)
+        old_parent_path = str(entry.parent_path or "")
+        parent_changed = new_parent_path != old_parent_path
 
         if new_path != old_path:
             helper.apply_move_updates(updates, new_path=new_path)
 
             try:
-                await helper.move_folder_descendants(
-                    self.statemgr,
-                    entry=entry,
-                    old_path=old_path,
-                    new_path=new_path,
-                )
-                await self.statemgr.update(entry, **updates)
+                async with self.statemgr.transaction():
+                    parent = None
+                    if parent_changed:
+                        parent = await self._ensure_parent_hierarchy(
+                            cabinet_id=entry.cabinet_id,
+                            parent_path=new_parent_path,
+                        )
+                    await helper.move_folder_descendants(
+                        self.statemgr,
+                        entry=entry,
+                        old_path=old_path,
+                        new_path=new_path,
+                    )
+                    await self.statemgr.update(entry, **updates)
+                    if parent_changed:
+                        await helper.rebuild_subtree_ancestors(
+                            self.statemgr,
+                            entry_id=entry._id,
+                            new_parent_id=parent._id if parent else None,
+                        )
             except UniqueViolationError:
                 raise ValueError(f"An entry already exists at path '{new_path}'")
         else:

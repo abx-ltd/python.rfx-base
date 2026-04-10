@@ -105,17 +105,13 @@ class EntryView(TableBase):
     media_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
-
-    filename: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
-    filehash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     filemime: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     length: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    child_entry_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     resource: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
     resource__id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
-
-    tags: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
 
 
 class TagView(TableBase):

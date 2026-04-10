@@ -33,6 +33,9 @@ class TagScopeSchema(BaseModel):
     realm_id: Optional[UUID_TYPE] = Field(
         default=None, description="Filter tags by realm ID"
     )
+    entry_id: Optional[UUID_TYPE] = Field(
+        default=None, description="Filter tags by entry ID"
+    )
 
 
 class RealmMetaScopeSchema(BaseModel):

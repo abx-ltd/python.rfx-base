@@ -152,11 +152,8 @@ class EntryQuery(DomainQueryResource):
     media_entry_id: Optional[UUID_TYPE] = UUIDField("Media Entry ID")
     filemime: Optional[str] = StringField("MIME Type")
     length: Optional[int] = IntegerField("Length")
-    resource: Optional[str] = StringField("Resource")
+    child_entry_count: Optional[int] = IntegerField("Child Entry Count")
     is_virtual: bool = BooleanField("Is Virtual")
-
-    # Aggregated from entry_tag JOIN tag in _entry view
-    tags: Optional[list] = JSONField("Tags", default=None)
 
 
 @resource("tag")
