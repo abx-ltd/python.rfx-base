@@ -16,10 +16,10 @@ from sqlalchemy import ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import Base, SCHEMA
+from . import CoreTableBase, SCHEMA
 
 
-class EntryTag(Base):
+class EntryTag(CoreTableBase):
     __tablename__ = "entry_tag"
     __table_args__ = (
         Index("ix_entry_tag_tag_id", "tag_id"),
