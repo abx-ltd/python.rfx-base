@@ -9,6 +9,7 @@ supplier_service_view = PGView(
     SELECT
     ss._id,
     ss.status AS supplier_service_status,
+    ss.unit_price,
     ss.description AS supplier_service_description,
     ss._created,
     ss._updated,

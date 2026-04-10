@@ -72,7 +72,7 @@ ALL_VIEWS = [
     fn_get_resource_json,
     work_package_view,
     project_work_package_view,
-    # project_work_package_relationship_view,
+    project_work_package_relationship_view,
     # "work_package_credit_usage_view",
     # Work item views
     work_item_view,
