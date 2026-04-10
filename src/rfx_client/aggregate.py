@@ -154,7 +154,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.insert(project_member)
         return {"_id": project._id, "name": project.name, "status": "OK"}
 
-    action("project_updated", resources=("project"))
+    @action("project_updated", resources=("project"))
     async def update_project(self, /, data):
         """Update a project"""
         duration_text = None
