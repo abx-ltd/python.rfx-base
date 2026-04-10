@@ -108,22 +108,19 @@ class EntryView(TableBase):
     filemime: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     length: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     child_entry_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    resource: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
-    resource__id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    tags: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
 
 
 class TagView(TableBase):
     """
-    Tag view. cabinet_ids contains all cabinets where the tag is used.
+    Tag view. entry_ids contains all entries where the tag is used.
     """
 
     __tablename__ = "_tag"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    cabinet_ids: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
+    entry_ids: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

@@ -1,5 +1,5 @@
 from typing import Optional
-from fluvius.query.field import UUIDField
+from fluvius.query.field import UUIDField, StringField
 from fluvius.data import UUID_TYPE
 from pydantic import BaseModel, Field
 
@@ -23,13 +23,14 @@ class CabinetScopeSchema(BaseModel):
 class EntryScopeSchema(BaseModel):
     cabinet_id: UUID_TYPE = UUIDField("Cabinet ID")
 
-    parent_path: str = Field(..., description="Filter entries by parent folder path")
+    parent_path: Optional[str] = Field(
+        default=None,
+        description="Parent folder path. If provided, entry queries will be limited to this folder.",
+        examples=["", "Strategic_Plans/2026"],
+    )
 
 
 class TagScopeSchema(BaseModel):
-    cabinet_id: Optional[UUID_TYPE] = Field(
-        default=None, description="Filter tags by cabinet ID"
-    )
     realm_id: Optional[UUID_TYPE] = Field(
         default=None, description="Filter tags by realm ID"
     )
