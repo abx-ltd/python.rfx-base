@@ -66,8 +66,29 @@ class ActionTypeEnum(Enum):
     Determines the type of action taken on a message.
     """
 
-    HTTP = "HTTP"  # HTTP request action
-    LINK = "LINK"  # Link action, typically for external resources
+    ATOMIC = "ATOMIC"  # No data collection needed, single confirmation
+    FORM = "FORM"  # User fills form before submission
+    EMBEDDED = "EMBEDDED"  # Remote server renders UI in modal/frame
+
+
+class ExecutionModeEnum(Enum):
+    """
+    Execution mode for actions - how the action is performed.
+    """
+
+    API = "API"  # Direct API call to configured endpoint
+    EMBED = "EMBED"  # Load remote URL with callback handling
+
+
+class ActionExecutionStatus(Enum):
+    """
+    Status of action execution.
+    """
+
+    PENDING = "PENDING"  # Execution started but not completed
+    COMPLETED = "COMPLETED"  # Execution finished successfully
+    FAILED = "FAILED"  # Execution failed
+    CANCELLED = "CANCELLED"  # Execution was cancelled
 
 
 class HTTPMethodEnum(Enum):

@@ -126,11 +126,6 @@ class AddMessageTagPayload(DataModel):
 
 class RemoveMessageTagPayload(DataModel):
     """Payload for removing a tag from a message."""
-
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to remove tag: INBOUND (inbox) or OUTBOUND (outbox). If None, remove tag for both if user sent to themselves.",
-    )
     tag_ids: List[UUID_TYPE] = Field(..., description="IDs of the tags")
 
 
@@ -147,11 +142,12 @@ class CreateCategoryPayload(DataModel):
     """Payload for create a new category"""
     key: Optional[str] = Field(None, description="Key of category")
     name: str = Field(..., description="Name of the category" )
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox the category belongs to")
 
 
-    # =====================================
-    # MAILBOX PAYLOAD
-    # =====================================
+# =====================================
+# MAILBOX PAYLOAD
+# =====================================
 
 class CreateMailboxPayload(DataModel):
     """Payload for creating a new mailbox"""
@@ -177,29 +173,17 @@ class UpdateMailboxPayload(DataModel):
 
 class AddMemberToMailboxPayload(DataModel):
     """Payload for adding a member to a mailbox"""
-    profile_ids: List[UUID_TYPE] = Field(None, description="Profile IDs of the members to add")
-
-# class CreateMailboxMessagePayload(DataModel):
-#     """Payload for adding a mailbox message"""
-#     message_id: UUID_TYPE = Field(..., description="Message id from canonical message table")
-#     source: Optional[str] = Field(None, description="Source channel alias")
-#     source_id: Optional[str] = Field(None, description="External message id")
-#     category_id: Optional[UUID_TYPE] = Field(None, description="Associated category")
-#     direction: Optional[str] = Field("INBOUND", description="INBOUND or OUTBOUND")
-#     status: Optional[str] = Field("NEW", description="Message status")
-
+    profile_added_ids: List[UUID_TYPE] = Field(None, description="Profile IDs of the members to add")
 
 class AddMessageCategoryPayload(DataModel):
     """Payload for add messages to a category"""
-    message_id: List[UUID_TYPE] = Field(..., description="IDs of the messages")
-    # direction: Optional[DirectionTypeEnum] = Field(
-    #     default=DirectionTypeEnum.INBOUND,
-    #     description="Direction to remove: INBOUND (inbox) or OUTBOUND (outbox). If None, remove both if user sent to themselves.",
-    # )
+    message_ids: List[UUID_TYPE] = Field(..., description="IDs of the messages")
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox the category belongs to")
 
 class RemoveMessageCategoryPayload(DataModel):
     """Payload for remove a message from a category"""
-    message_id: List[UUID_TYPE] = Field(..., description="IDs of the messages")
+    message_ids: List[UUID_TYPE] = Field(..., description="IDs of the messages")
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox the category belongs to")
 
 
 class AssignMessagePayload(DataModel):
@@ -221,14 +205,14 @@ class MoveMessagePayload(DataModel):
     """Payload for moving a message inside a mailbox."""
 
     mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID for the target mailbox view")
-    folder: str = Field(..., description="Folder to move the message into, e.g. inbox or starred")
+    folder: str = Field(default="INBOX", description="Folder to move the message into, e.g. inbox or starred")
 
 
 class SetMessageStarPayload(DataModel):
     """Payload for toggling a mailbox-specific star state."""
 
     mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID for the target mailbox view")
-    starred: bool = Field(..., description="True to star the message, False to unstar")
+    starred: bool = Field(default=False, description="True to star the message, False to unstar")
 
 
 class SetPriorityPayload(DataModel):
@@ -252,3 +236,59 @@ class UploadAttachmentMetadataPayload(DataModel):
     media_type: Optional[str] = Field(None, description="Media type or MIME type of the attachment")
     size_bytes: Optional[int] = Field(None, description="Attachment file size in bytes")
     checksum: Optional[str] = Field(None, description="Optional checksum for the uploaded attachment")
+
+
+# =====================================
+# ACTION PAYLOADS
+# =====================================
+
+class RegisterActionPayload(DataModel):
+    """Payload for registering or updating an action definition."""
+
+    action_key: str = Field(..., description="Unique key for the action within the mailbox")
+    name: str = Field(..., description="Display name for the action")
+    action_type: str = Field(..., description="Type of action: atomic, form, or embedded")
+    description: Optional[str] = Field(None, description="Optional description of the action")
+
+    # Execution configuration
+    execution: Dict[str, Any] = Field(..., description="Execution configuration with mode, authorization, endpoint/embedded")
+
+    # Schema for form actions
+    schema: Optional[Dict[str, Any]] = Field(None, description="Schema definition for form actions")
+
+    # Response configuration
+    response: Dict[str, Any] = Field(..., description="Response configuration with success/error messages and fields")
+
+
+class ExecuteAtomicActionPayload(DataModel):
+    """Payload for executing an atomic action."""
+
+    action_id: UUID_TYPE = Field(..., description="ID of the action to execute")
+    # No additional data needed for atomic actions - just confirmation
+
+
+class SubmitFormActionPayload(DataModel):
+    """Payload for submitting a form action."""
+
+    action_id: UUID_TYPE = Field(..., description="ID of the action to execute")
+    form_data: Dict[str, Any] = Field(..., description="Form data submitted by the user")
+    client_context: Optional[Dict[str, Any]] = Field(None, description="Optional client-side context data")
+
+
+class RecordEmbeddedActionResultPayload(DataModel):
+    """Payload for recording the result of an embedded action."""
+
+    action_id: UUID_TYPE = Field(..., description="ID of the action that was executed")
+    execution_id: UUID_TYPE = Field(..., description="ID of the action execution")
+    callback_payload: Dict[str, Any] = Field(..., description="Callback payload from the embedded action (postMessage, deepLink, or webhook)")
+
+
+class ActionResponseEnvelope(DataModel):
+    """Standard response envelope for action executions."""
+
+    status: str = Field(..., description="Status: success or error")
+    action_id: str = Field(..., description="ID of the action that was executed")
+    record_id: Optional[str] = Field(None, description="ID of the created record (null on error)")
+    timestamp: str = Field(..., description="Timestamp of the response")
+    data: Optional[Dict[str, Any]] = Field(None, description="Response data (null on error)")
+    error: Optional[Dict[str, Any]] = Field(None, description="Error details (null on success)")

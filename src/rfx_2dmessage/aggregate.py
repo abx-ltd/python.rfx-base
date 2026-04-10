@@ -5,7 +5,7 @@ from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR, UUID_TYPE
 from fluvius.error import BadRequestError
 from typing import Optional, Dict, Any
-from .types import RenderStatusEnum
+from .types import RenderStatusEnum, PriorityLevelEnum, ActionExecutionStatus
 
 class RFX2DMessageAggregate(Aggregate):
     # def _normalize_member_ids(self, sender_id, recipients=None):
@@ -119,145 +119,6 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.insert(reply_message)
 
         return reply_message
-
-    @action("message-content-processed", resources="message")
-    async def process_message_content(
-        self,
-        *,
-        message_id: str,
-        context: Optional[Dict[str, Any]] = None,
-        mode: str = "sync",
-    ):
-        """Process message content (template resolution and rendering)."""
-        message = await self.statemgr.fetch("message", message_id)
-        if not message:
-            raise ValueError(f"Message not found: {message_id}")
-
-        # If message has direct content, no template rendering needed
-        if message.content:
-            await self.statemgr.update(
-                message,
-                render_status=RenderStatusEnum.COMPLETED.value
-            )
-            return serialize_mapping(message)
-
-        # If message has template_key, render via rfx-template domain
-        if message.template_key:
-            try:
-                from rfx_user import config as userconf
-                template_client = getattr(self.context.service_proxy, userconf.SERVICE_CLIENT, None)
-                if not template_client:
-                    raise RuntimeError("Template client not found")
-
-                # Call rfx-template:render-template
-                response = await template_client.request(
-                    "rfx-template:render-template",
-                    command="render-template",
-                    resource="template",
-                    payload={
-                        "key": message.template_key,
-                        "data": context or {},
-                        "tenant_id": str(self.context.tenant_id) if hasattr(self.context, 'tenant_id') else None,
-                        "app_id": getattr(self.context, 'app_id', None),
-                        "locale": message.locale or "en",
-                        "channel": message.channel,
-                    },
-                    _headers={},
-                    _context={
-                        "audit": {
-                            "user_id": str(self.context.user_id) if self.context.user_id else None,
-                            "profile_id": str(self.context.profile_id) if self.context.profile_id else None,
-                        },
-                        "source": "rfx-message",
-                    },
-                )
-
-                # Extract rendered content from template-service-response
-                service_response = response.get("template-service-response", response)
-                rendered_content = service_response.get('body', '')
-
-                # Update message with rendered content
-                await self.statemgr.update(
-                    message,
-                    content=rendered_content,
-                    render_status=RenderStatusEnum.COMPLETED.value
-                )
-
-                # Refetch updated message
-                message = await self.statemgr.fetch("message", message_id)
-
-            except Exception as e:
-                # Mark rendering as failed
-                await self.statemgr.update(
-                    message,
-                    render_status=RenderStatusEnum.FAILED.value,
-                    render_error=str(e)
-                )
-                raise ValueError(f"Template rendering failed: {str(e)}")
-
-        return serialize_mapping(message)
-
-    @action("message-ready-for-delivery", resources="message")
-    async def mark_ready_for_delivery(self, message_id):
-        """Mark message as ready for delivery."""
-        message = await self.statemgr.fetch("message", message_id)
-        if not message:
-            raise ValueError(f"Message not found: {message_id}")
-
-        if message.render_status.value not in [
-            RenderStatusEnum.COMPLETED.value,
-            RenderStatusEnum.CLIENT_RENDERING.value,
-        ]:
-            raise ValueError(
-                f"Message {message_id} is not ready for delivery (status: {message.render_status})"
-            )
-
-        await self.statemgr.update(message, delivery_status="PENDING")
-
-        return {"message_id": message_id, "status": "PENDING"}
-
-    # @action("get-all-message-in-thread-from-message", resources="message")
-    # async def get_all_message_view_in_thread_from_message(self, message_id):
-    #     """Get all messages in a thread."""
-    #     message = self.rootobj
-    #     return await self.statemgr.find_all(
-    #         "_message_box",
-    #         where={"thread_id": message.thread_id},
-    #     )
-
-    @action("change-all-sender-box-id-of-same-thread", resources="message")
-    async def change_all_sender_box_id_of_same_thread(self, box_id, profile_id):
-        """Change all sender box id of same thread."""
-
-        message = self.rootobj
-        messages = await self.statemgr.find_all(
-            "message",
-            where={"thread_id": message.thread_id},
-        )
-        for message in messages:
-            sender = await self.statemgr.exist(
-                "message_sender",
-                where={"message_id": message._id, "sender_id": profile_id},
-            )
-            if sender:
-                await self.statemgr.update(sender, box_id=box_id)
-
-    @action("change-all-recipient-box-id-of-same-thread", resources="message")
-    async def change_all_recipient_box_id_of_same_thread(self, box_id, profile_id):
-        """Change all recipient box id of same thread."""
-        message = self.rootobj
-        messages = await self.statemgr.find_all(
-            "message",
-            where={"thread_id": message.thread_id},
-        )
-        for message in messages:
-            recipient = await self.statemgr.exist(
-                "message_recipient",
-                where={"message_id": message._id, "recipient_id": profile_id},
-            )
-            if recipient:
-                await self.statemgr.update(recipient, box_id=box_id)
-    
 
     @action("sender-added", resources=("message", "message_sender"))
     async def add_sender(self, message_id, sender_id):
@@ -417,22 +278,22 @@ class RFX2DMessageAggregate(Aggregate):
         return {"message_id": message_id, "message_status": message_status}
 
     @action("message-moved", resources="message")
-    async def move_message(self, message_id, mailbox_id, folder):
+    async def move_message(self, message_id, mailbox_id, folder, profile_id):
         """Move a message into a mailbox folder."""
 
         folder_value = folder.strip().lower()
-        if folder_value not in ("inbox", "starred"):
-            raise BadRequestError(
+        if folder_value not in ("inbox", "starred", "archived", "trash"):
+            raise ValueError(
                 "D00.462",
-                f"Unsupported folder: {folder}. Supported folders are inbox and starred.",
+                f"Unsupported folder: {folder}. Supported folders are inbox, starred, archived, and trash.",
             )
 
         mailbox_state = await self.statemgr.find_one(
             "message_mailbox_state",
-            where={"message_id": message_id, "mailbox_id": mailbox_id, "_deleted": None},
+            where={"message_id": message_id, "mailbox_id": mailbox_id, "assigned_to_profile_id": profile_id, "_deleted": None},
         )
         if mailbox_state is None:
-            raise BadRequestError(
+            raise ValueError(
                 "D00.463",
                 f"Message {message_id} is not present in mailbox {mailbox_id}.",
             )
@@ -441,15 +302,15 @@ class RFX2DMessageAggregate(Aggregate):
         return {"message_id": message_id, "mailbox_id": mailbox_id, "folder": folder_value}
 
     @action("message-star-updated", resources="message")
-    async def set_message_star(self, message_id, mailbox_id, starred):
+    async def set_message_star(self, message_id, mailbox_id, starred, profile_id):
         """Toggle starred state for a message within a mailbox."""
 
         mailbox_state = await self.statemgr.find_one(
             "message_mailbox_state",
-            where={"message_id": message_id, "mailbox_id": mailbox_id, "_deleted": None},
+            where={"message_id": message_id, "mailbox_id": mailbox_id, "assigned_to_profile_id": profile_id, "_deleted": None},
         )
         if mailbox_state is None:
-            raise BadRequestError(
+            raise ValueError(
                 "D00.464",
                 f"Message {message_id} is not present in mailbox {mailbox_id}.",
             )
@@ -458,14 +319,22 @@ class RFX2DMessageAggregate(Aggregate):
         return {"message_id": message_id, "mailbox_id": mailbox_id, "is_starred": starred}
 
     @action("message-priority-updated", resources="message")
-    async def set_priority(self, message_id, priority):
+    async def set_priority(self, message_id, priority, profile_id):
         """Update a message priority."""
+
+        # Check if message is sent by profile_id
+        # message = await self.statemgr.find_one(
+        #     "message_sender",
+        #     where={"message_id": message_id, "sender_id": profile_id},
+        # )
+        # if message is None:
+        #     raise ValueError("D00.466", f"Message not found or not sent by profile: {message_id}")
 
         if isinstance(priority, str):
             priority = priority.strip().upper()
 
         if priority not in {p.value for p in PriorityLevelEnum}:
-            raise BadRequestError(
+            raise ValueError(
                 "D00.465",
                 f"Unsupported priority: {priority}. Supported values are HIGH, MEDIUM, LOW.",
             )
@@ -475,7 +344,7 @@ class RFX2DMessageAggregate(Aggregate):
             where={"_id": message_id},
         )
         if message is None:
-            raise BadRequestError("D00.466", f"Message not found: {message_id}")
+            raise ValueError("D00.466", f"Message not found: {message_id}")
 
         await self.statemgr.update(message, priority=priority)
         return {"message_id": message_id, "priority": priority}
@@ -548,6 +417,14 @@ class RFX2DMessageAggregate(Aggregate):
     async def upload_attachment_metadata(self, message_id, data):
         """Register uploaded attachment metadata for a message."""
 
+        # Check if message is sent by profile_id
+        # message = await self.statemgr.find_one(
+        #     "message_sender",
+        #     where={"message_id": message_id, "sender_id": profile_id},
+        # )
+        # if message is None:
+        #     raise ValueError("D00.466", f"Message not found or not sent by profile: {message_id}")
+
         attachment = self.init_resource(
             "message_attachment",
             {
@@ -585,49 +462,51 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.update(tag, **serialize_mapping(data))
 
     @action("tag-removed", resources="tag")
-    async def remove_tag(self):
+    async def remove_tag(self, tag_id, profile_id):
         """Remove a tag."""
-        tag = self.rootobj
+        tag = await self.statemgr.find_one(
+            "tag",
+            where={"_id": tag_id, "profile_id": profile_id},
+        )
         await self.statemgr.invalidate(tag)
+
+    @action("message-tag-removed-by-tag", resources="tag")
+    async def remove_message_tag_from_tag(self, tag_id):
+        """Remove all message tags associated with a tag."""
+        message_tags = await self.statemgr.find_all(
+            "message_tag",
+            where={"tag_id": tag_id},
+        )
+        for message_tag in message_tags:
+            await self.statemgr.invalidate(message_tag)
 
     @action("add-message-tag", resources="message")
     async def add_message_tag(
-        self, *, resource: str, resource_id: str, tag_id: UUID_TYPE
+        self, tag_ids, message_id
     ):
         """Action to add a tag to a message."""
-        existing_tag = await self.statemgr.exist(
-            "message_tag",
-            where={"resource": resource, "resource_id": resource_id, "tag_id": tag_id},
-        )
-        if existing_tag:
-            return
+        for tag_id in tag_ids:
+            message_tag = self.init_resource(
+                "message_tag",
+                {
+                    "tag_id": tag_id,
+                    "message_id": message_id,
+                },
+            )
+            await self.statemgr.insert(message_tag)
 
-   
-        message_tag = self.init_resource(
-            "message_tag",
-            {
-                "resource": resource,
-                "resource_id": resource_id,
-                "tag_id": tag_id,
-            },
-        )
-        await self.statemgr.insert(message_tag)
-
-    @action("message-tag-removed-from-resource", resources="message")
-    async def remove_message_tag_from_resource(
-        self, *, resource: str, resource_id: str, tag_id: UUID_TYPE
-    ):
+    @action("message-tag-removed", resources="message")
+    async def remove_message_tag(self, message_id, tag_ids):
         """Action to remove a tag from a message."""
-        message_tag = await self.statemgr.find_one(
-            "message_tag",
-            where={"resource": resource, "resource_id": resource_id, "tag_id": tag_id},
-        )
-        await self.statemgr.invalidate(message_tag)
+        for tag_id in tag_ids:
+            message_tag = await self.statemgr.find_one(
+                "message_tag",
+                where={"message_id": message_id, "tag_id": tag_id},
+            )
+            await self.statemgr.invalidate(message_tag)
 
     @action("create-category", resources="category")
     async def create_category(self, data, profile_id):
-
-        
         category = self.init_resource(
             "category",
             serialize_mapping(data),
@@ -641,13 +520,6 @@ class RFX2DMessageAggregate(Aggregate):
 
     @action("remove-category", resources="category")
     async def remove_category(self, category_id, profile_id):
-        # Remove category by category_id and profile_id
-        category = await self.statemgr.find_one(
-            "category",
-            where={"_id": category_id, "profile_id": profile_id},
-        )
-        await self.statemgr.invalidate(category)
-
         # Delete all message-category associations for this category
         message_category = await self.statemgr.find_all(
             "message_category",
@@ -655,6 +527,13 @@ class RFX2DMessageAggregate(Aggregate):
         )
         for mc in message_category:
             await self.statemgr.invalidate(mc)
+
+        # Remove category by category_id and profile_id
+        category = await self.statemgr.find_one(
+            "category",
+            where={"_id": category_id, "profile_id": profile_id},
+        )
+        await self.statemgr.invalidate(category)
 
     # ======================================================
     # MAILBOX METHODS
@@ -738,7 +617,7 @@ class RFX2DMessageAggregate(Aggregate):
         return mailbox
     
     @action("add-member-to-mailbox", resources="mailbox")
-    async def add_member_to_mailbox(self, mailbox_id, profile_id, member_ids):
+    async def add_member_to_mailbox(self, mailbox_id, profile_id, member_added_ids):
 
         # check if profile_id is owner of the mailbox
         mailbox_owner = await self.statemgr.find_one(
@@ -748,14 +627,14 @@ class RFX2DMessageAggregate(Aggregate):
         if mailbox_owner is None:
             raise ValueError("Only mailbox owner can add members")
         
-        for member_id in member_ids:
+        for member_id in member_added_ids:
             # check if member added is already a member of the mailbox
             mailbox_member_exists = await self.statemgr.exist(
                 "mailbox_member",
                 where={"mailbox_id": mailbox_id, "member_id": member_id},
             )
             if mailbox_member_exists:    
-                mailbox_member_exists.remove(member_id)        
+                member_added_ids.remove(mailbox_member_exists.member_id)        
                 continue
 
             mailbox_member = self.init_resource(
@@ -768,40 +647,7 @@ class RFX2DMessageAggregate(Aggregate):
 
             await self.statemgr.insert(mailbox_member)
         
-        # self.sync_to_message_mailbox_state(mailbox_id, [member_id], profile_id, add=True)
-
-        return True
-
-    # @action("create-mailbox-message", resources="mailbox")
-    # async def create_mailbox_message(self, data, mailbox_id, profile_id):
-    #     message_id = data.get("message_id")
-    #     if not message_id:
-    #         raise BadRequestError("D00.452", "message_id is required for mailbox_message")
-
-    #     source = data.get("source")
-    #     source_id = data.get("source_id")
-    #     if source and source_id:
-    #         existing = await self.statemgr.exist(
-    #             "message_mailbox_state",
-    #             where={"mailbox_id": mailbox_id, "source": source, "source_id": source_id, "_deleted": None},
-    #         )
-    #         if existing:
-    #             raise BadRequestError(
-    #                 "D00.451",
-    #                 f"Mailbox message already exists for source={source} source_id={source_id}"
-    #             )
-
-    #     mailbox_message = self.init_resource(
-    #         "message_mailbox_state",
-    #         serialize_mapping(data),
-    #         _id=UUID_GENR(),
-    #         mailbox_id=mailbox_id,
-    #         profile_id=profile_id,
-    #     )
-
-    #     await self.statemgr.insert(mailbox_message)
-
-    #     return mailbox_message
+        await self.sync_to_message_mailbox_state(mailbox_id, member_added_ids, True)
 
     # @action("remove-mailbox-message", resources="mailbox")
     # async def remove_mailbox_message(self, mailbox_message_id, profile_id):
@@ -814,19 +660,18 @@ class RFX2DMessageAggregate(Aggregate):
     #     return mailbox_message
 
     @action("add-message-to-category", resources="category")
-    async def add_message_to_category(self, data, category_id, profile_id):
-        messages = data.pop("message_id", [])
+    async def add_message_to_category(self, mailbox_id, category_id, profile_id, message_ids):
 
         categories = await self.statemgr.find_all(
             "category",
-            where={"profile_id": profile_id, "_deleted": None},
+            where={"profile_id": profile_id, "mailbox_id": mailbox_id, "_deleted": None},
         )
 
         message_category_exists = []
         
-        for message_id in messages:
-            # Check if message is already in any category for this profile (non-deleted)
-            # First, find all categories for this profile
+        for message_id in message_ids:
+            # Check if message is already in any category for this profile of mailbox (non-deleted)
+            # First, find all message categorie for this profile in mailbox
             mc_exist = False
             for cat in categories:
                 # Then check if message is associated with any of these categories
@@ -862,12 +707,17 @@ class RFX2DMessageAggregate(Aggregate):
                 "message_category_added": messages
             }
         
-    # @action("remove-message-from-category", resource="category")
-    # async def 
-
-
-
-    async def sync_to_message_mailbox_state(self, mailbox_id, member_ids, profile_id, add=False):
+    @action("remove-message-from-category", resources="category")
+    async def remove_message_from_category(self, mailbox_id, category_id, profile_id, message_ids):
+        for message_id in message_ids:
+            message_category = await self.statemgr.find_one(
+                "message_category",
+                where={"message_id": message_id, "category_id": category_id, "_deleted": None},
+            )
+            if message_category:
+                await self.statemgr.invalidate(message_category)
+        
+    async def sync_to_message_mailbox_state(self, mailbox_id, member_ids, add):
         """
             Sync message mailbox state for messages in the mailbox.
             If have new member added to the mailbox, add message mailbox state for the member for all messages in the mailbox.
@@ -875,6 +725,11 @@ class RFX2DMessageAggregate(Aggregate):
         """
         # This is a placeholder for the actual implementation of syncing message mailbox state.
         # The actual implementation would depend on the specific requirements and data model of the application.
+        all_message_of_mailbox = await self.statemgr.find_all(
+            "message",
+            where={"sender_mailbox_id": mailbox_id, "_deleted": None},
+        )
+
         if add == False:
             for member_id in member_ids:
                 message_mailbox_states = await self.statemgr.find_all(
@@ -886,17 +741,314 @@ class RFX2DMessageAggregate(Aggregate):
         else:
             for member_id in member_ids:
                 # find all messages in the mailbox
-                message_mailbox_states = await self.statemgr.find_all(
-                    "message_mailbox_state",
-                    where={"mailbox_id": mailbox_id, "_deleted": None, },
-                )
-                for message_mailbox_state in message_mailbox_states:
-                    if message_mailbox_state.assigned_to_profile_id is None:
-                        new_message_mailbox_state = self.init_resource(
-                            "message_mailbox_state",
-                            _id=UUID_GENR(),
-                            mailbox_id=mailbox_id,
-                            message_id=message_mailbox_state.message_id,
-                            assigned_to_profile_id=member_id,
-                        )
-                        await self.statemgr.insert(new_message_mailbox_state)
+                for message in all_message_of_mailbox:
+                    new_message_mailbox_state = self.init_resource(
+                        "message_mailbox_state",
+                        _id=UUID_GENR(),
+                        mailbox_id=mailbox_id,
+                        message_id=message._id,
+                        assigned_to_profile_id=member_id,
+                    )
+                    await self.statemgr.insert(new_message_mailbox_state)
+
+
+    # =======================================
+    # ACTION METHODS
+    # =======================================
+
+    async def register_action(self, mailbox_id, action_data, profile_id):
+        """Register or update an action definition for a mailbox."""
+        from .types import ActionTypeEnum, ExecutionModeEnum
+
+        # Validate action payload structure
+        action_key = action_data["action_key"]
+        action_type = action_data["action_type"]
+        execution = action_data["execution"]
+
+        # Validate action type and execution mode constraints
+        if action_type == "atomic":
+            if execution.get("mode") != "api":
+                raise BadRequestError("Atomic actions must use API execution mode")
+        elif action_type == "form":
+            if execution.get("mode") != "api":
+                raise BadRequestError("Form actions must use API execution mode")
+            if "schema" not in action_data:
+                raise BadRequestError("Form actions require a schema")
+        elif action_type == "embedded":
+            if execution.get("mode") != "embed":
+                raise BadRequestError("Embedded actions must use embed execution mode")
+        else:
+            raise BadRequestError(f"Invalid action type: {action_type}")
+
+        # Check if action already exists
+        existing_action = await self.statemgr.find_one(
+            "message_action",
+            where={
+                "mailbox_id": mailbox_id,
+                "action_key": action_key,
+                "_deleted": None
+            }
+        )
+
+        if existing_action:
+            # Update existing action
+            action_data["execution_mode"] = ExecutionModeEnum(execution["mode"])
+            action_data["action_type"] = ActionTypeEnum(action_type)
+
+            # Handle nested JSON fields
+            if "endpoint" in execution:
+                action_data["endpoint_json"] = execution["endpoint"]
+                action_data["embedded_json"] = None
+            elif "embedded" in execution:
+                action_data["embedded_json"] = execution["embedded"]
+                action_data["endpoint_json"] = None
+
+            if "authorization" in execution:
+                action_data["authorization"] = execution["authorization"]
+
+            await self.statemgr.update(existing_action, action_data)
+            action = existing_action
+        else:
+            # Create new action
+            action = self.init_resource(
+                "message_action",
+                _id=UUID_GENR(),
+                mailbox_id=mailbox_id,
+                action_key=action_key,
+                name=action_data["name"],
+                action_type=ActionTypeEnum(action_type),
+                description=action_data.get("description"),
+                execution_mode=ExecutionModeEnum(execution["mode"]),
+                endpoint_json=execution.get("endpoint"),
+                embedded_json=execution.get("embedded"),
+                authorization=execution.get("authorization"),
+                schema_json=action_data.get("schema"),
+                response_json=action_data["response"]
+            )
+            await self.statemgr.insert(action)
+
+        return {
+            "action_id": action._id,
+            "action_key": action_key,
+            "status": "registered"
+        }
+
+    async def execute_atomic_action(self, message_id, action_id, profile_id):
+        """Execute an atomic action for a message."""
+        import httpx
+        from datetime import datetime
+
+        # Get the action definition
+        action = await self.statemgr.find_one(
+            "message_action",
+            where={"_id": action_id, "_deleted": None}
+        )
+        if not action:
+            raise BadRequestError("Action not found")
+
+        if action.action_type.name != "ATOMIC":
+            raise BadRequestError("Action is not an atomic action")
+
+        # Create action execution record
+        execution = self.init_resource(
+            "message_action_execute",
+            _id=UUID_GENR(),
+            message_id=message_id,
+            action_id=action_id,
+            profile_id=profile_id,
+            execution_mode=action.execution_mode,
+            status=ActionExecutionStatus.PENDING
+        )
+        await self.statemgr.insert(execution)
+
+        # Execute the action (server-side API call)
+        result = await self._execute_action_api(action, {})
+
+        # Update execution record
+        execution.status = ActionExecutionStatus.COMPLETED if result["status"] == "success" else ActionExecutionStatus.FAILED
+        execution.response_payload_json = result
+        execution.completed_at = datetime.utcnow()
+        await self.statemgr.update(execution, {
+            "status": execution.status,
+            "response_payload_json": result,
+            "completed_at": execution.completed_at
+        })
+
+        return result
+
+    async def submit_form_action(self, message_id, action_id, form_data, client_context, profile_id):
+        """Submit a form action for a message."""
+        import httpx
+        from datetime import datetime
+
+        # Get the action definition
+        action = await self.statemgr.find_one(
+            "message_action",
+            where={"_id": action_id, "_deleted": None}
+        )
+        if not action:
+            raise BadRequestError("Action not found")
+
+        if action.action_type.name != "FORM":
+            raise BadRequestError("Action is not a form action")
+
+        # Validate form data against schema
+        if action.schema_json:
+            await self._validate_form_data(form_data, action.schema_json)
+
+        # Create action execution record
+        execution = self.init_resource(
+            "message_action_execute",
+            _id=UUID_GENR(),
+            message_id=message_id,
+            action_id=action_id,
+            profile_id=profile_id,
+            execution_mode=action.execution_mode,
+            status=ActionExecutionStatus.PENDING,
+            input_payload_json=form_data
+        )
+        await self.statemgr.insert(execution)
+
+        # Execute the action
+        result = await self._execute_action_api(action, form_data)
+
+        # Update execution record
+        execution.status = ActionExecutionStatus.COMPLETED if result["status"] == "success" else ActionExecutionStatus.FAILED
+        execution.response_payload_json = result
+        execution.completed_at = datetime.utcnow()
+        await self.statemgr.update(execution, {
+            "status": execution.status,
+            "response_payload_json": result,
+            "completed_at": execution.completed_at
+        })
+
+        return result
+
+    async def record_embedded_action_result(self, message_id, action_id, execution_id, callback_payload, profile_id):
+        """Record the result of an embedded action."""
+        from datetime import datetime
+
+        # Get the execution record
+        execution = await self.statemgr.find_one(
+            "message_action_execute",
+            where={"_id": execution_id, "_deleted": None}
+        )
+        if not execution:
+            raise BadRequestError("Action execution not found")
+
+        # Normalize callback payload to standard envelope
+        result = self._normalize_embedded_callback(callback_payload)
+
+        # Update execution record
+        execution.status = ActionExecutionStatus.COMPLETED if result["status"] == "success" else ActionExecutionStatus.FAILED
+        execution.response_payload_json = result
+        execution.completed_at = datetime.utcnow()
+        await self.statemgr.update(execution, {
+            "status": execution.status,
+            "response_payload_json": result,
+            "completed_at": execution.completed_at
+        })
+
+        return result
+
+    async def _execute_action_api(self, action, payload):
+        """Execute an action via API call."""
+        import httpx
+        from datetime import datetime
+
+        if not action.endpoint_json:
+            raise BadRequestError("Action has no endpoint configuration")
+
+        endpoint = action.endpoint_json
+        url = endpoint["url"]
+        method = endpoint.get("method", "POST")
+        headers = endpoint.get("headers", {})
+
+        # Add authorization
+        if action.authorization:
+            auth = action.authorization
+            if auth["type"] == "bearer":
+                headers["Authorization"] = f"Bearer {auth['token']}"
+            elif auth["type"] == "apiKey":
+                headers[auth["header"]] = auth["value"]
+            elif auth["type"] == "basic":
+                # Basic auth would need username/password
+                pass
+
+        try:
+            async with httpx.AsyncClient() as client:
+                if method.upper() == "GET":
+                    response = await client.get(url, headers=headers, params=payload)
+                elif method.upper() == "POST":
+                    response = await client.post(url, headers=headers, json=payload)
+                elif method.upper() == "PUT":
+                    response = await client.put(url, headers=headers, json=payload)
+                elif method.upper() == "PATCH":
+                    response = await client.patch(url, headers=headers, json=payload)
+                else:
+                    raise BadRequestError(f"Unsupported HTTP method: {method}")
+
+                if response.status_code >= 200 and response.status_code < 300:
+                    response_data = response.json()
+                    return {
+                        "status": "success",
+                        "action_id": str(action._id),
+                        "record_id": response_data.get("record_id"),
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "data": response_data
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "action_id": str(action._id),
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "error": {
+                            "code": "API_ERROR",
+                            "message": f"API call failed with status {response.status_code}",
+                            "details": response.text
+                        }
+                    }
+        except Exception as e:
+            return {
+                "status": "error",
+                "action_id": str(action._id),
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": {
+                    "code": "NETWORK_ERROR",
+                    "message": str(e)
+                }
+            }
+
+    async def _validate_form_data(self, form_data, schema):
+        """Validate form data against schema."""
+        # Basic validation - could be enhanced
+        if not schema or not schema.get("fields"):
+            return
+
+        for field in schema["fields"]:
+            field_key = field["key"]
+            if field.get("required", False) and field_key not in form_data:
+                raise BadRequestError(f"Required field '{field_key}' is missing")
+
+    def _normalize_embedded_callback(self, callback_payload):
+        """Normalize embedded action callback to standard envelope."""
+        from datetime import datetime
+
+        # Map callback event to status
+        event = callback_payload.get("event", "")
+        if event in ["SIGNING_COMPLETE", "successEvent"]:
+            status = "success"
+        elif event in ["SIGNING_CANCELLED", "SIGNING_FAILED", "cancelEvent", "errorEvent"]:
+            status = "error"
+        else:
+            status = "error"
+
+        return {
+            "status": status,
+            "action_id": callback_payload.get("action_id"),
+            "record_id": callback_payload.get("record_id"),
+            "timestamp": callback_payload.get("timestamp", datetime.utcnow().isoformat()),
+            "data": callback_payload.get("data"),
+            "error": callback_payload.get("error")
+        }
+                

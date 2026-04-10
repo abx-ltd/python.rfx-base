@@ -12,6 +12,9 @@ from . import datadef, config, logger, helper
 
 Command = RFX2DMessageDomain.Command
 
+# =======================================
+# MAILBOX METHODS
+# =======================================
 
 class CreateMailbox(Command):
     Data = datadef.CreateMailboxPayload
@@ -57,29 +60,29 @@ class RemoveMailbox(Command):
         )
 
 
-# class AddMemberToMailbox(Command):
-#     Data = datadef.AddMemberToMailboxPayload
+class AddMemberToMailbox(Command):
+    Data = datadef.AddMemberToMailboxPayload
 
-#     class Meta:
-#         key = "add-member-to-mailbox"
-#         resources = ("mailbox",)
-#         tags = ["mailbox", "member", "add"]
-#         auth_required = True
+    class Meta:
+        key = "add-member-to-mailbox"
+        resources = ("mailbox",)
+        tags = ["mailbox", "member", "add"]
+        auth_required = True
 
-#     async def _process(self, agg, stm, payload):
-#         mailbox_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-#         payload = serialize_mapping(payload)
+    async def _process(self, agg, stm, payload):
+        mailbox_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
+        payload = serialize_mapping(payload)
 
-#         result = await agg.add_member_to_mailbox(mailbox_id=mailbox_id, 
-#                                                  profile_id=profile_id, 
-#                                                  member_ids=payload.get("profile_ids", [])
-#                                                  )
+        result = await agg.add_member_to_mailbox(mailbox_id=mailbox_id, 
+                                                 profile_id=profile_id, 
+                                                 member_added_ids=payload.get("profile_added_ids", [])
+                                                 )
 
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
 
 # class RemoveMemberFromMailbox(Command):
 #     class Meta:
@@ -338,9 +341,11 @@ class RemoveTag(Command):
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        tag = await agg.find_tag(tag_id=agg.get_aggroot().identifier)
-        await agg.remove_message_tag_from_tag(tag_id=tag._id)
-        await agg.remove_tag()
+        tag_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
+        # await agg.remove_message_tag(tag_id=tag._id)
+        await agg.remove_message_tag_from_tag(tag_id=tag_id)
+        await agg.remove_tag(tag_id=tag_id, profile_id=profile_id)
 
 class AddMessageTag(Command):
     """Add a message to a tag"""
@@ -356,29 +361,11 @@ class AddMessageTag(Command):
     Data = datadef.AddMessageTagPayload
 
     async def _process(self, agg, stm, payload):
-        direction = payload.direction
+        message_id = agg.get_aggroot().identifier
+        payload = serialize_mapping(payload)
+        tag_ids = payload.get("tag_ids", [])
 
-        if direction == DirectionTypeEnum.OUTBOUND:
-            message_sender = await agg.get_message_sender_by_message_id(
-                message_id=agg.get_aggroot().identifier
-            )
-            for tag_id in payload.tag_ids:
-                await agg.add_message_tag(
-                    resource="message_sender",
-                    resource_id=message_sender._id,
-                    tag_id=tag_id,
-                )
-        elif direction == DirectionTypeEnum.INBOUND:
-            message_recipient = await agg.get_message_recipient(
-                message_id=agg.get_aggroot().identifier,
-                profile_id=agg.get_context().profile_id,
-            )
-            for tag_id in payload.tag_ids:
-                await agg.add_message_tag(
-                    resource="message_recipient",
-                    resource_id=message_recipient._id,
-                    tag_id=tag_id,
-                )
+        await agg.add_message_tag(message_id=message_id, tag_ids=tag_ids)
 
 class RemoveMessageTag(Command):
     """Remove a message from a tag."""
@@ -392,28 +379,11 @@ class RemoveMessageTag(Command):
         auth_required = True
 
     async def _process(self, agg, stm, payload):
-        direction = payload.direction
-        if direction == DirectionTypeEnum.OUTBOUND:
-            message_sender = await agg.get_message_sender_by_message_id(
-                message_id=agg.get_aggroot().identifier,
-            )
-            for tag_id in payload.tag_ids:
-                await agg.remove_message_tag_from_resource(
-                    resource="message_sender",
-                    resource_id=message_sender._id,
-                    tag_id=tag_id,
-                )
-        elif direction == DirectionTypeEnum.INBOUND:
-            message_recipient = await agg.get_message_recipient(
-                message_id=agg.get_aggroot().identifier,
-                profile_id=agg.get_context().profile_id,
-            )
-            for tag_id in payload.tag_ids:
-                await agg.remove_message_tag_from_resource(
-                    resource="message_recipient",
-                    resource_id=message_recipient._id,
-                    tag_id=tag_id,
-                )
+        message_id = agg.get_aggroot().identifier
+        payload = serialize_mapping(payload)
+        tag_ids = payload.get("tag_ids", [])
+
+        await agg.remove_message_tag(message_id=message_id, tag_ids=tag_ids)
 
 class CreateCategory(Command):
     Data = datadef.CreateCategoryPayload
@@ -463,8 +433,13 @@ class AddMessageCategory(Command):
         profile_id = agg.get_context().profile_id
 
         payload = serialize_mapping(payload)
+        message_ids = payload.get("message_ids", [])
+        mailbox_id = payload.get("mailbox_id")
 
-        result = await agg.add_message_to_category(data=payload, category_id=category_id, profile_id=profile_id)
+        result = await agg.add_message_to_category(mailbox_id=mailbox_id, 
+                                                   category_id=category_id, 
+                                                   profile_id=profile_id, 
+                                                   message_ids=message_ids)
 
         yield agg.create_response(
             serialize_mapping(result),
@@ -485,9 +460,14 @@ class RemoveMessageCategory(Command):
         category_id = agg.get_aggroot().identifier
         profile_id = agg.get_context().profile_id
 
-        # payload = serialize_mapping(payload)
+        payload = serialize_mapping(payload)
+        message_ids = payload.get("message_ids", [])
+        mailbox_id = payload.get("mailbox_id")
 
-        result = await agg.remove_message_from_category(data=payload, category_id=category_id, profile_id=profile_id)
+        result = await agg.remove_message_from_category(mailbox_id=mailbox_id, 
+                                                        category_id=category_id, 
+                                                        profile_id=profile_id, 
+                                                        message_ids=message_ids)
 
         yield agg.create_response(
             serialize_mapping(result),
@@ -603,20 +583,22 @@ class MoveMessage(Command):
 
     async def _process(self, agg, stm, payload):
         message_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
 
         result = await agg.move_message(
             message_id=message_id,
             mailbox_id=payload.mailbox_id,
             folder=payload.folder,
+            profile_id=profile_id
         )
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"Moved message {message_id} to folder {payload.folder} in mailbox {payload.mailbox_id}",
-            msglabel="move-message",
-            msgtype=ActivityType.USER_ACTION,
-            data={"mailbox_id": str(payload.mailbox_id), "folder": payload.folder},
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"Moved message {message_id} to folder {payload.folder} in mailbox {payload.mailbox_id}",
+        #     msglabel="move-message",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={"mailbox_id": str(payload.mailbox_id), "folder": payload.folder},
+        # )
 
         yield agg.create_response(
             serialize_mapping(result),
@@ -637,20 +619,22 @@ class SetMessageStar(Command):
 
     async def _process(self, agg, stm, payload):
         message_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
 
         result = await agg.set_message_star(
             message_id=message_id,
             mailbox_id=payload.mailbox_id,
             starred=payload.starred,
+            profile_id=profile_id,
         )
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"Set star={payload.starred} for message {message_id} in mailbox {payload.mailbox_id}",
-            msglabel="set-message-star",
-            msgtype=ActivityType.USER_ACTION,
-            data={"mailbox_id": str(payload.mailbox_id), "starred": payload.starred},
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"Set star={payload.starred} for message {message_id} in mailbox {payload.mailbox_id}",
+        #     msglabel="set-message-star",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={"mailbox_id": str(payload.mailbox_id), "starred": payload.starred},
+        # )
 
         yield agg.create_response(
             serialize_mapping(result),
@@ -671,19 +655,21 @@ class SetPriority(Command):
 
     async def _process(self, agg, stm, payload):
         message_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
 
         result = await agg.set_priority(
             message_id=message_id,
             priority=payload.priority,
+            profile_id=profile_id
         )
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"Set priority for message {message_id} to {payload.priority}",
-            msglabel="set-priority",
-            msgtype=ActivityType.USER_ACTION,
-            data={"priority": payload.priority},
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"Set priority for message {message_id} to {payload.priority}",
+        #     msglabel="set-priority",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={"priority": payload.priority},
+        # )
 
         yield agg.create_response(
             serialize_mapping(result),
@@ -691,38 +677,38 @@ class SetPriority(Command):
         )
 
 
-class LinkRelatedMessage(Command):
-    """Link two related messages."""
+# class LinkRelatedMessage(Command):
+#     """Link two related messages."""
 
-    Data = datadef.LinkRelatedMessagePayload
+#     Data = datadef.LinkRelatedMessagePayload
 
-    class Meta:
-        key = "link-related-message"
-        resources = ("message",)
-        tags = ["message", "link"]
-        auth_required = True
+#     class Meta:
+#         key = "link-related-message"
+#         resources = ("message",)
+#         tags = ["message", "link"]
+#         auth_required = True
 
-    async def _process(self, agg, stm, payload):
-        message_id = agg.get_aggroot().identifier
+#     async def _process(self, agg, stm, payload):
+#         message_id = agg.get_aggroot().identifier
 
-        result = await agg.link_related_message(
-            message_id=message_id,
-            related_message_id=payload.related_message_id,
-            link_type=payload.link_type,
-        )
+#         result = await agg.link_related_message(
+#             message_id=message_id,
+#             related_message_id=payload.related_message_id,
+#             link_type=payload.link_type,
+#         )
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"Linked message {message_id} with related message {payload.related_message_id}",
-            msglabel="link-related-message",
-            msgtype=ActivityType.USER_ACTION,
-            data={"related_message_id": str(payload.related_message_id), "link_type": payload.link_type},
-        )
+#         yield agg.create_activity(
+#             logroot=agg.get_aggroot(),
+#             message=f"Linked message {message_id} with related message {payload.related_message_id}",
+#             msglabel="link-related-message",
+#             msgtype=ActivityType.USER_ACTION,
+#             data={"related_message_id": str(payload.related_message_id), "link_type": payload.link_type},
+#         )
 
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
+#         yield agg.create_response(
+#             serialize_mapping(result),
+#             _type="message-response",
+#         )
 
 
 class UploadAttachmentMetadata(Command):
@@ -744,18 +730,18 @@ class UploadAttachmentMetadata(Command):
             data=payload,
         )
 
-        yield agg.create_activity(
-            logroot=agg.get_aggroot(),
-            message=f"Registered attachment metadata for message {message_id}",
-            msglabel="upload-attachment-metadata",
-            msgtype=ActivityType.USER_ACTION,
-            data={
-                "filename": payload.filename,
-                "storage_key": payload.storage_key,
-                "media_type": payload.media_type,
-                "size_bytes": payload.size_bytes,
-            },
-        )
+        # yield agg.create_activity(
+        #     logroot=agg.get_aggroot(),
+        #     message=f"Registered attachment metadata for message {message_id}",
+        #     msglabel="upload-attachment-metadata",
+        #     msgtype=ActivityType.USER_ACTION,
+        #     data={
+        #         "filename": payload.filename,
+        #         "storage_key": payload.storage_key,
+        #         "media_type": payload.media_type,
+        #         "size_bytes": payload.size_bytes,
+        #     },
+        # )
 
         yield agg.create_response(
             serialize_mapping(result),
@@ -970,3 +956,123 @@ class UploadAttachmentMetadata(Command):
 #             serialize_mapping(result),
 #             _type="message-response",
 #         )
+
+
+# =======================================
+# ACTION METHODS
+# =======================================
+
+class RegisterAction(Command):
+    """Register or update an action definition for a mailbox."""
+    Data = datadef.RegisterActionPayload
+
+    class Meta:
+        key = "register-action"
+        resources = ("mailbox",)
+        tags = ["action", "register"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        mailbox_id = agg.get_aggroot().identifier  # Mailbox is the aggregate root
+
+        payload = serialize_mapping(payload)
+
+        result = await agg.register_action(
+            mailbox_id=mailbox_id,
+            action_data=payload,
+            profile_id=profile_id
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="action-response",
+        )
+
+
+class ExecuteAtomicAction(Command):
+    """Execute an atomic action for a message."""
+    Data = datadef.ExecuteAtomicActionPayload
+
+    class Meta:
+        key = "execute-atomic-action"
+        resources = ("message",)
+        tags = ["action", "execute", "atomic"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        message_id = agg.get_aggroot().identifier  # Message is the aggregate root
+
+        payload = serialize_mapping(payload)
+
+        result = await agg.execute_atomic_action(
+            message_id=message_id,
+            action_id=payload["action_id"],
+            profile_id=profile_id
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="action-response",
+        )
+
+
+class SubmitFormAction(Command):
+    """Submit a form action for a message."""
+    Data = datadef.SubmitFormActionPayload
+
+    class Meta:
+        key = "submit-form-action"
+        resources = ("message",)
+        tags = ["action", "submit", "form"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        message_id = agg.get_aggroot().identifier  # Message is the aggregate root
+
+        payload = serialize_mapping(payload)
+
+        result = await agg.submit_form_action(
+            message_id=message_id,
+            action_id=payload["action_id"],
+            form_data=payload["form_data"],
+            client_context=payload.get("client_context"),
+            profile_id=profile_id
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="action-response",
+        )
+
+
+class RecordEmbeddedActionResult(Command):
+    """Record the result of an embedded action."""
+    Data = datadef.RecordEmbeddedActionResultPayload
+
+    class Meta:
+        key = "record-embedded-action-result"
+        resources = ("message",)
+        tags = ["action", "record", "embedded"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        message_id = agg.get_aggroot().identifier  # Message is the aggregate root
+
+        payload = serialize_mapping(payload)
+
+        result = await agg.record_embedded_action_result(
+            message_id=message_id,
+            action_id=payload["action_id"],
+            execution_id=payload["execution_id"],
+            callback_payload=payload["callback_payload"],
+            profile_id=profile_id
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="action-response",
+        )
