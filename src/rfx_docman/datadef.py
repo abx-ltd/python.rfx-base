@@ -12,6 +12,7 @@ from .value_objects import (
     EntryName,
     TagName,
     Path,
+    build_entry_path,
 )
 
 
@@ -162,7 +163,7 @@ class UpdateEntryPayload(BaseUpdatePayload):
         current_parent = Path.from_string(str(entry.parent_path))
         parent = self.parent_path if self.parent_path is not None else current_parent
         name = str(self.name) if self.name is not None else str(entry.name)
-        return str(parent.join(name))
+        return build_entry_path(parent, name)
 
 
 # --- Tag ---

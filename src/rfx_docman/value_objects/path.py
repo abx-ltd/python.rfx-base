@@ -80,3 +80,10 @@ class Path:
             ],
             serialization=core_schema.plain_serializer_function_ser_schema(str),
         )
+
+
+def build_entry_path(parent: Path, entry_name: str) -> str:
+    """Build full entry path from validated parent folder path and entry name."""
+    if not parent.value:
+        return entry_name
+    return f"{parent.value}/{entry_name}"

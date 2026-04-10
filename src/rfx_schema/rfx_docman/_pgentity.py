@@ -100,125 +100,51 @@ entry_view = PGView(
     schema=config.RFX_DOCMAN_SCHEMA,
     signature="_entry",
     definition=f"""
-    WITH
-    real_entries AS (
-        SELECT
-            e._created,
-            e._creator,
-            e._etag,
-            e._id,
-            e._updated,
-            e._updater,
-            e._deleted,
-            e._realm,
-            cb.realm_id AS realm_id,
-            e.cabinet_id,
-            e.parent_path,
-            e.path,
-            e.name,
-            e.type,
-            e.status,
-            e.media_entry_id,
-            me.filename,
-            me.filehash,
-            me.filemime,
-            me.length,
-            me.resource,
-            me.resource__id,
-            COALESCE(tag_agg.tags, '[]'::json) AS tags,
-            FALSE AS is_virtual
-        FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-        JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-          ON cb._id = e.cabinet_id
-         AND cb._deleted IS NULL
-        LEFT JOIN "{MEDIA_SCHEMA}"."media-entry" me
-          ON me._id = e.media_entry_id
-        LEFT JOIN LATERAL (
-            SELECT json_agg(t.name ORDER BY t.name) AS tags
-            FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
-            JOIN "{config.RFX_DOCMAN_SCHEMA}".tag t
-              ON t._id = et.tag_id
-             AND t._deleted IS NULL
-            WHERE et.entry_id = e._id
-        ) tag_agg ON TRUE
-        WHERE e._deleted IS NULL
-    ),
-    virtual_builder AS (
-        SELECT DISTINCT
-            e.cabinet_id,
-            subpath(e.path_ltree, 0, level.depth) AS path_ltree
-        FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
-        CROSS JOIN LATERAL generate_series(1, nlevel(e.path_ltree) - 1) AS level(depth)
-        WHERE e._deleted IS NULL
-          AND e.path_ltree IS NOT NULL
-          AND nlevel(e.path_ltree) > 1
-    ),
-    virtual_folders AS (
-        SELECT
-            vb.cabinet_id,
-            split_ref.path,
-            split_part(split_ref.path, '/', nlevel(vb.path_ltree)) AS name,
-            CASE
-                WHEN nlevel(vb.path_ltree) = 1 THEN ''::text
-                ELSE regexp_replace(split_ref.path, '/[^/]+$', '')
-            END AS parent_path
-        FROM virtual_builder vb
-        JOIN LATERAL (
-            SELECT
-                array_to_string(
-                    ARRAY(
-                        SELECT split_part(d.path, '/', i)
-                        FROM generate_series(1, nlevel(vb.path_ltree)) AS i
-                    ),
-                    '/'
-                ) AS path
-            FROM "{config.RFX_DOCMAN_SCHEMA}".entry d
-            WHERE d.cabinet_id = vb.cabinet_id
-              AND d._deleted IS NULL
-              AND d.path_ltree <@ vb.path_ltree
-            ORDER BY nlevel(d.path_ltree)
-            LIMIT 1
-        ) split_ref ON TRUE
-        LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e
-          ON e.cabinet_id = vb.cabinet_id
-         AND e.path_ltree = vb.path_ltree
-         AND e._deleted IS NULL
-        WHERE e._id IS NULL
-    ),
-    virtual_entries AS (
-        SELECT
-            NOW() AS _created,
-            NULL::uuid AS _creator,
-            NULL::text AS _etag,
-            uuid_generate_v5(uuid_ns_url(), vf.cabinet_id::text || ':' || vf.path) AS _id,
-            NOW() AS _updated,
-            NULL::uuid AS _updater,
-            NULL::timestamp with time zone AS _deleted,
-            cb._realm,
-            cb.realm_id,
-            vf.cabinet_id,
-            vf.parent_path,
-            vf.path,
-            vf.name,
-            'FOLDER'::"{config.RFX_DOCMAN_SCHEMA}".entrytypeenum AS type,
-            NULL::"{config.RFX_DOCMAN_SCHEMA}".entrystatusenum AS status,
-            NULL::uuid AS media_entry_id,
-            NULL::text AS filename,
-            NULL::text AS filehash,
-            NULL::text AS filemime,
-            NULL::bigint AS length,
-            NULL::text AS resource,
-            NULL::uuid AS resource__id,
-            '[]'::json AS tags,
-            TRUE AS is_virtual
-        FROM virtual_folders vf
-        JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
-          ON cb._id = vf.cabinet_id
-         AND cb._deleted IS NULL
-    )
-    SELECT * FROM real_entries
-    UNION ALL
-    SELECT * FROM virtual_entries;
+    SELECT
+        e._created,
+        e._creator,
+        e._etag,
+        e._id,
+        e._updated,
+        e._updater,
+        e._deleted,
+        e._realm,
+        cb.realm_id,
+        e.cabinet_id,
+        e.parent_path,
+        e.path,
+        e.name,
+        e.type,
+        e.status,
+        e.media_entry_id,
+        me.filename,
+        me.filehash,
+        me.filemime,
+        me.length,
+        me.resource,
+        me.resource__id,
+        CASE
+            WHEN e.type = 'FOLDER'::"{config.RFX_DOCMAN_SCHEMA}".entrytypeenum
+                THEN COALESCE(child_agg.child_entry_count, 0)
+            ELSE 0
+        END AS child_entry_count,
+        e.is_virtual
+    FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+    JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+      ON cb._id = e.cabinet_id
+     AND cb._deleted IS NULL
+    LEFT JOIN "{MEDIA_SCHEMA}"."media-entry" me
+      ON me._id = e.media_entry_id
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int AS child_entry_count
+        FROM "{config.RFX_DOCMAN_SCHEMA}".entry_ancestor ea
+        JOIN "{config.RFX_DOCMAN_SCHEMA}".entry c
+          ON c._id = ea.descendant_id
+         AND c._deleted IS NULL
+        WHERE ea.ancestor_id = e._id
+          AND ea.depth = 1
+    ) child_agg ON TRUE
+    WHERE e._deleted IS NULL
     """,
 )
 

@@ -1,5 +1,4 @@
 from fluvius.data import DomainSchema, SqlaDriver
-from sqlalchemy.orm import synonym
 from .._meta import config as schema_config
 from rfx_base import config
 
@@ -21,6 +20,13 @@ class PolicyBase(RFXDocmanConnector.__data_schema_base__):
 
 class TableBase(Base):
     __abstract__ = True
+
+
+class CoreTableBase(RFXDocmanConnector.__data_schema_base__):
+    """Base for technical tables without DomainSchema audit/id mixins."""
+
+    __abstract__ = True
+    __table_args__ = {"schema": config.RFX_DOCMAN_SCHEMA}
 
 
 SCHEMA = config.RFX_DOCMAN_SCHEMA
