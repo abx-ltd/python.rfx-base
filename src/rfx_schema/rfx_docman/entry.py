@@ -15,11 +15,21 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.types import UserDefinedType
 
 from rfx_schema.rfx_media.media import MediaEntry
 
 from . import SCHEMA, TableBase
 from .types import EntryTypeEnum, EntryStatusEnum
+
+
+class LtreeType(UserDefinedType):
+    """Lightweight ltree type for SQLAlchemy versions without built-in LTREE."""
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw):
+        return "LTREE"
 
 
 class Entry(TableBase):
@@ -63,6 +73,11 @@ class Entry(TableBase):
             "path",
             postgresql_ops={"path": "text_pattern_ops"},
             postgresql_where=text("_deleted IS NULL"),
+        ),
+        Index(
+            "idx_entry_ltree_gist",
+            "path_ltree",
+            postgresql_using="gist",
         ),
         Index(
             "ix_entry_cabinet_type",
@@ -109,6 +124,14 @@ class Entry(TableBase):
             "CASE WHEN parent_path = '' THEN name ELSE parent_path || '/' || name END",
             persisted=True,
         ),
+    )
+    path_ltree: Mapped[str] = mapped_column(
+        LtreeType(),
+        Computed(
+            f"\"{SCHEMA}\".path_text_to_ltree(CASE WHEN parent_path = '' THEN name ELSE parent_path || '/' || name END)",
+            persisted=True,
+        ),
+        nullable=False,
     )
     type: Mapped[EntryTypeEnum] = mapped_column(
         SQLEnum(EntryTypeEnum, name="entrytypeenum", schema=SCHEMA),

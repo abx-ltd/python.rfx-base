@@ -100,7 +100,7 @@ entry_view = PGView(
     schema=config.RFX_DOCMAN_SCHEMA,
     signature="_entry",
     definition=f"""
-    WITH RECURSIVE
+    WITH
     real_entries AS (
         SELECT
             e._created,
@@ -143,56 +143,45 @@ entry_view = PGView(
         ) tag_agg ON TRUE
         WHERE e._deleted IS NULL
     ),
-    entry_paths AS (
+    virtual_builder AS (
         SELECT DISTINCT
             e.cabinet_id,
-            e.path
+            subpath(e.path_ltree, 0, level.depth) AS path_ltree
         FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+        CROSS JOIN LATERAL generate_series(1, nlevel(e.path_ltree) - 1) AS level(depth)
         WHERE e._deleted IS NULL
-          AND e.path IS NOT NULL
-          AND position('/' in e.path) > 0
-    ),
-    path_parts AS (
-        SELECT
-            ep.cabinet_id,
-            string_to_array(ep.path, '/') AS parts
-        FROM entry_paths ep
-    ),
-    virtual_builder AS (
-        SELECT
-            pp.cabinet_id,
-            pp.parts[1] AS name,
-            ''::text AS parent_path,
-            pp.parts[1] AS path,
-            2 AS depth,
-            array_length(pp.parts, 1) AS total_depth,
-            pp.parts
-        FROM path_parts pp
-        WHERE array_length(pp.parts, 1) >= 2
-
-        UNION ALL
-
-        SELECT
-            vb.cabinet_id,
-            vb.parts[vb.depth] AS name,
-            vb.path AS parent_path,
-            vb.path || '/' || vb.parts[vb.depth] AS path,
-            vb.depth + 1 AS depth,
-            vb.total_depth,
-            vb.parts
-        FROM virtual_builder vb
-        WHERE vb.depth < vb.total_depth
+          AND e.path_ltree IS NOT NULL
+          AND nlevel(e.path_ltree) > 1
     ),
     virtual_folders AS (
-        SELECT DISTINCT
+        SELECT
             vb.cabinet_id,
-            vb.path,
-            vb.name,
-            vb.parent_path
+            split_ref.path,
+            split_part(split_ref.path, '/', nlevel(vb.path_ltree)) AS name,
+            CASE
+                WHEN nlevel(vb.path_ltree) = 1 THEN ''::text
+                ELSE regexp_replace(split_ref.path, '/[^/]+$', '')
+            END AS parent_path
         FROM virtual_builder vb
+        JOIN LATERAL (
+            SELECT
+                array_to_string(
+                    ARRAY(
+                        SELECT split_part(d.path, '/', i)
+                        FROM generate_series(1, nlevel(vb.path_ltree)) AS i
+                    ),
+                    '/'
+                ) AS path
+            FROM "{config.RFX_DOCMAN_SCHEMA}".entry d
+            WHERE d.cabinet_id = vb.cabinet_id
+              AND d._deleted IS NULL
+              AND d.path_ltree <@ vb.path_ltree
+            ORDER BY nlevel(d.path_ltree)
+            LIMIT 1
+        ) split_ref ON TRUE
         LEFT JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e
           ON e.cabinet_id = vb.cabinet_id
-         AND e.path = vb.path
+         AND e.path_ltree = vb.path_ltree
          AND e._deleted IS NULL
         WHERE e._id IS NULL
     ),

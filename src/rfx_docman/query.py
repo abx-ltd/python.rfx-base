@@ -142,15 +142,17 @@ class EntryQuery(DomainQueryResource):
         scope_required = scope.EntryScopeSchema
 
     id: UUID_TYPE = PrimaryID("Entry ID")
+    realm_id: UUID_TYPE = UUIDField("Realm ID")
     cabinet_id: UUID_TYPE = UUIDField("Cabinet ID")
+    parent_path: Optional[str] = StringField("Parent Path")
     path: str = StringField("Path")
     name: str = StringField("Name")
     type: str = StringField("Type")
-    size: Optional[int] = IntegerField("Size")
-    mime_type: Optional[str] = StringField("MIME Type")
-    author_name: Optional[str] = StringField("Author Name")
-
-    parent_path: Optional[str] = StringField("Parent Path")
+    status: Optional[str] = StringField("Status")
+    media_entry_id: Optional[UUID_TYPE] = UUIDField("Media Entry ID")
+    filemime: Optional[str] = StringField("MIME Type")
+    length: Optional[int] = IntegerField("Length")
+    resource: Optional[str] = StringField("Resource")
     is_virtual: bool = BooleanField("Is Virtual")
 
     # Aggregated from entry_tag JOIN tag in _entry view
@@ -177,3 +179,23 @@ class TagQuery(DomainQueryResource):
     name: str = StringField("Name")
     color: Optional[str] = StringField("Color")
     icon: Optional[str] = StringField("Icon")
+
+
+@resource("realm-meta")
+class RealmMetaQuery(DomainQueryResource):
+    """Realm meta queries."""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "realm-meta"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "realm_meta"
+        scope_required = scope.RealmMetaScopeSchema
+
+    id: UUID_TYPE = PrimaryID("Realm Meta ID")
+    realm_id: UUID_TYPE = UUIDField("Realm ID")
+    key: str = StringField("Meta Key")
+    value: str = StringField("Meta Value")

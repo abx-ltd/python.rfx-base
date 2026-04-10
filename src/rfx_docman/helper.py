@@ -39,13 +39,20 @@ async def move_folder_descendants(
 
     await statemgr.native_query(
         f"""
+                WITH target AS (
+                        SELECT
+                                "{config.RFX_DOCMAN_SCHEMA}".path_text_to_ltree($3) AS old_path_ltree,
+                                nlevel("{config.RFX_DOCMAN_SCHEMA}".path_text_to_ltree($3)) AS old_depth
+                )
         UPDATE "{config.RFX_DOCMAN_SCHEMA}"."entry"
            SET parent_path = CASE
                  WHEN parent_path = $3 THEN $1
                  ELSE $2 || SUBSTR(parent_path, $4 + 1)
                END
+                    FROM target
          WHERE cabinet_id = $5
-           AND (parent_path = $3 OR parent_path LIKE $6)
+                     AND path_ltree <@ target.old_path_ltree
+                     AND nlevel(path_ltree) > target.old_depth
            AND _deleted IS NULL
         """,
         new_path,  # $1  direct children
@@ -53,6 +60,5 @@ async def move_folder_descendants(
         old_path,  # $3  equality match
         old_prefix_len,  # $4  SUBSTR offset
         entry.cabinet_id,  # $5
-        f"{old_prefix}%",  # $6  prefix scan
         unwrapper=None,
     )
