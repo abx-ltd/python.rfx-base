@@ -23,9 +23,7 @@ class CabinetScopeSchema(BaseModel):
 class EntryScopeSchema(BaseModel):
     cabinet_id: UUID_TYPE = UUIDField("Cabinet ID")
 
-    parent_path: str = Field(
-        ..., description="Filter entries by parent folder path"
-    )
+    parent_path: str = Field(..., description="Filter entries by parent folder path")
 
 
 class TagScopeSchema(BaseModel):
@@ -35,3 +33,7 @@ class TagScopeSchema(BaseModel):
     realm_id: Optional[UUID_TYPE] = Field(
         default=None, description="Filter tags by realm ID"
     )
+
+
+class RealmMetaScopeSchema(BaseModel):
+    realm_id: UUID_TYPE = UUIDField("Realm ID")

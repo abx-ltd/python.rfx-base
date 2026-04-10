@@ -6,6 +6,8 @@ from logging.config import fileConfig
 
 from sqlalchemy import create_engine
 from sqlalchemy import pool
+from sqlalchemy.dialects.postgresql.base import ischema_names
+from sqlalchemy.types import UserDefinedType
 
 from alembic import context
 
@@ -37,8 +39,21 @@ DOMAIN_CONNECTORS = {
     "qr": RFXQRConnector,
     "todo": RFXTodoConnector,
     "template": RFXTemplateConnector,
-    "docman" : RFXDocmanConnector
+    "docman": RFXDocmanConnector,
 }
+
+
+class LtreeType(UserDefinedType):
+    """PostgreSQL ltree type used for Alembic reflection/autogenerate."""
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw):
+        return "LTREE"
+
+
+# Ensure reflected DB type `ltree` is recognized during autogenerate.
+ischema_names["ltree"] = LtreeType
 
 
 # this is the Alembic Config object, which provides
@@ -106,7 +121,6 @@ selected_connectors = [
 target_metadata = [
     connector.__data_schema_base__.metadata for connector in selected_connectors
 ]
-
 
 
 def include_server_default(
