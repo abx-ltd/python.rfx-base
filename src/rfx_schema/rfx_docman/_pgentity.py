@@ -121,13 +121,12 @@ entry_view = PGView(
         me.filehash,
         me.filemime,
         me.length,
-        me.resource,
-        me.resource__id,
         CASE
             WHEN e.type = 'FOLDER'::"{config.RFX_DOCMAN_SCHEMA}".entrytypeenum
                 THEN COALESCE(child_agg.child_entry_count, 0)
             ELSE 0
         END AS child_entry_count,
+        COALESCE(tag_agg.tags, '[]'::json) AS tags,
         e.is_virtual
     FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
     JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
@@ -135,6 +134,22 @@ entry_view = PGView(
      AND cb._deleted IS NULL
     LEFT JOIN "{MEDIA_SCHEMA}"."media-entry" me
       ON me._id = e.media_entry_id
+    LEFT JOIN LATERAL (
+        SELECT json_agg(
+            json_build_object(
+                'id', t._id,
+                'name', t.name,
+                'color', t.color,
+                'icon', t.icon
+            )
+            ORDER BY t.name
+        ) AS tags
+        FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
+        JOIN "{config.RFX_DOCMAN_SCHEMA}".tag t
+          ON t._id = et.tag_id
+         AND t._deleted IS NULL
+        WHERE et.entry_id = e._id
+    ) tag_agg ON TRUE
     LEFT JOIN LATERAL (
         SELECT COUNT(*)::int AS child_entry_count
         FROM "{config.RFX_DOCMAN_SCHEMA}".entry_ancestor ea
@@ -162,17 +177,15 @@ tag_view = PGView(
         t._updater,
         t._realm,
         t.realm_id,
-        tc.cabinet_id,
         t.name,
         t.color,
         t.icon,
-        COALESCE(tc.cabinet_ids, '[]'::json) AS cabinet_ids
+        COALESCE(tc.entry_ids, '[]'::json) AS entry_ids
     FROM "{config.RFX_DOCMAN_SCHEMA}".tag t
     LEFT JOIN (
         SELECT
             et.tag_id,
-            MIN(e.cabinet_id::text)::uuid cabinet_id,
-            json_agg(DISTINCT e.cabinet_id) AS cabinet_ids
+            json_agg(DISTINCT et.entry_id) AS entry_ids
         FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
         JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e
           ON e._id = et.entry_id
