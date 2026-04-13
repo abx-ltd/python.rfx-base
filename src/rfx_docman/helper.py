@@ -61,6 +61,63 @@ async def move_folder_descendants(
     )
 
 
+async def fetch_entry_subtree(
+    statemgr: Any,
+    *,
+    ancestor_id: Any,
+) -> tuple[list[dict], dict]:
+    """Fetch all descendants of an entry ordered by depth (shallow-first).
+
+    Returns:
+        (rows, path_to_old_id) where:
+          - rows        : list of plain dicts with keys (_id, parent_path, name,
+                          type, media_entry_id, is_virtual, depth, _path).
+                          ``_path`` is the pre-computed ``parent_path/name`` value.
+          - path_to_old_id : mapping of each entry's ``_path`` → its ``_id``,
+                          used for O(1) parent-ID resolution without extra queries.
+
+    Note:
+        ``native_query`` returns ``SimpleNamespace`` objects (via list_unwrapper);
+        this helper converts them to plain dicts before returning.
+    """
+    ns_rows = await statemgr.native_query(
+        f"""
+        SELECT
+            e._id,
+            e.parent_path,
+            e.name,
+            e.type,
+            e.media_entry_id,
+            e.is_virtual,
+            ea.depth
+        FROM "{config.RFX_DOCMAN_SCHEMA}"."entry_ancestor" ea
+        JOIN "{config.RFX_DOCMAN_SCHEMA}"."entry" e
+            ON e._id = ea.descendant_id
+        WHERE ea.ancestor_id = $1
+          AND e._deleted IS NULL
+        ORDER BY ea.depth ASC
+        """,
+        ancestor_id,
+    )
+
+    result: list[dict] = []
+    path_to_old_id: dict = {}
+
+    for ns in ns_rows:
+        # native_query returns SimpleNamespace — convert to dict first.
+        row = vars(ns)
+        path = (
+            f"{row['parent_path']}/{row['name']}"
+            if row["parent_path"]
+            else row["name"]
+        )
+        row["_path"] = path
+        result.append(row)
+        path_to_old_id[path] = row["_id"]
+
+    return result, path_to_old_id
+
+
 async def resolve_parent_entry(
     statemgr: Any,
     *,

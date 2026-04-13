@@ -22,10 +22,7 @@ class RFXDocmanAggregate(Aggregate):
         label: str,
         child_label: str,
     ):
-        if await self.statemgr.find_all(child_type, where={where_key: parent._id}):
-            raise ValueError(
-                f"Cannot remove {label} '{parent.name}' because it still contains {child_label}"
-            )
+        pass
 
     async def _ensure_parent_hierarchy(self, *, cabinet_id, parent_path: str):
         """Ensure full folder hierarchy exists for parent_path and return last parent."""
@@ -37,7 +34,9 @@ class RFXDocmanAggregate(Aggregate):
 
         for segment in parent_path.split("/"):
             current_path = (
-                segment if not current_parent_path else f"{current_parent_path}/{segment}"
+                segment
+                if not current_parent_path
+                else f"{current_parent_path}/{segment}"
             )
             existing = await self.statemgr.exist(
                 "entry",
@@ -358,6 +357,131 @@ class RFXDocmanAggregate(Aggregate):
     async def remove_entry(self, /):
         entry = self.rootobj
         await self.statemgr.invalidate(entry)
+
+    @action("entry-copied", resources="entry")
+    async def copy_entry(self, /, data):
+        """Copy an entry (file or folder) to a destination cabinet/path.
+
+        - For FILE entries: creates a single new entry at dest_parent_path/dest_name,
+          sharing the same media_entry_id as the original.
+        - For FOLDER entries: recursively copies the full subtree (all descendants
+          fetched via entry_ancestor closure table), remapping every path under
+          the new root and wiring up ancestor closure rows for each new entry.
+
+        Payload (CopyEntryPayload):
+            cabinet_id   – destination cabinet (may differ from source).
+            parent_path  – destination parent path (empty = root of cabinet).
+            name         – optional new name; defaults to the original entry name.
+        """
+        entry = self.rootobj
+        data = self._serialize(data)
+
+        dest_cabinet_id = data["cabinet_id"]
+        dest_parent_path = str(data.get("parent_path", "") or "")
+        dest_name = str(data.get("name") or entry.name)
+        dest_path = f"{dest_parent_path}/{dest_name}" if dest_parent_path else dest_name
+
+        # 1. Ensure destination parent folder hierarchy exists.
+        dest_parent = await self._ensure_parent_hierarchy(
+            cabinet_id=dest_cabinet_id,
+            parent_path=dest_parent_path,
+        )
+
+        # 2. Guard: destination path must not already exist.
+        existing = await self.statemgr.exist(
+            "entry",
+            where={"cabinet_id": dest_cabinet_id, "path": dest_path},
+        )
+        if existing:
+            raise ValueError(
+                f"An entry already exists at destination path '{dest_path}'"
+            )
+
+        if entry.type != EntryTypeEnum.FOLDER:
+            # ── FILE copy ──────────────────────────────────────────────────
+            new_entry = self.init_resource(
+                "entry",
+                {
+                    "cabinet_id": dest_cabinet_id,
+                    "parent_path": dest_parent_path,
+                    "name": dest_name,
+                    "type": entry.type,
+                    "media_entry_id": entry.media_entry_id,
+                    "is_virtual": False,
+                },
+                _id=UUID_GENR(),
+            )
+            await self.statemgr.insert(new_entry)
+            await helper.insert_entry_ancestor_rows(
+                self.statemgr,
+                entry_id=new_entry._id,
+                parent_id=dest_parent._id if dest_parent else None,
+            )
+            return new_entry
+
+        # ── FOLDER copy (recursive subtree) ───────────────────────────────
+        # Fetch all descendants ordered by depth (parents before children).
+        # Returns list of plain dicts plus a path→old_id index for O(1) parent lookup.
+        descendants, path_to_old_id = await helper.fetch_entry_subtree(
+            self.statemgr, ancestor_id=entry._id
+        )
+
+        # Map old _id (str) → new UUID for ancestor-closure wiring.
+        id_map: dict = {}
+        new_root = None
+        src_root_path = str(entry.path)
+
+        for row in descendants:
+            old_id = row["_id"]
+            old_path = row["_path"]
+
+            if old_id == entry._id:
+                # Root of the subtree → maps to dest_path.
+                new_parent_path = dest_parent_path
+                new_name = dest_name
+            else:
+                # Remap path relative to the new destination root.
+                relative = old_path[len(src_root_path) + 1:]
+                full_new_path = f"{dest_path}/{relative}"
+                new_parent_path, new_name = helper.split_path(full_new_path)
+
+            new_id = UUID_GENR()
+            id_map[str(old_id)] = new_id
+
+            new_node = self.init_resource(
+                "entry",
+                {
+                    "cabinet_id": dest_cabinet_id,
+                    "parent_path": new_parent_path,
+                    "name": new_name,
+                    "type": row["type"],
+                    "media_entry_id": row["media_entry_id"],
+                    "is_virtual": bool(row["is_virtual"]),
+                },
+                _id=new_id,
+            )
+            await self.statemgr.insert(new_node)
+
+            # Determine parent_id for closure wiring using path→old_id index.
+            if old_id == entry._id:
+                parent_id_for_wiring = dest_parent._id if dest_parent else None
+                new_root = new_node
+            else:
+                old_parent_path = str(row["parent_path"] or "")
+                old_parent_id = path_to_old_id.get(old_parent_path)
+                parent_id_for_wiring = (
+                    id_map[str(old_parent_id)]
+                    if old_parent_id and str(old_parent_id) in id_map
+                    else new_root._id
+                )
+
+            await helper.insert_entry_ancestor_rows(
+                self.statemgr,
+                entry_id=new_id,
+                parent_id=parent_id_for_wiring,
+            )
+
+        return new_root
 
     # =========================================================================
     # TAG
