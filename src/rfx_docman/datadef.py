@@ -166,6 +166,20 @@ class UpdateEntryPayload(BaseUpdatePayload):
         return build_entry_path(parent, name)
 
 
+class CopyEntryPayload(DataModel):
+    cabinet_id: UUID_TYPE = Field(..., description="Cabinet ID to copy into")
+    parent_path: Path = Field(
+        ...,
+        description="Parent folder path in the destination cabinet. Empty = root.",
+        examples=["", "Strategic_Plans/2026"],
+    )
+    name: Optional[EntryName] = Field(
+        default=None,
+        description="New name for the copied entry (no slashes). If not provided, original name will be used.",
+        examples=["Q1_Report_Copy.pdf"],
+    )
+
+
 # --- Tag ---
 
 

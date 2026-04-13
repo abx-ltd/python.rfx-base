@@ -281,6 +281,21 @@ class RemoveEntry(Command):
     async def _process(self, agg, stm, payload):
         await agg.remove_entry()
 
+class CopyEntry(Command):
+    """Copy an entry (file or folder) inside a cabinet."""
+
+    Data = datadef.CopyEntryPayload
+
+    class Meta:
+        key = "copy-entry"
+        resources = ("entry",)
+        tags = ["docman", "entry", "copy"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.copy_entry(payload)
+        yield agg.create_response(serialize_mapping(result), _type="entry-response")
+
 # =============================================================================
 # TAG COMMANDS — globally shared tag CRUD
 # =============================================================================
