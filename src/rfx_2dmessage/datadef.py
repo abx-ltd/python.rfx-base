@@ -7,7 +7,7 @@ from pydantic import Field, model_validator
 
 
 from fluvius.data import DataModel, UUID_TYPE
-from .types import MessageCategoryEnum, DirectionTypeEnum, MailBoxMessageStatusTypeEnum
+from .types import MessageCategoryEnum, DirectionTypeEnum, MailBoxMessageStatusTypeEnum, ActionTypeEnum, ExecutionModeEnum, DisplayModeEnum, CallbackModeEnnum
 
 
 # class CreateMessagePayload(BaseModel):
@@ -242,38 +242,108 @@ class UploadAttachmentMetadataPayload(DataModel):
 # ACTION PAYLOADS
 # =====================================
 
+class EndpointConfigPayload(DataModel):
+    """Payload for configuring an API endpoint for an action."""
+
+    url: str = Field(..., description="URL of the API endpoint")
+    method: str = Field("POST", description="HTTP method to use for the API call")
+    headers: Optional[Dict[str, str]] = Field(None, description="Optional HTTP headers to include in the API call")
+    timeout_seconds: Optional[int] = Field(30, description="Timeout in seconds for the API call")
+
+class FieldFormConfigPayload(DataModel):
+    """Payload for configuring a single field in a form schema."""
+
+    name: str = Field(..., description="Name of the field")
+    Key: str = Field(..., description="Key of the field for form data mapping")
+    type: str = Field(..., description="Data type of the field (e.g. string, number, boolean)")
+    label: Optional[str] = Field(None, description="Display label for the field")
+    required: bool = Field(False, description="Whether the field is required")
+    options: Optional[List[Dict[str, Any]]] = Field(None, description="Optional list of options for select fields")
+
+class FieldResponseConfigPayload(DataModel):
+    """Payload for configuring a single field in the response data mapping."""
+    
+    key: str = Field(..., description="Key of the field for response data mapping")
+    type: str = Field(..., description="Data type of the field (e.g. string, number, boolean)")
+    label: Optional[str] = Field(None, description="Display label for the field")
+
+class SchemaConfigPayload(DataModel):
+    """Payload for configuring a schema for form actions."""
+
+    fields: List[FieldFormConfigPayload] = Field(..., description="List of field definitions for the form schema")
+
+class ResponseConfigPayload(DataModel):
+    """Payload for configuring response handling for an action."""
+
+    success_message: Optional[str] = Field(None, description="Message to return on successful execution")
+    error_message: Optional[str] = Field(None, description="Message to return on failed execution")
+    response_fields: List[FieldResponseConfigPayload] = Field(None, description="Configuration for fields to include in the response data mapping")
+
+class CallbackConfigPayload(DataModel):
+    mode: CallbackModeEnnum = Field(CallbackModeEnnum.POSTMESSAGE, description="Mode of callback from embedded content: POSTMESSAGE, DEEPLINK, or WEBHOOK")
+    mechanism: Optional[Dict[str, Any]] = Field(None, description="Configuration for the callback mechanism, e.g. expected message origin for POSTMESSAGE, or callback URL for WEBHOOK")
+
+class DisplayConfigPayload(DataModel):
+    """Payload for configuring display for action embedded mode."""
+    
+    title: Optional[str] = Field(None, description="Title to display for the embedded content")
+    mode: DisplayModeEnum = Field(DisplayModeEnum.MODAL, description="Display mode for the embedded content")
+    description: Optional[str] = Field(None, description="Description to display for the embedded content")
+    width: Optional[int] = Field(600, description="Width of the embedded frame in pixels")
+    height: Optional[int] = Field(400, description="Height of the embedded frame in pixels")
+
+
+class EmbeddedConfigPayload(DataModel):
+    """Payload for configuring embedded actions."""
+
+    url: str = Field(..., description="URL to load for the embedded action")
+    callback_method: CallbackConfigPayload = Field(None, description="HTTP method to use for the callback from the embedded content")
+    display: DisplayConfigPayload = Field(None, description="Display configuration for the embedded content")
+
+
 class RegisterActionPayload(DataModel):
     """Payload for registering or updating an action definition."""
 
     action_key: str = Field(..., description="Unique key for the action within the mailbox")
     name: str = Field(..., description="Display name for the action")
-    action_type: str = Field(..., description="Type of action: atomic, form, or embedded")
     description: Optional[str] = Field(None, description="Optional description of the action")
 
-    # Execution configuration
-    execution: Dict[str, Any] = Field(..., description="Execution configuration with mode, authorization, endpoint/embedded")
+    execution_mode: ExecutionModeEnum = Field(
+        default=ExecutionModeEnum.API, 
+        description="Execution mode for the action: API or EMBED"
+    )
 
-    # Schema for form actions
-    schema: Optional[Dict[str, Any]] = Field(None, description="Schema definition for form actions")
+    action_type: Optional[ActionTypeEnum] = Field(
+        default=ActionTypeEnum.ATOMIC, 
+        description="Type of action: atomic, form, or embedded")
+
+    authorization_json: Optional[Dict[str, Any]] = Field(None, description="Optional JSON schema for action authorization parameters")
+
+    # Schema for form actions, require if action_type is FORM and execution_mode is API
+    schema: Optional[SchemaConfigPayload] = Field(None, description="Schema definition for form actions")
+
+    # Endpoint configuration, require if action_type is ATOMIC or FORM and execution_mode is API
+    endpoint: Optional[EndpointConfigPayload] = Field(None, description="Configuration for API endpoint, depending on execution mode")
+
+    # Embedded configuration, require if action_type is EMBEDDED and execution_mode is EMBED
+    embedded: EmbeddedConfigPayload = Field(None, description="Configuration for embedded actions, such as URL, dimensions, and callback handling")
 
     # Response configuration
-    response: Dict[str, Any] = Field(..., description="Response configuration with success/error messages and fields")
-
+    response: ResponseConfigPayload = Field(None, description="Response configuration with success/error messages and fields")
 
 class ExecuteAtomicActionPayload(DataModel):
     """Payload for executing an atomic action."""
 
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox of the action")
     action_id: UUID_TYPE = Field(..., description="ID of the action to execute")
     # No additional data needed for atomic actions - just confirmation
-
 
 class SubmitFormActionPayload(DataModel):
     """Payload for submitting a form action."""
 
     action_id: UUID_TYPE = Field(..., description="ID of the action to execute")
     form_data: Dict[str, Any] = Field(..., description="Form data submitted by the user")
-    client_context: Optional[Dict[str, Any]] = Field(None, description="Optional client-side context data")
-
+    # client_context: Optional[Dict[str, Any]] = Field(None, description="Optional client-side context data")
 
 class RecordEmbeddedActionResultPayload(DataModel):
     """Payload for recording the result of an embedded action."""

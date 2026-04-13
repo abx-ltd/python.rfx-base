@@ -89,6 +89,7 @@ class ActionExecutionStatus(Enum):
     COMPLETED = "COMPLETED"  # Execution finished successfully
     FAILED = "FAILED"  # Execution failed
     CANCELLED = "CANCELLED"  # Execution was cancelled
+    ERROR = "ERROR"  # Execution completed with error  
 
 
 class HTTPMethodEnum(Enum):
@@ -198,3 +199,15 @@ class MediaTypeEnum(str, Enum):
     DOCUMENT = "DOCUMENT"
     ARCHIVE = "ARCHIVE"
     OTHER = "OTHER"
+
+
+class DisplayModeEnum(str, Enum):
+    MODAL = "MODAL"
+    FULLSCREEN = "FULLSCREEN"
+    BOTTOMSHEET = "BOTTOMSHEET"
+    TAB = "TAB"
+
+class CallbackModeEnnum(str, Enum):
+    POSTMESSAGE = "POSTMESSAGE"
+    DEEPLINK = "DEEPLINK"
+    WEBHOOK = "WEBHOOK"

@@ -45,7 +45,7 @@ class MessageActionExecute(TableBase):
     profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False) # profile who executed the action
 
     context_mailbox_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.mailbox._id"), nullable=True
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.mailbox._id"), nullable=False
     )
 
     execution_mode: Mapped[ExecutionModeEnum] = mapped_column(

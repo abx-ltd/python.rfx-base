@@ -327,7 +327,11 @@ class UpdateTag(Command):
         policy_required = False
 
     async def _process(self, agg, stm, payload):
-        await agg.update_tag(data=payload)
+        result = await agg.update_tag(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
 
 
 class RemoveTag(Command):
@@ -749,59 +753,6 @@ class UploadAttachmentMetadata(Command):
         )
 
 
-# class CreateTag(Command):
-#     """Create a new tag for the current user"""
-#     Data = datadef.CreateTagPayload
-
-#     class Meta:
-#         key = "create-tag"
-#         resource_init = True
-#         resources = ("tag",)
-#         tags = ["tag", "create"]
-#         auth_required = True
-#         policy_required = False
-
-#     async def _process(self, agg, stm, payload):
-#         result = await agg.create_tag(data=payload)
-
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
-
-
-# class UpdateTag(Command):
-#     """Update a tag."""
-
-#     Data = datadef.UpdateTagPayload
-
-#     class Meta:
-#         key = "update-tag"
-#         resources = ("tag",)
-#         tags = ["tag", "update"]
-#         auth_required = True
-#         policy_required = False
-
-#     async def _process(self, agg, stm, payload):
-#         await agg.update_tag(data=payload)
-
-
-# class RemoveTag(Command):
-#     """Remove a tag."""
-
-#     class Meta:
-#         key = "remove-tag"
-#         resources = ("tag",)
-#         tags = ["tag", "remove"]
-#         auth_required = True
-#         policy_required = False
-
-#     async def _process(self, agg, stm, payload):
-#         tag = await agg.find_tag(tag_id=agg.get_aggroot().identifier)
-#         await agg.remove_message_tag_from_tag(tag_id=tag._id)
-#         await agg.remove_tag()
-
-
 # class AddMessageTag(Command):
 #     """Add a message to a tag"""
 
@@ -986,7 +937,7 @@ class RegisterAction(Command):
 
         yield agg.create_response(
             serialize_mapping(result),
-            _type="action-response",
+            _type="message-response",
         )
 
 
@@ -1009,12 +960,13 @@ class ExecuteAtomicAction(Command):
         result = await agg.execute_atomic_action(
             message_id=message_id,
             action_id=payload["action_id"],
-            profile_id=profile_id
+            profile_id=profile_id,
+            mailbox_id=payload["mailbox_id"]
         )
 
         yield agg.create_response(
             serialize_mapping(result),
-            _type="action-response",
+            _type="message-response",
         )
 
 
@@ -1044,7 +996,7 @@ class SubmitFormAction(Command):
 
         yield agg.create_response(
             serialize_mapping(result),
-            _type="action-response",
+            _type="message-response",
         )
 
 
@@ -1074,5 +1026,5 @@ class RecordEmbeddedActionResult(Command):
 
         yield agg.create_response(
             serialize_mapping(result),
-            _type="action-response",
+            _type="message-response",
         )

@@ -1,11 +1,13 @@
 from pyexpat.errors import messages
+from httpx import AsyncClient
+from datetime import datetime
 
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
 from fluvius.data import serialize_mapping, UUID_GENR, UUID_TYPE
 from fluvius.error import BadRequestError
 from typing import Optional, Dict, Any
-from .types import RenderStatusEnum, PriorityLevelEnum, ActionExecutionStatus
+from .types import RenderStatusEnum, PriorityLevelEnum, ActionExecutionStatus, ActionTypeEnum, ExecutionModeEnum
 
 class RFX2DMessageAggregate(Aggregate):
     # def _normalize_member_ids(self, sender_id, recipients=None):
@@ -459,7 +461,9 @@ class RFX2DMessageAggregate(Aggregate):
     async def update_tag(self, *, data):
         """Update a tag."""
         tag = self.rootobj
-        await self.statemgr.update(tag, **serialize_mapping(data))
+        tag_result = await self.statemgr.update(tag, **serialize_mapping(data))
+
+        return tag_result
 
     @action("tag-removed", resources="tag")
     async def remove_tag(self, tag_id, profile_id):
@@ -756,32 +760,40 @@ class RFX2DMessageAggregate(Aggregate):
     # ACTION METHODS
     # =======================================
 
+    @action("register-action", resources="mailbox")
     async def register_action(self, mailbox_id, action_data, profile_id):
         """Register or update an action definition for a mailbox."""
-        from .types import ActionTypeEnum, ExecutionModeEnum
 
         # Validate action payload structure
         action_key = action_data["action_key"]
         action_type = action_data["action_type"]
-        execution = action_data["execution"]
+        execution_mode = action_data["execution_mode"]
 
         # Validate action type and execution mode constraints
-        if action_type == "atomic":
-            if execution.get("mode") != "api":
-                raise BadRequestError("Atomic actions must use API execution mode")
-        elif action_type == "form":
-            if execution.get("mode") != "api":
-                raise BadRequestError("Form actions must use API execution mode")
+        if action_type == ActionTypeEnum.ATOMIC:
+            if execution_mode != ExecutionModeEnum.API:
+                raise ValueError("Atomic actions must use API execution mode")
+            
+            if "endpoint" not in action_data:
+                raise ValueError("Atomic actions require an endpoint")
+            
+        elif action_type == ActionTypeEnum.FORM:
+            if execution_mode != ExecutionModeEnum.API:
+                raise ValueError("Form actions must use API execution mode")
             if "schema" not in action_data:
-                raise BadRequestError("Form actions require a schema")
-        elif action_type == "embedded":
-            if execution.get("mode") != "embed":
-                raise BadRequestError("Embedded actions must use embed execution mode")
+                raise ValueError("Form actions require a schema")
+            if "endpoint" not in action_data:
+                raise ValueError("Form actions require an endpoint")
+        elif action_type == ActionTypeEnum.EMBEDDED:
+            if execution_mode != ExecutionModeEnum.EMBED:
+                raise ValueError("Embedded actions must use embed execution mode")
+            if "embedded" not in action_data:
+                raise ValueError("Embedded actions require embedded content")
         else:
-            raise BadRequestError(f"Invalid action type: {action_type}")
+            raise ValueError(f"Invalid action type: {action_type}")
 
         # Check if action already exists
-        existing_action = await self.statemgr.find_one(
+        existing_action = await self.statemgr.exist(
             "message_action",
             where={
                 "mailbox_id": mailbox_id,
@@ -791,23 +803,24 @@ class RFX2DMessageAggregate(Aggregate):
         )
 
         if existing_action:
-            # Update existing action
-            action_data["execution_mode"] = ExecutionModeEnum(execution["mode"])
-            action_data["action_type"] = ActionTypeEnum(action_type)
+            # # Update existing action
+            # action_data["execution_mode"] = ExecutionModeEnum(execution_mode)
+            # action_data["action_type"] = ActionTypeEnum(action_type)
 
-            # Handle nested JSON fields
-            if "endpoint" in execution:
-                action_data["endpoint_json"] = execution["endpoint"]
-                action_data["embedded_json"] = None
-            elif "embedded" in execution:
-                action_data["embedded_json"] = execution["embedded"]
-                action_data["endpoint_json"] = None
+            # # Handle nested JSON fields
+            # if "endpoint" in execution:
+            #     action_data["endpoint_json"] = execution["endpoint"]
+            #     action_data["embedded_json"] = None
+            # elif "embed" in execution:
+            #     action_data["embedded_json"] = execution["embedded"]
+            #     action_data["endpoint_json"] = None
 
-            if "authorization" in execution:
-                action_data["authorization"] = execution["authorization"]
+            # if "authorization" in execution:
+            #     action_data["authorization"] = execution["authorization"]
 
-            await self.statemgr.update(existing_action, action_data)
-            action = existing_action
+            # await self.statemgr.update(existing_action, action_data)
+            # action = existing_action
+            raise ValueError(f"Action with key {action_key} already exists for mailbox {mailbox_id}. Use update action endpoint to modify the action.")
         else:
             # Create new action
             action = self.init_resource(
@@ -816,13 +829,13 @@ class RFX2DMessageAggregate(Aggregate):
                 mailbox_id=mailbox_id,
                 action_key=action_key,
                 name=action_data["name"],
-                action_type=ActionTypeEnum(action_type),
+                action_type=action_type.value,
                 description=action_data.get("description"),
-                execution_mode=ExecutionModeEnum(execution["mode"]),
-                endpoint_json=execution.get("endpoint"),
-                embedded_json=execution.get("embedded"),
-                authorization=execution.get("authorization"),
-                schema_json=action_data.get("schema"),
+                execution_mode=execution_mode.value,
+                endpoint_json=action_data.get("endpoint", None),
+                embedded_json=action_data.get("embedded", None),
+                authorization=action_data.get("authorization", None),
+                schema_json=action_data.get("schema", None),
                 response_json=action_data["response"]
             )
             await self.statemgr.insert(action)
@@ -833,21 +846,19 @@ class RFX2DMessageAggregate(Aggregate):
             "status": "registered"
         }
 
-    async def execute_atomic_action(self, message_id, action_id, profile_id):
+    @action("execute-atomic-action", resources="message")
+    async def execute_atomic_action(self, message_id, action_id, profile_id, mailbox_id):
         """Execute an atomic action for a message."""
-        import httpx
-        from datetime import datetime
-
         # Get the action definition
         action = await self.statemgr.find_one(
             "message_action",
             where={"_id": action_id, "_deleted": None}
         )
         if not action:
-            raise BadRequestError("Action not found")
+            raise ValueError("Action not found")
 
-        if action.action_type.name != "ATOMIC":
-            raise BadRequestError("Action is not an atomic action")
+        if action.action_type.value != "ATOMIC":
+            raise ValueError("Action is not an atomic action")
 
         # Create action execution record
         execution = self.init_resource(
@@ -856,8 +867,9 @@ class RFX2DMessageAggregate(Aggregate):
             message_id=message_id,
             action_id=action_id,
             profile_id=profile_id,
+            context_mailbox_id=mailbox_id,
             execution_mode=action.execution_mode,
-            status=ActionExecutionStatus.PENDING
+            status=ActionExecutionStatus.PENDING.value
         )
         await self.statemgr.insert(execution)
 
@@ -865,32 +877,30 @@ class RFX2DMessageAggregate(Aggregate):
         result = await self._execute_action_api(action, {})
 
         # Update execution record
-        execution.status = ActionExecutionStatus.COMPLETED if result["status"] == "success" else ActionExecutionStatus.FAILED
-        execution.response_payload_json = result
-        execution.completed_at = datetime.utcnow()
-        await self.statemgr.update(execution, {
-            "status": execution.status,
-            "response_payload_json": result,
-            "completed_at": execution.completed_at
-        })
+        status_result = ActionExecutionStatus.COMPLETED.value if result["status"] == "success" else ActionExecutionStatus.ERROR.value
+        response_payload_json_result = result
+        completed_at = datetime.utcnow()
+        await self.statemgr.update(execution,
+                                   status=status_result,
+                                   response_payload_json=response_payload_json_result,
+                                   completed_at=completed_at
+                                   )
 
         return result
 
+    @action("submit-form-action", resources="message")
     async def submit_form_action(self, message_id, action_id, form_data, client_context, profile_id):
         """Submit a form action for a message."""
-        import httpx
-        from datetime import datetime
-
         # Get the action definition
         action = await self.statemgr.find_one(
             "message_action",
             where={"_id": action_id, "_deleted": None}
         )
         if not action:
-            raise BadRequestError("Action not found")
+            raise ValueError("Action not found")
 
         if action.action_type.name != "FORM":
-            raise BadRequestError("Action is not a form action")
+            raise ValueError("Action is not a form action")
 
         # Validate form data against schema
         if action.schema_json:
@@ -904,7 +914,7 @@ class RFX2DMessageAggregate(Aggregate):
             action_id=action_id,
             profile_id=profile_id,
             execution_mode=action.execution_mode,
-            status=ActionExecutionStatus.PENDING,
+            status=ActionExecutionStatus.PENDING.value,
             input_payload_json=form_data
         )
         await self.statemgr.insert(execution)
@@ -913,20 +923,19 @@ class RFX2DMessageAggregate(Aggregate):
         result = await self._execute_action_api(action, form_data)
 
         # Update execution record
-        execution.status = ActionExecutionStatus.COMPLETED if result["status"] == "success" else ActionExecutionStatus.FAILED
-        execution.response_payload_json = result
-        execution.completed_at = datetime.utcnow()
-        await self.statemgr.update(execution, {
-            "status": execution.status,
-            "response_payload_json": result,
-            "completed_at": execution.completed_at
-        })
+        status_result = ActionExecutionStatus.COMPLETED.value if result["status"] == "success" else ActionExecutionStatus.ERROR.value
+        response_payload_json_result = result
+        completed_at = datetime.utcnow()
+        await self.statemgr.update(execution,
+                                   status=status_result,
+                                   response_payload_json=response_payload_json_result,
+                                   completed_at=completed_at)
 
         return result
 
+    @action("record-embedded-action-result", resources="message")
     async def record_embedded_action_result(self, message_id, action_id, execution_id, callback_payload, profile_id):
         """Record the result of an embedded action."""
-        from datetime import datetime
 
         # Get the execution record
         execution = await self.statemgr.find_one(
@@ -934,13 +943,13 @@ class RFX2DMessageAggregate(Aggregate):
             where={"_id": execution_id, "_deleted": None}
         )
         if not execution:
-            raise BadRequestError("Action execution not found")
+            raise ValueError("Action execution not found")
 
         # Normalize callback payload to standard envelope
         result = self._normalize_embedded_callback(callback_payload)
 
         # Update execution record
-        execution.status = ActionExecutionStatus.COMPLETED if result["status"] == "success" else ActionExecutionStatus.FAILED
+        execution.status = ActionExecutionStatus.COMPLETED.value if result["status"] == "success" else ActionExecutionStatus.ERROR.value
         execution.response_payload_json = result
         execution.completed_at = datetime.utcnow()
         await self.statemgr.update(execution, {
@@ -953,11 +962,12 @@ class RFX2DMessageAggregate(Aggregate):
 
     async def _execute_action_api(self, action, payload):
         """Execute an action via API call."""
-        import httpx
-        from datetime import datetime
+
+        if action.execution_mode.value != "API":
+            raise ValueError("Action execution mode is not API")
 
         if not action.endpoint_json:
-            raise BadRequestError("Action has no endpoint configuration")
+            raise ValueError("Action has no endpoint configuration")
 
         endpoint = action.endpoint_json
         url = endpoint["url"]
@@ -976,7 +986,7 @@ class RFX2DMessageAggregate(Aggregate):
                 pass
 
         try:
-            async with httpx.AsyncClient() as client:
+            async with AsyncClient(timeout=5.0) as client:
                 if method.upper() == "GET":
                     response = await client.get(url, headers=headers, params=payload)
                 elif method.upper() == "POST":
@@ -986,7 +996,7 @@ class RFX2DMessageAggregate(Aggregate):
                 elif method.upper() == "PATCH":
                     response = await client.patch(url, headers=headers, json=payload)
                 else:
-                    raise BadRequestError(f"Unsupported HTTP method: {method}")
+                    raise ValueError(f"Unsupported HTTP method: {method}")
 
                 if response.status_code >= 200 and response.status_code < 300:
                     response_data = response.json()
@@ -1028,11 +1038,10 @@ class RFX2DMessageAggregate(Aggregate):
         for field in schema["fields"]:
             field_key = field["key"]
             if field.get("required", False) and field_key not in form_data:
-                raise BadRequestError(f"Required field '{field_key}' is missing")
+                raise ValueError(f"Required field '{field_key}' is missing")
 
     def _normalize_embedded_callback(self, callback_payload):
         """Normalize embedded action callback to standard envelope."""
-        from datetime import datetime
 
         # Map callback event to status
         event = callback_payload.get("event", "")
@@ -1051,4 +1060,6 @@ class RFX2DMessageAggregate(Aggregate):
             "data": callback_payload.get("data"),
             "error": callback_payload.get("error")
         }
-                
+
+    # def _check_action_executed(self, message_id, mailbox_id):
+    #     """Check if action is executed by any profile for the message in the context of the mailbox."""   
