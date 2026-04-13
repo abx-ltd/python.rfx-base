@@ -120,7 +120,7 @@ class TagView(TableBase):
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    entry_ids: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
+    entry_ids: Mapped[Optional[list[uuid.UUID]]] = mapped_column(JSON, nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
