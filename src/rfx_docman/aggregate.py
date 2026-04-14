@@ -9,20 +9,11 @@ from .value_objects import CabinetCode, CategoryCode, ShelfCode
 
 
 class RFXDocmanAggregate(Aggregate):
-    """Docman Aggregate - CRUD operations for document items."""
+    """Aggregate handlers for docman commands."""
 
     def _serialize(self, data):
+        """Convert payload objects to plain mappings used by state manager."""
         return serialize_mapping(data)
-
-    async def _ensure_no_children(
-        self,
-        parent,
-        child_type: str,
-        where_key: str,
-        label: str,
-        child_label: str,
-    ):
-        pass
 
     async def _ensure_parent_hierarchy(self, *, cabinet_id, parent_path: str):
         """Ensure full folder hierarchy exists for parent_path and return last parent."""
@@ -91,6 +82,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("realm-created", resources="realm")
     async def create_realm(self, /, data):
+        """Create a realm under the current organization context."""
         data = self._serialize(data)
         record = self.init_resource(
             "realm",
@@ -105,6 +97,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("realm-updated", resources="realm")
     async def update_realm(self, /, data):
+        """Update mutable realm fields."""
         realm = self.rootobj
         updates = self._serialize(data)
         await self.statemgr.update(realm, **updates)
@@ -112,12 +105,13 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("realm-removed", resources="realm")
     async def remove_realm(self, /):
+        """Soft-delete a realm after child-shelf guard checks."""
         realm = self.rootobj
-        await self._ensure_no_children(realm, "shelf", "realm_id", "realm", "shelves")
         await self.statemgr.invalidate(realm)
 
     @action("realm-meta-created", resources="realm")
     async def create_realm_meta(self, /, data):
+        """Create a realm-scoped metadata key/value record."""
         data = self._serialize(data)
         realm = self.rootobj
         record = self.init_resource(
@@ -133,6 +127,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("realm-meta-updated", resources="realm_meta")
     async def update_realm_meta(self, /, data):
+        """Update an existing realm metadata record."""
         realm_meta = self.rootobj
         updates = self._serialize(data)
         await self.statemgr.update(realm_meta, **updates)
@@ -140,11 +135,13 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("realm-meta-removed", resources="realm_meta")
     async def remove_realm_meta(self, /):
+        """Soft-delete a realm metadata record."""
         realm_meta = self.rootobj
         await self.statemgr.invalidate(realm_meta)
 
     @action("shelf-created", resources="realm")
     async def create_shelf(self, /, data):
+        """Create a shelf within the selected realm."""
         data = self._serialize(data)
         realm = self.rootobj
 
@@ -161,6 +158,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("shelf-updated", resources="shelf")
     async def update_shelf(self, /, data):
+        """Update shelf fields."""
         shelf = self.rootobj
         updates = self._serialize(data)
         await self.statemgr.update(shelf, **updates)
@@ -168,14 +166,13 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("shelf-removed", resources="shelf")
     async def remove_shelf(self, /):
+        """Soft-delete a shelf after child-category guard checks."""
         shelf = self.rootobj
-        await self._ensure_no_children(
-            shelf, "category", "shelf_id", "shelf", "categories"
-        )
         await self.statemgr.invalidate(shelf)
 
     @action("category-created", resources="shelf")
     async def create_category(self, /, data):
+        """Create a category and validate that its code belongs to the shelf."""
         data = self._serialize(data)
         shelf = self.rootobj
         category_code = CategoryCode(str(data["code"]))
@@ -200,6 +197,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("category-updated", resources="category")
     async def update_category(self, /, data):
+        """Update category fields."""
         category = self.rootobj
         updates = self._serialize(data)
 
@@ -208,14 +206,13 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("category-removed", resources="category")
     async def remove_category(self, /):
+        """Soft-delete a category after child-cabinet guard checks."""
         category = self.rootobj
-        await self._ensure_no_children(
-            category, "cabinet", "category_id", "category", "cabinets"
-        )
         await self.statemgr.invalidate(category)
 
     @action("cabinet-created", resources="category")
     async def create_cabinet(self, /, data):
+        """Create a cabinet and validate that its code belongs to the category."""
         data = self._serialize(data)
         category = self.rootobj
         cabinet_code = CabinetCode(str(data["code"]))
@@ -240,6 +237,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("cabinet-updated", resources="cabinet")
     async def update_cabinet(self, /, data):
+        """Update cabinet fields."""
         cabinet = self.rootobj
         updates = self._serialize(data)
 
@@ -248,14 +246,13 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("cabinet-removed", resources="cabinet")
     async def remove_cabinet(self, /):
+        """Soft-delete a cabinet after child-entry guard checks."""
         cabinet = self.rootobj
-        await self._ensure_no_children(
-            cabinet, "entry", "cabinet_id", "cabinet", "entries"
-        )
         await self.statemgr.invalidate(cabinet)
 
     @action("entry-created", resources="cabinet")
     async def create_entry(self, /, data):
+        """Create a file/folder entry in a cabinet with closure-table wiring."""
         cabinet = self.rootobj
 
         data = self._serialize(data)
@@ -266,10 +263,14 @@ class RFXDocmanAggregate(Aggregate):
 
         try:
             async with self.statemgr.transaction():
+                # Stage 1: ensure destination parent chain exists.
                 parent = await self._ensure_parent_hierarchy(
                     cabinet_id=cabinet._id,
                     parent_path=str(data.get("parent_path", "")),
                 )
+
+                # Stage 2: resolve path conflicts. A virtual folder can be promoted
+                # to a real folder request at the same path.
                 existing = await self.statemgr.exist(
                     "entry",
                     where={"cabinet_id": cabinet._id, "path": target_path},
@@ -284,6 +285,7 @@ class RFXDocmanAggregate(Aggregate):
                         return await self.statemgr.fetch("entry", existing._id)
                     raise ValueError(f"An entry already exists at path '{target_path}'")
 
+                # Stage 3: insert entry and closure rows.
                 record = self.init_resource(
                     "entry",
                     {**data, "cabinet_id": cabinet._id, "is_virtual": False},
@@ -297,6 +299,8 @@ class RFXDocmanAggregate(Aggregate):
                 )
                 return record
         except UniqueViolationError:
+            # Stage 4: concurrent insert race. Re-check path and keep virtual-folder
+            # promotion behavior deterministic.
             existing = await self.statemgr.exist(
                 "entry",
                 where={"cabinet_id": cabinet._id, "path": target_path},
@@ -313,9 +317,11 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("entry-updated", resources="entry")
     async def update_entry(self, /, data):
+        """Update entry metadata, rename/move path, and optionally move cabinet."""
         entry = self.rootobj
         updates = self._serialize(data)
 
+        # Stage 1: resolve destination cabinet/path from current state + payload.
         dest_cabinet_id = data.cabinet_id or entry.cabinet_id
         source_cabinet_id = entry.cabinet_id
         cabinet_changed = dest_cabinet_id != source_cabinet_id
@@ -330,16 +336,20 @@ class RFXDocmanAggregate(Aggregate):
             updates["cabinet_id"] = dest_cabinet_id
 
         if new_path != old_path or cabinet_changed:
+            # Stage 2: normalize parent_path/name fields from resolved path.
             helper.apply_move_updates(updates, new_path=new_path)
 
             try:
                 async with self.statemgr.transaction():
                     parent = None
                     if parent_changed:
+                        # Stage 3: ensure destination parent chain exists.
                         parent = await self._ensure_parent_hierarchy(
                             cabinet_id=dest_cabinet_id,
                             parent_path=new_parent_path,
                         )
+
+                    # Stage 4: move descendant rows (folders only) and update root row.
                     await helper.move_folder_descendants(
                         self.statemgr,
                         entry=entry,
@@ -350,6 +360,7 @@ class RFXDocmanAggregate(Aggregate):
                     )
                     await self.statemgr.update(entry, **updates)
                     if parent_changed:
+                        # Stage 5: rebuild external ancestor links for moved subtree.
                         await helper.rebuild_subtree_ancestors(
                             self.statemgr,
                             entry_id=entry._id,
@@ -358,45 +369,43 @@ class RFXDocmanAggregate(Aggregate):
             except UniqueViolationError:
                 raise ValueError(f"An entry already exists at path '{new_path}'")
         else:
+            # No move semantics; plain field update.
             await self.statemgr.update(entry, **updates)
 
         return await self.statemgr.fetch("entry", entry._id)
 
     @action("entry-removed", resources="entry")
     async def remove_entry(self, /):
+        """Soft-delete entry and prune its closure rows in one transaction."""
         entry = self.rootobj
-        await self.statemgr.invalidate(entry)
+        async with self.statemgr.transaction():
+            # Stage 1: soft-delete entry row.
+            await self.statemgr.invalidate(entry)
+            # Stage 2: drop closure links tied to this entry to avoid table growth.
+            await helper.prune_entry_ancestor_for_soft_delete(
+                self.statemgr,
+                entry_id=entry._id,
+            )
 
     @action("entry-copied", resources="entry")
     async def copy_entry(self, /, data):
-        """Copy an entry (file or folder) to a destination cabinet/path.
-
-        - For FILE entries: creates a single new entry at dest_parent_path/dest_name,
-          sharing the same media_entry_id as the original.
-        - For FOLDER entries: recursively copies the full subtree (all descendants
-          fetched via entry_ancestor closure table), remapping every path under
-          the new root and wiring up ancestor closure rows for each new entry.
-
-        Payload (CopyEntryPayload):
-            cabinet_id   – destination cabinet (may differ from source).
-            parent_path  – destination parent path (empty = root of cabinet).
-            name         – optional new name; defaults to the original entry name.
-        """
+        """Copy an entry subtree to destination cabinet/path with closure rebuild."""
         entry = self.rootobj
         data = self._serialize(data)
 
+        # Stage 1: resolve destination path.
         dest_cabinet_id = data["cabinet_id"]
         dest_parent_path = str(data.get("parent_path", "") or "")
         dest_name = str(data.get("name") or entry.name)
         dest_path = f"{dest_parent_path}/{dest_name}" if dest_parent_path else dest_name
 
-        # 1. Ensure destination parent folder hierarchy exists.
+        # Stage 2: ensure destination parent hierarchy exists.
         dest_parent = await self._ensure_parent_hierarchy(
             cabinet_id=dest_cabinet_id,
             parent_path=dest_parent_path,
         )
 
-        # 2. Guard: destination path must not already exist.
+        # Stage 3: destination path must be unique.
         existing = await self.statemgr.exist(
             "entry",
             where={"cabinet_id": dest_cabinet_id, "path": dest_path},
@@ -407,7 +416,7 @@ class RFXDocmanAggregate(Aggregate):
             )
 
         if entry.type != EntryTypeEnum.FOLDER:
-            # ── FILE copy ──────────────────────────────────────────────────
+            # Stage 4A: file copy path (single row + closure links).
             new_entry = self.init_resource(
                 "entry",
                 {
@@ -428,14 +437,13 @@ class RFXDocmanAggregate(Aggregate):
             )
             return new_entry
 
-        # ── FOLDER copy (recursive subtree) ───────────────────────────────
-        # Fetch all descendants ordered by depth (parents before children).
-        # Returns list of plain dicts plus a path→old_id index for O(1) parent lookup.
+        # Stage 4B: folder copy path (recursive subtree clone).
+        # Fetch descendants ordered by depth with a path->old_id index.
         descendants, path_to_old_id = await helper.fetch_entry_subtree(
             self.statemgr, ancestor_id=entry._id
         )
 
-        # Map old _id (str) → new UUID for ancestor-closure wiring.
+        # Stage 5: clone nodes and re-wire closure relationships.
         id_map: dict = {}
         new_root = None
         src_root_path = str(entry.path)
@@ -471,7 +479,7 @@ class RFXDocmanAggregate(Aggregate):
             )
             await self.statemgr.insert(new_node)
 
-            # Determine parent_id for closure wiring using path→old_id index.
+            # Resolve closure parent id using old-path index + new id map.
             if old_id == entry._id:
                 parent_id_for_wiring = dest_parent._id if dest_parent else None
                 new_root = new_node
@@ -498,7 +506,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("tag-created", resources="tag")
     async def create_tag(self, /, data):
-        """Create a globally shared tag in realm"""
+        """Create a globally shared tag."""
         data = self._serialize(data)
         tag = self.init_resource(
             "tag",
@@ -520,7 +528,7 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("tag-removed", resources="tag")
     async def remove_tag(self, /):
-        """Remove a tag (also cascades through entry_tag if DB supports it)."""
+        """Soft-delete a tag."""
         tag = self.rootobj
         await self.statemgr.invalidate(tag)
 

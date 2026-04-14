@@ -53,7 +53,7 @@ class EntryAncestor(CoreTableBase):
         ForeignKey(
             f"{SCHEMA}.entry._id",
             name="fk_ea_ancestor",
-            ondelete="CASCADE",  # remove entry → automatically cleanup
+            ondelete="CASCADE",  # hard-delete only (soft-delete does not trigger)
         ),
         nullable=False,
     )
@@ -62,7 +62,7 @@ class EntryAncestor(CoreTableBase):
         ForeignKey(
             f"{SCHEMA}.entry._id",
             name="fk_ea_descendant",
-            ondelete="CASCADE",  # remove entry → automatically cleanup
+            ondelete="CASCADE",  # hard-delete only (soft-delete does not trigger)
         ),
         nullable=False,
     )

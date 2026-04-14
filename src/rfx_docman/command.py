@@ -8,7 +8,7 @@ Command = RFXDocmanDomain.Command
 
 
 class CreateRealm(Command):
-    """ "Create a realm ."""
+    """Create a realm."""
 
     Data = datadef.CreateRealmPayload
 
@@ -41,7 +41,7 @@ class UpdateRealm(Command):
 
 
 class RemoveRealm(Command):
-    """Remove a realm."""
+    """Soft-delete a realm."""
 
     class Meta:
         key = "remove-realm"
@@ -90,7 +90,7 @@ class UpdateRealmMeta(Command):
 
 
 class RemoveRealmMeta(Command):
-    """Remove a realm meta."""
+    """Soft-delete a realm metadata record."""
 
     class Meta:
         key = "remove-realm-meta"
@@ -135,7 +135,7 @@ class UpdateShelf(Command):
 
 
 class RemoveShelf(Command):
-    """Remove a shelf."""
+    """Soft-delete a shelf."""
 
     class Meta:
         key = "remove-shelf"
@@ -180,7 +180,7 @@ class UpdateCategory(Command):
 
 
 class RemoveCategory(Command):
-    """Remove a category."""
+    """Soft-delete a category."""
 
     class Meta:
         key = "remove-category"
@@ -225,7 +225,7 @@ class UpdateCabinet(Command):
 
 
 class RemoveCabinet(Command):
-    """Remove a cabinet."""
+    """Soft-delete a cabinet."""
 
     class Meta:
         key = "remove-cabinet"
@@ -238,7 +238,7 @@ class RemoveCabinet(Command):
 
 
 class CreateEntry(Command):
-    """Create a new entry (file or folder) inside a cabinet."""
+    """Create a new entry (file or folder) in a cabinet."""
 
     Data = datadef.CreateEntryPayload
 
@@ -249,12 +249,13 @@ class CreateEntry(Command):
         auth_required = True
 
     async def _process(self, agg, stm, payload):
+        # Stage 1: delegate creation logic to aggregate.
         result = await agg.create_entry(payload)
         yield agg.create_response(serialize_mapping(result), _type="entry-response")
 
 
 class UpdateEntry(Command):
-    """Update an entry."""
+    """Update an entry (including move/rename operations)."""
 
     Data = datadef.UpdateEntryPayload
 
@@ -270,11 +271,7 @@ class UpdateEntry(Command):
 
 
 class RemoveEntry(Command):
-    """Remove an entry (soft-delete single row only).
-
-    For FOLDER rows: descendants are untouched. The virtual folder continues
-    to appear in listings as long as file descendants exist (Strategy 3).
-    """
+    """Soft-delete an entry and let aggregate handle closure cleanup."""
 
     class Meta:
         key = "remove-entry"
@@ -287,7 +284,7 @@ class RemoveEntry(Command):
 
 
 class CopyEntry(Command):
-    """Copy an entry (file or folder) inside a cabinet."""
+    """Copy an entry subtree to destination cabinet/path."""
 
     Data = datadef.CopyEntryPayload
 
@@ -308,7 +305,7 @@ class CopyEntry(Command):
 
 
 class CreateTag(Command):
-    """Create a new globally-shared tag."""
+    """Create a globally shared tag."""
 
     Data = datadef.CreateTagPayload
 
@@ -341,7 +338,7 @@ class UpdateTag(Command):
 
 
 class RemoveTag(Command):
-    """Remove a tag."""
+    """Soft-delete a tag."""
 
     class Meta:
         key = "remove-tag"

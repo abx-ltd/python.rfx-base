@@ -1,4 +1,5 @@
-# helper.py
+"""Helper functions for docman path and closure-table operations."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,12 +9,14 @@ from .types import EntryTypeEnum
 
 
 def split_path(path: str) -> tuple[str, str]:
+    """Split absolute entry path into `(parent_path, name)`."""
     if "/" in path:
         return path.rsplit("/", 1)
     return "", path
 
 
 def apply_move_updates(updates: dict[str, Any], *, new_path: str) -> None:
+    """Normalize update payload fields from a resolved absolute path."""
     new_parent_path, new_name = split_path(new_path)
     updates["parent_path"] = new_parent_path
     updates["name"] = new_name
@@ -28,17 +31,17 @@ async def move_folder_descendants(
     source_cabinet_id: Any,
     dest_cabinet_id: Any,
 ) -> None:
-    """
-    Bulk-move all descendants in a single atomic UPDATE.
-    """
+    """Bulk-move descendants of a folder in one SQL update statement."""
     if entry.type != EntryTypeEnum.FOLDER:
         return
 
+    # Stage 1: derive old/new subtree prefixes for path rewrites.
     old_prefix = f"{old_path}/"
     new_prefix = f"{new_path}/"
     # Postgres SUBSTR is 1-based: SUBSTR(col, N+1) skips first N chars.
     old_prefix_len = len(old_prefix)
 
+    # Stage 2: rewrite descendant parent_path and optionally cabinet_id.
     await statemgr.native_query(
         f"""
         UPDATE "{config.RFX_DOCMAN_SCHEMA}"."entry"
@@ -70,7 +73,7 @@ async def fetch_entry_subtree(
     *,
     ancestor_id: Any,
 ) -> tuple[list[dict], dict]:
-    """Fetch all descendants of an entry ordered by depth (shallow-first).
+    """Fetch subtree rows ordered by depth and build a path-to-id index.
 
     Returns:
         (rows, path_to_old_id) where:
@@ -84,6 +87,7 @@ async def fetch_entry_subtree(
         ``native_query`` returns ``SimpleNamespace`` objects (via list_unwrapper);
         this helper converts them to plain dicts before returning.
     """
+    # Stage 1: fetch ancestor closure rows joined with live entries.
     ns_rows = await statemgr.native_query(
         f"""
         SELECT
@@ -107,8 +111,9 @@ async def fetch_entry_subtree(
     result: list[dict] = []
     path_to_old_id: dict = {}
 
+    # Stage 2: normalize rows to dict + pre-computed `_path` index.
     for ns in ns_rows:
-        # native_query returns SimpleNamespace — convert to dict first.
+        # native_query returns SimpleNamespace; convert to plain dict first.
         row = vars(ns)
         path = (
             f"{row['parent_path']}/{row['name']}" if row["parent_path"] else row["name"]
@@ -126,7 +131,7 @@ async def resolve_parent_entry(
     cabinet_id: Any,
     parent_path: str,
 ) -> Any | None:
-    """Resolve and validate parent entry by display path."""
+    """Resolve and validate a parent folder entry from a display path."""
     if not parent_path:
         return None
 
@@ -150,7 +155,8 @@ async def insert_entry_ancestor_rows(
     entry_id: Any,
     parent_id: Any | None,
 ) -> None:
-    """Insert closure rows for a newly created entry."""
+    """Insert closure rows for a new node (`self` + inherited ancestors)."""
+    # Stage 1: always ensure self-link (depth=0).
     await statemgr.native_query(
         f"""
         INSERT INTO "{config.RFX_DOCMAN_SCHEMA}"."entry_ancestor"
@@ -166,6 +172,7 @@ async def insert_entry_ancestor_rows(
     if parent_id is None:
         return
 
+    # Stage 2: inherit all ancestors from parent with depth + 1.
     await statemgr.native_query(
         f"""
         INSERT INTO "{config.RFX_DOCMAN_SCHEMA}"."entry_ancestor"
@@ -191,12 +198,13 @@ async def rebuild_subtree_ancestors(
     entry_id: Any,
     new_parent_id: Any | None,
 ) -> None:
-    """Rebuild closure links from new ancestors to moved subtree.
+    """Rebuild external closure links after moving an entry subtree.
 
     When `new_parent_id` is None (move to root), `new_ancestors` is empty.
     This is expected: old external ancestors are removed, while subtree self-links
     remain intact because old_ancestors excludes `ancestor_id = entry_id`.
     """
+    # Stage 1: cycle guard for folder moves.
     if new_parent_id is not None:
         cycle = await statemgr.exist(
             "entry_ancestor",
@@ -208,6 +216,7 @@ async def rebuild_subtree_ancestors(
         if cycle:
             raise ValueError("Cannot move a folder into itself or its descendants")
 
+    # Stage 2: replace only external ancestor edges for the moved subtree.
     await statemgr.native_query(
         f"""
         WITH subtree AS (
@@ -247,5 +256,28 @@ async def rebuild_subtree_ancestors(
         """,
         entry_id,
         new_parent_id,
+        unwrapper=None,
+    )
+
+
+async def prune_entry_ancestor_for_soft_delete(
+    statemgr: Any,
+    *,
+    entry_id: Any,
+) -> None:
+    """Remove closure rows tied to a soft-deleted entry.
+
+    Soft-delete keeps rows in `entry`, so FK `ON DELETE CASCADE` on
+    `entry_ancestor` is not triggered. Pruning these closure rows keeps the
+    closure table compact while preserving live-entry ancestry.
+    """
+    # Stage 1: remove every edge where this node is ancestor or descendant.
+    await statemgr.native_query(
+        f"""
+        DELETE FROM "{config.RFX_DOCMAN_SCHEMA}"."entry_ancestor"
+         WHERE ancestor_id = $1
+            OR descendant_id = $1
+        """,
+        entry_id,
         unwrapper=None,
     )
