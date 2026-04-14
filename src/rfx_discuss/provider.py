@@ -1,7 +1,7 @@
 from fluvius.data import DataAccessManager
 from fluvius.fastapi.auth import FluviusAuthProfileProvider
 
-from .model import RFXDiscussConnector
+from rfx_schema.rfx_discuss import RFXDiscussConnector
 
 
 class RFXDiscussProfileProvider(

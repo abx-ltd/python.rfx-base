@@ -29,15 +29,17 @@ class CodeBase:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.value!r})"
-    
+
     # --- Pydantic v2 integration ---
     @classmethod
     def _pydantic_validate(cls, value: str) -> "CodeBase":
         try:
             return cls(value)
         except ValueError as exc:
-            raise PydanticCustomError("invalid_code", "{message}", {"message": str(exc)}) from exc
-        
+            raise PydanticCustomError(
+                "invalid_code", "{message}", {"message": str(exc)}
+            ) from exc
+
     @classmethod
     def __get_pydantic_core_schema__(
         cls,
@@ -51,7 +53,6 @@ class CodeBase:
             ],
             serialization=core_schema.plain_serializer_function_ser_schema(str),
         )
-
 
     @classmethod
     def __get_pydantic_json_schema__(cls, core_schema, handler):

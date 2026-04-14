@@ -12,7 +12,7 @@ from fluvius.query.field import (
     PrimaryID,
 )
 from starlette.responses import RedirectResponse
-from fluvius.error import ForbiddenError
+from fluvius.error import ForbiddenError, NotFoundError, BadRequestError
 from rfx_user import config as userconf
 from . import config
 
@@ -44,7 +44,7 @@ async def accept_invitation(
         token = request.query_params.get("token")
         invitation = await query_manager.data_manager.fetch("invitation", invitation_id)
         if not invitation:
-            return {"error": "Invitation not found"}
+            raise NotFoundError("IDM.404.01", "Invitation not found")
 
         context = request.state.auth_context
         if not context:
@@ -53,7 +53,7 @@ async def accept_invitation(
             return RedirectResponse(signin_url)
 
         if token != invitation.token:
-            return {"error": "Invalid invitation token"}
+            raise ForbiddenError("IDM.403.03", "Invalid invitation token")
 
         if str(invitation.user_id) != str(context.profile.usr_id):
             # Logged in but as the wrong user
@@ -69,7 +69,7 @@ async def accept_invitation(
         # Ensure user is verified before accepting invitation
         user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
         if not user:
-            return {"error": "User not found"}
+            raise NotFoundError("IDM.404.02", "User not found")
 
         if not user.verified_email:
             raise ForbiddenError(
@@ -79,7 +79,7 @@ async def accept_invitation(
             )
 
         if invitation.status != InvitationStatusEnum.PENDING:
-            return {"error": f"Invitation status is {invitation.status}, cannot accept"}
+            raise BadRequestError("IDM.400.01", f"Invitation status is {invitation.status}, cannot accept")
         # Only block when there is already a fully ACTIVE profile.
         # An INACTIVE placeholder created by CreateProfileUserInOrg must not block acceptance.
         # Also skip the check when the invitation references its own pre-created profile.
@@ -93,8 +93,8 @@ async def accept_invitation(
                 ),
             )
             if existing_profile:
-                return {"error": "User already has an active profile in this organization"}
-        current_time = datetime.now(timezone(timedelta(hours=7)))
+                raise BadRequestError("IDM.400.04", "User already has an active profile in this organization")
+        current_time = datetime.now(timezone.utc)
         if invitation.expires_at and invitation.expires_at < current_time:
             await query_manager.data_manager.update(
                 invitation, status=InvitationStatusEnum.EXPIRED
@@ -108,7 +108,7 @@ async def accept_invitation(
             await query_manager.data_manager.add_entry(
                 "invitation_status", **invitation_status_record
             )
-            return {"error": "Invitation has expired"}
+            raise BadRequestError("IDM.400.02", "Invitation has expired")
 
         await query_manager.data_manager.update(
             invitation, status=InvitationStatusEnum.ACCEPTED
@@ -125,7 +125,7 @@ async def accept_invitation(
         )
         user = await query_manager.data_manager.fetch("user", context.profile.usr_id)
         if not user:
-            return {"error": "User not found"}
+            raise NotFoundError("IDM.404.02", "User not found")
 
         # Check for existing profile (possibly INACTIVE) to activate
         existing_profile_rec = await query_manager.data_manager.exist(
@@ -205,7 +205,7 @@ async def reject_invitation(
         token = request.query_params.get("token")
         invitation = await query_manager.data_manager.fetch("invitation", invitation_id)
         if not invitation:
-            return {"error": "Invitation not found"}
+            raise NotFoundError("IDM.404.01", "Invitation not found")
 
         context = request.state.auth_context
         if not context:
@@ -214,7 +214,7 @@ async def reject_invitation(
             return RedirectResponse(signin_url)
 
         if token != invitation.token:
-            return {"error": "Invalid invitation token"}
+            raise ForbiddenError("IDM.403.03", "Invalid invitation token")
 
         if str(invitation.user_id) != str(context.profile.usr_id):
             next_url = f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path
@@ -235,7 +235,7 @@ async def reject_invitation(
             )
 
         if invitation.status != "PENDING":
-            return {"error": f"Invitation status is {invitation.status}, cannot reject"}
+            raise BadRequestError("IDM.400.03", f"Invitation status is {invitation.status}, cannot reject")
         await query_manager.data_manager.update(invitation, status="REJECTED")
         await query_manager.data_manager.add_entry(
             "invitation_status",
@@ -260,7 +260,7 @@ async def check_user_email(
         {"exists": true|false}
     """
     async with query_manager.data_manager.transaction():
-        email = request.query_params.get("email")
+        email = request.query_params.get("email").strip().lower()
         if not email:
             return {"error": "email query parameter is required"}
 

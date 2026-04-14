@@ -622,6 +622,7 @@ class SupplierServiceView(TableBase):
     supplier_name: Mapped[str] = mapped_column(String(255))
     supplier_code: Mapped[Optional[str]] = mapped_column(String(50))
     supplier_status: Mapped[str] = mapped_column(String(50))
+    unit_price: Mapped[float] = mapped_column(Numeric(10, 2))
     tax_code: Mapped[Optional[str]] = mapped_column(String(50))
     contact_email: Mapped[Optional[str]] = mapped_column(String(255))
     contact_phone: Mapped[Optional[str]] = mapped_column(String(50))

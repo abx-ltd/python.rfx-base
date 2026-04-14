@@ -11,14 +11,16 @@ _TAG_MAX_LEN = 100
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 
-
 def _pydantic_vo_schema(cls: type) -> core_schema.CoreSchema:
     """Shared Pydantic schema builder for str-based VO dataclasses."""
+
     def validate(value: str) -> object:
         try:
             return cls(value)
         except ValueError as exc:
-            raise PydanticCustomError("invalid_name", "{message}", {"message": str(exc)}) from exc
+            raise PydanticCustomError(
+                "invalid_name", "{message}", {"message": str(exc)}
+            ) from exc
 
     return core_schema.chain_schema(
         [
@@ -56,7 +58,9 @@ class EntryName:
         return f"EntryName({self.value!r})"
 
     @classmethod
-    def __get_pydantic_core_schema__(cls, source_type: type, handler: GetCoreSchemaHandler):
+    def __get_pydantic_core_schema__(
+        cls, source_type: type, handler: GetCoreSchemaHandler
+    ):
         return _pydantic_vo_schema(cls)
 
 
@@ -89,7 +93,9 @@ class FolderName:
         return f"FolderName({self.value!r})"
 
     @classmethod
-    def __get_pydantic_core_schema__(cls, source_type: type, handler: GetCoreSchemaHandler):
+    def __get_pydantic_core_schema__(
+        cls, source_type: type, handler: GetCoreSchemaHandler
+    ):
         return _pydantic_vo_schema(cls)
 
 
@@ -116,5 +122,7 @@ class TagName:
         return f"TagName({self.value!r})"
 
     @classmethod
-    def __get_pydantic_core_schema__(cls, source_type: type, handler: GetCoreSchemaHandler):
+    def __get_pydantic_core_schema__(
+        cls, source_type: type, handler: GetCoreSchemaHandler
+    ):
         return _pydantic_vo_schema(cls)

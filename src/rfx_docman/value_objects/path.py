@@ -43,7 +43,7 @@ class Path:
         """Append name to this path. Input is validated via Path normalization."""
         if not self.value:
             return Path(name)
-        return Path(f"{self.value}/{name}")     
+        return Path(f"{self.value}/{name}")
 
     def parent(self) -> "Path":
         """Return the parent path, or root if already at root."""
