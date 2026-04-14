@@ -4,11 +4,9 @@ from fluvius.data import DomainSchema, SqlaDriver
 from sqlalchemy.dialects import postgresql as pg
 
 
-from . import config
+from . import config, logger
 
 
 class RFXDiscussConnector(SqlaDriver):
-    assert config.DB_DSN, "[rfx_discuss.DB_DSN] not set."
-
     __db_dsn__ = config.DB_DSN
 

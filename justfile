@@ -3,6 +3,7 @@ import "../../justlib/python.just"
 import "../../justlib/postgres.just"
 
 mod alembic "../../justlib/alembic.just"
+import '.command/jucmd/release.just'
 
 # List of just commands
 @default:
