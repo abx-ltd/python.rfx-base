@@ -188,11 +188,10 @@ class TagQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "_tag"
-        scope_required = scope.TagScopeSchema
+        backend_model = "tag"
+        # scope_required = scope.TagScopeSchema
 
     id: UUID_TYPE = PrimaryID("Tag ID")
-    realm_id: UUID_TYPE = UUIDField("Realm ID")
     name: str = StringField("Name")
     color: Optional[str] = StringField("Color")
     icon: Optional[str] = StringField("Icon")

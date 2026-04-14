@@ -163,39 +163,6 @@ entry_view = PGView(
     """,
 )
 
-tag_view = PGView(
-    schema=config.RFX_DOCMAN_SCHEMA,
-    signature="_tag",
-    definition=f"""
-    SELECT
-        t._created,
-        t._creator,
-        t._deleted,
-        t._etag,
-        t._id,
-        t._updated,
-        t._updater,
-        t._realm,
-        t.realm_id,
-        t.name,
-        t.color,
-        t.icon,
-        COALESCE(tc.entry_ids, '[]'::json) AS entry_ids
-    FROM "{config.RFX_DOCMAN_SCHEMA}".tag t
-    LEFT JOIN (
-        SELECT
-            et.tag_id,
-            json_agg(DISTINCT et.entry_id) AS entry_ids
-        FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
-        JOIN "{config.RFX_DOCMAN_SCHEMA}".entry e
-          ON e._id = et.entry_id
-         AND e._deleted IS NULL
-        GROUP BY et.tag_id
-    ) tc ON tc.tag_id = t._id
-    WHERE t._deleted IS NULL;
-    """,
-)
-
 
 def register_pg_entities(allow):
     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
@@ -209,7 +176,6 @@ def register_pg_entities(allow):
             category_view,
             cabinet_view,
             entry_view,
-            tag_view,
         ]
     )
 

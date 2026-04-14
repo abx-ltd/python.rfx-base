@@ -1,5 +1,5 @@
 from typing import Optional
-from fluvius.query.field import UUIDField, StringField
+from fluvius.query.field import UUIDField
 from fluvius.data import UUID_TYPE
 from pydantic import BaseModel, Field
 
@@ -30,13 +30,13 @@ class EntryScopeSchema(BaseModel):
     )
 
 
-class TagScopeSchema(BaseModel):
-    realm_id: Optional[UUID_TYPE] = Field(
-        default=None, description="Filter tags by realm ID"
-    )
-    entry_id: Optional[UUID_TYPE] = Field(
-        default=None, description="Filter tags by entry ID"
-    )
+# class TagScopeSchema(BaseModel):
+#     realm_id: Optional[UUID_TYPE] = Field(
+#         default=None, description="Filter tags by realm ID"
+#     )
+#     entry_id: Optional[UUID_TYPE] = Field(
+#         default=None, description="Filter tags by entry ID"
+#     )
 
 
 class RealmMetaScopeSchema(BaseModel):

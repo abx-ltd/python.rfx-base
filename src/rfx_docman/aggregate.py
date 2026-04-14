@@ -316,13 +316,20 @@ class RFXDocmanAggregate(Aggregate):
         entry = self.rootobj
         updates = self._serialize(data)
 
+        dest_cabinet_id = data.cabinet_id or entry.cabinet_id
+        source_cabinet_id = entry.cabinet_id
+        cabinet_changed = dest_cabinet_id != source_cabinet_id
+
         new_path = data.resolve_path(entry)
         old_path = entry.path
         new_parent_path, _ = helper.split_path(new_path)
         old_parent_path = str(entry.parent_path or "")
-        parent_changed = new_parent_path != old_parent_path
+        parent_changed = new_parent_path != old_parent_path or cabinet_changed
 
-        if new_path != old_path:
+        if cabinet_changed:
+            updates["cabinet_id"] = dest_cabinet_id
+
+        if new_path != old_path or cabinet_changed:
             helper.apply_move_updates(updates, new_path=new_path)
 
             try:
@@ -330,7 +337,7 @@ class RFXDocmanAggregate(Aggregate):
                     parent = None
                     if parent_changed:
                         parent = await self._ensure_parent_hierarchy(
-                            cabinet_id=entry.cabinet_id,
+                            cabinet_id=dest_cabinet_id,
                             parent_path=new_parent_path,
                         )
                     await helper.move_folder_descendants(
@@ -338,6 +345,8 @@ class RFXDocmanAggregate(Aggregate):
                         entry=entry,
                         old_path=old_path,
                         new_path=new_path,
+                        source_cabinet_id=source_cabinet_id,
+                        dest_cabinet_id=dest_cabinet_id,
                     )
                     await self.statemgr.update(entry, **updates)
                     if parent_changed:
@@ -441,7 +450,7 @@ class RFXDocmanAggregate(Aggregate):
                 new_name = dest_name
             else:
                 # Remap path relative to the new destination root.
-                relative = old_path[len(src_root_path) + 1:]
+                relative = old_path[len(src_root_path) + 1 :]
                 full_new_path = f"{dest_path}/{relative}"
                 new_parent_path, new_name = helper.split_path(full_new_path)
 
@@ -487,16 +496,14 @@ class RFXDocmanAggregate(Aggregate):
     # TAG
     # =========================================================================
 
-    @action("tag-created", resources="realm")
+    @action("tag-created", resources="tag")
     async def create_tag(self, /, data):
         """Create a globally shared tag in realm"""
         data = self._serialize(data)
-        realm = self.rootobj
         tag = self.init_resource(
             "tag",
             {
                 **data,
-                "realm_id": realm._id,
             },
             _id=UUID_GENR(),
         )

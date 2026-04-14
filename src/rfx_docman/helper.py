@@ -25,6 +25,8 @@ async def move_folder_descendants(
     entry: Any,
     old_path: str,
     new_path: str,
+    source_cabinet_id: Any,
+    dest_cabinet_id: Any,
 ) -> None:
     """
     Bulk-move all descendants in a single atomic UPDATE.
@@ -43,7 +45,8 @@ async def move_folder_descendants(
            SET parent_path = CASE
                  WHEN parent_path = $3 THEN $1
                  ELSE $2 || SUBSTR(parent_path, $4 + 1)
-               END
+               END,
+               cabinet_id = $7
          WHERE cabinet_id = $5
            AND _deleted IS NULL
            AND (
@@ -55,8 +58,9 @@ async def move_folder_descendants(
         new_prefix,  # $2 deep descendants new prefix: "<new_path>/"
         old_path,  # $3 direct-children old parent_path
         old_prefix_len,  # $4 SUBSTR offset
-        entry.cabinet_id,  # $5
+        source_cabinet_id,  # $5
         f"{old_path}/%",  # $6 old subtree selector for descendants
+        dest_cabinet_id,  # $7
         unwrapper=None,
     )
 
@@ -107,9 +111,7 @@ async def fetch_entry_subtree(
         # native_query returns SimpleNamespace — convert to dict first.
         row = vars(ns)
         path = (
-            f"{row['parent_path']}/{row['name']}"
-            if row["parent_path"]
-            else row["name"]
+            f"{row['parent_path']}/{row['name']}" if row["parent_path"] else row["name"]
         )
         row["_path"] = path
         result.append(row)

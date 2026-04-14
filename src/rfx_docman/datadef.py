@@ -153,6 +153,10 @@ class _EntryLike(Protocol):
 
 
 class UpdateEntryPayload(BaseUpdatePayload):
+    cabinet_id: Optional[UUID_TYPE] = Field(
+        default=None,
+        description="Cabinet ID (required if moving to a different cabinet).",
+    )
     parent_path: Optional[Path] = Field(
         default=None, description="New parent path (move entry)."
     )

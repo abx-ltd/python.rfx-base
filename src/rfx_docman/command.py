@@ -66,7 +66,9 @@ class CreateRealmMeta(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_realm_meta(payload)
-        yield agg.create_response(serialize_mapping(result), _type="realm-meta-response")
+        yield agg.create_response(
+            serialize_mapping(result), _type="realm-meta-response"
+        )
 
 
 class UpdateRealmMeta(Command):
@@ -82,7 +84,9 @@ class UpdateRealmMeta(Command):
 
     async def _process(self, agg, stm, payload):
         result = await agg.update_realm_meta(payload)
-        yield agg.create_response(serialize_mapping(result), _type="realm-meta-response")
+        yield agg.create_response(
+            serialize_mapping(result), _type="realm-meta-response"
+        )
 
 
 class RemoveRealmMeta(Command):
@@ -281,6 +285,7 @@ class RemoveEntry(Command):
     async def _process(self, agg, stm, payload):
         await agg.remove_entry()
 
+
 class CopyEntry(Command):
     """Copy an entry (file or folder) inside a cabinet."""
 
@@ -296,22 +301,23 @@ class CopyEntry(Command):
         result = await agg.copy_entry(payload)
         yield agg.create_response(serialize_mapping(result), _type="entry-response")
 
+
 # =============================================================================
 # TAG COMMANDS — globally shared tag CRUD
 # =============================================================================
 
 
 class CreateTag(Command):
-    """Create a new globally-shared tag.
-    """
+    """Create a new globally-shared tag."""
 
     Data = datadef.CreateTagPayload
 
     class Meta:
         key = "create-tag"
-        resources = ("realm",)
+        resources = ("tag",)
         tags = ["docman", "create", "tag"]
         auth_required = True
+        resource_init = True
 
     async def _process(self, agg, stm, payload):
         result = await agg.create_tag(payload)
@@ -381,4 +387,3 @@ class RemoveEntryTag(Command):
 
     async def _process(self, agg, stm, payload):
         await agg.remove_entry_tag(payload)
-
