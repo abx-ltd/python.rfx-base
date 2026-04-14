@@ -567,4 +567,8 @@ class RFXDocmanAggregate(Aggregate):
         if not link:
             raise ValueError(f"Tag '{tag_id}' is not attached to this entry")
 
-        await self.statemgr.invalidate(link)
+        await helper.delete_entry_tag_link(
+            self.statemgr,
+            entry_id=entry._id,
+            tag_id=tag_id,
+        )

@@ -281,3 +281,26 @@ async def prune_entry_ancestor_for_soft_delete(
         entry_id,
         unwrapper=None,
     )
+
+
+async def delete_entry_tag_link(
+    statemgr: Any,
+    *,
+    entry_id: Any,
+    tag_id: Any,
+) -> None:
+    """Hard-delete an entry-tag junction row.
+
+    `entry_tag` is a technical junction table (composite PK, no `_id/_etag`),
+    so it must be removed with SQL delete instead of `invalidate`.
+    """
+    await statemgr.native_query(
+        f"""
+        DELETE FROM "{config.RFX_DOCMAN_SCHEMA}"."entry_tag"
+         WHERE entry_id = $1
+           AND tag_id = $2
+        """,
+        entry_id,
+        tag_id,
+        unwrapper=None,
+    )
