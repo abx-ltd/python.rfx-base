@@ -4,10 +4,11 @@ from fluvius.query import DomainQueryResource
 from fluvius.query.field import StringField, DatetimeField
 from datetime import datetime
 from .domain import RFXHatchetDomain
+from .state import RFXHatchetStateManager
 
 
 class RFXHatchetQueryManager(DomainQueryManager):
-    __data_manager__ = HatchetWorkflowTracker
+    __data_manager__ = RFXHatchetStateManager
 
     class Meta(DomainQueryManager.Meta):
         prefix = RFXHatchetDomain.Meta.namespace
@@ -28,7 +29,7 @@ class HatchetWorkflowRunQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "hatchet_workflow_run"
+        backend_model = "_hatchet_workflow_run"
 
     workflow_name: str = StringField("Workflow Name")
     workflow_run_id: str = StringField("Workflow Run ID")
@@ -36,9 +37,8 @@ class HatchetWorkflowRunQuery(DomainQueryResource):
     args: str = StringField("Args")
     kwargs: str = StringField("Kwargs")
     status: str = StringField("Status")
-    enqueue_time: datetime = DatetimeField("Enqueue Time")
     start_time: datetime = DatetimeField("Start Time")
-    finish_time: datetime = DatetimeField("Finish Time")
+    end_time: datetime = DatetimeField("End Time")
     result: str = StringField("Result")
     err_message: str = StringField("Error Message")
     err_trace: str = StringField("Error Trace")

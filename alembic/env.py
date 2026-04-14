@@ -24,6 +24,7 @@ from rfx_schema.rfx_discuss import RFXDiscussConnector
 from rfx_schema.rfx_qr import RFXQRConnector
 from rfx_schema.rfx_todo import RFXTodoConnector
 from rfx_schema.rfx_template import RFXTemplateConnector
+from rfx_schema.rfx_hatchet import RFXHatchetConnector
 
 DOMAIN_CONNECTORS = {
     "user": IDMConnector,
@@ -36,6 +37,7 @@ DOMAIN_CONNECTORS = {
     "qr": RFXQRConnector,
     "todo": RFXTodoConnector,
     "template": RFXTemplateConnector,
+    "hatchet": RFXHatchetConnector,
 }
 
 

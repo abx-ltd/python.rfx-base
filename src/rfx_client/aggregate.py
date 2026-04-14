@@ -1,6 +1,6 @@
 from fluvius.domain import Aggregate
 from fluvius.domain.aggregate import action
-from fluvius.error import BadRequestError
+from fluvius.error import BadRequestError, NotFoundError, UnprocessableError
 from fluvius.data import serialize_mapping, UUID_GENR, logger
 from fluvius.helper import timestamp
 from .helper import parse_duration_for_db
@@ -21,8 +21,7 @@ class RFXClientAggregate(Aggregate):
             "_project", where={"members.ov": [profile_id], "status": "DRAFT"}
         )
         if estimator:
-            raise BadRequestError(
-                "R13.400.01",
+            raise BadRequestError("A00.400",
                 "Estimator already exists",
                 errdata={"id": str(estimator._id), "name": estimator.name, "status": estimator.status}
             )
@@ -58,14 +57,20 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not promotion:
-            raise ValueError("Promotion code not found")
+            raise NotFoundError("A00.404",
+                "Promotion code not found"
+            )
 
         if promotion.max_uses <= promotion.current_uses:
-            raise ValueError("Promotion code has reached the maximum number of uses")
+            raise BadRequestError("A00.400",
+                "Promotion code has reached the maximum number of uses"
+            )
 
         now = timestamp().replace(tzinfo=None)
         if promotion.valid_from > now or promotion.valid_until < now:
-            raise ValueError("Promotion code is not valid")
+            raise BadRequestError("A00.400",
+                "Promotion code is not valid"
+            )
 
         await self.statemgr.update(promotion, current_uses=promotion.current_uses + 1)
         await self.statemgr.update(project, referral_code_used=promotion.code)
@@ -78,11 +83,13 @@ class RFXClientAggregate(Aggregate):
                 data.duration
             )
         except Exception:
-            raise ValueError(f"Invalid duration format: {data.duration}")
+            raise BadRequestError("A00.400",
+                f"Invalid duration format: {data.duration}"
+            )
 
         project = self.rootobj
         # if project.status == "ACTIVE":
-        #     raise ValueError("Already is a project")
+        #     raise UnprocessableError("A00.422", "Already is a project")
 
         target_date = data.start_date + parsed_delta
         status = data.status or "ACTIVE"
@@ -109,7 +116,52 @@ class RFXClientAggregate(Aggregate):
 
         return new_project
 
-    @action("project-updated", resources="project")
+    @action("project-created", resources="project")
+    async def create_project_direct(self, /, data):
+        """Create a new project directly from scratch without DRAFT check"""
+        try:
+            parsed_delta, duration_text, duration_interval = parse_duration_for_db(
+                data.duration
+            )
+        except Exception:
+            raise BadRequestError("A00.400", f"Invalid duration format: {data.duration}")
+
+        target_date = data.start_date + parsed_delta
+        status = data.status or "PENDING"
+
+        project_data = serialize_mapping(data)
+        project_data.pop("duration", None)
+        project_data.update({"status": status})
+
+        sync_status = SyncStatusEnum.PENDING
+        if config.PROJECT_MANAGEMENT_INTEGRATION_ENABLED:
+            sync_status = SyncStatusEnum.SYNCED
+
+        project = self.init_resource(
+            "project",
+            project_data,
+            organization_id=self.context.organization_id,
+            target_date=target_date,
+            duration_text=duration_text,
+            sync_status=sync_status,
+            _id=self.aggroot.identifier or UUID_GENR(),
+        )
+
+        project_member = self.init_resource(
+            "project_member",
+            {
+                "member_id": self.context.profile_id,
+                "role": "OWNER",
+                "project_id": project._id,
+            },
+            _id=UUID_GENR(),
+        )
+
+        await self.statemgr.insert(project)
+        await self.statemgr.insert(project_member)
+        return {"_id": project._id, "name": project.name, "status": "OK"}
+
+    @action("project_updated", resources=("project"))
     async def update_project(self, /, data):
         """Update a project"""
         duration_text = None
@@ -120,7 +172,7 @@ class RFXClientAggregate(Aggregate):
                     data.duration
                 )
             except Exception:
-                raise ValueError(f"Invalid duration format: {data.duration}")
+                raise BadRequestError("A00.400", f"Invalid duration format: {data.duration}")
 
         project = self.rootobj
 
@@ -130,13 +182,13 @@ class RFXClientAggregate(Aggregate):
             to_status_key = await self.statemgr.has_status_key(status_id, data.status)
 
             if not to_status_key:
-                raise ValueError("Invalid status")
+                raise BadRequestError("A00.400", "Invalid status")
 
             transition = await self.statemgr.has_status_transition(
                 status_id, project.status, data.status
             )
             if not transition:
-                raise ValueError("Invalid status, Can not transition to this status")
+                raise BadRequestError("A00.400", "Invalid status, Can not transition to this status")
 
         project_data = serialize_mapping(data)
         project_data.pop("target_date", None)
@@ -180,7 +232,7 @@ class RFXClientAggregate(Aggregate):
             "work_package", where=dict(_id=data.work_package_id)
         )
         if not work_package:
-            raise ValueError("Work package not found")
+            raise NotFoundError("A00.404", "Work package not found")
 
         project_work_package = self.init_resource(
             "project_work_package",
@@ -318,9 +370,7 @@ class RFXClientAggregate(Aggregate):
             where=dict(_id=data.project_work_package_id, project_id=None),
         )
         if not template_pwp:
-            raise ValueError(
-                "Template project-work-package not found or not a template (project_id must be NULL)"
-            )
+            raise NotFoundError("A00.404", "Template project-work-package not found or not a template (project_id must be NULL)")
 
         # --- STEP 2: Clone project-work-package ---
         new_pwp_id = UUID_GENR()
@@ -599,7 +649,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not record:
-            raise ValueError("BDM contact not found")
+            raise NotFoundError("A00.404", "BDM contact not found")
 
         if data.status:
             workflow_id = await self.statemgr.get_workflow_id("project_bdm_contact")
@@ -607,12 +657,12 @@ class RFXClientAggregate(Aggregate):
                 workflow_id, data.status
             )
             if not to_workflow_status:
-                raise ValueError("Invalid status")
+                raise BadRequestError("A00.400", "Invalid status")
             transition = await self.statemgr.has_workflow_transition(
                 workflow_id, record.status, data.status
             )
             if not transition:
-                raise ValueError("Invalid status, Can not transition to this status")
+                raise BadRequestError("A00.400", "Invalid status, Can not transition to this status")
 
         update_data = serialize_mapping(data)
         update_data.pop("bdm_contact_id", None)
@@ -629,7 +679,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not record:
-            raise ValueError("BDM contact not found or does not belong to this project")
+            raise NotFoundError("A00.404", "BDM contact not found or does not belong to this project")
 
         await self.statemgr.invalidate(record)
 
@@ -694,7 +744,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not project_member:
-            raise ValueError("Project member not found")
+            raise NotFoundError("A00.404", "Project member not found")
 
         await self.statemgr.update(project_member, **serialize_mapping(data))
         return project_member
@@ -708,7 +758,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not project_member:
-            raise ValueError("Project member not found")
+            raise NotFoundError("A00.404", "Project member not found")
 
         await self.statemgr.invalidate_data("project_member", project_member._id)
 
@@ -733,7 +783,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not milestone:
-            raise ValueError("Milestone not found or does not belong to this project")
+            raise NotFoundError("A00.404", "Milestone not found or does not belong to this project")
 
         update_data = serialize_mapping(data)
         update_data.pop("milestone_id", None)
@@ -768,7 +818,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not category:
-            raise ValueError("Category not found")
+            raise NotFoundError("A00.404", "Category not found")
 
         update_data = serialize_mapping(data)
         update_data.pop("project_category_id", None)
@@ -870,7 +920,7 @@ class RFXClientAggregate(Aggregate):
             _, _, duration_interval = parse_duration_for_db(data.estimate)
             data = data.set(estimate=duration_interval)
         except Exception:
-            raise ValueError(f"Invalid estimate format: {data.estimate}")
+            raise BadRequestError("A00.400", f"Invalid estimate format: {data.estimate}")
 
         """Create new work item"""
         record = self.init_resource(
@@ -892,7 +942,7 @@ class RFXClientAggregate(Aggregate):
                 _, _, duration_interval = parse_duration_for_db(data.estimate)
                 data = data.set(estimate=duration_interval)
             except Exception:
-                raise ValueError(f"Invalid estimate format: {data.estimate}")
+                raise BadRequestError("A00.400", f"Invalid estimate format: {data.estimate}")
 
         await self.statemgr.update(work_item, **serialize_mapping(data))
 
@@ -923,7 +973,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not work_item_deliverable:
-            raise ValueError("Work item deliverable not found")
+            raise NotFoundError("A00.404", "Work item deliverable not found")
 
         update_data = serialize_mapping(data)
         update_data.pop("work_item_deliverable_id", None)
@@ -943,7 +993,7 @@ class RFXClientAggregate(Aggregate):
         if deliverable:
             await self.statemgr.invalidate_data("work_item_deliverable", deliverable._id)
         else:
-            raise ValueError("Work item deliverable not found")
+            raise NotFoundError("A00.404", "Work item deliverable not found")
 
     # =========== Work Item to Work Package (Work Package Context) ============
     @action("work-item-added-to-work-package", resources="work_package")
@@ -968,7 +1018,7 @@ class RFXClientAggregate(Aggregate):
             where=dict(work_package_id=work_package._id, work_item_id=work_item_id),
         )
         if not work_package_work_item:
-            raise ValueError("Work item not found")
+            raise NotFoundError("A00.404", "Work item not found")
 
         await self.statemgr.invalidate_data(
             "work_package_work_item", work_package_work_item._id
@@ -993,7 +1043,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not work_item_type:
-            raise ValueError("Work item type not found")
+            raise NotFoundError("A00.404", "Work item type not found")
 
         update_data = serialize_mapping(data)
         update_data.pop("work_item_type_id", None)
@@ -1009,7 +1059,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not work_item_type:
-            raise ValueError("Work item type not found")
+            raise NotFoundError("A00.404", "Work item type not found")
 
         await self.statemgr.invalidate_data("ref__work_item_type", work_item_type._id)
         return work_item_type
@@ -1026,7 +1076,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not project_work_item:
-            raise ValueError("Project work item not found")
+            raise NotFoundError("A00.404", "Project work item not found")
 
         update_data = serialize_mapping(data)
         update_data.pop("project_work_item_id", None)
@@ -1047,7 +1097,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not project_work_package:
-            raise ValueError("Project work package not found")
+            raise NotFoundError("A00.404", "Project work package not found")
 
         update_data = serialize_mapping(data)
         update_data.pop("project_work_package_id", None)
@@ -1066,7 +1116,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not project_work_package:
-            raise ValueError("Project work package not found")
+            raise NotFoundError("A00.404", "Project work package not found")
 
         existing_links = await self.statemgr.find_all(
             "project_work_package_work_item",
@@ -1102,7 +1152,7 @@ class RFXClientAggregate(Aggregate):
                 "work_item", where=dict(_id=work_item_id)
             )
             if not work_item:
-                raise ValueError(f"Work item {work_item_id} not found")
+                raise NotFoundError("A00.404", f"Work item {work_item_id} not found")
 
             project_work_item_data = {
                 "_id": UUID_GENR(),
@@ -1149,13 +1199,13 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not project_work_package:
-            raise ValueError("Project work package not found")
+            raise NotFoundError("A00.404", "Project work package not found")
 
         work_item = await self.statemgr.find_one(
             "work_item", where=dict(_id=data.work_item_id)
         )
         if not work_item:
-            raise ValueError("Work item not found")
+            raise NotFoundError("A00.404", "Work item not found")
 
         project_work_item_data = {
             "_id": UUID_GENR(),
@@ -1193,7 +1243,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not project_work_item:
-            raise ValueError("Project work item not found")
+            raise NotFoundError("A00.404", "Project work item not found")
 
         await self.statemgr.invalidate_data("project_work_item", project_work_item._id)
 
@@ -1211,7 +1261,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not project_work_item_deliverable:
-            raise ValueError("Project work item deliverable not found")
+            raise NotFoundError("A00.404", "Project work item deliverable not found")
 
         update_data = serialize_mapping(data)
         update_data.pop("project_work_item_deliverable_id", None)
@@ -1244,7 +1294,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not project_integration:
-            raise ValueError("Project integration not found")
+            raise NotFoundError("A00.404", "Project integration not found")
         await self.statemgr.update(project_integration)
 
     @action("project-integration-removed", resources="project")
@@ -1262,7 +1312,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not project_integration:
-            raise ValueError("Project integration not found")
+            raise NotFoundError("A00.404", "Project integration not found")
         await self.statemgr.invalidate_data(
             "project_integration", project_integration._id
         )
@@ -1303,7 +1353,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not milestone:
-            raise ValueError("Milestone not found or does not belong to this project")
+            raise NotFoundError("A00.404", "Milestone not found or does not belong to this project")
 
         project_milestone_integration = self.init_resource(
             "project_milestone_integration",
@@ -1321,7 +1371,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not milestone:
-            raise ValueError("Milestone not found or does not belong to this project")
+            raise NotFoundError("A00.404", "Milestone not found or does not belong to this project")
 
         project_milestone_integration = await self.statemgr.find_one(
             "project_milestone_integration",
@@ -1332,7 +1382,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not project_milestone_integration:
-            raise ValueError("Project milestone integration not found")
+            raise NotFoundError("A00.404", "Project milestone integration not found")
         update_data = serialize_mapping(data)
         await self.statemgr.update(project_milestone_integration, **update_data)
 
@@ -1348,7 +1398,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not project_milestone_integration:
-            raise ValueError("Project milestone integration not found")
+            raise NotFoundError("A00.404", "Project milestone integration not found")
         await self.statemgr.invalidate_data(
             "project_milestone_integration", project_milestone_integration._id
         )
@@ -1369,7 +1419,7 @@ class RFXClientAggregate(Aggregate):
             "ref__ticket_type", where=dict(_id=data.ticket_type_id)
         )
         if not ticket_type:
-            raise ValueError("Ticket type not found")
+            raise NotFoundError("A00.404", "Ticket type not found")
         updated_data = serialize_mapping(data)
         updated_data.pop("ticket_type_id")
         await self.statemgr.update(ticket_type, **updated_data)
@@ -1382,7 +1432,7 @@ class RFXClientAggregate(Aggregate):
             "ref__ticket_type", where=dict(_id=data.ticket_type_id)
         )
         if not ticket_type:
-            raise ValueError("Ticket type not found")
+            raise NotFoundError("A00.404", "Ticket type not found")
         await self.statemgr.invalidate_data("ref__ticket_type", data.ticket_type_id)
         return {"deleted": True}
 
@@ -1395,7 +1445,9 @@ class RFXClientAggregate(Aggregate):
         record = self.init_resource(
             "ticket",
             serialize_mapping(data),
+            is_inquiry=True,
             status=InquiryStatusEnum.OPEN.value,
+            sync_status=SyncStatusEnum.PENDING,
             organization_id=self.context.organization_id,
             _id=self.aggroot.identifier or UUID_GENR(),
         )
@@ -1409,7 +1461,9 @@ class RFXClientAggregate(Aggregate):
         record = self.init_resource(
             "ticket",
             serialize_mapping(data),
+            is_inquiry=True,
             status=InquiryStatusEnum.DRAFT.value,
+            sync_status=SyncStatusEnum.PENDING,
             organization_id=self.context.organization_id,
             _id=self.aggroot.identifier or UUID_GENR(),
         )
@@ -1421,11 +1475,11 @@ class RFXClientAggregate(Aggregate):
         """close inquiry ticket"""
         inquiry = self.rootobj
         if not inquiry:
-            raise ValueError("Inquiry not found")
+            raise NotFoundError("A00.404", "Inquiry not found")
         if inquiry.status == InquiryStatusEnum.CLOSED.value:
-            raise ValueError("Inquiry is already closed")
+            raise UnprocessableError("A00.422", "Inquiry is already closed")
         if inquiry.status == InquiryStatusEnum.DRAFT.value:
-            raise ValueError("Draft inquiry cannot be closed")
+            raise BadRequestError("A00.400", "Draft inquiry cannot be closed")
         await self.statemgr.update(inquiry, status=InquiryStatusEnum.CLOSED.value)
         result = await self.statemgr.find_one(
             "ticket",
@@ -1438,9 +1492,9 @@ class RFXClientAggregate(Aggregate):
         """submit inquiry draft ticket"""
         inquiry = self.rootobj
         if not inquiry:
-            raise ValueError("Inquiry not found")
+            raise NotFoundError("A00.404", "Inquiry not found")
         if inquiry.status != InquiryStatusEnum.DRAFT.value:
-            raise ValueError("Only draft inquiry can be submitted")
+            raise BadRequestError("A00.400", "Only draft inquiry can be submitted")
         await self.statemgr.update(inquiry, status=InquiryStatusEnum.OPEN.value)
         result = await self.statemgr.find_one(
             "ticket",
@@ -1460,9 +1514,9 @@ class RFXClientAggregate(Aggregate):
         final_kwargs = self.audit_created()
         final_kwargs.update(
             {
-                "_id": self.aggroot.identifier,
+                "_id": self.aggroot.identifier or UUID_GENR(),
                 "status": "NEW",
-                "sync_status": "PENDING",
+                "sync_status": SyncStatusEnum.PENDING,
                 "is_inquiry": False,
             }
         )
@@ -1492,13 +1546,13 @@ class RFXClientAggregate(Aggregate):
             )
 
             if not to_status_key:
-                raise ValueError("Invalid status")
+                raise BadRequestError("A00.400", "Invalid status")
 
             transition = await self.statemgr.has_status_transition(
                 status._id, from_status_key._id, to_status_key._id
             )
             if not transition:
-                raise ValueError("Invalid status, Can not transition to this status")
+                raise BadRequestError("A00.400", "Invalid status, Can not transition to this status")
 
         data_result = serialize_mapping(data)
 
@@ -1522,7 +1576,7 @@ class RFXClientAggregate(Aggregate):
             "ticket_assignee", where=dict(ticket_id=self.aggroot.identifier)
         )
         if ticket_assignee and ticket_assignee.member_id == data.member_id:
-            raise ValueError("Member already assigned to ticket")
+            raise UnprocessableError("A00.422", "Member already assigned to ticket")
 
         if ticket_assignee:
             await self.statemgr.invalidate_data("ticket_assignee", ticket_assignee._id)
@@ -1543,7 +1597,7 @@ class RFXClientAggregate(Aggregate):
             where=dict(ticket_id=self.aggroot.identifier, member_id=member_id),
         )
         if not assignee:
-            raise ValueError("Assignee not found")
+            raise NotFoundError("A00.404", "Assignee not found")
         await self.statemgr.invalidate_data("ticket_assignee", assignee._id)
         return {"removed": True}
 
@@ -1559,7 +1613,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if ticket_participant:
-            raise ValueError("Participant already added to ticket")
+            raise UnprocessableError("A00.422", "Participant already added to ticket")
 
         record = self.init_resource(
             "ticket_participant",
@@ -1579,7 +1633,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not participant:
-            raise ValueError("Participant not found")
+            raise NotFoundError("A00.404", "Participant not found")
         await self.statemgr.invalidate_data("ticket_participant", participant._id)
         return {"removed": True}
 
@@ -1630,7 +1684,7 @@ class RFXClientAggregate(Aggregate):
         """Delete tag"""
         tag = self.rootobj
         if not tag:
-            raise ValueError("Tag not found")
+            raise NotFoundError("A00.404", "Tag not found")
         await self.statemgr.invalidate(tag)
         return {"deleted": True}
 
@@ -1672,7 +1726,7 @@ class RFXClientAggregate(Aggregate):
             "ticket", where=dict(_id=self.aggroot.identifier)
         )
         if not ticket:
-            raise ValueError("Ticket not found")
+            raise NotFoundError("A00.404", "Ticket not found")
 
         record = self.init_resource(
             "ticket_integration",
@@ -1689,7 +1743,7 @@ class RFXClientAggregate(Aggregate):
             "ticket", where=dict(_id=self.aggroot.identifier)
         )
         if not ticket:
-            raise ValueError("Ticket not found")
+            raise NotFoundError("A00.404", "Ticket not found")
         ticket_integration = await self.statemgr.find_one(
             "ticket_integration",
             where=dict(
@@ -1699,7 +1753,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not ticket_integration:
-            raise ValueError("Ticket integration not found")
+            raise NotFoundError("A00.404", "Ticket integration not found")
         await self.statemgr.update(ticket_integration, **serialize_mapping(data))
 
     @action("remove-ticket-integration", resources="ticket")
@@ -1709,7 +1763,7 @@ class RFXClientAggregate(Aggregate):
             "ticket", where=dict(_id=self.aggroot.identifier)
         )
         if not ticket:
-            raise ValueError("Ticket not found")
+            raise NotFoundError("A00.404", "Ticket not found")
         ticket_integration = await self.statemgr.find_one(
             "ticket_integration",
             where=dict(
@@ -1719,7 +1773,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if not ticket_integration:
-            raise ValueError("Ticket integration not found")
+            raise NotFoundError("A00.404", "Ticket integration not found")
 
         await self.statemgr.invalidate(ticket_integration)
         return {"removed": True}
@@ -1730,7 +1784,7 @@ class RFXClientAggregate(Aggregate):
         if self.aggroot.resource == "ticket":
             ticket = self.rootobj
             if not ticket:
-                raise ValueError("Ticket not found")
+                raise NotFoundError("A00.404", "Ticket not found")
             if (
                 ticket.is_inquiry and ticket.status == InquiryStatusEnum.OPEN.value
                 # and self.get_context().profile_id != ticket._creator
@@ -1815,7 +1869,7 @@ class RFXClientAggregate(Aggregate):
             "comment", where=dict(_id=data.comment_id)
         )
         if not comment:
-            raise ValueError("Comment not found")
+            raise NotFoundError("A00.404", "Comment not found")
 
         record = self.init_resource(
             "comment_integration",
@@ -1833,7 +1887,7 @@ class RFXClientAggregate(Aggregate):
             "comment", where=dict(_id=self.aggroot.identifier)
         )
         if not comment:
-            raise ValueError("Comment not found")
+            raise NotFoundError("A00.404", "Comment not found")
 
         comment_integration = await self.statemgr.find_one(
             "comment_integration",
@@ -1845,7 +1899,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not comment_integration:
-            raise ValueError("Comment integration not found")
+            raise NotFoundError("A00.404", "Comment integration not found")
         await self.statemgr.update(comment_integration, **serialize_mapping(data))
         return comment_integration
 
@@ -1863,7 +1917,7 @@ class RFXClientAggregate(Aggregate):
         )
 
         if not comment_integration:
-            raise ValueError("Comment integration not found")
+            raise NotFoundError("A00.404", "Comment integration not found")
 
         await self.statemgr.invalidate(comment_integration)
         return {"removed": True}
@@ -1909,14 +1963,14 @@ class RFXClientAggregate(Aggregate):
         """Update attachment metadata"""
         comment = self.rootobj
         if not comment:
-            raise ValueError("Comment not found")
+            raise NotFoundError("A00.404", "Comment not found")
 
         attachment = await self.statemgr.find_one(
             "comment_attachment",
             where={"_id": data.attachment_id, "comment_id": comment._id},
         )
         if not attachment:
-            raise ValueError(f"Attachment not found: {data.attachment_id}")
+            raise NotFoundError("A00.404", f"Attachment not found: {data.attachment_id}")
         data_result = serialize_mapping(data)
         data_result.pop("attachment_id", None)
         await self.statemgr.update(attachment, **data_result)
@@ -1926,13 +1980,13 @@ class RFXClientAggregate(Aggregate):
         """Delete attachment from comment"""
         comment = self.rootobj
         if not comment:
-            raise ValueError("Comment not found")
+            raise NotFoundError("A00.404", "Comment not found")
         attachment = await self.statemgr.find_one(
             "comment_attachment",
             where={"_id": data.attachment_id, "comment_id": comment._id},
         )
         if not attachment:
-            raise ValueError(f"Attachment not found: {data.attachment_id}")
+            raise NotFoundError("A00.404", f"Attachment not found: {data.attachment_id}")
         await self.statemgr.invalidate(attachment)
 
     @action("create-reaction-to-comment", resources="comment")
@@ -1955,9 +2009,7 @@ class RFXClientAggregate(Aggregate):
             },
         )
         if check_existing:
-            raise ValueError(
-                f"Reaction already exists for user: {user_id} on comment {comment._id}"
-            )
+            raise UnprocessableError("A00.422", f"Reaction already exists for user: {user_id} on comment {comment._id}")
         reaction = self.init_resource(
             "comment_reaction",
             reaction_data,
@@ -1966,7 +2018,7 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.insert(reaction)
         return reaction
 
-    @action("remove-reaction-from-commnent", resources="comment")
+    @action("remove-reaction-from-comment", resources="comment")
     async def remove_reaction(self, /):
         """Remove reaction from comment"""
         user_id = self.get_context().profile_id
@@ -1978,9 +2030,7 @@ class RFXClientAggregate(Aggregate):
             },
         )
         if not reaction:
-            raise ValueError(
-                f"Reaction not found for user: {user_id} on comment {self.rootobj._id}"
-            )
+            raise NotFoundError("A00.404", f"Reaction not found for user: {user_id} on comment {self.rootobj._id}")
         await self.statemgr.invalidate(reaction)
 
     @action("document-uploaded", resources="document")
@@ -2050,7 +2100,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if existing_supplier:
-            raise ValueError("Supplier already exists")
+            raise UnprocessableError("A00.422", "Supplier already exists")
 
         record = self.init_resource(
             "supplier",
@@ -2090,7 +2140,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if existing_category:
-            raise ValueError("Service category already exists")
+            raise UnprocessableError("A00.422", "Service category already exists")
 
         record = self.init_resource(
             "service_category",
@@ -2129,7 +2179,7 @@ class RFXClientAggregate(Aggregate):
             where=dict(_id=data.service_id),
         )
         if not service_category:
-            raise ValueError("Service category not found")
+            raise NotFoundError("A00.404", "Service category not found")
         existing_relation = await self.statemgr.exist(
             "supplier_service",
             where=dict(
@@ -2138,7 +2188,7 @@ class RFXClientAggregate(Aggregate):
             ),
         )
         if existing_relation:
-            raise ValueError("Service category already added to supplier")
+            raise UnprocessableError("A00.422", "Service category already added to supplier")
         record = self.init_resource(
             "supplier_service",
             {

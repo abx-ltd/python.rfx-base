@@ -18,6 +18,7 @@ from sqlalchemy import (
     BigInteger,
     Index,
     text,
+    Numeric,
 )
 from sqlalchemy.dialects.postgresql import INTERVAL, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -62,4 +63,5 @@ class SupplierService(TableBase):
     service_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.service_category._id"), nullable=False)
     status: Mapped[RecordStatusEnum] = mapped_column(SQLEnum(RecordStatusEnum), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    unit_price: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)  # price in cents
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))

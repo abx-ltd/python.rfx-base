@@ -1099,6 +1099,7 @@ class SupplierServiceQuery(DomainQueryResource):
     supplier_name: str = StringField("Supplier Name")
     supplier_code: str = StringField("Supplier Code")
     supplier_status: str = StringField("Supplier Status")
+    unit_price: float = FloatField("Unit Price")
     tax_code: str = StringField("Tax Code")
     contact_email: str = StringField("Contact Email")
     contact_phone: str = StringField("Contact Phone")

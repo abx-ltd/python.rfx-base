@@ -89,6 +89,12 @@ class Comment(TableBase):
         nullable=True,
     )
 
+    is_acknowledge_reply: Mapped[Optional[bool]] = mapped_column(
+        Boolean,
+        nullable=True,
+        server_default=text("false"),
+    )
+
     # Relationships
     children: Mapped[list[Comment]] = relationship(
         "Comment",
@@ -128,6 +134,7 @@ class Comment(TableBase):
         back_populates="comment",
         cascade="all, delete-orphan",
     )
+
 
     def __repr__(self) -> str:
         return (
