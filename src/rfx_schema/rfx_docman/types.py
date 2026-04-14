@@ -1,4 +1,7 @@
+"""Enum types for the docman schema."""
+
 from enum import Enum
+
 
 class EntryTypeEnum(str, Enum):
     FOLDER = "FOLDER"
@@ -14,13 +17,14 @@ class EntryTypeEnum(str, Enum):
     CODE = "CODE"  # .py, .js, .sql
     OTHER = "OTHER"
 
-class RealmMetaKeyEnum(str, Enum) :
-    REALM =  "REALM"
+
+class RealmMetaKeyEnum(str, Enum):
+    REALM = "REALM"
     SHELF = "SHELF"
     CATEGORY = "CATEGORY"
     CABINET = "CABINET"
 
 
 class EntryStatusEnum(str, Enum):
-    PENDING = "PENDING"  
-    READY = "READY" 
+    PENDING = "PENDING"
+    READY = "READY"

@@ -1,12 +1,7 @@
-"""
-Cabinet ORM Model
-=================
+"""Cabinet ORM model.
 
-Third structural level — the document container. Code pattern: {CategoryCode}-{suffix}
-e.g. "A01-001". realm_id is denormalized for fast realm-scoped queries.
-
-Unique constraint: (category_id, code) for active rows — code unique within a category scope.
-Indexes: realm_id, category_id for active rows.
+Third structural level that groups entries. The `realm_id` column is denormalized
+from category for fast realm-scoped filtering.
 """
 
 from __future__ import annotations
@@ -29,19 +24,19 @@ class Cabinet(TableBase):
         Index(
             "ix_cabinet_realm_id",
             "realm_id",
-            postgresql_where=text(" _deleted IS NULL"),
+            postgresql_where=text("_deleted IS NULL"),
         ),
         Index(
             "ix_cabinet_category_id",
             "category_id",
-            postgresql_where=text(" _deleted IS NULL"),
+            postgresql_where=text("_deleted IS NULL"),
         ),
         Index(
             "uq_cabinet_category_code_active",
             "category_id",
             "code",
             unique=True,
-            postgresql_where=text(" _deleted IS NULL"),
+            postgresql_where=text("_deleted IS NULL"),
         ),
         {"schema": SCHEMA},
     )

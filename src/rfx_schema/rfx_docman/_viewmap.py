@@ -13,9 +13,7 @@ from .types import RealmMetaKeyEnum
 
 
 class RealmView(TableBase):
-    """
-    Realm view with shelf list.
-    """
+    """Realm view with realm metadata and shelf counts."""
 
     __tablename__ = "_realm"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
@@ -35,9 +33,7 @@ class RealmView(TableBase):
 
 
 class ShelfView(TableBase):
-    """
-    Shelf view with category count.
-    """
+    """Shelf view with aggregated category counts."""
 
     __tablename__ = "_shelf"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
@@ -52,9 +48,7 @@ class ShelfView(TableBase):
 
 
 class CategoryView(TableBase):
-    """
-    Category view with cabinet and entry count.
-    """
+    """Category view with aggregated cabinet counts."""
 
     __tablename__ = "_category"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
@@ -70,9 +64,7 @@ class CategoryView(TableBase):
 
 
 class CabinetView(TableBase):
-    """
-    Cabinet view with entry count.
-    """
+    """Cabinet view with aggregated entry counts."""
 
     __tablename__ = "_cabinet"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
@@ -87,9 +79,7 @@ class CabinetView(TableBase):
 
 
 class EntryView(TableBase):
-    """
-    Entry view.
-    """
+    """Entry view enriched with media metadata and tag payload."""
 
     __tablename__ = "_entry"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
@@ -109,19 +99,6 @@ class EntryView(TableBase):
     length: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     child_entry_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     tags: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
-
-
-class TagView(TableBase):
-    """
-    Tag view. entry_ids contains all entries where the tag is used.
-    """
-
-    __tablename__ = "_tag"
-    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
-
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
 
 class PolicyDocmanView(PolicyBase, PolicySchema):

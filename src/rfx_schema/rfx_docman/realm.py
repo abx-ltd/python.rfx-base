@@ -1,19 +1,16 @@
-"""
-Realm ORM Model
-===============
+"""Realm ORM model.
 
-Top-level organisational boundary for the document management system.
-
+Represents the top-level organizational boundary in docman.
 """
 
 from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import String , Index, text
+from sqlalchemy import Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import TableBase , SCHEMA
+from . import SCHEMA, TableBase
 
 
 class Realm(TableBase):
@@ -30,10 +27,12 @@ class Realm(TableBase):
         {"schema": SCHEMA},
     )
 
-    name:        Mapped[str]         = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
-    icon:        Mapped[Optional[str]] = mapped_column(String(255),  nullable=True)
-    color:       Mapped[Optional[str]] = mapped_column(String(64),   nullable=True)
+    icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    #policy
-    organization_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=False)
+    # Policy scoping
+    organization_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=False
+    )

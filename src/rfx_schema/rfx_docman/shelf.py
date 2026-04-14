@@ -1,10 +1,6 @@
-"""
-Shelf ORM Model
-===============
+"""Shelf ORM model.
 
-First structural level within a realm. Identified by a single-letter code (A–Z).
-
-Unique constraint: (realm_id, code) for active rows — code unique within a realm.
+First structural level within a realm, identified by a short code.
 """
 
 from __future__ import annotations

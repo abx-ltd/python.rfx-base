@@ -1,6 +1,4 @@
-"""
-Tag ORM Model
-"""
+"""Tag ORM model."""
 
 from __future__ import annotations
 
@@ -13,7 +11,7 @@ from . import TableBase, SCHEMA
 
 
 class Tag(TableBase):
-    """Reusable label that can be attached to any entry."""
+    """Reusable global label that can be attached to any entry."""
 
     __tablename__ = "tag"
     __table_args__ = (

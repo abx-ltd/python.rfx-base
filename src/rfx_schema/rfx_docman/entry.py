@@ -1,4 +1,5 @@
-# models/entry.py
+"""Entry ORM model."""
+
 from __future__ import annotations
 
 import uuid
@@ -26,8 +27,8 @@ class Entry(TableBase):
     """
     A file or folder within a cabinet.
 
-    Hierarchy traversal  → EntryAncestor (closure table)
-    path / parent_path   → display only, dùng cho Frontend breadcrumb
+    Hierarchy traversal uses EntryAncestor (closure table).
+    parent_path/path are display fields for breadcrumbs and listing.
     """
 
     __tablename__ = "entry"
@@ -82,7 +83,7 @@ class Entry(TableBase):
     parent_path: Mapped[str] = mapped_column(
         String(2048),
         nullable=False,
-        comment="Display only. Tree traversal dùng entry_ancestor.",
+        comment="Display only. Hierarchy traversal is handled by entry_ancestor.",
     )
     name: Mapped[str] = mapped_column(
         String(512),

@@ -1,15 +1,7 @@
-"""
-Category ORM Model
-==================
+"""Category ORM model.
 
-Second structural level within a realm. Code pattern: {ShelfCode}{2-digit serial}
-e.g. "A01", "A02", "B01".
-
-realm_id is denormalized here (copied from shelf) to enable fast realm-scoped queries
-without a join to shelf.
-
-Unique constraint: (shelf_id, code) for active rows — code unique within a shelf scope.
-Indexes: realm_id, shelf_id for active rows.
+Second structural level within a realm. The `realm_id` column is denormalized
+from shelf for fast realm-scoped filtering.
 """
 
 from __future__ import annotations
@@ -32,19 +24,19 @@ class Category(TableBase):
         Index(
             "ix_category_realm_id",
             "realm_id",
-            postgresql_where=text(" _deleted IS NULL"),
+            postgresql_where=text("_deleted IS NULL"),
         ),
         Index(
             "ix_category_shelf_id",
             "shelf_id",
-            postgresql_where=text(" _deleted IS NULL"),
+            postgresql_where=text("_deleted IS NULL"),
         ),
         Index(
             "uq_category_shelf_code_active",
             "shelf_id",
             "code",
             unique=True,
-            postgresql_where=text(" _deleted IS NULL"),
+            postgresql_where=text("_deleted IS NULL"),
         ),
         {"schema": SCHEMA},
     )

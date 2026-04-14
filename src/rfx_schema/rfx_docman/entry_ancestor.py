@@ -1,4 +1,5 @@
-# models/entry.py
+"""Entry ancestor closure table ORM model."""
+
 from __future__ import annotations
 
 import uuid
@@ -7,16 +8,15 @@ from sqlalchemy import CheckConstraint, Index, PrimaryKeyConstraint, ForeignKey,
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-
 from . import CoreTableBase, SCHEMA
 
 
 class EntryAncestor(CoreTableBase):
     """
-    Clousure table for entity hierarchy.
+    Closure table for entry hierarchy.
 
     Every ancestor-descendant pair is stored explicitly,
-    including self-references (depth=0).
+    including self-links where depth = 0.
     """
 
     __tablename__ = "entry_ancestor"

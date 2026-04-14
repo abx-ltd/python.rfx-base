@@ -1,11 +1,7 @@
-"""
-RealmMeta ORM Model
-===================
+"""Realm metadata ORM model.
 
-Key-value metadata scoped to a realm. Used for custom structural level labels
-(e.g. renaming "Shelf" → "Function") and arbitrary realm-level configuration.
-
-Unique constraint: (realm_id, key) — each key appears at most once per realm.
+Stores realm-scoped key/value settings, including custom labels for structural
+levels (for example: Shelf -> Function).
 """
 
 from __future__ import annotations
@@ -29,7 +25,7 @@ class RealmMeta(TableBase):
             "realm_id",
             "key",
             unique=True,
-            postgresql_include=["value"],  
+            postgresql_include=["value"],
             postgresql_where=text("_deleted IS NULL"),
         ),
         {"schema": SCHEMA},
