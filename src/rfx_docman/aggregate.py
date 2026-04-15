@@ -266,7 +266,7 @@ class RFXDocmanAggregate(Aggregate):
                 # Stage 1: ensure destination parent chain exists.
                 parent = await self._ensure_parent_hierarchy(
                     cabinet_id=cabinet._id,
-                    parent_path=str(data.get("parent_path", "")),
+                    parent_path=parent_path,
                 )
 
                 # Stage 2: resolve path conflicts. A virtual folder can be promoted
@@ -297,7 +297,8 @@ class RFXDocmanAggregate(Aggregate):
                     entry_id=record._id,
                     parent_id=parent._id if parent else None,
                 )
-                return record
+                # Return via view (_entry) for consistency with update_entry.
+                return await self.statemgr.fetch("entry", record._id)
         except UniqueViolationError:
             # Stage 4: concurrent insert race. Re-check path and keep virtual-folder
             # promotion behavior deterministic.
@@ -327,7 +328,7 @@ class RFXDocmanAggregate(Aggregate):
         cabinet_changed = dest_cabinet_id != source_cabinet_id
 
         new_path = data.resolve_path(entry)
-        old_path = entry.path
+        old_path = str(entry.path or "")
         new_parent_path, _ = helper.split_path(new_path)
         old_parent_path = str(entry.parent_path or "")
         parent_changed = new_parent_path != old_parent_path or cabinet_changed
@@ -376,129 +377,163 @@ class RFXDocmanAggregate(Aggregate):
 
     @action("entry-removed", resources="entry")
     async def remove_entry(self, /):
-        """Soft-delete entry and prune its closure rows in one transaction."""
+        """Soft-delete entry and, for folders, cascade-delete the entire subtree.
+
+        Root entry is invalidated via ``statemgr.invalidate()`` for proper
+        ``_etag`` / ``_updater`` bookkeeping. Descendants are bulk soft-deleted
+        in a single SQL statement. All closure edges for the subtree are pruned
+        atomically within the same transaction.
+        """
         entry = self.rootobj
         async with self.statemgr.transaction():
-            # Stage 1: soft-delete entry row.
+            # Stage 1: soft-delete this entry (handles _etag/_updater bookkeeping).
             await self.statemgr.invalidate(entry)
-            # Stage 2: drop closure links tied to this entry to avoid table growth.
-            await helper.prune_entry_ancestor_for_soft_delete(
-                self.statemgr,
-                entry_id=entry._id,
-            )
+
+            if entry.type == EntryTypeEnum.FOLDER:
+                # Stage 2A: cascade bulk-delete descendants + prune entire subtree closure.
+                await helper.cascade_soft_delete_subtree(
+                    self.statemgr,
+                    root_id=entry._id,
+                )
+            else:
+                # Stage 2B: prune closure rows for this single file entry.
+                await helper.prune_entry_ancestor_for_soft_delete(
+                    self.statemgr,
+                    entry_id=entry._id,
+                )
 
     @action("entry-copied", resources="entry")
     async def copy_entry(self, /, data):
-        """Copy an entry subtree to destination cabinet/path with closure rebuild."""
+        """Copy an entry subtree to destination cabinet/path with closure rebuild.
+
+        Both `path`/`parent_path` and `entry_ancestor` are updated atomically
+        within a single transaction to keep the two sources of truth in sync.
+        """
         entry = self.rootobj
         data = self._serialize(data)
 
-        # Stage 1: resolve destination path.
+        # Stage 1: resolve destination path (pure computation, outside transaction).
         dest_cabinet_id = data["cabinet_id"]
         dest_parent_path = str(data.get("parent_path", "") or "")
         dest_name = str(data.get("name") or entry.name)
         dest_path = f"{dest_parent_path}/{dest_name}" if dest_parent_path else dest_name
 
-        # Stage 2: ensure destination parent hierarchy exists.
-        dest_parent = await self._ensure_parent_hierarchy(
-            cabinet_id=dest_cabinet_id,
-            parent_path=dest_parent_path,
-        )
-
-        # Stage 3: destination path must be unique.
-        existing = await self.statemgr.exist(
-            "entry",
-            where={"cabinet_id": dest_cabinet_id, "path": dest_path},
-        )
-        if existing:
-            raise ValueError(
-                f"An entry already exists at destination path '{dest_path}'"
+        # Wrap stages 2-5 in a single transaction so that path updates
+        # and closure inserts are always committed or rolled back together.
+        async with self.statemgr.transaction():
+            # Stage 2: ensure destination parent hierarchy exists.
+            dest_parent = await self._ensure_parent_hierarchy(
+                cabinet_id=dest_cabinet_id,
+                parent_path=dest_parent_path,
             )
 
-        if entry.type != EntryTypeEnum.FOLDER:
-            # Stage 4A: file copy path (single row + closure links).
-            new_entry = self.init_resource(
+            # Stage 3: destination path must be unique.
+            existing = await self.statemgr.exist(
                 "entry",
-                {
-                    "cabinet_id": dest_cabinet_id,
-                    "parent_path": dest_parent_path,
-                    "name": dest_name,
-                    "type": entry.type,
-                    "media_entry_id": entry.media_entry_id,
-                    "is_virtual": False,
-                },
-                _id=UUID_GENR(),
+                where={"cabinet_id": dest_cabinet_id, "path": dest_path},
             )
-            await self.statemgr.insert(new_entry)
-            await helper.insert_entry_ancestor_rows(
-                self.statemgr,
-                entry_id=new_entry._id,
-                parent_id=dest_parent._id if dest_parent else None,
-            )
-            return new_entry
-
-        # Stage 4B: folder copy path (recursive subtree clone).
-        # Fetch descendants ordered by depth with a path->old_id index.
-        descendants, path_to_old_id = await helper.fetch_entry_subtree(
-            self.statemgr, ancestor_id=entry._id
-        )
-
-        # Stage 5: clone nodes and re-wire closure relationships.
-        id_map: dict = {}
-        new_root = None
-        src_root_path = str(entry.path)
-
-        for row in descendants:
-            old_id = row["_id"]
-            old_path = row["_path"]
-
-            if old_id == entry._id:
-                # Root of the subtree → maps to dest_path.
-                new_parent_path = dest_parent_path
-                new_name = dest_name
-            else:
-                # Remap path relative to the new destination root.
-                relative = old_path[len(src_root_path) + 1 :]
-                full_new_path = f"{dest_path}/{relative}"
-                new_parent_path, new_name = helper.split_path(full_new_path)
-
-            new_id = UUID_GENR()
-            id_map[str(old_id)] = new_id
-
-            new_node = self.init_resource(
-                "entry",
-                {
-                    "cabinet_id": dest_cabinet_id,
-                    "parent_path": new_parent_path,
-                    "name": new_name,
-                    "type": row["type"],
-                    "media_entry_id": row["media_entry_id"],
-                    "is_virtual": bool(row["is_virtual"]),
-                },
-                _id=new_id,
-            )
-            await self.statemgr.insert(new_node)
-
-            # Resolve closure parent id using old-path index + new id map.
-            if old_id == entry._id:
-                parent_id_for_wiring = dest_parent._id if dest_parent else None
-                new_root = new_node
-            else:
-                old_parent_path = str(row["parent_path"] or "")
-                old_parent_id = path_to_old_id.get(old_parent_path)
-                parent_id_for_wiring = (
-                    id_map[str(old_parent_id)]
-                    if old_parent_id and str(old_parent_id) in id_map
-                    else new_root._id
+            if existing:
+                raise ValueError(
+                    f"An entry already exists at destination path '{dest_path}'"
                 )
 
-            await helper.insert_entry_ancestor_rows(
-                self.statemgr,
-                entry_id=new_id,
-                parent_id=parent_id_for_wiring,
+            if entry.type != EntryTypeEnum.FOLDER:
+                # Stage 4A: file copy path (single row + closure links).
+                new_entry = self.init_resource(
+                    "entry",
+                    {
+                        "cabinet_id": dest_cabinet_id,
+                        "parent_path": dest_parent_path,
+                        "name": dest_name,
+                        "type": entry.type,
+                        "media_entry_id": entry.media_entry_id,
+                        "is_virtual": False,
+                    },
+                    _id=UUID_GENR(),
+                )
+                await self.statemgr.insert(new_entry)
+                await helper.insert_entry_ancestor_rows(
+                    self.statemgr,
+                    entry_id=new_entry._id,
+                    parent_id=dest_parent._id if dest_parent else None,
+                )
+                return await self.statemgr.fetch("entry", new_entry._id)
+
+            # Stage 4B: folder copy path (recursive subtree clone).
+            # Fetch descendants ordered by depth with a path->old_id index.
+            descendants, path_to_old_id = await helper.fetch_entry_subtree(
+                self.statemgr, ancestor_id=entry._id
             )
 
-        return new_root
+            # Stage 5: clone nodes and re-wire closure relationships.
+            id_map: dict = {}
+            new_root = None
+            src_root_path = str(entry.path)
+
+            for row in descendants:
+                old_id = row["_id"]
+                old_path = row["_path"]
+
+                if old_id == entry._id:
+                    # Root of the subtree → maps to dest_path.
+                    new_parent_path = dest_parent_path
+                    new_name = dest_name
+                else:
+                    # Remap path relative to the new destination root.
+                    relative = old_path[len(src_root_path) + 1 :]
+                    full_new_path = f"{dest_path}/{relative}"
+                    new_parent_path, new_name = helper.split_path(full_new_path)
+
+                new_id = UUID_GENR()
+                id_map[str(old_id)] = new_id
+
+                new_node = self.init_resource(
+                    "entry",
+                    {
+                        "cabinet_id": dest_cabinet_id,
+                        "parent_path": new_parent_path,
+                        "name": new_name,
+                        "type": row["type"],
+                        "media_entry_id": row["media_entry_id"],
+                        "is_virtual": bool(row["is_virtual"]),
+                    },
+                    _id=new_id,
+                )
+                await self.statemgr.insert(new_node)
+
+                # Resolve closure parent id with explicit 3-case guard.
+                # `path_to_old_id` maps `_path` (== parent_path/name) → _id,
+                # so the parent of a row is found at key == row['parent_path'].
+                if old_id == entry._id:
+                    # Root node → wire to destination parent.
+                    parent_id_for_wiring = dest_parent._id if dest_parent else None
+                    new_root = new_node
+                elif not (old_parent_path := str(row["parent_path"] or "")):
+                    # Direct child of cabinet root — rare in subtree copy,
+                    # but guard defensively: wire to subtree root clone.
+                    parent_id_for_wiring = new_root._id if new_root else None
+                elif old_parent_path in path_to_old_id:
+                    # Normal case: map old parent → new cloned parent.
+                    old_parent_id = path_to_old_id[old_parent_path]
+                    parent_id_for_wiring = id_map.get(
+                        str(old_parent_id),
+                        new_root._id if new_root else None,
+                    )
+                else:
+                    # Orphaned entry: parent was soft-deleted or outside subtree;
+                    # fall back to subtree root clone to avoid leaving dangling
+                    # closure edges.
+                    parent_id_for_wiring = new_root._id if new_root else None
+
+                await helper.insert_entry_ancestor_rows(
+                    self.statemgr,
+                    entry_id=new_id,
+                    parent_id=parent_id_for_wiring,
+                )
+
+            if new_root is None:
+                raise RuntimeError("copy_entry: subtree clone produced no root — check entry_ancestor self-link for entry %s" % entry._id)
+            return await self.statemgr.fetch("entry", new_root._id)
 
     # =========================================================================
     # TAG

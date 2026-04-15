@@ -125,30 +125,6 @@ async def fetch_entry_subtree(
     return result, path_to_old_id
 
 
-async def resolve_parent_entry(
-    statemgr: Any,
-    *,
-    cabinet_id: Any,
-    parent_path: str,
-) -> Any | None:
-    """Resolve and validate a parent folder entry from a display path."""
-    if not parent_path:
-        return None
-
-    parent = await statemgr.exist(
-        "entry",
-        where={
-            "cabinet_id": cabinet_id,
-            "path": parent_path,
-        },
-    )
-    if not parent:
-        raise ValueError(f"Parent path '{parent_path}' does not exist")
-    if parent.type != EntryTypeEnum.FOLDER:
-        raise ValueError(f"Parent path '{parent_path}' is not a folder")
-    return parent
-
-
 async def insert_entry_ancestor_rows(
     statemgr: Any,
     *,
@@ -279,6 +255,59 @@ async def prune_entry_ancestor_for_soft_delete(
             OR descendant_id = $1
         """,
         entry_id,
+        unwrapper=None,
+    )
+
+
+async def cascade_soft_delete_subtree(
+    statemgr: Any,
+    *,
+    root_id: Any,
+) -> None:
+    """Cascade soft-delete all live descendants of a folder and prune the entire subtree's closure rows.
+
+    The root entry itself must be invalidated separately via ``statemgr.invalidate()``
+    before calling this function to ensure proper ``_etag`` / ``_updater`` bookkeeping.
+
+    Algorithm (3 SQL statements regardless of subtree depth):
+    1. Collect all subtree IDs (root + descendants) from the closure table.
+    2. Bulk soft-delete every live descendant (root excluded — already invalidated).
+    3. Prune ALL closure edges where any subtree member is ancestor or descendant.
+    """
+    # Stage 1: collect every ID in the subtree via the closure self-link (depth >= 0).
+    subtree_rows = await statemgr.native_query(
+        f"""
+        SELECT descendant_id AS entry_id
+        FROM "{config.RFX_DOCMAN_SCHEMA}"."entry_ancestor"
+        WHERE ancestor_id = $1
+        """,
+        root_id,
+    )
+    # Fall back to [root_id] if closure is missing the self-link (data corruption guard).
+    subtree_ids = [row.entry_id for row in subtree_rows] if subtree_rows else [root_id]
+
+    # Stage 2: bulk soft-delete all live descendants; skip root (already invalidated).
+    await statemgr.native_query(
+        f"""
+        UPDATE "{config.RFX_DOCMAN_SCHEMA}"."entry"
+           SET _deleted = NOW()
+         WHERE _id = ANY($1)
+           AND _id <> $2
+           AND _deleted IS NULL
+        """,
+        subtree_ids,
+        root_id,
+        unwrapper=None,
+    )
+
+    # Stage 3: remove all closure edges for the entire subtree in one pass.
+    await statemgr.native_query(
+        f"""
+        DELETE FROM "{config.RFX_DOCMAN_SCHEMA}"."entry_ancestor"
+         WHERE ancestor_id = ANY($1)
+            OR descendant_id = ANY($1)
+        """,
+        subtree_ids,
         unwrapper=None,
     )
 
