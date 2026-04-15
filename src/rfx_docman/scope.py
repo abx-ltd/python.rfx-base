@@ -23,12 +23,6 @@ class CabinetScopeSchema(BaseModel):
 class EntryScopeSchema(BaseModel):
     cabinet_id: UUID_TYPE = UUIDField("Cabinet ID")
 
-    parent_path: Optional[str] = Field(
-        default=None,
-        description="Parent folder path. If provided, entry queries will be limited to this folder.",
-        examples=["", "Strategic_Plans/2026"],
-    )
-
 
 # class TagScopeSchema(BaseModel):
 #     realm_id: Optional[UUID_TYPE] = Field(

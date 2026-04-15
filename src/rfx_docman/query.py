@@ -127,29 +127,9 @@ class CabinetQuery(DomainQueryResource):
     entry_count: int = IntegerField("Entry Count")
 
 
-def _scope_get(scope_obj, key: str, default=None):
-    if scope_obj is None:
-        return default
-    if isinstance(scope_obj, dict):
-        return scope_obj.get(key, default)
-    return getattr(scope_obj, key, default)
-
-
 @resource("entry")
 class EntryQuery(DomainQueryResource):
     """Entry queries."""
-
-    @classmethod
-    def base_query(cls, context, scope):
-        cabinet_id = _scope_get(scope, "cabinet_id")
-        parent_path = _scope_get(scope, "parent_path")
-
-        if not cabinet_id:
-            return {}
-
-        if parent_path is not None:
-            return {"cabinet_id": cabinet_id, "parent_path": parent_path}
-        return {"cabinet_id": cabinet_id}
 
     class Meta(DomainQueryResource.Meta):
         resource = "entry"
