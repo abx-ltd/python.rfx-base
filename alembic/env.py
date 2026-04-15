@@ -41,7 +41,11 @@ DOMAIN_SCHEMAS = {
     "qr": base_config.RFX_QR_SCHEMA,
     "todo": base_config.RFX_TODO_SCHEMA,
     "template": base_config.RFX_TEMPLATE_SCHEMA,
+<<<<<<< HEAD
     "2dmessage": base_config.RFX_2DMESSAGE_SCHEMA,
+=======
+    "document": base_config.RFX_DOCUMENT_SCHEMA,
+>>>>>>> 0f8e2fd (update : realm , shelf)
 }
 
 # Get schema filter from environment variable

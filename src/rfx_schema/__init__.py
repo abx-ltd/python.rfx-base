@@ -20,6 +20,7 @@ from .rfx_qr import RFXQRConnector
 from .rfx_todo import RFXTodoConnector
 from .rfx_template import RFXTemplateConnector
 from .rfx_2dmessage import RFX2DMessageConnector
+from .rfx_document import RFXDocumentConnector
 
 DOMAIN_CONNECTORS = {
     "user": IDMConnector,
@@ -33,4 +34,5 @@ DOMAIN_CONNECTORS = {
     "todo": RFXTodoConnector,
     "template": RFXTemplateConnector,
     "2dmessage": RFX2DMessageConnector,
+    "document": RFXDocumentConnector
 }
