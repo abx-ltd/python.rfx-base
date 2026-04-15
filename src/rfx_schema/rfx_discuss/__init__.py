@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from fluvius.data import DomainSchema, SqlaDriver
 from rfx_schema._meta import config as schema_config
 
+
 # --- Connector and Base Schema ---
 class RFXDiscussConnector(SqlaDriver):
     __db_dsn__ = schema_config.RFX_DISCUSS_DB_DSN
@@ -23,7 +24,7 @@ class TableBase(Base):
 
 
 SCHEMA = schema_config.RFX_DISCUSS_SCHEMA
-
+domain_config = schema_config
 
 
 # Ensure ORM schemas and view maps register when module loads.

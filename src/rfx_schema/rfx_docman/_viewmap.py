@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from typing import Optional, Any
 
@@ -7,6 +6,23 @@ from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import TableBase, SCHEMA
+
+
+class RealmView(TableBase):
+    """
+    Realm view with shelf list.
+    """
+
+    __tablename__ = "_realm"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    # Aggregated shelves with counts
+    shelves: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
 
 
 class ShelfView(TableBase):
@@ -27,6 +43,9 @@ class ShelfView(TableBase):
     cabinet_count: Mapped[int] = mapped_column(Integer, default=0)
     entry_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Aggregated child categories
+    categories: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
+
 
 class CategoryView(TableBase):
     """
@@ -46,6 +65,9 @@ class CategoryView(TableBase):
     cabinet_count: Mapped[int] = mapped_column(Integer, default=0)
     entry_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Aggregated child cabinets
+    cabinets: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
+
 
 class CabinetView(TableBase):
     """
@@ -60,6 +82,13 @@ class CabinetView(TableBase):
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+    # Aggregate fields
+    entry_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Aggregated child entries
+    entries: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)
+
 
 class EntryView(TableBase):
     """
@@ -92,9 +121,9 @@ class TagView(TableBase):
     __tablename__ = "_tag"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
-    name:    Mapped[str]           = mapped_column(String(255), nullable=False)
-    color:   Mapped[Optional[str]] = mapped_column(String(64),  nullable=True)
-    icon:    Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    color: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Aggregated entries (JSON array from entry_tag JOIN entry)
     entries: Mapped[Any] = mapped_column(JSON, nullable=False, default=list)

@@ -42,14 +42,16 @@ class RealmQuery(DomainQueryResource):
         allow_list_view = True
         allow_meta_view = True
 
-        backend_model = "realm"
-        # scope_required = scope.RealmScopeSchema
+        backend_model = "_realm"
 
     id: UUID_TYPE = PrimaryID("Realm ID")
     name: str = StringField("Name")
     description: str = StringField("Description")
     icon: str = StringField("Icon")
     color: str = StringField("Color")
+
+    # Aggregated child shelves from _realm view
+    shelves: Optional[list] = JSONField("Shelves", default=None)
 
 
 @resource("shelf")
@@ -81,6 +83,9 @@ class ShelfQuery(DomainQueryResource):
     cabinet_count: int = IntegerField("Cabinet Count")
     entry_count: int = IntegerField("Entry Count")
 
+    # Aggregated child categories from _shelf view
+    categories: Optional[list] = JSONField("Categories", default=None)
+
 
 @resource("category")
 class CategoryQuery(DomainQueryResource):
@@ -111,6 +116,9 @@ class CategoryQuery(DomainQueryResource):
     cabinet_count: int = IntegerField("Cabinet Count")
     entry_count: int = IntegerField("Entry Count")
 
+    # Aggregated child cabinets from _category view
+    cabinets: Optional[list] = JSONField("Cabinets", default=None)
+
 
 @resource("cabinet")
 class CabinetQuery(DomainQueryResource):
@@ -139,6 +147,9 @@ class CabinetQuery(DomainQueryResource):
 
     # Aggregate information
     entry_count: int = IntegerField("Entry Count")
+
+    # Aggregated child entries from _cabinet view
+    entries: Optional[list] = JSONField("Entries", default=None)
 
 
 @resource("entry")

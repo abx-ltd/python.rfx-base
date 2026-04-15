@@ -6,8 +6,8 @@ USER_PROFILE_SCHEMA = baseconfig.RFX_USER_SCHEMA
 POLICY_SCHEMA = baseconfig.RFX_POLICY_SCHEMA
 
 POLICY_TABLE = "_policy__user_profile"
-REALM = 'rfx'
-REALM_URL_MAPPER = None
+REALM = "rfx"
+REALM_URL_MAPPER = {}
 
 NOTIFY_NAMESPACE = "rfx-notify"
 NOTIFY_CLIENT = baseconfig.NOTIFY_CLIENT
