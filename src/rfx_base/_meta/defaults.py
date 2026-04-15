@@ -1,6 +1,6 @@
 DB_DSN = None
 
-<<<<<<< HEAD
+
 RFX_BILLING_SCHEMA = "rfx_billing"
 RFX_CLIENT_SCHEMA = "rfx_client"
 RFX_CQRS_SCHEMA = "rfx_cqrs"
@@ -19,7 +19,6 @@ RFX_QR_SCHEMA = "rfx_qr"
 RFX_TODO_SCHEMA = "rfx_todo"
 RFX_TEMPLATE_SCHEMA = "rfx_template"
 RFX_2DMESSAGE_SCHEMA = "rfx_2dmessage"
-=======
 DEFAULT_SERVICE_CLIENT = None
 MESSAGE_CLIENT = DEFAULT_SERVICE_CLIENT
 NOTIFY_CLIENT = DEFAULT_SERVICE_CLIENT
@@ -38,6 +37,7 @@ RFX_TODO_DB_DSN = None
 RFX_TEMPLATE_DB_DSN = None
 RFX_HATCHET_DB_DSN = None
 RFX_IDM_DB_DSN = None
-RFX_CQRS_DB_DSN = None
+RFX_DOCMAN_DB_DSN = None
+
 LOG_LEVEL = None
->>>>>>> 06811eb (update: rfx schema)
+
