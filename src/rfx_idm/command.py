@@ -581,7 +581,7 @@ class ActivateUser(Command):
         await agg.activate_user()
 
 
-class SendUserAction(Command):
+class SendUserAction(Command, UserProvisionMixin):
     """
     Send a user action to the user email (e.g. password change).
     """
@@ -596,13 +596,6 @@ class SendUserAction(Command):
     Data = datadef.ChangeActionPayload
 
     async def _process(self, agg, stm, payload):
-        context = agg.get_context()
-        notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
-
-        if not notify_service:
-            raise RuntimeError("Notification service client is not found")
-
-
         window_minutes = userconf.RATE_LIMIT_WINDOW_MINUTES
         max_requests = userconf.MAX_REQUESTS_PER_WINDOW
         window_start = timestamp().replace(tzinfo=None) - timedelta(minutes=window_minutes)
@@ -619,7 +612,7 @@ class SendUserAction(Command):
             "user_action",
             where=dict(
                 user_id=user._id,
-                name=f"{payload.action_type.lower().replace('_', '-')}-action",
+                action_type=payload.action_type,
                 **{"_created.gt": window_start}
             )
         )
@@ -645,42 +638,23 @@ class SendUserAction(Command):
         if not list_profile:
              raise ValueError("No active profile found for this user to determine target application")
 
-        realm_accesses = set([profile.realm for profile in list_profile])
+        realm_accesses = set([profile.realm for profile in list_profile if profile.realm])
         target_realm = next(iter(realm_accesses), None)
-        base_url = userconf.REALM_URL_MAPPER.get(target_realm, "/") if target_realm else "/"
+        redirect_url = (
+            config.REALM_URL_MAPPER.get(target_realm, "/")
+            if target_realm and hasattr(config, "REALM_URL_MAPPER")
+            else "/"
+        )
 
         if payload.action_type == "PASSWORD_CHANGE":
-            change_password_route = getattr(userconf, "CHANGE_PASSWORD_PATH", "/change-password")
-            action_link = f"{base_url.rstrip('/')}{change_password_route}?action_id={result.get('action_id')}"
-            template_key = "password-change-action"
+            kc_actions = ["UPDATE_PASSWORD"]
         else:
             raise ValueError(f"Unsupported action type {payload.action_type}")
 
-        await notify_service.send(
-            f"{config.NOTIFY_NAMESPACE}:send-notification",
-            command="send-notification",
-            resource="notification",
-            payload={
-                "channel": "EMAIL",
-                "recipients": [recipient_email],
-                "template_key": template_key,
-                "content_type": "HTML",
-                "template_data": {
-                    "action_link": action_link,
-                    "user_name": user.name__given or user.username or "User",
-                },
-            },
-            identifier=UUID_GENR(),
-            _headers={},
-            _context={
-                "audit": {
-                    "user_id": str(context.user_id) if context.user_id else None,
-                    "profile_id": str(context.profile_id) if context.profile_id else None,
-                    "organization_id": str(context.organization_id),
-                    "realm": context.realm,
-                },
-                "source": "rfx-idm",
-            },
+        await kc_admin.execute_actions(
+            user_id=user._id,
+            actions=kc_actions,
+            redirect_uri=redirect_url,
         )
 
         yield agg.create_response(serialize_mapping(result), _type="idm-response")

@@ -39,6 +39,10 @@ class UpdateProjectPayload(DataModel):
     target_date: Optional[datetime] = None
     duration: Optional[str] = None
 
+class UpdateProjectStatusPayload(DataModel):
+    status: Optional[str] = None
+
+
 
 class DeleteProjectPayload(DataModel):
     pass

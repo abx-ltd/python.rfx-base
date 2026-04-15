@@ -2202,3 +2202,10 @@ class RFXClientAggregate(Aggregate):
         )
         await self.statemgr.insert(record)
         return record
+
+
+    @action("project-status-updated", resources="project")
+    async def update_project_status(self, /, data):
+        rootobj = self.rootobj
+        update_data = serialize_mapping(data)
+        result = await self.statemgr.update(rootobj, **update_data)

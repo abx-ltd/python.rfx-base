@@ -253,6 +253,21 @@ class UpdateProject(Command):
             except Exception as e:
                 logger.error(f"✗ Failed to sync update to PM service: {str(e)}")
 
+class UpdateProjectStatus(Command):
+    class Meta:
+        key = "update-project-status"
+        resources = ("project",)
+        tags = ["project", "update"]
+        auth_required = True
+        description = "Update a project status"
+        policy_required = True
+        internal = True
+
+    Data = datadef.UpdateProjectStatusPayload
+    async def _process(self, agg, stm, payload):
+        await agg.update_project_status(data=payload)
+        yield agg.create_response({"status": "OK"}, _type="project-response")
+
 
 class DeleteProject(Command):
     """Delete Project - Deletes a project"""
