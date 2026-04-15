@@ -6,7 +6,6 @@ from logging.config import fileConfig
 
 from sqlalchemy import create_engine
 from sqlalchemy import pool
-
 from alembic import context
 
 # STEP 1: Load schema config (centralized domain schemas)
@@ -24,6 +23,7 @@ from rfx_schema.rfx_discuss import RFXDiscussConnector
 from rfx_schema.rfx_qr import RFXQRConnector
 from rfx_schema.rfx_todo import RFXTodoConnector
 from rfx_schema.rfx_template import RFXTemplateConnector
+from rfx_schema.rfx_docman import RFXDocmanConnector
 from rfx_schema.rfx_hatchet import RFXHatchetConnector
 
 DOMAIN_CONNECTORS = {
@@ -37,10 +37,9 @@ DOMAIN_CONNECTORS = {
     "qr": RFXQRConnector,
     "todo": RFXTodoConnector,
     "template": RFXTemplateConnector,
+    "docman": RFXDocmanConnector,
     "hatchet": RFXHatchetConnector,
 }
-
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -53,9 +52,7 @@ if config.config_file_name is not None:
 sync_url = schema_config.DB_DSN.replace("+asyncpg://", "+psycopg2://")
 
 # All available schemas
-DOMAIN_SCHEMAS = {
-    name: conn.__schema__ for name, conn in DOMAIN_CONNECTORS.items()
-}
+DOMAIN_SCHEMAS = {name: conn.__schema__ for name, conn in DOMAIN_CONNECTORS.items()}
 
 
 # Get schema filter from environment variable
@@ -80,7 +77,6 @@ selected_connectors = [
 target_metadata = [
     connector.__data_schema_base__.metadata for connector in selected_connectors
 ]
-
 
 
 def include_server_default(
@@ -112,10 +108,12 @@ def include_object(object, name, type_, reflected, compare_to):
 
     return True
 
+
 def include_name(name, type_, parent_names):
     if type_ == "schema":
         return name in SCHEMAS
     return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

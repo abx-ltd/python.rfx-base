@@ -1,0 +1,40 @@
+"""
+EntryTag ORM Model
+==================
+
+Junction table linking entries to tags (M:N). No audit columns — the relationship
+is created or deleted atomically, never partially updated.
+
+Primary key: composite (entry_id, tag_id).
+Extra index: tag_id — allows efficient lookups of all entries for a given tag.
+"""
+
+from __future__ import annotations
+
+import uuid
+from sqlalchemy import ForeignKey, Index
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from . import CoreTableBase, SCHEMA
+
+
+class EntryTag(CoreTableBase):
+    """Many-to-many link between entries and tags."""
+
+    __tablename__ = "entry_tag"
+    __table_args__ = (
+        Index("ix_entry_tag_tag_id", "tag_id"),
+        {"schema": SCHEMA},
+    )
+
+    entry_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.entry._id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.tag._id", ondelete="CASCADE"),
+        primary_key=True,
+    )
