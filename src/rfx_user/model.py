@@ -32,7 +32,7 @@ import sqlalchemy as sa
 
 from fluvius.data import DomainSchema, SqlaDriver
 from sqlalchemy.dialects import postgresql as pg
-from rfx_schema import IDMConnector
+from rfx_schema.rfx_user import RFXUserConnector as IDMConnector
 
 from . import types, config
 

@@ -1,12 +1,8 @@
-"""
-Status-related database views
-"""
+from .. import SCHEMA, domain_config
 
-from alembic_utils.pg_view import PGView
-from rfx_base import config
 
 status_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_status",
     definition=f"""
     SELECT sk._id,
@@ -24,8 +20,8 @@ status_view = PGView(
         sk.description,
         sk.is_initial,
         sk.is_final
-       FROM {config.RFX_CLIENT_SCHEMA}.status s
-         JOIN {config.RFX_CLIENT_SCHEMA}.status_key sk ON sk.status_id = s._id
+       FROM {SCHEMA}.status s
+         JOIN {SCHEMA}.status_key sk ON sk.status_id = s._id
       WHERE s.is_active = true AND sk._deleted IS NULL AND s._deleted IS NULL;
     """,
 )

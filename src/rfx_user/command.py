@@ -450,10 +450,12 @@ class UpdatePassword(Command):
         # Get the email
         email = user.verified_email or user.telecom__email
 
-        notify_service = getattr(context.service_proxy, config.SERVICE_CLIENT, None)
+        notify_service = getattr(context.service_proxy, config.NOTIFY_CLIENT, None)
         if notify_service:
             # Send the confirmation code using rfx-notify standard email templates
             recipient_name = user.name__given or user.username or "User"
+            realm_parts = config.REALM.split(".")
+            company_name = realm_parts[1].capitalize() if len(realm_parts) > 1 else "Our Company"
 
             await notify_service.send(
                 f"{config.NOTIFY_NAMESPACE}:send-notification",
@@ -468,6 +470,7 @@ class UpdatePassword(Command):
                         "user_name": recipient_name,
                         "code": code,
                         "current_year": datetime.utcnow().year,
+                        "company": company_name
                     },
                 },
                 identifier=UUID_GENR(),

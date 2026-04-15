@@ -13,10 +13,10 @@ INSERT INTO rfx_template.template (
     is_active
 ) VALUES (
     gen_random_uuid(),
-    'password-change-verification',
+    'guest-verification-email',
     1,
-    'Password Change Verification',
-    'Email template for sending the password change verification code.',
+    'Guest Verification Email',
+    'Email template for sending the guest sign-in verification code.',
     'en',
     'EMAIL',
     '<!DOCTYPE html>
@@ -24,7 +24,7 @@ INSERT INTO rfx_template.template (
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Password Change Verification</title>
+    <title>Guest Verification</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -39,10 +39,10 @@ INSERT INTO rfx_template.template (
             background-color: #ffffff;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         }
         .header {
-            background-color: #0056b3;
+            background-color: #28a745;
             color: #ffffff;
             text-align: center;
             padding: 24px;
@@ -70,7 +70,7 @@ INSERT INTO rfx_template.template (
             padding: 16px 32px;
             font-size: 32px;
             font-weight: bold;
-            color: #0056b3;
+            color: #28a745;
             letter-spacing: 4px;
             border-radius: 4px;
         }
@@ -83,7 +83,7 @@ INSERT INTO rfx_template.template (
             border-top: 1px solid #eeeeee;
         }
         .footer a {
-            color: #0056b3;
+            color: #28a745;
             text-decoration: none;
         }
     </style>
@@ -91,18 +91,18 @@ INSERT INTO rfx_template.template (
 <body>
     <div class="container">
         <div class="header">
-            <h1>Password Change Verification</h1>
+            <h1>Guest Verification</h1>
         </div>
         <div class="content">
             <p>Hello <strong>{{ user_name }}</strong>,</p>
-            <p>We received a request to update the password for your account. Please use the verification code below to securely confirm the password change.</p>
+            <p>Welcome! We received a request to sign in as a guest. Please use the verification code below to complete your sign-in process.</p>
 
             <div class="code-box">
                 <span class="code">{{ code }}</span>
             </div>
 
             <p>This code will expire in <strong>15 minutes</strong>.</p>
-            <p>If you did not request a password change, please ignore this email or contact support if you have concerns.</p>
+            <p>If you did not request this verification code, please ignore this email.</p>
         </div>
         <div class="footer">
             <p>This is an automated message. Please do not reply directly to this email.</p>
@@ -113,6 +113,6 @@ INSERT INTO rfx_template.template (
 </html>',
     'jinja2',
     '{}'::jsonb,
-    '{"subject": "Your Password Change Verification Code"}'::jsonb,
+    '{"subject": "Your Guest Verification Code"}'::jsonb,
     true
 );

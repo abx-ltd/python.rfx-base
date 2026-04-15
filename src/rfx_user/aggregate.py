@@ -371,7 +371,7 @@ class UserProfileAggregate(Aggregate):
         # Send invitation email
         try:
             context = self.context
-            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_client = getattr(self.context.service_proxy, config.NOTIFY_CLIENT, None)
             if not notify_client:
                 raise RuntimeError("Notification service client is not found")
 
@@ -433,7 +433,7 @@ class UserProfileAggregate(Aggregate):
         # Resend invitation email
         try:
             context = self.context
-            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_client = getattr(self.context.service_proxy, config.NOTIFY_CLIENT, None)
             if not notify_client:
                 raise RuntimeError("Notification service client is not found")
 

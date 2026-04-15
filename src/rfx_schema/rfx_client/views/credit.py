@@ -1,12 +1,9 @@
-"""
-Credit-related database views
-"""
+from .. import SCHEMA, domain_config
+from rfx_schema.rfx_user import SCHEMA as USER_SCHEMA
 
-from alembic_utils.pg_view import PGView
-from rfx_base import config
 
 credit_summary_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_credit_summary",
     definition=f"""
     SELECT uuid_generate_v4() AS _id,
@@ -38,18 +35,18 @@ credit_summary_view = PGView(
         cb.last_purchase_date,
         cb.last_usage_date,
         now() AS last_updated
-       FROM {config.RFX_CLIENT_SCHEMA}.credit_balance cb
+       FROM {SCHEMA}.credit_balance cb
          LEFT JOIN ( SELECT credit_purchase.organization_id,
                 sum(credit_purchase.total_credits) AS total
-               FROM {config.RFX_CLIENT_SCHEMA}.credit_purchase
-              WHERE date_trunc('month'::text, credit_purchase.purchase_date) = date_trunc('month'::text, CURRENT_DATE::timestamp with time zone) 
-                AND credit_purchase.status::text = 'COMPLETED'::text 
+               FROM {SCHEMA}.credit_purchase
+              WHERE date_trunc('month'::text, credit_purchase.purchase_date) = date_trunc('month'::text, CURRENT_DATE::timestamp with time zone)
+                AND credit_purchase.status::text = 'COMPLETED'::text
                 AND credit_purchase._deleted IS NULL
               GROUP BY credit_purchase.organization_id) month_purchase ON cb.organization_id = month_purchase.organization_id
          LEFT JOIN ( SELECT credit_usage_log.organization_id,
                 sum(credit_usage_log.credits_used) AS total
-               FROM {config.RFX_CLIENT_SCHEMA}.credit_usage_log
-              WHERE date_trunc('month'::text, credit_usage_log.usage_date) = date_trunc('month'::text, CURRENT_DATE::timestamp with time zone) 
+               FROM {SCHEMA}.credit_usage_log
+              WHERE date_trunc('month'::text, credit_usage_log.usage_date) = date_trunc('month'::text, CURRENT_DATE::timestamp with time zone)
                 AND credit_usage_log._deleted IS NULL
               GROUP BY credit_usage_log.organization_id) month_usage ON cb.organization_id = month_usage.organization_id
       WHERE cb._deleted IS NULL;
@@ -58,7 +55,7 @@ credit_summary_view = PGView(
 
 
 organization_credit_summary_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_organization_credit_summary",
     definition=f"""
     WITH project_credit_calc AS (
@@ -66,7 +63,7 @@ organization_credit_summary_view = PGView(
                 sum((EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric) AS total_allocated,
                 sum(
                     CASE
-                        WHEN pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        WHEN pwp.status = 'DONE'::{SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                         ELSE 0::numeric
                     END) AS total_used,
                 sum(
@@ -76,7 +73,7 @@ organization_credit_summary_view = PGView(
                     END) AS ar_allocated,
                 sum(
                     CASE
-                        WHEN pwi.type::text = 'ARCHITECTURE'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        WHEN pwi.type::text = 'ARCHITECTURE'::text AND pwp.status = 'DONE'::{SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                         ELSE 0::numeric
                     END) AS ar_used,
                 sum(
@@ -86,7 +83,7 @@ organization_credit_summary_view = PGView(
                     END) AS de_allocated,
                 sum(
                     CASE
-                        WHEN pwi.type::text = 'DEVELOPMENT'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        WHEN pwi.type::text = 'DEVELOPMENT'::text AND pwp.status = 'DONE'::{SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                         ELSE 0::numeric
                     END) AS de_used,
                 sum(
@@ -96,13 +93,13 @@ organization_credit_summary_view = PGView(
                     END) AS op_allocated,
                 sum(
                     CASE
-                        WHEN pwi.type::text = 'OPERATION'::text AND pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
+                        WHEN pwi.type::text = 'OPERATION'::text AND pwp.status = 'DONE'::{SCHEMA}.workpackageenum THEN (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric
                         ELSE 0::numeric
                     END) AS op_used
-            FROM {config.RFX_CLIENT_SCHEMA}.project p
-                LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package pwp ON p._id = pwp.project_id AND pwp._deleted IS NULL
-                LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
-                LEFT JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
+            FROM {SCHEMA}.project p
+                LEFT JOIN {SCHEMA}.project_work_package pwp ON p._id = pwp.project_id AND pwp._deleted IS NULL
+                LEFT JOIN {SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id AND pwpwi._deleted IS NULL
+                LEFT JOIN {SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
             WHERE p._deleted IS NULL
             GROUP BY p.organization_id
             ), project_counts AS (
@@ -113,7 +110,7 @@ organization_credit_summary_view = PGView(
                         WHEN project.status::text = 'ACTIVE'::text THEN 1
                         ELSE NULL::integer
                     END) AS active_projects
-            FROM {config.RFX_CLIENT_SCHEMA}.project
+            FROM {SCHEMA}.project
             WHERE project._deleted IS NULL
             GROUP BY project.organization_id
             )
@@ -155,8 +152,8 @@ organization_credit_summary_view = PGView(
         COALESCE(p_count.active_projects, 0::bigint)::integer AS active_projects,
         COALESCE(cb.is_low_balance, false) AS is_low_balance,
         round(COALESCE(cb.low_balance_threshold, 100::numeric), 2) AS low_balance_threshold
-    FROM {config.RFX_USER_SCHEMA}.organization org
-        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.credit_balance cb ON org._id = cb.organization_id AND cb._deleted IS NULL
+    FROM {USER_SCHEMA}.organization org
+        LEFT JOIN {SCHEMA}.credit_balance cb ON org._id = cb.organization_id AND cb._deleted IS NULL
         LEFT JOIN project_credit_calc pc ON org._id = pc.organization_id
         LEFT JOIN project_counts p_count ON org._id = p_count.organization_id
     WHERE org._deleted IS NULL
@@ -165,7 +162,7 @@ organization_credit_summary_view = PGView(
 )
 
 organization_weekly_credit_usage_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_organization_weekly_credit_usage",
     definition=f"""
     WITH calculated_items AS (
@@ -174,11 +171,11 @@ organization_weekly_credit_usage_view = PGView(
                 pwp.date_complete,
                 pwi.type,
                 (EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * pwi.credit_per_unit * COALESCE(pwp.quantity, 1)::numeric AS credit_amount
-            FROM {config.RFX_CLIENT_SCHEMA}.project_work_package pwp
-                JOIN {config.RFX_CLIENT_SCHEMA}.project p ON pwp.project_id = p._id
-                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id
-                JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
-            WHERE pwp.status = 'DONE'::{config.RFX_CLIENT_SCHEMA}.workpackageenum AND pwp.date_complete IS NOT NULL AND pwp._deleted IS NULL AND p._deleted IS NULL AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL
+            FROM {SCHEMA}.project_work_package pwp
+                JOIN {SCHEMA}.project p ON pwp.project_id = p._id
+                JOIN {SCHEMA}.project_work_package_work_item pwpwi ON pwp._id = pwpwi.project_work_package_id
+                JOIN {SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id
+            WHERE pwp.status = 'DONE'::{SCHEMA}.workpackageenum AND pwp.date_complete IS NOT NULL AND pwp._deleted IS NULL AND p._deleted IS NULL AND pwpwi._deleted IS NULL AND pwi._deleted IS NULL
             )
     SELECT md5(ci.organization_id::text || date_trunc('week'::text, ci.date_complete)::text)::uuid AS _id,
         now() AS _created,
@@ -217,7 +214,7 @@ organization_weekly_credit_usage_view = PGView(
 
 
 credit_purchase_history_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_credit_purchase_history",
     definition=f"""
     SELECT cp._id,
@@ -251,16 +248,16 @@ credit_purchase_history_view = PGView(
         prof.telecom__email AS purchaser_email,
         cp._created AS created_at,
         cp.completed_date
-    FROM {config.RFX_CLIENT_SCHEMA}.credit_purchase cp
-        LEFT JOIN {config.RFX_CLIENT_SCHEMA}.credit_package pkg ON cp.package_id = pkg._id
-        LEFT JOIN {config.RFX_USER_SCHEMA}.profile prof ON cp.purchased_by = prof._id
+    FROM {SCHEMA}.credit_purchase cp
+        LEFT JOIN {SCHEMA}.credit_package pkg ON cp.package_id = pkg._id
+        LEFT JOIN {USER_SCHEMA}.profile prof ON cp.purchased_by = prof._id
     WHERE cp._deleted IS NULL
     ORDER BY cp.organization_id, cp.purchase_date DESC;
     """,
 )
 
 credit_usage_summary_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_credit_usage_summary",
     definition=f"""
     WITH usage_summary AS (
@@ -286,11 +283,11 @@ credit_usage_summary_view = PGView(
             round(sum(credit_usage_log.credits_used), 2) AS total_credits,
             min(credit_usage_log._created) AS first_created,
             max(credit_usage_log._updated) AS last_updated
-           FROM {config.RFX_CLIENT_SCHEMA}.credit_usage_log
+           FROM {SCHEMA}.credit_usage_log
           WHERE credit_usage_log._deleted IS NULL
           GROUP BY (EXTRACT(year FROM credit_usage_log.usage_date)), (EXTRACT(month FROM credit_usage_log.usage_date)), (EXTRACT(week FROM credit_usage_log.usage_date)), (date_trunc('week'::text, credit_usage_log.usage_date))
         )
- SELECT uuid_generate_v4() AS _id,
+  SELECT uuid_generate_v4() AS _id,
     usage_summary.first_created AS _created,
     usage_summary.last_updated AS _updated,
     NULL::uuid AS _creator,

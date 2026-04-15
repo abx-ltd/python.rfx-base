@@ -57,7 +57,7 @@ class RFXClientStateManager(DataAccessManager):
     ):
         query = """
             WITH date_series AS (
-                SELECT 
+                SELECT
                     (DATE_TRUNC('week', NOW()) - (i * INTERVAL '1 week'))::date AS week_date
                 FROM generate_series(4, 0, -1) AS s(i)
             ),

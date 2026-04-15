@@ -1,5 +1,5 @@
 from fluvius.casbin import PolicyManager, PolicySchema
-from rfx_schema import RFXDiscussConnector
+from rfx_schema.rfx_discuss import RFXDiscussConnector
 from . import config
 
 

@@ -21,7 +21,6 @@ from fluvius.data.exceptions import ItemNotFoundError
 from .types import OrganizationStatusEnum, ProfileStatusEnum, UserStatusEnum, InvitationStatusEnum
 from . import config, logger
 
-
 class IDMAggregate(Aggregate):
     """
     Main aggregate for RFX IDM domain operations.
@@ -383,7 +382,7 @@ class IDMAggregate(Aggregate):
         # Send invitation email
         try:
             context = self.context
-            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_client = getattr(self.context.service_proxy, config.NOTIFY_CLIENT, None)
             if not notify_client:
                 raise RuntimeError("Notification service client is not found")
 
@@ -445,7 +444,7 @@ class IDMAggregate(Aggregate):
         # Resend invitation email
         try:
             context = self.context
-            notify_client = getattr(self.context.service_proxy, config.SERVICE_CLIENT, None)
+            notify_client = getattr(self.context.service_proxy, config.NOTIFY_CLIENT, None)
             if not notify_client:
                 raise RuntimeError("Notification service client is not found")
 

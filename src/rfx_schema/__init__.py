@@ -1,6 +1,7 @@
 from ._meta import config, logger
 from fluvius.data import SqlaDriver
 
+<<<<<<< HEAD
 
 # # --- Base connector used by legacy tooling ---
 # class RFXConnector(SqlaDriver):
@@ -44,3 +45,7 @@ DOMAIN_CONNECTORS = {
     "docman": RFXDocmanConnector,
 >>>>>>> 8935565 (refactor : docman)
 }
+=======
+# Domain connectors are now managed within their respective submodules
+# to avoid circular imports.
+>>>>>>> 06811eb (update: rfx schema)

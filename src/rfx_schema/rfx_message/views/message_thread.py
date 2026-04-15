@@ -1,8 +1,10 @@
-from rfx_base import config
+from .. import SCHEMA, domain_config
+from rfx_schema.rfx_user import SCHEMA as USER_SCHEMA
+
 from alembic_utils.pg_view import PGView
 
 message_thread_view = PGView(
-    schema=config.RFX_MESSAGE_SCHEMA,
+    schema=SCHEMA,
     signature="_message_thread",
     definition=f"""
 SELECT
@@ -75,7 +77,7 @@ SELECT
 
         -- recipients (from table, not outer alias)
         SELECT mr.recipient_id AS uid
-        FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient mr
+        FROM {SCHEMA}.message_recipient mr
         WHERE
             mr.message_id = m._id
             AND mr._deleted IS NULL
@@ -88,8 +90,8 @@ SELECT
 
         -- sender trashed
         SELECT ms.sender_id AS uid
-        FROM {config.RFX_MESSAGE_SCHEMA}.message_sender ms
-        JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb
+        FROM {SCHEMA}.message_sender ms
+        JOIN {SCHEMA}.message_box mb
             ON mb._id = ms.box_id
         WHERE
             ms.message_id = m._id
@@ -100,8 +102,8 @@ SELECT
 
         -- recipient trashed
         SELECT mr.recipient_id AS uid
-        FROM {config.RFX_MESSAGE_SCHEMA}.message_recipient mr
-        JOIN {config.RFX_MESSAGE_SCHEMA}.message_box mb
+        FROM {SCHEMA}.message_recipient mr
+        JOIN {SCHEMA}.message_box mb
             ON mb._id = mr.box_id
         WHERE
             mr.message_id = m._id
@@ -123,21 +125,21 @@ SELECT
     m._deleted,
     m._etag
 
-FROM {config.RFX_MESSAGE_SCHEMA}.message m
+FROM {SCHEMA}.message m
 
-JOIN {config.RFX_MESSAGE_SCHEMA}.message_sender s
+JOIN {SCHEMA}.message_sender s
     ON s.message_id = m._id
    AND s._deleted IS NULL
 
-LEFT JOIN {config.RFX_MESSAGE_SCHEMA}.message_recipient r
+LEFT JOIN {SCHEMA}.message_recipient r
     ON r.message_id = m._id
    AND r._deleted IS NULL
 
-LEFT JOIN {config.RFX_USER_SCHEMA}.profile sp
+LEFT JOIN {USER_SCHEMA}.profile sp
     ON sp._id = s.sender_id
    AND sp._deleted IS NULL
 
-LEFT JOIN {config.RFX_USER_SCHEMA}.profile rp
+LEFT JOIN {USER_SCHEMA}.profile rp
     ON rp._id = r.recipient_id
    AND rp._deleted IS NULL
 

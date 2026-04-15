@@ -1,12 +1,8 @@
-"""
-Work Item-related database views
-"""
+from .. import SCHEMA, domain_config
 
-from alembic_utils.pg_view import PGView
-from rfx_base import config
 
 work_item_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_work_item",
     definition=f"""
     SELECT wi._id,
@@ -26,14 +22,14 @@ work_item_view = PGView(
       wi.estimate,
       rt.alias AS type_alias,
       round((EXTRACT(day FROM COALESCE(wi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(wi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(wi.estimate, '00:00:00'::interval)) / 60.0) * COALESCE(wi.credit_per_unit, 0::numeric), 2) AS total_credits
-    FROM {config.RFX_CLIENT_SCHEMA}.work_item wi
-      LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rt ON wi.type::text = rt.key::text
+    FROM {SCHEMA}.work_item wi
+      LEFT JOIN {SCHEMA}.ref__work_item_type rt ON wi.type::text = rt.key::text
     WHERE wi._deleted IS NULL;
     """,
 )
 
 work_item_listing_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_work_item_listing",
     definition=f"""
     SELECT wpwi._id,
@@ -56,15 +52,15 @@ work_item_listing_view = PGView(
       round((EXTRACT(day FROM COALESCE(wi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(wi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(wi.estimate, '00:00:00'::interval)) / 60.0) * COALESCE(wi.credit_per_unit, 0::numeric), 2) AS total_credits_for_item,
       round((EXTRACT(day FROM COALESCE(wi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(wi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(wi.estimate, '00:00:00'::interval)) / 60.0) * COALESCE(wi.credit_per_unit, 0::numeric) * 30.0, 2) AS estimated_cost_for_item,
       wi.estimate
-    FROM {config.RFX_CLIENT_SCHEMA}.work_package_work_item wpwi
-      JOIN {config.RFX_CLIENT_SCHEMA}.work_item wi ON wpwi.work_item_id = wi._id AND wi._deleted IS NULL
-      LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rwt ON wi.type::text = rwt.key::text
+    FROM {SCHEMA}.work_package_work_item wpwi
+      JOIN {SCHEMA}.work_item wi ON wpwi.work_item_id = wi._id AND wi._deleted IS NULL
+      LEFT JOIN {SCHEMA}.ref__work_item_type rwt ON wi.type::text = rwt.key::text
     WHERE wpwi._deleted IS NULL;
     """,
 )
 
 project_work_item_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_project_work_item",
     definition=f"""
     SELECT pwi._id,
@@ -83,14 +79,14 @@ project_work_item_view = PGView(
       pwi.estimate,
       rt.alias AS type_alias,
       round((EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * COALESCE(pwi.credit_per_unit, 0::numeric), 2) AS total_credits
-    FROM {config.RFX_CLIENT_SCHEMA}.project_work_item pwi
-      LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rt ON pwi.type::text = rt.key::text
+    FROM {SCHEMA}.project_work_item pwi
+      LEFT JOIN {SCHEMA}.ref__work_item_type rt ON pwi.type::text = rt.key::text
     WHERE pwi._deleted IS NULL;
     """,
 )
 
 project_work_item_listing_view = PGView(
-    schema=config.RFX_CLIENT_SCHEMA,
+    schema=SCHEMA,
     signature="_project_work_item_listing",
     definition=f"""
     SELECT pwpwi._id,
@@ -112,9 +108,9 @@ project_work_item_listing_view = PGView(
       round((EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * COALESCE(pwi.credit_per_unit, 0::numeric), 2) AS total_credits_for_item,
       round((EXTRACT(day FROM COALESCE(pwi.estimate, '00:00:00'::interval)) * 8::numeric + EXTRACT(hour FROM COALESCE(pwi.estimate, '00:00:00'::interval)) + EXTRACT(minute FROM COALESCE(pwi.estimate, '00:00:00'::interval)) / 60.0) * COALESCE(pwi.credit_per_unit, 0::numeric) * 30.0, 2) AS estimated_cost_for_item,
       pwi.estimate
-    FROM {config.RFX_CLIENT_SCHEMA}.project_work_package_work_item pwpwi
-      JOIN {config.RFX_CLIENT_SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
-      LEFT JOIN {config.RFX_CLIENT_SCHEMA}.ref__work_item_type rwt ON pwi.type::text = rwt.key::text
+    FROM {SCHEMA}.project_work_package_work_item pwpwi
+      JOIN {SCHEMA}.project_work_item pwi ON pwpwi.project_work_item_id = pwi._id AND pwi._deleted IS NULL
+      LEFT JOIN {SCHEMA}.ref__work_item_type rwt ON pwi.type::text = rwt.key::text
     WHERE pwpwi._deleted IS NULL;
     """,
 )
