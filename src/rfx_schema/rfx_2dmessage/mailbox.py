@@ -86,9 +86,9 @@ class MessageMailboxState(TableBase):
     read: Mapped[bool] = mapped_column(Boolean, default=False)
     mark_as_read: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     is_ignored: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    tags: Mapped[Optional[List[uuid.UUID]]] = mapped_column(
-        ARRAY(UUID(as_uuid=True)), default=lambda: []
-    )
+    # tags: Mapped[Optional[List[uuid.UUID]]] = mapped_column(
+    #     ARRAY(UUID(as_uuid=True)), default=lambda: []
+    # )
 
     status: Mapped[Optional[MailBoxMessageStatusTypeEnum]] = mapped_column(
         SQLEnum(MailBoxMessageStatusTypeEnum, name="mailboxmessagestatustypeenum", schema=SCHEMA),

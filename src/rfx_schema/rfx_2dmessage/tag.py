@@ -18,6 +18,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Index,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -32,15 +33,17 @@ if TYPE_CHECKING:
 
 class MessageTag(TableBase):
     __tablename__ = "message_tag"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = (Index("idx_message_tag_tag_id", "tag_id"),
+                    {"schema": SCHEMA},)
 
     message_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message._id"), primary_key=True
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message._id", ondelete="CASCADE"), primary_key=True
     )
 
     tag_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.tag._id"), primary_key=True
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.tag._id", ondelete="CASCADE"), primary_key=True
     )
+
 
     # message = relationship("Message", back_populates="message_tags")
     # tag = relationship("Tag", back_populates="message_tags")
@@ -49,35 +52,22 @@ class Tag(TableBase):
     """Global tags for message classification."""
 
     __tablename__ = "tag"
-    __table_args__ = {"schema": SCHEMA}
-
+    __table_args__ = (
+            Index("uq_tag_mailbox_key_deleted","mailbox_id","key","_deleted",unique=True),
+            {"schema": SCHEMA}
+    )
     key: Mapped[str] = mapped_column(String(255), nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=True)
     background_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
     font_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    profile_id: Mapped[Optional[UUID_TYPE]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
+    mailbox_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.mailbox._id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
 
-    # Ensure (profile_id, key) is unique per profile; the name is the constraint name,
-    # not a column name.
-
-    # messages: Mapped[List["Message"]] = relationship(
-    #     "Message",
-    #     secondary=f"{SCHEMA}.message_tag",
-    #     back_populates="tags",
-    #     viewonly=True
-    # )
-
-    # message_tags = relationship("MessageTag", back_populates="tag")
-
-    __table_args__ = (
-        UniqueConstraint(
-            "profile_id", "key", "_deleted", name="idx_tag_profile_id_key_deleted"
-        ),
-        {"schema": SCHEMA},
-    )
 
 
 

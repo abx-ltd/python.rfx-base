@@ -9,18 +9,26 @@ message_mailbox_view = PGView(
         -- =========================
         -- MAILBOX
         -- =========================
+        mb._id,
+        mb._created,
+        mb._updated,
+        mb._deleted,
+        mb._realm,
+        mb._creator,
+        mb._updater,
+        mb._etag,
         mb._id AS mailbox_id,
         mb.name AS mailbox_name,
 
         -- =========================
-        -- USER (CRITICAL)
+        -- ASSIGNMENT
         -- =========================
-        mm.assigned_to_profile_id AS profile_id,
+        mm.assigned_to_profile_id,
 
         -- =========================
         -- MESSAGE STATE
         -- =========================
-        mm._id AS mailbox_message_id,
+        mm._id AS mailbox_message_state_id,
         mm.message_id,
         mm.folder,
         mm.is_starred,
@@ -41,46 +49,50 @@ message_mailbox_view = PGView(
         m._created AS message_created_at,
 
         -- =========================
-        -- CATEGORY
+        -- CATEGORY (1-1)
         -- =========================
-        cat._id AS category_id,
+        m.category_id,
         cat.name AS category_name,
         cat.key AS category_key,
 
         -- =========================
-        -- TAGS
+        -- TAGS (N-N, mailbox scoped)
         -- =========================
-        (
-            SELECT COALESCE(
-                jsonb_agg(
-                    jsonb_build_object(
-                        'tag_id', t._id,
-                        'tag_name', t.name
-                    )
-                ), '[]'::jsonb
-            )
-            FROM {config.RFX_2DMESSAGE_SCHEMA}.message_tag mt
-            JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t ON t._id = mt.tag_id
-            WHERE mt.message_id = m._id
-            AND mt._deleted IS NULL
-            AND t._deleted IS NULL
+        COALESCE(
+            (
+                SELECT jsonb_agg(jsonb_build_object(
+                    'tag_id', t._id,
+                    'key', t.key,
+                    'name', t.name
+                ) ORDER BY t.name)
+                FROM {config.RFX_2DMESSAGE_SCHEMA}.message_tag mt
+                JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t 
+                    ON t._id = mt.tag_id
+                AND t.mailbox_id = mm.mailbox_id
+                AND t._deleted IS NULL
+                WHERE mt.message_id = m._id
+                AND mt._deleted IS NULL
+            ),
+            '[]'::jsonb
         ) AS tags,
 
         -- =========================
         -- ATTACHMENTS
         -- =========================
-        (
-            SELECT COALESCE(
-                jsonb_agg(
+        COALESCE(
+            (
+                SELECT jsonb_agg(
                     jsonb_build_object(
                         'attachment_id', ma._id,
                         'file_name', ma.file_name
                     )
-                ), '[]'::jsonb
-            )
-            FROM {config.RFX_2DMESSAGE_SCHEMA}.message_attachment ma
-            WHERE ma.message_id = m._id
-            AND ma._deleted IS NULL
+                    ORDER BY ma._created
+                )
+                FROM {config.RFX_2DMESSAGE_SCHEMA}.message_attachment ma
+                WHERE ma.message_id = m._id
+                AND ma._deleted IS NULL
+            ),
+            '[]'::jsonb
         ) AS attachments
 
     FROM {config.RFX_2DMESSAGE_SCHEMA}.message_mailbox_state mm
@@ -93,14 +105,11 @@ message_mailbox_view = PGView(
         ON m._id = mm.message_id
     AND m._deleted IS NULL
 
-    LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_category mc
-        ON mc.message_id = m._id
-    AND mc._deleted IS NULL
-
     LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.category cat
-        ON cat._id = mc.category_id
+        ON cat._id = m.category_id
+    AND cat.mailbox_id = mm.mailbox_id
     AND cat._deleted IS NULL
 
     WHERE mm._deleted IS NULL;
-    """,
+    """
 )

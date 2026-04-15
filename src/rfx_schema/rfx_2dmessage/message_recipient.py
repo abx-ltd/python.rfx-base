@@ -43,9 +43,9 @@ class MessageRecipient(TableBase):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message._id"),
         primary_key=True
     )
-    category_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.category._id"), nullable=True
-    )
+    # category_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    #     UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.category._id"), nullable=True
+    # )
 
     mailbox: Mapped["Mailbox"] = relationship(
         "Mailbox",
@@ -59,7 +59,7 @@ class MessageRecipient(TableBase):
         foreign_keys=[message_id]
     )
 
-    category: Mapped[Optional["Category"]] = relationship(
-        "Category",
-        foreign_keys=[category_id]
-    )
+    # category: Mapped[Optional["Category"]] = relationship(
+    #     "Category",
+    #     foreign_keys=[category_id]
+    # )

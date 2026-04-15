@@ -1,5 +1,6 @@
 from rfx_base import config as base_config
 
+DB_DSN = base_config.DB_DSN
 # --- Default Schema Names ---
 RFX_CLIENT_SCHEMA = base_config.RFX_CLIENT_SCHEMA
 RFX_DISCUSS_SCHEMA = base_config.RFX_DISCUSS_SCHEMA

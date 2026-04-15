@@ -82,6 +82,13 @@ class Message(TableBase):
 
     external_message_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), unique=True, nullable=True)
 
+    category_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.category._id"),
+        nullable=True,
+        index=True,
+    )
+
     mailbox: Mapped["Mailbox"] = relationship(
         "Mailbox",
         back_populates="messages",

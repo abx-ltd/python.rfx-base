@@ -6,11 +6,22 @@ mailbox_view = PGView(
     signature="_mailbox",
     definition=f"""
     SELECT
+        -- =========================
+        -- METADATA
+        -- =========================
         mb._id,
+        mb._id AS mailbox_id,
         mb._created,
         mb._updated,
         mb._deleted,
+        mb._realm,
+        mb._creator,
+        mb._updater,
+        mb._etag,
 
+        -- =========================
+        -- MAILBOX INFO
+        -- =========================
         mb.name AS mailbox_name,
         mb.profile_id AS mailbox_profile_id,
         mb.telecom_phone,
@@ -19,18 +30,78 @@ mailbox_view = PGView(
         mb.url,
         mb.mailbox_type,
 
-        -- members
-        (
-            SELECT COALESCE(
-                array_agg(mmbr.member_id),
-                ARRAY[]::uuid[]
-            )
-            FROM {config.RFX_2DMESSAGE_SCHEMA}.mailbox_member mmbr
-            WHERE mmbr.mailbox_id = mb._id
-            AND mmbr._deleted IS NULL
-        ) AS member_ids
+        -- =========================
+        -- MEMBER (SCALAR - FILTER)
+        -- =========================
+        mmbr.member_id,
+
+        -- =========================
+        -- MEMBERS (JSON)
+        -- =========================
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'member_id', m2.member_id
+                    )
+                    ORDER BY m2.member_id
+                )
+                FROM {config.RFX_2DMESSAGE_SCHEMA}.mailbox_member m2
+                WHERE m2.mailbox_id = mb._id
+                AND m2._deleted IS NULL
+            ),
+            '[]'::jsonb
+        ) AS members,
+
+        -- =========================
+        -- CATEGORIES
+        -- =========================
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'category_id', c._id,
+                        'key', c.key,
+                        'name', c.name
+                    )
+                    ORDER BY c.name
+                )
+                FROM {config.RFX_2DMESSAGE_SCHEMA}.category c
+                WHERE c.mailbox_id = mb._id
+                AND c._deleted IS NULL
+            ),
+            '[]'::jsonb
+        ) AS categories,
+
+        -- =========================
+        -- TAGS
+        -- =========================
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'tag_id', t._id,
+                        'key', t.key,
+                        'name', t.name,
+                        'background_color', t.background_color,
+                        'font_color', t.font_color
+                    )
+                    ORDER BY t.name
+                )
+                FROM {config.RFX_2DMESSAGE_SCHEMA}.tag t
+                WHERE t.mailbox_id = mb._id
+                AND t._deleted IS NULL
+            ),
+            '[]'::jsonb
+        ) AS tags
 
     FROM {config.RFX_2DMESSAGE_SCHEMA}.mailbox mb
+
+    -- 🔥 JOIN để expose member_id
+    JOIN {config.RFX_2DMESSAGE_SCHEMA}.mailbox_member mmbr
+        ON mmbr.mailbox_id = mb._id
+    AND mmbr._deleted IS NULL
+
     WHERE mb._deleted IS NULL;
-    """,
+    """
 )

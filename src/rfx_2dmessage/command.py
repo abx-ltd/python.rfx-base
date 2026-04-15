@@ -169,9 +169,15 @@ class SendMessageToMailbox(Command):
         mailbox_id = message_payload.pop("mailbox_id")
         send_all = message_payload.pop("send_all", True)
         recipients = message_payload.pop("recipients", [])
+        send_all = message_payload.get("send_all", True)
 
         # 0. Check profile is owner or contributor of the mailbox
         await agg.check_owner_contributor_mailbox(profile_id=profile_id, mailbox_id=mailbox_id)
+
+        if send_all:
+            members = await agg.get_all_members_in_mailbox(mailbox_id=mailbox_id)
+            for member in members:
+                recipients.append(member.member_id)
 
         # 1. Get recipients
         members = await stm.find_all("mailbox_member", where={"mailbox_id": mailbox_id})
@@ -346,10 +352,10 @@ class RemoveTag(Command):
 
     async def _process(self, agg, stm, payload):
         tag_id = agg.get_aggroot().identifier
-        profile_id = agg.get_context().profile_id
+        
         # await agg.remove_message_tag(tag_id=tag._id)
         await agg.remove_message_tag_from_tag(tag_id=tag_id)
-        await agg.remove_tag(tag_id=tag_id, profile_id=profile_id)
+        await agg.remove_tag(tag_id=tag_id)
 
 class AddMessageTag(Command):
     """Add a message to a tag"""
@@ -434,7 +440,6 @@ class AddMessageCategory(Command):
 
     async def _process(self, agg, stm, payload):
         category_id = agg.get_aggroot().identifier
-        profile_id = agg.get_context().profile_id
 
         payload = serialize_mapping(payload)
         message_ids = payload.get("message_ids", [])
@@ -442,7 +447,6 @@ class AddMessageCategory(Command):
 
         result = await agg.add_message_to_category(mailbox_id=mailbox_id, 
                                                    category_id=category_id, 
-                                                   profile_id=profile_id, 
                                                    message_ids=message_ids)
 
         yield agg.create_response(
@@ -992,6 +996,37 @@ class SubmitFormAction(Command):
             form_data=payload["form_data"],
             client_context=payload.get("client_context"),
             profile_id=profile_id
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+
+
+
+class CreateActionExecution(Command):
+    """Execute an embedded action for a message (creates pending execution)."""
+    Data = datadef.CreateActionExecutionPayload
+
+    class Meta:
+        key = "create-action-execution"
+        resources = ("message",)
+        tags = ["action", "execution", "create"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        message_id = agg.get_aggroot().identifier  # Message is the aggregate root
+
+        payload = serialize_mapping(payload)
+
+        result = await agg.create_action_execution(
+            message_id=message_id,
+            action_id=payload["action_id"],
+            profile_id=profile_id,
+            mailbox_id=payload["mailbox_id"]
         )
 
         yield agg.create_response(

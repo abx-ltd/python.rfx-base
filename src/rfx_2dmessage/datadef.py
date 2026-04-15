@@ -98,6 +98,7 @@ class UpdateMessagePayload(DataModel):
 class CreateTagPayload(DataModel):
     """Payload for creating a new tag."""
 
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox the tag belongs to")
     key: str = Field(..., description="Key of the tag")
     name: str = Field(..., description="Name of the tag")
     background_color: Optional[str] = Field(
@@ -205,7 +206,7 @@ class MoveMessagePayload(DataModel):
     """Payload for moving a message inside a mailbox."""
 
     mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID for the target mailbox view")
-    folder: str = Field(default="INBOX", description="Folder to move the message into, e.g. inbox or starred")
+    folder: str = Field(default="inbox", description="Folder to move the message into, e.g. inbox or starred")
 
 
 class SetMessageStarPayload(DataModel):
@@ -241,6 +242,13 @@ class UploadAttachmentMetadataPayload(DataModel):
 # =====================================
 # ACTION PAYLOADS
 # =====================================
+
+class CreateActionExecutionPayload(DataModel):
+    """Payload for creating an action execution record."""
+
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox of the action")
+    action_id: UUID_TYPE = Field(..., description="ID of the action to execute")
+    # No additional data needed for embedded actions - just starts pending execution
 
 class EndpointConfigPayload(DataModel):
     """Payload for configuring an API endpoint for an action."""
@@ -362,3 +370,12 @@ class ActionResponseEnvelope(DataModel):
     timestamp: str = Field(..., description="Timestamp of the response")
     data: Optional[Dict[str, Any]] = Field(None, description="Response data (null on error)")
     error: Optional[Dict[str, Any]] = Field(None, description="Error details (null on success)")
+
+
+class EmbeddedActionHandoffPayload(DataModel):
+    """Response payload for starting an embedded action execution."""
+
+    execution_id: UUID_TYPE = Field(..., description="ID of the created action execution")
+    embedded_url: str = Field(..., description="URL to load for the embedded action")
+    display: DisplayConfigPayload = Field(..., description="Display configuration for the embedded content")
+    callback: CallbackConfigPayload = Field(..., description="Callback configuration for the embedded content")

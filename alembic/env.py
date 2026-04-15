@@ -1,3 +1,4 @@
+import logging
 import os
 
 os.environ["REGISTER_PG_ENTITIES"] = "true"
@@ -6,38 +7,13 @@ from logging.config import fileConfig
 
 from sqlalchemy import create_engine
 from sqlalchemy import pool
+
 from alembic import context
 
 # STEP 1: Load schema config (centralized domain schemas)
-from rfx_base import config as schema_config
+from rfx_schema import config as schema_config
 from rfx_schema import _schema, _pgentity  # noqa: F401
 
-# Import domain connectors individually
-from rfx_schema.rfx_user import RFXUserConnector as IDMConnector
-from rfx_schema.rfx_policy import RFXPolicyConnector
-from rfx_schema.rfx_message import RFXMessageConnector
-from rfx_schema.rfx_media import RFXMediaConnector
-from rfx_schema.rfx_notify import RFXNotifyConnector
-from rfx_schema.rfx_client import RFXClientConnector
-from rfx_schema.rfx_discuss import RFXDiscussConnector
-from rfx_schema.rfx_qr import RFXQRConnector
-from rfx_schema.rfx_todo import RFXTodoConnector
-from rfx_schema.rfx_template import RFXTemplateConnector
-from rfx_schema.rfx_docman import RFXDocmanConnector
-
-DOMAIN_CONNECTORS = {
-    "user": IDMConnector,
-    "policy": RFXPolicyConnector,
-    "message": RFXMessageConnector,
-    "media": RFXMediaConnector,
-    "notify": RFXNotifyConnector,
-    "client": RFXClientConnector,
-    "discuss": RFXDiscussConnector,
-    "qr": RFXQRConnector,
-    "todo": RFXTodoConnector,
-    "template": RFXTemplateConnector,
-    "docman": RFXDocmanConnector,
-}
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -47,39 +23,26 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+logger = logging.getLogger("alembic.env")
+
 sync_url = schema_config.DB_DSN.replace("+asyncpg://", "+psycopg2://")
 
 # All available schemas
-<<<<<<< HEAD
-DOMAIN_SCHEMAS = {
-<<<<<<< HEAD
-    "user": base_config.RFX_USER_SCHEMA,
-    "policy": base_config.RFX_POLICY_SCHEMA,
-    "message": base_config.RFX_MESSAGE_SCHEMA,
-    "media": base_config.RFX_MEDIA_SCHEMA,
-    "notify": base_config.RFX_NOTIFY_SCHEMA,
-    "client": base_config.RFX_CLIENT_SCHEMA,
-    "discuss": base_config.RFX_DISCUSS_SCHEMA,
-    "qr": base_config.RFX_QR_SCHEMA,
-    "todo": base_config.RFX_TODO_SCHEMA,
-    "template": base_config.RFX_TEMPLATE_SCHEMA,
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "2dmessage": base_config.RFX_2DMESSAGE_SCHEMA,
-=======
-    "document": base_config.RFX_DOCUMENT_SCHEMA,
->>>>>>> 0f8e2fd (update : realm , shelf)
-=======
-    "document": base_config.RFX_DOCMAN_SCHEMA,
->>>>>>> 8935565 (refactor : docman)
-=======
-    name: conn.__schema__ for name, conn in DOMAIN_CONNECTORS.items()
->>>>>>> 06811eb (update: rfx schema)
-}
-=======
+# DOMAIN_SCHEMAS = {
+#     "user": base_config.RFX_USER_SCHEMA,
+#     "policy": base_config.RFX_POLICY_SCHEMA,
+#     "message": base_config.RFX_MESSAGE_SCHEMA,
+#     "media": base_config.RFX_MEDIA_SCHEMA,
+#     "notify": base_config.RFX_NOTIFY_SCHEMA,
+#     "client": base_config.RFX_CLIENT_SCHEMA,
+#     "discuss": base_config.RFX_DISCUSS_SCHEMA,
+#     "qr": base_config.RFX_QR_SCHEMA,
+#     "todo": base_config.RFX_TODO_SCHEMA,
+#     "template": base_config.RFX_TEMPLATE_SCHEMA,
+#     "2dmessage": base_config.RFX_2DMESSAGE_SCHEMA,
+#     "document": base_config.RFX_DOCUMENT_SCHEMA,
+# }
 DOMAIN_SCHEMAS = {name: conn.__schema__ for name, conn in DOMAIN_CONNECTORS.items()}
->>>>>>> 6fdaf8f (fix: add RFXDocmanConnector to DOMAIN_CONNECTORS and update DOMAIN_SCHEMAS)
-
 
 # Get schema filter from environment variable
 # Format: comma-separated list like "user,message" or "all" (default)
@@ -94,6 +57,7 @@ else:
     schema_names = list(DOMAIN_SCHEMAS.keys())
 
 if not schema_names:
+    logger.warning("⚠️  No valid schemas selected, defaulting to all")
     schema_names = list(DOMAIN_SCHEMAS.keys())
 
 SCHEMAS = tuple(DOMAIN_SCHEMAS[name] for name in schema_names)
@@ -103,6 +67,8 @@ selected_connectors = [
 target_metadata = [
     connector.__data_schema_base__.metadata for connector in selected_connectors
 ]
+
+logger.info(f"📋 Using schemas: {schema_names} -> {SCHEMAS}")
 
 
 def include_server_default(
@@ -130,16 +96,15 @@ def include_object(object, name, type_, reflected, compare_to):
         return False
 
     if hasattr(object, "info") and object.info.get("is_view"):
+        logger.warning(f"include_object: skipping {name} because it is a view")
         return False
 
     return True
-
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
         return name in SCHEMAS
     return True
-
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
