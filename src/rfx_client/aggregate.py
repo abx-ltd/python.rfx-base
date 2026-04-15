@@ -147,18 +147,18 @@ class RFXClientAggregate(Aggregate):
             _id=self.aggroot.identifier or UUID_GENR(),
         )
 
-        project_member = self.init_resource(
-            "project_member",
-            {
-                "member_id": self.context.profile_id,
-                "role": "OWNER",
-                "project_id": project._id,
-            },
-            _id=UUID_GENR(),
-        )
+        # project_member = self.init_resource(
+        #     "project_member",
+        #     {
+        #         "member_id": self.context.profile_id,
+        #         "role": "OWNER",
+        #         "project_id": project._id,
+        #     },
+        #     _id=UUID_GENR(),
+        # )
 
         await self.statemgr.insert(project)
-        await self.statemgr.insert(project_member)
+        # await self.statemgr.insert(project_member)
         return {"_id": project._id, "name": project.name, "status": "OK"}
 
     @action("project_updated", resources=("project"))
