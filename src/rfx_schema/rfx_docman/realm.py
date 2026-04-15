@@ -4,10 +4,6 @@ Realm ORM Model
 
 Top-level organisational boundary for the document management system.
 
-| Table      | Purpose                                | Key Relationships                        |
-| ---------- | -------------------------------------- | ---------------------------------------- |
-| realm      | Root namespace; groups shelves+cabinets| 1 → N shelves, categories, cabinets      |
-| realm_meta | Key-value metadata per realm           | FK → realm                               |
 """
 
 from __future__ import annotations

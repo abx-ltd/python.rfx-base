@@ -19,8 +19,12 @@ from .rfx_discuss import RFXDiscussConnector
 from .rfx_qr import RFXQRConnector
 from .rfx_todo import RFXTodoConnector
 from .rfx_template import RFXTemplateConnector
+<<<<<<< HEAD
 from .rfx_2dmessage import RFX2DMessageConnector
 from .rfx_document import RFXDocumentConnector
+=======
+from .rfx_docman import RFXDocmanConnector
+>>>>>>> 8935565 (refactor : docman)
 
 DOMAIN_CONNECTORS = {
     "user": IDMConnector,
@@ -33,6 +37,10 @@ DOMAIN_CONNECTORS = {
     "qr": RFXQRConnector,
     "todo": RFXTodoConnector,
     "template": RFXTemplateConnector,
+<<<<<<< HEAD
     "2dmessage": RFX2DMessageConnector,
     "document": RFXDocumentConnector
+=======
+    "docman": RFXDocmanConnector,
+>>>>>>> 8935565 (refactor : docman)
 }
