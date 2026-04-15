@@ -629,27 +629,34 @@ class SendUserAction(Command, UserProvisionMixin):
         action_data["user_id"] = user._id
         result = await agg.record_user_action(action_data)
 
+        try:
+            list_profile = await stm.find_all(
+                "profile",
+                where=dict(user_id=user._id, status='ACTIVE')
+            )
+        except ItemNotFoundError as e:
+            list_profile = None
 
-        list_profile = await stm.find_all(
-            "profile",
-            where=dict(user_id=user._id, status='ACTIVE', current_profile=True)
-        )
-
-        if not list_profile:
-             raise ValueError("No active profile found for this user to determine target application")
-
-        realm_accesses = set([profile.realm for profile in list_profile if profile.realm])
-        target_realm = next(iter(realm_accesses), None)
-        redirect_url = (
-            config.REALM_URL_MAPPER.get(target_realm, "/")
-            if target_realm and hasattr(config, "REALM_URL_MAPPER")
-            else "/"
-        )
-
-        if payload.action_type == "PASSWORD_CHANGE":
-            kc_actions = ["UPDATE_PASSWORD"]
+        if list_profile:
+            realm_accesses = {p.realm for p in list_profile if p.realm}
         else:
+            r = getattr(config, "REALM", None)
+            realm_accesses = {r} if r else set()
+
+        target_realm = next(iter(realm_accesses), None)
+        mapper = getattr(config, "REALM_URL_MAPPER", None) or {}
+        default_realm = getattr(config, "REALM", None)
+        redirect_url = (
+            mapper.get(target_realm)
+            or (mapper.get(default_realm) if default_realm else None)
+            or config.DEFAULT_SIGNIN_REDIRECT_URI
+        )
+
+        allowed_actions = ["UPDATE_PASSWORD", "VERIFY_EMAIL"]
+        if payload.action_type not in allowed_actions:
             raise ValueError(f"Unsupported action type {payload.action_type}")
+
+        kc_actions = [payload.action_type]
 
         await kc_admin.execute_actions(
             user_id=user._id,
