@@ -58,8 +58,8 @@ class MailboxView(Base):
 
     member_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     members: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
-    categories: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
-    tags: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
+    # categories: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
+    # tags: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
 
 
 class MessageView(Base):
@@ -184,7 +184,7 @@ class MessageMailboxView(Base):
     attachments: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
 
 
-class MessageMailboxStateView(Base):
+class MessageDetailView(Base):
     """
     ORM mapping for `_message_mailbox_state` VIEW.
 
@@ -192,7 +192,7 @@ class MessageMailboxStateView(Base):
     including sender, recipients, categories, tags, attachments, and actions.
     """
 
-    __tablename__ = "_message_mailbox_state"
+    __tablename__ = "_message_detail"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     # Primary key from message_mailbox_state
@@ -234,6 +234,9 @@ class MessageMailboxStateView(Base):
     category_name: Mapped[Optional[str]] = mapped_column(String)
     category_key: Mapped[Optional[str]] = mapped_column(String)
 
+    # Tags
+    tags: Mapped[Optional[List[dict]]] = mapped_column(JSONB)
+
     # Attachments
     attachments: Mapped[Optional[List[dict]]] = mapped_column(JSONB)
 
@@ -246,12 +249,22 @@ class MessageTagView(Base):
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     # =========================
+    # ROW IDENTIFIER
+    # =========================
+    message_tag_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+
+    # =========================
     # MESSAGE
     # =========================
-    message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     subject: Mapped[Optional[str]] = mapped_column(String)
     content: Mapped[Optional[str]] = mapped_column()
-    message_created_at: Mapped[datetime] = mapped_column()
+    rendered_content: Mapped[Optional[str]] = mapped_column(String)
+    content_type: Mapped[Optional[str]] = mapped_column(String)
+    is_important: Mapped[Optional[bool]] = mapped_column(Boolean)
+    priority: Mapped[Optional[str]] = mapped_column(String)
+    message_type: Mapped[Optional[str]] = mapped_column(String)
+    message_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     # =========================
     # CATEGORY
@@ -263,7 +276,7 @@ class MessageTagView(Base):
     # =========================
     # TAG
     # =========================
-    tag_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    tag_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     tag_key: Mapped[Optional[str]] = mapped_column(String)
     tag_name: Mapped[Optional[str]] = mapped_column(String)
 
@@ -273,6 +286,103 @@ class MessageTagView(Base):
     mailbox_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     mailbox_name: Mapped[Optional[str]] = mapped_column(String)
 
-    _created: Mapped[Optional[str]] = mapped_column()
-    _updated: Mapped[Optional[str]] = mapped_column()
-    _deleted: Mapped[Optional[str]] = mapped_column()
+    # =========================
+    # ASSIGNMENT
+    # =========================
+    assigned_to_profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    # =========================
+    # MESSAGE STATE
+    # =========================
+    mailbox_message_state_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    folder: Mapped[str] = mapped_column(String)
+    is_starred: Mapped[bool] = mapped_column()
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[Optional[str]] = mapped_column(String)
+    is_assigned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    # =========================
+    # ATTACHMENTS
+    # =========================
+    attachments: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
+
+    # # =========================
+    # # METADATA
+    # # =========================
+    # _created: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # _updated: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # _deleted: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # _realm: Mapped[Optional[str]] = mapped_column(String)
+    # _creator: Mapped[Optional[str]] = mapped_column(String)
+    # _updater: Mapped[Optional[str]] = mapped_column(String)
+    # _etag: Mapped[Optional[str]] = mapped_column(String)
+
+
+class MessageCategoryView(Base):
+    __tablename__ = "_message_category"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    # =========================
+    # UNIQUE MESSAGE ROW
+    # =========================
+    message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+
+    # =========================
+    # CATEGORY RELATION
+    # =========================
+    category_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    # =========================
+    # MAILBOX
+    # =========================
+    mailbox_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    mailbox_name: Mapped[Optional[str]] = mapped_column(String)
+
+    # =========================
+    # ASSIGNMENT
+    # =========================
+    assigned_to_profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    # =========================
+    # MESSAGE STATE
+    # =========================
+    mailbox_message_state_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    folder: Mapped[str] = mapped_column(String)
+    is_starred: Mapped[bool] = mapped_column()
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[Optional[str]] = mapped_column(String)
+    is_assigned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    # =========================
+    # MESSAGE
+    # =========================
+    subject: Mapped[Optional[str]] = mapped_column(String)
+    content: Mapped[Optional[str]] = mapped_column()
+    rendered_content: Mapped[Optional[str]] = mapped_column(String)
+    content_type: Mapped[Optional[str]] = mapped_column(String)
+    is_important: Mapped[Optional[bool]] = mapped_column(Boolean)
+    priority: Mapped[Optional[str]] = mapped_column(String)
+    message_type: Mapped[Optional[str]] = mapped_column(String)
+    message_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    # =========================
+    # CATEGORY
+    # =========================
+    category_name: Mapped[Optional[str]] = mapped_column(String)
+    category_key: Mapped[Optional[str]] = mapped_column(String)
+
+    # =========================
+    # ATTACHMENTS
+    # =========================
+    attachments: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
+
+    # # =========================
+    # # METADATA
+    # # =========================
+    # _created: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # _updated: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # _deleted: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # _realm: Mapped[Optional[str]] = mapped_column(String)
+    # _creator: Mapped[Optional[str]] = mapped_column(String)
+    # _updater: Mapped[Optional[str]] = mapped_column(String)
+    # _etag: Mapped[Optional[str]] = mapped_column(String)

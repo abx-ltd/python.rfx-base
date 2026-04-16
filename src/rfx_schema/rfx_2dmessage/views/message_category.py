@@ -1,18 +1,17 @@
 from rfx_base import config
 from alembic_utils.pg_view import PGView
 
-message_tag_view= PGView(
+message_category_view= PGView(
     schema=config.RFX_2DMESSAGE_SCHEMA,
-    signature="_message_tag",
+    signature="_message_category",
     definition=f"""
     SELECT
         -- =========================
-        -- MESSAGE_TAG RELATION
+        -- RELATION (MESSAGE - CATEGORY)
         -- =========================
-        t._id,
-        mt._id AS message_tag_id,
-        mt.message_id,
-        mt.tag_id,
+        cat._id,
+        m._id AS message_id,
+        m.category_id,
 
         -- =========================
         -- MAILBOX
@@ -48,20 +47,13 @@ message_tag_view= PGView(
         m._created AS message_created_at,
 
         -- =========================
-        -- CATEGORY (1-1)
+        -- CATEGORY (CURRENT ROW)
         -- =========================
-        m.category_id,
         cat.name AS category_name,
         cat.key AS category_key,
 
         -- =========================
-        -- TAG (CURRENT ROW)
-        -- =========================
-        t.key AS tag_key,
-        t.name AS tag_name,
-
-        -- =========================
-        -- ATTACHMENTS (same as mailbox view)
+        -- ATTACHMENTS
         -- =========================
         COALESCE(
             (
@@ -82,25 +74,18 @@ message_tag_view= PGView(
         -- =========================
         -- MAILBOX METADATA
         -- =========================
-        t._created,
-        t._updated,
-        t._deleted,
-        t._realm,
-        t._creator,
-        t._updater,
-        t._etag
+        cat._created,
+        cat._updated,
+        cat._deleted,
+        cat._realm,
+        cat._creator,
+        cat._updater,
+        cat._etag
 
-    FROM {config.RFX_2DMESSAGE_SCHEMA}.message_tag mt
-
-    -- =========================
-    -- MESSAGE
-    -- =========================
-    JOIN {config.RFX_2DMESSAGE_SCHEMA}.message m
-        ON m._id = mt.message_id
-    AND m._deleted IS NULL
+    FROM {config.RFX_2DMESSAGE_SCHEMA}.message m
 
     -- =========================
-    -- MAILBOX STATE (CRITICAL JOIN)
+    -- MAILBOX STATE
     -- =========================
     JOIN {config.RFX_2DMESSAGE_SCHEMA}.message_mailbox_state mm
         ON mm.message_id = m._id
@@ -114,21 +99,14 @@ message_tag_view= PGView(
     AND mb._deleted IS NULL
 
     -- =========================
-    -- CATEGORY
+    -- CATEGORY (SCOPED TO MAILBOX)
     -- =========================
-    LEFT JOIN {config.RFX_2DMESSAGE_SCHEMA}.category cat
+    JOIN {config.RFX_2DMESSAGE_SCHEMA}.category cat
         ON cat._id = m.category_id
     AND cat.mailbox_id = mm.mailbox_id
     AND cat._deleted IS NULL
 
-    -- =========================
-    -- TAG (SCOPED TO MAILBOX)
-    -- =========================
-    JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t
-        ON t._id = mt.tag_id
-    AND t.mailbox_id = mm.mailbox_id
-    AND t._deleted IS NULL
-
-    WHERE mt._deleted IS NULL;
+    WHERE m._deleted IS NULL;
     """
+
 )

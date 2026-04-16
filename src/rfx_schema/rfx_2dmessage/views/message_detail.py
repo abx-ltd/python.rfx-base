@@ -1,21 +1,13 @@
 from rfx_base import config
 from alembic_utils.pg_view import PGView
 
-message_mailbox_state_view = PGView(
+message_detail_view = PGView(
     schema=config.RFX_2DMESSAGE_SCHEMA,
-    signature="_message_mailbox_state",
+    signature="_message_detail",
 definition=f"""
 SELECT
-    -- mailbox state
     m._id,
     mm._id AS mailbox_message_id,
-    mm._created,
-    mm._updated,
-    mm._deleted,
-    mm._realm,
-    mm._creator,
-    mm._updater,
-    mm._etag,
 
     mm.mailbox_id,
 
@@ -50,6 +42,23 @@ SELECT
     m.category_id,
     cat.name AS category_name,
     cat.key AS category_key,
+
+    -- =========================
+    -- TAGS
+    -- =========================
+    COALESCE(
+        (
+            SELECT jsonb_agg(mt.tag_id ORDER BY mt.tag_id)
+            FROM {config.RFX_2DMESSAGE_SCHEMA}.message_tag mt
+            JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t
+                ON t._id = mt.tag_id
+               AND t.mailbox_id = mm.mailbox_id
+               AND t._deleted IS NULL
+            WHERE mt.message_id = m._id
+              AND mt._deleted IS NULL
+        ),
+        '[]'::jsonb
+    ) AS tags,
 
     -- attachments
     COALESCE(
@@ -96,7 +105,15 @@ SELECT
               AND act._deleted IS NULL
         ),
         '[]'::jsonb
-    ) AS actions
+    ) AS actions,
+
+    mm._created,
+    mm._updated,
+    mm._deleted,
+    mm._realm,
+    mm._creator,
+    mm._updater,
+    mm._etag
 
 FROM {config.RFX_2DMESSAGE_SCHEMA}.message_mailbox_state mm
 

@@ -13,6 +13,7 @@ from alembic import context
 # STEP 1: Load schema config (centralized domain schemas)
 from rfx_schema import config as schema_config
 from rfx_schema import _schema, _pgentity  # noqa: F401
+from rfx_schema import DOMAIN_CONNECTORS
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

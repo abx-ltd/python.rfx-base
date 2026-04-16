@@ -10,13 +10,6 @@ message_mailbox_view = PGView(
         -- MAILBOX
         -- =========================
         mb._id,
-        mb._created,
-        mb._updated,
-        mb._deleted,
-        mb._realm,
-        mb._creator,
-        mb._updater,
-        mb._etag,
         mb._id AS mailbox_id,
         mb.name AS mailbox_name,
 
@@ -93,7 +86,15 @@ message_mailbox_view = PGView(
                 AND ma._deleted IS NULL
             ),
             '[]'::jsonb
-        ) AS attachments
+        ) AS attachments,
+
+        mb._created,
+        mb._updated,
+        mb._deleted,
+        mb._realm,
+        mb._creator,
+        mb._updater,
+        mb._etag
 
     FROM {config.RFX_2DMESSAGE_SCHEMA}.message_mailbox_state mm
 

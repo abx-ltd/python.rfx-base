@@ -610,12 +610,18 @@ class RFX2DMessageAggregate(Aggregate):
         for message_id in message_ids:
             message = await self.statemgr.find_one(
                 "message",
-                where={"_id": message_id,"mailbox_id": mailbox_id, "_deleted": None},
+                where={"_id": message_id,"sender_mailbox_id": mailbox_id, "_deleted": None},
             )
             if message.category_id is None:
                 await self.statemgr.update(message, category_id=category_id)
             else:
                 message_category_exist.append(message_id)
+        
+        return {
+            "message_category": category_id,
+            "message_category_exist": message_category_exist,
+            "message_category_added": list(set(message_ids) - set(message_category_exist))
+        }
         
     @action("remove-message-from-category", resources="category")
     async def remove_message_from_category(self, mailbox_id, category_id, profile_id, message_ids):
