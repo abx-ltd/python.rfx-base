@@ -25,29 +25,30 @@ async def _build_folder_archive(
     media: MediaInterface,
     entry_id: str,
 ) -> tuple[str, str]:
-    root = await statemgr.fetch("entry", entry_id)
-    if not root:
-        raise HTTPException(status_code=404, detail="Folder not found")
+    async with statemgr.transaction():
+        root = await statemgr.fetch("entry", entry_id)
+        if not root:
+            raise HTTPException(status_code=404, detail="Folder not found")
 
-    if root.type != EntryTypeEnum.FOLDER:
-        raise HTTPException(status_code=400, detail="entry_id must be a folder")
+        if root.type != EntryTypeEnum.FOLDER:
+            raise HTTPException(status_code=400, detail="entry_id must be a folder")
 
-    root_path = str(root.path or "")
-    root_name = str(root.name or "folder")
+        root_path = str(root.path or "")
+        root_name = str(root.name or "folder")
 
-    rows = await statemgr.native_query(
-        f"""
-		SELECT e.path, e.media_entry_id
-		FROM \"{config.RFX_DOCMAN_SCHEMA}\".entry_ancestor ea
-		JOIN \"{config.RFX_DOCMAN_SCHEMA}\".entry e
-		  ON e._id = ea.descendant_id
-		WHERE ea.ancestor_id = $1
-		  AND e._deleted IS NULL
-		  AND e.type != 'FOLDER'::\"{config.RFX_DOCMAN_SCHEMA}\".entrytypeenum
-		ORDER BY e.path ASC
-		""",
-        root._id,
-    )
+        rows = await statemgr.native_query(
+            f"""
+			SELECT e.path, e.media_entry_id
+			FROM \"{config.RFX_DOCMAN_SCHEMA}\".entry_ancestor ea
+			JOIN \"{config.RFX_DOCMAN_SCHEMA}\".entry e
+			  ON e._id = ea.descendant_id
+			WHERE ea.ancestor_id = $1
+			  AND e._deleted IS NULL
+			  AND e.type != 'FOLDER'::\"{config.RFX_DOCMAN_SCHEMA}\".entrytypeenum
+			ORDER BY e.path ASC
+			""",
+            root._id,
+        )
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
         zip_path = tmp.name
@@ -81,10 +82,11 @@ async def _build_folder_archive(
 
 @Pipe
 def configure_docman_endpoints(app):
-    if hasattr(app.state, "docman"):
+    if getattr(app.state, "docman_endpoints_configured", False):
         return app
 
-    app.state.docman = RFXDocmanStateManager(None)
+    app.state.docman_stm = RFXDocmanStateManager(None)
+    app.state.docman_endpoints_configured = True
 
     if not hasattr(app.state, "media"):
         app.state.media = MediaInterface(app)
@@ -95,7 +97,7 @@ def configure_docman_endpoints(app):
         request: Request,
         entry_id: str,
     ):
-        statemgr = app.state.docman
+        statemgr = app.state.docman_stm
         media = app.state.media
 
         try:
