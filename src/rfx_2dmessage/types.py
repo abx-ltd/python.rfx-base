@@ -211,3 +211,13 @@ class CallbackModeEnnum(str, Enum):
     POSTMESSAGE = "POSTMESSAGE"
     DEEPLINK = "DEEPLINK"
     WEBHOOK = "WEBHOOK"
+
+class MessageLinkTypeEnum(Enum):
+    RELATED = "RELATED"
+    REPLY = "REPLY"
+    FORWARD = "FORWARD"
+    DUPLICATE = "DUPLICATE"
+    FOLLOW_UP = "FOLLOW_UP"
+    REFERENCE = "REFERENCE"
+    DERIVED = "DERIVED"
+    ESCALATION = "ESCALATION"

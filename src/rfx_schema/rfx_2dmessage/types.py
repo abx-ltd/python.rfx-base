@@ -135,3 +135,13 @@ class MediaTypeEnum(Enum):
     DOCUMENT = "DOCUMENT"
     ARCHIVE = "ARCHIVE"
     OTHER = "OTHER"
+
+class MessageLinkTypeEnum(Enum):
+    RELATED = "RELATED"
+    REPLY = "REPLY"
+    FORWARD = "FORWARD"
+    DUPLICATE = "DUPLICATE"
+    FOLLOW_UP = "FOLLOW_UP"
+    REFERENCE = "REFERENCE"
+    DERIVED = "DERIVED"
+    ESCALATION = "ESCALATION"

@@ -8,6 +8,8 @@ from . import (
     message_reference,
     message_recipient,
     message_sender,
+    message_link,
+    timeline_event,
     _viewmap,
 )
 
@@ -21,5 +23,7 @@ __all__ = [
     "message_reference",
     "message_recipient",
     "message_sender",
+    "message_link",
+    "timeline_event",
     "_viewmap",
 ]

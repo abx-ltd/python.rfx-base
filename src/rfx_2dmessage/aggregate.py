@@ -48,23 +48,6 @@ class RFX2DMessageAggregate(Aggregate):
 
         return message
 
-    @action("message-replied", resources="message")
-    async def reply_message(self, *, data):
-        """Action to reply to a message."""
-        message = self.rootobj
-        reply_message = self.init_resource(
-            "message",
-            serialize_mapping(data),
-            _id=UUID_GENR(),
-            thread_id=message.thread_id,
-            sender_id=self.context.profile_id,
-            parent_id=message._id,
-        )
-
-        await self.statemgr.insert(reply_message)
-
-        return reply_message
-
     @action("sender-added", resources=("message", "message_sender"))
     async def add_sender(self, message_id, sender_id):
         """Action to add sender to a message."""
@@ -1092,4 +1075,28 @@ class RFX2DMessageAggregate(Aggregate):
         }
 
     # def _check_action_executed(self, message_id, mailbox_id):
-    #     """Check if action is executed by any profile for the message in the context of the mailbox."""   
+    #     """Check if action is executed by any profile for the message in the context of the mailbox."""
+    @action("link-message", resources="message")
+    async def link_message(self, right_message_id, left_message_id, mailbox_id, link_type):
+        message_link_exist = await self.statemgr.exist(
+            "message_link",
+            where={"right_message_id": right_message_id, 
+                   "left_message_id": left_message_id,
+                   "mailbox_id": mailbox_id,
+                   "_deleted": None}
+        )
+        if message_link_exist:
+            raise ValueError("Link message has existed")
+
+        message_link = self.init_resource(
+            "message_link",
+            _id=UUID_GENR(),
+            right_message_id=right_message_id,
+            left_message_id=left_message_id,
+            mailbox_id=mailbox_id,
+            link_type=link_type
+        )
+
+        await self.statemgr.insert(message_link)
+
+        return message_link

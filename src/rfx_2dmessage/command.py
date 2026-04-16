@@ -174,10 +174,10 @@ class SendMessageToMailbox(Command):
         # 0. Check profile is owner or contributor of the mailbox
         await agg.check_owner_contributor_mailbox(profile_id=profile_id, mailbox_id=mailbox_id)
 
-        if send_all:
-            members = await agg.get_all_members_in_mailbox(mailbox_id=mailbox_id)
-            for member in members:
-                recipients.append(member.member_id)
+        # if send_all:
+        #     members = await agg.get_all_members_in_mailbox(mailbox_id=mailbox_id)
+        #     for member in members:
+        #         recipients.append(member.member_id)
 
         # 1. Get recipients
         members = await stm.find_all("mailbox_member", where={"mailbox_id": mailbox_id})
@@ -239,62 +239,6 @@ class SendMessageToMailbox(Command):
             response_data,
             _type="message-response",
         )
-
-# class UpdateMessageSender(Command):
-#     """Update a message for the current user, is archived or is starred"""
-#     Data = datadef.UpdateMessagePayload
-
-#     class Meta:
-#         key = "update-message"
-#         resources = ("message",)
-#         tags = ["messages", "update"]
-#         auth_required = True
-#         policy_required = False
-
-#     async def _process(self, agg, stm, payload):
-#         message_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-
-#         direction = payload.direction
-#         if direction == DirectionTypeEnum.OUTBOUND:
-#             await agg.update_message_sender(
-#                 message_id=message_id, 
-#                 profile_id=profile_id, 
-#                 data=payload
-#             )
-
-#         elif direction == DirectionTypeEnum.INBOUND:
-#             await agg.update_message_recipient(
-#                 message_id=message_id, 
-#                 profile_id=profile_id, 
-#                 data=payload
-#             )
-
-# class RemoveMessage(Command):
-#     """Remove message for the current user"""
-#     class Meta:
-#         key = "remove-message"
-#         resources = ("message",)
-#         tags = ["messages", "remove"]
-#         auth_required = True
-#         policy_required = False
-
-#     Data = datadef.RemoveMessagePayload
-
-#     async def _process(self, agg, stm, payload):
-#         message_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-
-#         direction = payload.direction
-
-#         if direction == DirectionTypeEnum.OUTBOUND:
-#             await agg.remove_message_sender(
-#                 message_id=message_id, profile_id=profile_id
-#             )
-#         elif direction == DirectionTypeEnum.INBOUND:
-#             await agg.remove_message_recipient(
-#                 message_id=message_id, profile_id=profile_id
-#             )
 
 # =======================================
 # TAG METHOD
@@ -564,14 +508,6 @@ class SetMessageStatus(Command):
             profile_id=agg.get_context().profile_id,
         )
 
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"Set status for message {message_id} to {payload.message_status}",
-        #     msglabel="set-message-status",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={"message_status": payload.message_status},
-        # )
-
         yield agg.create_response(
             serialize_mapping(result),
             _type="message-response",
@@ -600,14 +536,6 @@ class MoveMessage(Command):
             profile_id=profile_id
         )
 
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"Moved message {message_id} to folder {payload.folder} in mailbox {payload.mailbox_id}",
-        #     msglabel="move-message",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={"mailbox_id": str(payload.mailbox_id), "folder": payload.folder},
-        # )
-
         yield agg.create_response(
             serialize_mapping(result),
             _type="message-response",
@@ -635,14 +563,6 @@ class SetMessageStar(Command):
             starred=payload.starred,
             profile_id=profile_id,
         )
-
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"Set star={payload.starred} for message {message_id} in mailbox {payload.mailbox_id}",
-        #     msglabel="set-message-star",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={"mailbox_id": str(payload.mailbox_id), "starred": payload.starred},
-        # )
 
         yield agg.create_response(
             serialize_mapping(result),
@@ -685,40 +605,6 @@ class SetPriority(Command):
         )
 
 
-# class LinkRelatedMessage(Command):
-#     """Link two related messages."""
-
-#     Data = datadef.LinkRelatedMessagePayload
-
-#     class Meta:
-#         key = "link-related-message"
-#         resources = ("message",)
-#         tags = ["message", "link"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         message_id = agg.get_aggroot().identifier
-
-#         result = await agg.link_related_message(
-#             message_id=message_id,
-#             related_message_id=payload.related_message_id,
-#             link_type=payload.link_type,
-#         )
-
-#         yield agg.create_activity(
-#             logroot=agg.get_aggroot(),
-#             message=f"Linked message {message_id} with related message {payload.related_message_id}",
-#             msglabel="link-related-message",
-#             msgtype=ActivityType.USER_ACTION,
-#             data={"related_message_id": str(payload.related_message_id), "link_type": payload.link_type},
-#         )
-
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
-
-
 class UploadAttachmentMetadata(Command):
     """Register metadata for an uploaded attachment."""
 
@@ -738,61 +624,10 @@ class UploadAttachmentMetadata(Command):
             data=payload,
         )
 
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"Registered attachment metadata for message {message_id}",
-        #     msglabel="upload-attachment-metadata",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={
-        #         "filename": payload.filename,
-        #         "storage_key": payload.storage_key,
-        #         "media_type": payload.media_type,
-        #         "size_bytes": payload.size_bytes,
-        #     },
-        # )
-
         yield agg.create_response(
             serialize_mapping(result),
             _type="message-response",
         )
-
-
-# class AddMessageTag(Command):
-#     """Add a message to a tag"""
-
-#     Data = datadef.AddMessageTagPayload
-
-#     class Meta:
-#         key = "add-message-tag"
-#         resources = ("message",)
-#         tags = ["message", "tag"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         direction = payload.direction
-
-#         if direction == DirectionTypeEnum.OUTBOUND:
-#             message_sender = await agg.get_message_sender_by_message_id(
-#                 message_id=agg.get_aggroot().identifier
-#             )
-#             for tag_id in payload.tag_ids:
-#                 await agg.add_message_tag(
-#                     resource="message_sender",
-#                     resource_id=message_sender._id,
-#                     tag_id=tag_id,
-#                 )
-#         elif direction == DirectionTypeEnum.INBOUND:
-#             message_recipient = await agg.get_message_recipient(
-#                 message_id=agg.get_aggroot().identifier,
-#                 profile_id=agg.get_context().profile_id,
-#             )
-#             for tag_id in payload.tag_ids:
-#                 await agg.add_message_tag(
-#                     resource="message_recipient",
-#                     resource_id=message_recipient._id,
-#                     tag_id=tag_id,
-#                 )
-
 
 # class RemoveMessageTag(Command):
 #     """Remove a message from a tag."""
@@ -1063,3 +898,24 @@ class RecordEmbeddedActionResult(Command):
             serialize_mapping(result),
             _type="message-response",
         )
+
+    
+class LinkMessage(Command):
+    Data = datadef.LinkMessagePayload
+
+    class Meta:
+        key = "link-message"
+        resources = ("message",)
+        tags = ["message", "link"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        message_id = agg.get_aggroot().identifier
+
+        payload = serialize_mapping(payload)
+
+        mailbox_id = payload["mailbox_id"]
+        left_message_id = payload["left_message_id"]
+        link_type = payload["link_type"]
+
+    

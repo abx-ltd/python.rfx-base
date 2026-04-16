@@ -60,7 +60,7 @@ class MailboxListQuery(DomainQueryResource):
     url: Optional[str] = StringField("url")
     mailbox_type: Optional[str] = StringField("mailbox_type")  
 
-    member_id: UUID_TYPE = UUIDField("member_id")
+    # member_id: UUID_TYPE = UUIDField("member_id")
     # members: Dict = JSONField("members")
     # tags: Optional[List[Dict[str, Any]]] = JSONField("tags")
     # categories: Optional[List[Dict[str, Any]]] = JSONField("categories")
@@ -290,49 +290,6 @@ class MessageQuery(DomainQueryResource):
     # tag_keys: Optional[List[str]] = ArrayField("Tag Keys", default=[])
     attachments: Optional[dict] = JSONField("Attachments")
     actions: Optional[dict] = JSONField("Actions")
-
-    
-# @resource("message-mailbox")
-# class MessageMailboxQuery(DomainQueryResource):
-#     class Meta(DomainQueryResource.Meta):
-#         include_all = True
-#         allow_meta_view = True
-#         allow_item_view = True
-#         allow_list_view = True
-#         auth_required = True
-
-#         backend_model = "_message_mailbox_state"
-
-#         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
-
-#     mailbox_message_id: UUID_TYPE = UUIDField("Mailbox Message ID")
-#     mailbox_id: UUID_TYPE = UUIDField("Mailbox ID")
-#     mailbox_name: Optional[str] = StringField("Mailbox Name")
-#     message_id: UUID_TYPE = UUIDField("Message ID")
-#     assigned_to_profile_id: Optional[UUID_TYPE] = UUIDField("Assigned Profile ID")
-#     folder: Optional[str] = StringField("Folder")
-#     read: Optional[bool] = BooleanField("Read")
-#     read_at: Optional[str] = DatetimeField("Read At")
-#     status: Optional[str] = StringField("Status")
-#     is_starred: Optional[bool] = BooleanField("Starred")
-#     sender_id: Optional[UUID_TYPE] = UUIDField("Sender ID")
-#     recipient_ids: Optional[List[UUID_TYPE]] = ArrayField("Recipient IDs", default=[])
-#     subject: Optional[str] = StringField("Subject")
-#     content: Optional[str] = StringField("Content")
-#     rendered_content: Optional[str] = StringField("Rendered Content")
-#     content_type: Optional[str] = StringField("Content Type")
-#     priority: Optional[str] = StringField("Priority")
-#     message_type: Optional[str] = StringField("Message Type")
-#     expirable: Optional[bool] = BooleanField("Expirable")
-#     expiration_date: Optional[str] = DatetimeField("Expiration Date")
-#     request_read_receipt: Optional[str] = DatetimeField("Request Read Receipt")
-#     category_id: Optional[UUID_TYPE] = UUIDField("Category ID")
-#     category_name: Optional[str] = StringField("Category Name")
-#     category_key: Optional[str] = StringField("Category Key")
-#     tags: Optional[dict] = JSONField("Tags")
-#     tag_keys: Optional[List[str]] = ArrayField("Tag Keys", default=[])
-#     attachments: Optional[dict] = JSONField("Attachments")
-#     actions: Optional[dict] = JSONField("Actions")
 
 # @resource("get-embedded-action-callback")
 # class GetEmbeddedActionCallback(DomainQueryResource):

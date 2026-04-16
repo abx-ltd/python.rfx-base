@@ -7,9 +7,15 @@ from pydantic import Field, model_validator
 
 
 from fluvius.data import DataModel, UUID_TYPE
-from .types import MessageCategoryEnum, DirectionTypeEnum, MailBoxMessageStatusTypeEnum, ActionTypeEnum, ExecutionModeEnum, DisplayModeEnum, CallbackModeEnnum
-
-
+from .types import(MessageCategoryEnum, 
+                   DirectionTypeEnum, 
+                   MailBoxMessageStatusTypeEnum, 
+                   ActionTypeEnum, 
+                   ExecutionModeEnum, 
+                   DisplayModeEnum, 
+                   CallbackModeEnnum,
+                   MessageLinkTypeEnum
+)
 # class CreateMessagePayload(BaseModel):
 #     ...
 
@@ -379,3 +385,13 @@ class EmbeddedActionHandoffPayload(DataModel):
     embedded_url: str = Field(..., description="URL to load for the embedded action")
     display: DisplayConfigPayload = Field(..., description="Display configuration for the embedded content")
     callback: CallbackConfigPayload = Field(..., description="Callback configuration for the embedded content")
+
+
+# =====================================
+# LINK MESSAGE PAYLOADS
+# =====================================
+
+class LinkMessagePayload(DataModel):
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox of the action")
+    left_message_id: UUID_TYPE = Field(..., description="ID of the message link")
+    link_type: str = Field(default=MessageLinkTypeEnum.RELATED, description="Message link type")
