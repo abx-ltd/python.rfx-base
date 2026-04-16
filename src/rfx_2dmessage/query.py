@@ -44,7 +44,7 @@ class MailboxListQuery(DomainQueryResource):
         allow_list_view = True
         auth_required = True
 
-        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater', 'member_id')
 
         backend_model = "_mailbox"
 
@@ -60,7 +60,7 @@ class MailboxListQuery(DomainQueryResource):
     url: Optional[str] = StringField("url")
     mailbox_type: Optional[str] = StringField("mailbox_type")  
 
-    # member_id: UUID_TYPE = UUIDField("member_id")
+    member_id: UUID_TYPE = UUIDField("member_id")
     # members: Dict = JSONField("members")
     # tags: Optional[List[Dict[str, Any]]] = JSONField("tags")
     # categories: Optional[List[Dict[str, Any]]] = JSONField("categories")
