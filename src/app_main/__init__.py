@@ -7,6 +7,7 @@ from fluvius.fastapi import (
 )
 
 from rfx_idm import IDMDomain
+from . import pkginfo
 
 domains = (
     IDMDomain,
@@ -20,7 +21,7 @@ queries = (
     'rfx_message.RFXMessageServiceQueryManager',
 )
 
-app = create_app() \
+app = create_app(pkginfo) \
     | configure_authentication() \
     | configure_domain_manager(*domains) \
     | configure_query_manager(*queries) \

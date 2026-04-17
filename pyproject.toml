@@ -1,9 +1,21 @@
 [project]
 name = "rfx-base"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.4.0"
+description = "Backend platform for RFX JSC projects built on Fluvius with DDD and CQRS—foundational domain modules for identity, messaging, client workflows, and enterprise integrations."
 readme = "README.md"
 requires-python = ">=3.13"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "RFX JSC" }]
+keywords = [
+    "rfx",
+    "fluvius",
+    "ddd",
+    "cqrs",
+    "fastapi",
+    "async",
+    "postgresql",
+]
 dependencies = [
     "aiohttp==3.11.11",
     "arq==0.26.3",

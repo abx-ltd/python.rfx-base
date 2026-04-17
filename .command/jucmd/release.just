@@ -1,4 +1,11 @@
+# Override in .env (see .env.example)
+PKGINFO := env("PKGINFO", "src/app_main/pkginfo.py")
 
-# Bump pyproject.toml version (Python), tag `releases/gh/<version>`, push, `gh release create`.
-@release RELEASE_TYPE="print":
-    python3 "{{ justfile_directory() }}/.command/pycmd/release.py" {{ RELEASE_TYPE }}
+# Bump pyproject version, sync pkginfo, commit, tag, and push (e.g. `just release patch`)
+# Run from the app root; `fluvius_manager` must be on PATH / importable.
+release RELEASE_TYPE="print" RELEASE_LABEL="none":
+    python3 -m fluvius_manager release pkg -- {{ PKGINFO }} {{ RELEASE_TYPE }} {{ RELEASE_LABEL }}
+
+# Same as release with --force (dirty working tree allowed)
+@release-force RELEASE_TYPE="print" RELEASE_LABEL="none":
+    python3 -m fluvius_manager release pkg --force -- {{ PKGINFO }} {{ RELEASE_TYPE }} {{ RELEASE_LABEL }}
