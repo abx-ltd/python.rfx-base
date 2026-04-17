@@ -91,7 +91,9 @@ def configure_docman_endpoints(app):
     if not hasattr(app.state, "media"):
         app.state.media = MediaInterface(app)
 
-    @app.get("/docman/entry/{entry_id}/download")
+    @app.get(
+        f"/{config.NAMESPACE}/entry/{{entry_id}}/download", tags=[config.NAMESPACE]
+    )
     @auth_required()
     async def download_entry_folder(
         request: Request,

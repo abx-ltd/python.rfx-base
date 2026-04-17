@@ -1,11 +1,6 @@
-from typing import Optional
 from fluvius.query.field import UUIDField
 from fluvius.data import UUID_TYPE
-from pydantic import BaseModel, Field
-
-
-class RealmScopeSchema(BaseModel):
-    pass
+from pydantic import BaseModel
 
 
 class ShelfScopeSchema(BaseModel):
@@ -22,15 +17,6 @@ class CabinetScopeSchema(BaseModel):
 
 class EntryScopeSchema(BaseModel):
     cabinet_id: UUID_TYPE = UUIDField("Cabinet ID")
-
-
-# class TagScopeSchema(BaseModel):
-#     realm_id: Optional[UUID_TYPE] = Field(
-#         default=None, description="Filter tags by realm ID"
-#     )
-#     entry_id: Optional[UUID_TYPE] = Field(
-#         default=None, description="Filter tags by entry ID"
-#     )
 
 
 class RealmMetaScopeSchema(BaseModel):
