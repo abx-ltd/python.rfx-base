@@ -65,6 +65,38 @@ class MailboxListQuery(DomainQueryResource):
     # tags: Optional[List[Dict[str, Any]]] = JSONField("tags")
     # categories: Optional[List[Dict[str, Any]]] = JSONField("categories")
 
+@resource("mailbox-folder-count")
+class MailboxFolderCount(DomainQueryResource):
+    @classmethod
+    def base_query(cls, context, scope):
+        profile_id = context.profile._id
+        return {
+            "mailbox_id": scope["mailbox_id"],
+            "assigned_to_profile_id": profile_id,
+        }
+    
+    class Meta(DomainQueryResource.Meta):
+        include_all = False
+        allow_meta_view = True
+        allow_item_view = True
+        allow_list_view = True
+        auth_required = True
+
+        scope_required = scope.MailboxScope
+        backend_model = "_mailbox_folder"
+
+        # excluded_fields = ('assigned_to_profile_id')
+
+    mailbox_id: str = UUIDField("mailbox_id")
+    mailbox_name: str = StringField("mailbox_name")
+
+    assigned_to_profile_id: Optional[str] = UUIDField("assigned_to_profile_id")    
+    inbox_count: int = IntegerField("Inbox message count")
+    trashed_count: int = IntegerField("Trash message count")
+    archived_count: int = IntegerField("Archive message count")
+    total_count: int = IntegerField("Total message count")
+    
+
 @resource("mailbox-message")
 class MailboxMessageQuery(DomainQueryResource):
     @classmethod
@@ -91,7 +123,9 @@ class MailboxMessageQuery(DomainQueryResource):
     mailbox_name: str = StringField("mailbox_name")
 
     assigned_to_profile_id: Optional[str] = UUIDField("assigned_to_profile_id") 
-    message_id: str = UUIDField("message_id")
+    sender_name: Optional[str] = StringField("Sender name")
+    sender_email: Optional[str] = StringField("Sender email")
+    # message_id: str = UUIDField("message_id")
     folder: str = StringField("folder")
     is_starred: Optional[bool] = BooleanField("is_starred")
     priority: str = StringField("priority")
@@ -161,6 +195,8 @@ class MessageTagQuery(DomainQueryResource):
     mailbox_name: str = StringField("mailbox_name")
 
     assigned_to_profile_id: Optional[str] = UUIDField("assigned_to_profile_id") 
+    sender_name: Optional[str] = StringField("Sender name")
+    sender_email: Optional[str] = StringField("Sender email")
     message_id: str = UUIDField("message_id")
     folder: str = StringField("folder")
     is_starred: Optional[bool] = BooleanField("is_starred")
@@ -228,6 +264,8 @@ class MessageCategoryQuery(DomainQueryResource):
     mailbox_name: str = StringField("mailbox_name")
 
     assigned_to_profile_id: Optional[str] = UUIDField("assigned_to_profile_id") 
+    sender_name: Optional[str] = StringField("Sender name")
+    sender_email: Optional[str] = StringField("Sender email")
     message_id: str = UUIDField("message_id")
     folder: str = StringField("folder")
     is_starred: Optional[bool] = BooleanField("is_starred")
@@ -271,6 +309,8 @@ class MessageQuery(DomainQueryResource):
     mailbox_id: UUID_TYPE = UUIDField("Mailbox ID")
     message_id: UUID_TYPE = UUIDField("Message ID")
     assigned_to_profile_id: Optional[UUID_TYPE] = UUIDField("Assigned Profile ID")
+    sender_name: Optional[str] = StringField("Sender name")
+    sender_email: Optional[str] = StringField("Sender email")
     folder: Optional[str] = StringField("Folder")
     status: Optional[str] = StringField("Status")
     is_starred: Optional[bool] = BooleanField("Starred")
@@ -287,8 +327,8 @@ class MessageQuery(DomainQueryResource):
     category_name: Optional[str] = StringField("Category Name")
     category_key: Optional[str] = StringField("Category Key")
     tags: Optional[dict] = JSONField("Tags")
-    # tag_keys: Optional[List[str]] = ArrayField("Tag Keys", default=[])
     attachments: Optional[dict] = JSONField("Attachments")
+    linked_messages: Optional[dict] = JSONField("Linked message")
     actions: Optional[dict] = JSONField("Actions")
 
 # @resource("get-embedded-action-callback")

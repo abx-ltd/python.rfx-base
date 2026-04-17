@@ -779,7 +779,6 @@ class RegisterAction(Command):
             _type="message-response",
         )
 
-
 class ExecuteAtomicAction(Command):
     """Execute an atomic action for a message."""
     Data = datadef.ExecuteAtomicActionPayload
@@ -807,7 +806,6 @@ class ExecuteAtomicAction(Command):
             serialize_mapping(result),
             _type="message-response",
         )
-
 
 class SubmitFormAction(Command):
     """Submit a form action for a message."""
@@ -837,9 +835,6 @@ class SubmitFormAction(Command):
             serialize_mapping(result),
             _type="message-response",
         )
-
-
-
 
 class CreateActionExecution(Command):
     """Execute an embedded action for a message (creates pending execution)."""
@@ -904,9 +899,9 @@ class LinkMessage(Command):
     Data = datadef.LinkMessagePayload
 
     class Meta:
-        key = "link-message"
+        key = "link-related-message"
         resources = ("message",)
-        tags = ["message", "link"]
+        tags = ["message", "related", "link"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -918,4 +913,39 @@ class LinkMessage(Command):
         left_message_id = payload["left_message_id"]
         link_type = payload["link_type"]
 
-    
+        result = await agg.link_message(
+            right_message_id=message_id, 
+            left_message_id=left_message_id, 
+            mailbox_id=mailbox_id, 
+            link_type=link_type
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class UnlinkMessage(Command):
+    Data = datadef.LinkMessagePayload
+
+    class Meta:
+        key = "unlink-related-message"
+        resources = ("message",)
+        tags = ["message", "related", "link"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        message_id = agg.get_aggroot().identifier
+
+        payload = serialize_mapping(payload)
+
+        mailbox_id = payload["mailbox_id"]
+        left_message_id = payload["left_message_id"]
+        link_type = payload["link_type"]
+
+        await agg.unlink_message(
+            right_message_id=message_id, 
+            left_message_id=left_message_id, 
+            mailbox_id=mailbox_id, 
+            link_type=link_type
+        )

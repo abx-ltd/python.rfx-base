@@ -47,6 +47,32 @@ message_category_view= PGView(
         m._created AS message_created_at,
 
         -- =========================
+        -- SENDER
+        -- =========================
+
+        (
+            SELECT p.name__given
+            FROM {config.RFX_2DMESSAGE_SCHEMA}.message_sender s
+            JOIN {config.RFX_USER_SCHEMA}.profile p
+                ON p._id = s.sender_id
+                AND p._deleted IS NULL
+            WHERE s.message_id = m._id
+                AND s._deleted IS NULL
+            LIMIT 1
+        ) AS sender_name,
+
+        (
+            SELECT p.telecom__email
+            FROM {config.RFX_2DMESSAGE_SCHEMA}.message_sender s
+            JOIN {config.RFX_USER_SCHEMA}.profile p
+                ON p._id = s.sender_id
+                AND p._deleted IS NULL
+            WHERE s.message_id = m._id
+                AND s._deleted IS NULL
+            LIMIT 1
+        ) AS sender_email,
+
+        -- =========================
         -- CATEGORY (CURRENT ROW)
         -- =========================
         cat.name AS category_name,

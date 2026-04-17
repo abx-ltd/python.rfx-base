@@ -9,7 +9,7 @@ message_mailbox_view = PGView(
         -- =========================
         -- MAILBOX
         -- =========================
-        mb._id,
+        m._id,
         mb._id AS mailbox_id,
         mb.name AS mailbox_name,
 
@@ -17,6 +17,32 @@ message_mailbox_view = PGView(
         -- ASSIGNMENT
         -- =========================
         mm.assigned_to_profile_id,
+
+        -- =========================
+        -- SENDER
+        -- =========================
+
+        (
+            SELECT p.name__given
+            FROM {config.RFX_2DMESSAGE_SCHEMA}.message_sender s
+            JOIN {config.RFX_USER_SCHEMA}.profile p
+                ON p._id = s.sender_id
+                AND p._deleted IS NULL
+            WHERE s.message_id = m._id
+                AND s._deleted IS NULL
+            LIMIT 1
+        ) AS sender_name,
+
+        (
+            SELECT p.telecom__email
+            FROM {config.RFX_2DMESSAGE_SCHEMA}.message_sender s
+            JOIN {config.RFX_USER_SCHEMA}.profile p
+                ON p._id = s.sender_id
+                AND p._deleted IS NULL
+            WHERE s.message_id = m._id
+                AND s._deleted IS NULL
+            LIMIT 1
+        ) AS sender_email,
 
         -- =========================
         -- MESSAGE STATE

@@ -1076,8 +1076,22 @@ class RFX2DMessageAggregate(Aggregate):
 
     # def _check_action_executed(self, message_id, mailbox_id):
     #     """Check if action is executed by any profile for the message in the context of the mailbox."""
+
+    async def check_message_mailbox(self, message_id, mailbox_id):
+        return await self.statemgr.exist(
+            "message",
+            where={"_id": message_id, "sender_mailbox_id": mailbox_id, "_deleted": None}
+        )
+
     @action("link-message", resources="message")
     async def link_message(self, right_message_id, left_message_id, mailbox_id, link_type):
+
+        if not self.check_message_mailbox(message_id=right_message_id, mailbox_id=mailbox_id):
+            raise ValueError(f"Message {right_message_id} is not in mailbox {mailbox_id}")
+        
+        if not self.check_message_mailbox(message_id=left_message_id, mailbox_id=mailbox_id):
+            raise ValueError(f"Message {left_message_id} is not in mailbox {mailbox_id}")
+        
         message_link_exist = await self.statemgr.exist(
             "message_link",
             where={"right_message_id": right_message_id, 
@@ -1100,3 +1114,17 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.insert(message_link)
 
         return message_link
+    
+    @action("unlink-message", resources="message")
+    async def unlink_message(self, right_message_id, left_message_id, mailbox_id, link_type):
+        message_link_exist = await self.statemgr.find_one(
+            "message_link",
+            where={"right_message_id": right_message_id, 
+                   "left_message_id": left_message_id,
+                   "mailbox_id": mailbox_id,
+                   "_deleted": None}
+        )
+        if not message_link_exist:
+            raise ValueError("Message link is not existed")
+
+        await self.statemgr.invalidate(message_link_exist)
