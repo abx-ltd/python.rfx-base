@@ -445,6 +445,14 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.insert(category)
 
         return category
+    
+    @action("update-category", resources="category")
+    async def update_category(self, data):
+        """Update a category."""
+        category = self.rootobj
+        category_result = await self.statemgr.update(category, **serialize_mapping(data))
+
+        return category_result
 
     @action("remove-category", resources="category")
     async def remove_category(self, category_id, profile_id):
@@ -784,7 +792,7 @@ class RFX2DMessageAggregate(Aggregate):
         return result
 
     @action("submit-form-action", resources="message")
-    async def submit_form_action(self, message_id, action_id, form_data, client_context, profile_id):
+    async def submit_form_action(self, message_id, action_id, form_data, profile_id):
         """Submit a form action for a message."""
         # Get the action definition
         action = await self.statemgr.find_one(
@@ -808,6 +816,7 @@ class RFX2DMessageAggregate(Aggregate):
             message_id=message_id,
             action_id=action_id,
             profile_id=profile_id,
+            context_mailbox_id=action.mailbox_id,
             execution_mode=action.execution_mode,
             status=ActionExecutionStatus.PENDING.value,
             input_payload_json=form_data
@@ -969,7 +978,7 @@ class RFX2DMessageAggregate(Aggregate):
                     response = await client.patch(url, headers=headers, json=payload)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
-
+                
                 if response.status_code >= 200 and response.status_code < 300:
                     response_data = response.json()
                     return {

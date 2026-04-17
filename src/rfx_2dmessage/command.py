@@ -359,6 +359,22 @@ class CreateCategory(Command):
             _type="message-response",
         )
 
+class UpdateCategory(Command):
+    Data = datadef.UpdateCategoryPayload
+
+    class Meta:
+        key = "update-category"
+        resources = ("category",)
+        tags = ["category", "update"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.update_category(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
 class RemoveCategory(Command):
 
     class Meta:
@@ -591,14 +607,6 @@ class SetPriority(Command):
             profile_id=profile_id
         )
 
-        # yield agg.create_activity(
-        #     logroot=agg.get_aggroot(),
-        #     message=f"Set priority for message {message_id} to {payload.priority}",
-        #     msglabel="set-priority",
-        #     msgtype=ActivityType.USER_ACTION,
-        #     data={"priority": payload.priority},
-        # )
-
         yield agg.create_response(
             serialize_mapping(result),
             _type="message-response",
@@ -628,125 +636,6 @@ class UploadAttachmentMetadata(Command):
             serialize_mapping(result),
             _type="message-response",
         )
-
-# class RemoveMessageTag(Command):
-#     """Remove a message from a tag."""
-
-#     Data = datadef.RemoveMessageTagPayload
-
-#     class Meta:
-#         key = "remove-message-tag"
-#         resources = ("message",)
-#         tags = ["message", "tag"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         direction = payload.direction
-#         if direction == DirectionTypeEnum.OUTBOUND:
-#             message_sender = await agg.get_message_sender_by_message_id(
-#                 message_id=agg.get_aggroot().identifier,
-#             )
-#             for tag_id in payload.tag_ids:
-#                 await agg.remove_message_tag_from_resource(
-#                     resource="message_sender",
-#                     resource_id=message_sender._id,
-#                     tag_id=tag_id,
-#                 )
-#         elif direction == DirectionTypeEnum.INBOUND:
-#             message_recipient = await agg.get_message_recipient(
-#                 message_id=agg.get_aggroot().identifier,
-#                 profile_id=agg.get_context().profile_id,
-#             )
-#             for tag_id in payload.tag_ids:
-#                 await agg.remove_message_tag_from_resource(
-#                     resource="message_recipient",
-#                     resource_id=message_recipient._id,
-#                     tag_id=tag_id,
-#                 )
-
-
-# class CreateCategory(Command):
-#     Data = datadef.CreateCategoryPayload
-
-#     class Meta:
-#         key = "create-category"
-#         resources = ("category",)
-#         resource_init = True
-#         tags = ["category", "create"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         profile_id = agg.get_context().profile_id
-
-#         result = await agg.create_category(data=payload, profile_id=profile_id)
-
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
-
-
-# class RemoveCategory(Command):
-
-#     class Meta:
-#         key = "remove-category"
-#         resources = ("category",)
-#         tags = ["category", "remove"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         category_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-
-#         await agg.remove_category(category_id=category_id, profile_id=profile_id)
-
-
-# class AddMessageCategory(Command):
-#     Data = datadef.AddMessageCategoryPayload
-
-#     class Meta:
-#         key = "add-message-category"
-#         resources = ("category",)
-#         tags = ["message", "category"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         category_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-
-#         payload = serialize_mapping(payload)
-
-#         result = await agg.add_message_to_category(data=payload, category_id=category_id, profile_id=profile_id)
-
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
-
-
-# class RemoveMessageCategory(Command):
-
-#     Data = datadef.RemoveMessageCategoryPayload
-
-#     class Meta:
-#         key = "remove-message-category"
-#         resources = ("category",)
-#         tags = ["message", "category"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         category_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-
-#         # payload = serialize_mapping(payload)
-
-#         result = await agg.remove_message_from_category(data=payload, category_id=category_id, profile_id=profile_id)
-
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
-
 
 # =======================================
 # ACTION METHODS
@@ -779,6 +668,7 @@ class RegisterAction(Command):
             _type="message-response",
         )
 
+
 class ExecuteAtomicAction(Command):
     """Execute an atomic action for a message."""
     Data = datadef.ExecuteAtomicActionPayload
@@ -807,6 +697,7 @@ class ExecuteAtomicAction(Command):
             _type="message-response",
         )
 
+
 class SubmitFormAction(Command):
     """Submit a form action for a message."""
     Data = datadef.SubmitFormActionPayload
@@ -827,7 +718,6 @@ class SubmitFormAction(Command):
             message_id=message_id,
             action_id=payload["action_id"],
             form_data=payload["form_data"],
-            client_context=payload.get("client_context"),
             profile_id=profile_id
         )
 
@@ -835,6 +725,7 @@ class SubmitFormAction(Command):
             serialize_mapping(result),
             _type="message-response",
         )
+
 
 class CreateActionExecution(Command):
     """Execute an embedded action for a message (creates pending execution)."""
@@ -894,6 +785,9 @@ class RecordEmbeddedActionResult(Command):
             _type="message-response",
         )
 
+# =======================================
+# LINK METHODS
+# =======================================
     
 class LinkMessage(Command):
     Data = datadef.LinkMessagePayload

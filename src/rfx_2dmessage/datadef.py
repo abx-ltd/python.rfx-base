@@ -151,6 +151,9 @@ class CreateCategoryPayload(DataModel):
     name: str = Field(..., description="Name of the category" )
     mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox the category belongs to")
 
+class UpdateCategoryPayload(DataModel):
+    key: Optional[str] = Field(None, description="Key of category")
+    name: Optional[str] = Field(..., description="Name of the category" )
 
 # =====================================
 # MAILBOX PAYLOAD
@@ -268,7 +271,7 @@ class FieldFormConfigPayload(DataModel):
     """Payload for configuring a single field in a form schema."""
 
     name: str = Field(..., description="Name of the field")
-    Key: str = Field(..., description="Key of the field for form data mapping")
+    key: str = Field(..., description="Key of the field for form data mapping")
     type: str = Field(..., description="Data type of the field (e.g. string, number, boolean)")
     label: Optional[str] = Field(None, description="Display label for the field")
     required: bool = Field(False, description="Whether the field is required")
@@ -357,7 +360,6 @@ class SubmitFormActionPayload(DataModel):
 
     action_id: UUID_TYPE = Field(..., description="ID of the action to execute")
     form_data: Dict[str, Any] = Field(..., description="Form data submitted by the user")
-    # client_context: Optional[Dict[str, Any]] = Field(None, description="Optional client-side context data")
 
 class RecordEmbeddedActionResultPayload(DataModel):
     """Payload for recording the result of an embedded action."""
