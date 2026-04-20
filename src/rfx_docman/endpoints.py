@@ -2,7 +2,7 @@ import os
 import tempfile
 import zipfile
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.responses import FileResponse
 from fluvius.fastapi.auth import auth_required
 from fluvius.media import MediaInterface
@@ -28,10 +28,10 @@ async def _build_folder_archive(
     async with statemgr.transaction():
         root = await statemgr.fetch("entry", entry_id)
         if not root:
-            raise HTTPException(status_code=404, detail="Folder not found")
+            raise ValueError(f"Entry with id {entry_id} not found")
 
         if root.type != EntryTypeEnum.FOLDER:
-            raise HTTPException(status_code=400, detail="entry_id must be a folder")
+            raise ValueError("entry_id must be a folder")
 
         root_path = str(root.path or "")
         root_name = str(root.name or "folder")
@@ -102,18 +102,11 @@ def configure_docman_endpoints(app):
         statemgr = app.state.docman_stm
         media = app.state.media
 
-        try:
-            zip_path, filename = await _build_folder_archive(
-                statemgr=statemgr,
-                media=media,
-                entry_id=entry_id,
-            )
-        except HTTPException:
-            raise
-        except Exception as exc:
-            raise HTTPException(
-                status_code=500, detail=f"Failed to build archive: {exc}"
-            )
+        zip_path, filename = await _build_folder_archive(
+            statemgr=statemgr,
+            media=media,
+            entry_id=entry_id,
+        )
 
         return FileResponse(
             path=zip_path,
