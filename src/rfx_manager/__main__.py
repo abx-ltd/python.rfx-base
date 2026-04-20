@@ -7,8 +7,7 @@ Usage:
     python -m ttp_manager import-fhir --source synthea_texas --limit 100
 """
 
-from fluvius.manager import fluvius_manager
-from .entrypoint import rfx_manager
+from flctl.entrypoint import cli
+from . import entrypoint as _entrypoint  # noqa: F401 — side effect: register `rfx` on `cli`
 
-fluvius_manager.add_command(rfx_manager)
-fluvius_manager()
+cli()

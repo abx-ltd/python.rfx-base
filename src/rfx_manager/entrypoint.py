@@ -1,8 +1,8 @@
 import click
-from fluvius.manager import fluvius_manager
+from flctl.entrypoint import cli
 
 
-@fluvius_manager.group(name="rfx")
+@cli.group(name="rfx")
 def rfx_manager():
     """RFX Manager Commands."""
 
