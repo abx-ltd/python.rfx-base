@@ -86,10 +86,7 @@ class Notification(DataModel):
 
 class RemoveMessagePayload(DataModel):
     """Payload for remove a message"""
-    direction: Optional[DirectionTypeEnum] = Field(
-        default=DirectionTypeEnum.INBOUND,
-        description="Direction to remove: INBOUND (inbox) or OUTBOUND (outbox). If None, remove both if user sent to themselves.",
-    )
+    mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox the tag belongs to")
 
 class UpdateMessagePayload(DataModel):
     """Payload for update a message"""
@@ -183,7 +180,12 @@ class UpdateMailboxPayload(DataModel):
 
 class AddMemberToMailboxPayload(DataModel):
     """Payload for adding a member to a mailbox"""
-    profile_added_ids: List[UUID_TYPE] = Field(None, description="Profile IDs of the members to add")
+    profile_ids: List[UUID_TYPE] = Field(None, description="Profile IDs of the members to add")
+    assign_all_message: Optional[bool] = Field(default=False, description="Assign all message in mailbox for new members")
+
+class RemoveMemberFromMailboxPayload(DataModel):
+    """Payload for remove a member to a mailbox"""
+    profile_ids: List[UUID_TYPE] = Field(None, description="Profile IDs of the members to remove")
 
 class AddMessageCategoryPayload(DataModel):
     """Payload for add messages to a category"""
@@ -247,6 +249,9 @@ class UploadAttachmentMetadataPayload(DataModel):
     size_bytes: Optional[int] = Field(None, description="Attachment file size in bytes")
     checksum: Optional[str] = Field(None, description="Optional checksum for the uploaded attachment")
 
+class MarkReadMessagePayload(DataModel):
+    mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID for the target mailbox view")
+    read: bool = Field(default=True, description="Mark message is read or not read")
 
 # =====================================
 # ACTION PAYLOADS

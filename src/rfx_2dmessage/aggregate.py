@@ -10,6 +10,202 @@ from typing import Optional, Dict, Any
 from .types import RenderStatusEnum, PriorityLevelEnum, ActionExecutionStatus, ActionTypeEnum, ExecutionModeEnum
 
 class RFX2DMessageAggregate(Aggregate):
+    # =======================================
+    # MAILBOX METHOD
+    # =======================================
+
+    @action("create-mailbox", resources="mailbox")
+    async def create_mailbox(self, data, profile_id):
+        profile_ids = data.get("profile_ids", [])
+        profile_ids.append(profile_id)  # Ensure creator always has access
+
+        mailbox_record = self.init_resource(
+            "mailbox",
+            _id=UUID_GENR(),
+            name=data.get("name"),
+            profile_id=profile_id,
+            telecom_phone=data.get("telecom_phone"),
+            telecom_email=data.get("telecom_email"),
+            description=data.get("description"),
+            url=data.get("url"),
+            mailbox_type=data.get("mailbox_type"),
+        )
+
+        await self.statemgr.insert(mailbox_record)
+
+        for pid in profile_ids:
+            if pid != profile_id:
+                mailbox_member = self.init_resource(
+                    "mailbox_member",
+                    _id=UUID_GENR(),
+                    mailbox_id=mailbox_record._id, 
+                    member_id=pid,
+                    role="VIEWER"
+                )
+                await self.statemgr.insert(mailbox_member)
+            else:
+                mailbox_member = self.init_resource(
+                    "mailbox_member",
+                    _id=UUID_GENR(),
+                    mailbox_id=mailbox_record._id, 
+                    member_id=pid,
+                    role="OWNER"
+                )
+                await self.statemgr.insert(mailbox_member)
+
+        return mailbox_record
+
+    @action("remove-mailbox", resources="mailbox")
+    async def remove_mailbox(self, mailbox_id, profile_id):
+        mailbox_member = await self.statemgr.find_one(
+            "mailbox_member",
+            where={"mailbox_id": mailbox_id, "profile_id": profile_id},
+        )
+
+        if mailbox_member is None:
+            raise ValueError("Mailbox not found or access denied")
+        
+        # if the user is not the owner, just invalidate their membership. If they are the owner, invalidate all memberships and the mailbox itself.
+        if mailbox_member.role != "OWNER":
+            await self.statemgr.invalidate(mailbox_member)
+            messages = await self.statemg.find_all(
+                "message_mailbox_state",
+                where={"mailbox_id":mailbox_id, "assigned_to_profile_id":profile_id, "_deleted":None}
+            )
+            for mess in messages:
+                await self.statemgr.invalidate(mess)
+        else:
+            # delete all member in mailbox
+            mailbox_members = await self.statemgr.find_all(
+                "mailbox_member",
+                where={"mailbox_id": mailbox_id},
+            )
+            for member in mailbox_members:
+                await self.statemgr.invalidate(member)
+        
+            # delete message tag and tag
+            tags = await self.statemgr.find_all(
+                "tag",
+                where={"mailbox_id": mailbox_id, "_deleted": None}
+            )
+            for tag in tags:
+                message_tags = await self.statemgr.find_all(
+                    "message_tag",
+                    where={"tag_id": tag._id, "_deleted": None}
+                )
+                for mess_tag in message_tags:
+                    await self.statemgr.invalidate(mess_tag)
+                
+                await self.statemgr.invalidate(tag)
+
+            # delete message for each user
+            messages_mailbox = await self.statemgr.find_all(
+                "message_mailbox_state",
+                where={"mailbox_id": mailbox_id, "_deleted": None},
+            )
+            for mess_mailbox in messages_mailbox:
+                await self.statemgr.invalidate(mess_mailbox)
+
+            # delete message
+            messages = await self.statemgr.find_all(
+                "message",
+                where={"sender_mailbox_id": mailbox_id}
+            )
+            for mess in messages:
+                # delete message_attachment
+                attachments = await self.statemgr.find_all(
+                    "message_attachment",
+                    where={"message_id": mess._id, "_deleted": None}
+                )
+                for mess_attach in attachments:
+                    await self.statemgr.invalidate(mess_attach)
+                await self.statemgr.invalidate(mess)
+
+            # delete category
+            categories = await self.statemgr.find_all(
+                "category",
+                where={"mailbox_id": mailbox_id, "_deleted": None}
+            )
+            for category in categories:
+                await self.statemgr.invalidate(category)
+
+            # delete action and action execute
+            action_executes = await self.statemgr.find_all(
+                "message_action_execute",
+                where={"context_mailbox_id": mailbox_id, "_deleted": None}
+            )
+            for action_execute in action_executes:
+                await self.statemgr.invalidate(action_execute)
+
+            actions = await self.statemgr.find_all(
+                "message_action",
+                where={"mailbox_id": mailbox_id, "_deleted": None}
+            )
+            for action in actions:
+                await self.statemgr.invalidate(action)
+            
+            # delete mailbox
+            mailbox = await self.statemgr.find_one(
+                "mailbox",
+                where={"_id": mailbox_id, "profile_id": profile_id, "_deleted": None},
+            )
+            await self.statemgr.invalidate(mailbox)
+
+        return mailbox
+    
+    @action("add-member-to-mailbox", resources="mailbox")
+    async def add_member_to_mailbox(self, mailbox_id, profile_id, member_ids, assign_all_message):
+        # check if profile_id is owner of the mailbox
+        mailbox_owner = await self.statemgr.find_one(
+            "mailbox_member",
+            where={"mailbox_id": mailbox_id, "member_id": profile_id, "role": "OWNER"},
+        )
+        if mailbox_owner is None:
+            raise ValueError("Only mailbox owner can add members")
+        
+        for member_id in member_ids:
+            # check if member added is already a member of the mailbox
+            mailbox_member_exists = await self.statemgr.exist(
+                "mailbox_member",
+                where={"mailbox_id": mailbox_id, "member_id": member_id},
+            )
+            if mailbox_member_exists:    
+                member_ids.remove(mailbox_member_exists.member_id)        
+                continue
+
+            mailbox_member = self.init_resource(
+                "mailbox_member",
+                _id=UUID_GENR(),
+                mailbox_id=mailbox_id,
+                member_id=member_id,
+                role="VIEWER"
+            )
+
+            await self.statemgr.insert(mailbox_member)
+        
+        if assign_all_message:
+            await self.sync_to_message_mailbox_state(mailbox_id, member_ids, True)
+
+    @action("remove-member-from-mailbox", resources="mailbox")
+    async def remove_member_from_mailbox(self, mailbox_id, profile_id, member_ids):
+        # check if profile_id is owner of the mailbox
+        mailbox_owner = await self.statemgr.find_one(
+            "mailbox_member",
+            where={"mailbox_id": mailbox_id, "member_id": profile_id, "role": "OWNER"},
+        )
+        if mailbox_owner is None:
+            raise ValueError("Only mailbox owner can remove member")
+        
+        for member_id in member_ids:
+            # check if member is already a member of the mailbox
+            mailbox_member_exists = await self.statemgr.find_one(
+                "mailbox_member",
+                where={"mailbox_id": mailbox_id, "member_id": member_id, "_deleted": None},
+            )
+            await self.statemgr.invalidate(mailbox_member_exists)
+        
+        await self.sync_to_message_mailbox_state(mailbox_id, member_ids, False)
+
     @action("get-all-member-in-mailbox", resources="message")
     async def get_all_members_in_mailbox(self, *, mailbox_id):
         """Get all members in a mailbox."""
@@ -18,7 +214,7 @@ class RFX2DMessageAggregate(Aggregate):
             where={"mailbox_id": mailbox_id}
         )
         return members
-
+    
     @action("check-owner-contributor-mailboxes", resources="message")
     async def check_owner_contributor_mailbox(self, *, mailbox_id, profile_id):
         """Check if a profile is the owner or contributor of a mailbox."""
@@ -31,11 +227,16 @@ class RFX2DMessageAggregate(Aggregate):
         
         return mailbox_member
 
+    
+    # =======================================
+    # MESSAGE METHOD
+    # =======================================
 
     @action("message-generated", resources="message")
     async def generate_message(self, *, data, mailbox_id):
         """Action to create a new message."""
         message_data = data
+        message_data["render_status"] = "PENDING"
 
         message = self.init_resource(
             "message",
@@ -47,7 +248,7 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.insert(message)
 
         return message
-
+    
     @action("sender-added", resources=("message", "message_sender"))
     async def add_sender(self, message_id, sender_id):
         """Action to add sender to a message."""
@@ -61,7 +262,7 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.insert(sender)
 
         return {"message_id": message_id, "sender_id": sender_id}
-    
+
     @action("recipients-added", resources=("message"))
     async def add_message_recipient(self, message_id, mailbox_id):
         message_recipient = self.init_resource(
@@ -74,27 +275,17 @@ class RFX2DMessageAggregate(Aggregate):
         )
 
         await self.statemgr.insert(message_recipient)
-    
-    @action("message-recipient-assign", resources=("message"))
-    async def assign_message_recipient(self, recipients, message_id, mailbox_id):
-        """Create message_recipient and message_mailbox_state records for each recipient."""
 
-        # Then, create message_mailbox_state records for each recipient
-        for recipient_id in recipients:
-            mailbox_state = self.init_resource(
-                "message_mailbox_state", 
-                {
-                    "message_id": message_id,
-                    "mailbox_id": mailbox_id,
-                    "assigned_to_profile_id": recipient_id,
-                    "read": False,
-                    "folder": "inbox",
-                    "is_starred": False,
-                    "status": "NEW",
-                },
-                _id=UUID_GENR(),
-            )
-            await self.statemgr.insert(mailbox_state)
+    @action("mark-message-is-read", resources="message")
+    async def mark_message_is_read(self, mailbox_id, message_id, profile_id, is_read):
+        message = await self.statemgr.find_one(
+            "message_mailbox_state",
+            where={"mailbox_id": mailbox_id, "message_id": message_id, "assigned_to_profile_id": profile_id, "_deleted": None}
+        )
+
+        result = await self.statemgr.update(message, read=is_read, read_at=datetime.utcnow())
+
+        return result
 
     @action("remove-message-sender", resources="message")
     async def remove_message_sender(self, message_id, profile_id):
@@ -114,7 +305,7 @@ class RFX2DMessageAggregate(Aggregate):
             where={"message_id": message_id, "recipient_id": profile_id},
         )
         await self.statemgr.invalidate(message_recipient)
-
+    
     @action("update-message-sender", resources="message")
     async def update_message_sender(self, message_id, profile_id, data):
         """Update message sender"""
@@ -173,7 +364,8 @@ class RFX2DMessageAggregate(Aggregate):
             {
                 "mailbox_id": mailbox_id,
                 "message_id": message_id,
-                "folder": "INBOX",
+                "read": False,
+                "folder": "inbox",
                 "is_starred": False,
                 "assigned_to_profile_id": assignee_profile_id,
                 "status": "NEW"
@@ -189,7 +381,7 @@ class RFX2DMessageAggregate(Aggregate):
             "assigned_to_profile_id": assignee_profile_id,
             "reason": reason,
         }
-
+    
     @action("message-status-updated", resources="message")
     async def set_message_status(self, message_id, message_status, mailbox_id, profile_id):
         """Update the canonical status of a message."""
@@ -204,7 +396,7 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.update(message, status=message_status)
 
         return {"message_id": message_id, "message_status": message_status}
-
+    
     @action("message-moved", resources="message")
     async def move_message(self, message_id, mailbox_id, folder, profile_id):
         """Move a message into a mailbox folder."""
@@ -228,7 +420,7 @@ class RFX2DMessageAggregate(Aggregate):
 
         await self.statemgr.update(mailbox_state, folder=folder_value)
         return {"message_id": message_id, "mailbox_id": mailbox_id, "folder": folder_value}
-
+    
     @action("message-star-updated", resources="message")
     async def set_message_star(self, message_id, mailbox_id, starred, profile_id):
         """Toggle starred state for a message within a mailbox."""
@@ -245,18 +437,18 @@ class RFX2DMessageAggregate(Aggregate):
 
         await self.statemgr.update(mailbox_state, is_starred=starred)
         return {"message_id": message_id, "mailbox_id": mailbox_id, "is_starred": starred}
-
+    
     @action("message-priority-updated", resources="message")
     async def set_priority(self, message_id, priority, profile_id):
         """Update a message priority."""
 
         # Check if message is sent by profile_id
-        # message = await self.statemgr.find_one(
-        #     "message_sender",
-        #     where={"message_id": message_id, "sender_id": profile_id},
-        # )
-        # if message is None:
-        #     raise ValueError("D00.466", f"Message not found or not sent by profile: {message_id}")
+        message = await self.statemgr.find_one(
+            "message_sender",
+            where={"message_id": message_id, "sender_id": profile_id},
+        )
+        if message is None:
+            raise ValueError("D00.466", f"Message not found or not sent by profile: {message_id}")
 
         if isinstance(priority, str):
             priority = priority.strip().upper()
@@ -276,7 +468,7 @@ class RFX2DMessageAggregate(Aggregate):
 
         await self.statemgr.update(message, priority=priority)
         return {"message_id": message_id, "priority": priority}
-
+    
     @action("message-related-linked", resources="message")
     async def link_related_message(self, message_id, related_message_id, link_type="related"):
         """Link two messages as related."""
@@ -340,18 +532,18 @@ class RFX2DMessageAggregate(Aggregate):
             "link_type": link_type,
             "linked": True,
         }
-
+    
     @action("attachment-metadata-uploaded", resources="message")
     async def upload_attachment_metadata(self, message_id, data):
         """Register uploaded attachment metadata for a message."""
 
         # Check if message is sent by profile_id
-        # message = await self.statemgr.find_one(
-        #     "message_sender",
-        #     where={"message_id": message_id, "sender_id": profile_id},
-        # )
-        # if message is None:
-        #     raise ValueError("D00.466", f"Message not found or not sent by profile: {message_id}")
+        message = await self.statemgr.find_one(
+            "message_sender",
+            where={"message_id": message_id, "sender_id": profile_id},
+        )
+        if message is None:
+            raise ValueError("D00.466", f"Message not found or not sent by profile: {message_id}")
 
         attachment = self.init_resource(
             "message_attachment",
@@ -370,6 +562,309 @@ class RFX2DMessageAggregate(Aggregate):
         await self.statemgr.insert(attachment)
 
         return serialize_mapping(attachment)
+
+    @action("message-content-processed", resources="message")
+    async def process_message_content(
+        self,
+        *,
+        message_id: str,
+        context: Optional[Dict[str, Any]] = None,
+        mode: str = "sync",
+    ):
+        """Process message content (template resolution and rendering)."""
+        message = await self.statemgr.fetch("message", message_id)
+        if not message:
+            raise ValueError(f"Message not found: {message_id}")
+
+        # If message has direct content, no template rendering needed
+        if message.content:
+            await self.statemgr.update(
+                message,
+                render_status=RenderStatusEnum.COMPLETED.value
+            )
+            return serialize_mapping(message)
+
+        # If message has template_key, render via rfx-template domain
+        if message.template_key:
+            try:
+                from rfx_user import config as userconf
+                template_client = getattr(self.context.service_proxy, userconf.TEMPLATE_CLIENT, None)
+                if not template_client:
+                    raise RuntimeError("Template client not found")
+
+                # Call rfx-template:render-template
+                response = await template_client.request(
+                    "rfx-template:render-template",
+                    command="render-template",
+                    resource="template",
+                    payload={
+                        "key": message.template_key,
+                        "data": context or {},
+                        "tenant_id": str(self.context.tenant_id) if hasattr(self.context, 'tenant_id') else None,
+                        "app_id": getattr(self.context, 'app_id', None),
+                        "locale": message.locale or "en",
+                        "channel": message.channel,
+                    },
+                    _headers={},
+                    _context={
+                        "audit": {
+                            "user_id": str(self.context.user_id) if self.context.user_id else None,
+                            "profile_id": str(self.context.profile_id) if self.context.profile_id else None,
+                        },
+                        "source": "rfx-message",
+                    },
+                )
+
+                # Extract rendered content from template-service-response
+                service_response = response.get("template-service-response", response)
+                rendered_content = service_response.get('body', '')
+
+                # Update message with rendered content
+                await self.statemgr.update(
+                    message,
+                    content=rendered_content,
+                    render_status=RenderStatusEnum.COMPLETED.value
+                )
+
+                # Refetch updated message
+                message = await self.statemgr.fetch("message", message_id)
+
+            except Exception as e:
+                # Mark rendering as failed
+                await self.statemgr.update(
+                    message,
+                    render_status=RenderStatusEnum.FAILED.value,
+                    render_error=str(e)
+                )
+                raise ValueError(f"Template rendering failed: {str(e)}")
+
+        return serialize_mapping(message)
+    
+    @action("message-ready-for-delivery", resources="message")
+    async def mark_ready_for_delivery(self, message_id):
+        """Mark message as ready for delivery."""
+        message = await self.statemgr.fetch("message", message_id)
+        if not message:
+            raise ValueError(f"Message not found: {message_id}")
+
+        if message.render_status.value not in [
+            RenderStatusEnum.COMPLETED.value,
+            RenderStatusEnum.CLIENT_RENDERING.value,
+        ]:
+            raise ValueError(
+                f"Message {message_id} is not ready for delivery (status: {message.render_status})"
+            )
+
+        await self.statemgr.update(message, delivery_status="PENDING")
+
+        return {"message_id": message_id, "status": "PENDING"}
+    
+    @action("map-message-to-dict", resources="message")
+    async def map_message_to_dict(self, message) -> dict[str, Any]:
+        return {
+            # ===== Core fields =====
+            "id": str(message._id),
+            "sender_mailbox_id": str(message.sender_mailbox_id) if message.sender_mailbox_id else None,
+
+            "subject": message.subject,
+            "preview": message.preview,
+            "content": message.content,
+            "rendered_content": message.rendered_content,
+
+            "content_type": message.content_type.value if message.content_type else None,
+
+            "is_important": message.is_important,
+            "expirable": message.expirable,
+            "expiration_date": message.expiration_date.isoformat() if message.expiration_date else None,
+            "request_read_receipt": message.request_read_receipt.isoformat() if message.request_read_receipt else None,
+
+            "priority": message.priority.value if message.priority else None,
+            "message_type": message.message_type.value if message.message_type else None,
+
+            "external_message_id": str(message.external_message_id) if message.external_message_id else None,
+            "category_id": str(message.category_id) if message.category_id else None,
+
+            # ===== Delivery / render =====
+            "delivery_status": message.delivery_status.value if message.delivery_status else None,
+            "render_strategy": message.render_strategy.value if message.render_strategy else None,
+            "render_status": message.render_status.value if message.render_status else None,
+            "rendered_at": message.rendered_at.isoformat() if message.rendered_at else None,
+            "render_error": message.render_error,
+        }
+    
+    async def sync_to_message_mailbox_state(self, mailbox_id, member_ids, add):
+        """
+            Sync message mailbox state for messages in the mailbox.
+            If have new member added to the mailbox and add=True, add message mailbox state for the member for all messages in the mailbox.
+            If have member removed from the mailbox and add=False, remove message mailbox state for the member for all messages in the mailbox.   
+        """
+        # This is a placeholder for the actual implementation of syncing message mailbox state.
+        # The actual implementation would depend on the specific requirements and data model of the application.
+        all_message = await self.statemgr.find_all(
+            "message",
+            where={"sender_mailbox_id": mailbox_id, "_deleted": None},
+        )
+
+        if add == False:
+            for member_id in member_ids:
+                message_mailbox_states = await self.statemgr.find_all(
+                    "message_mailbox_state",
+                    where={"mailbox_id": mailbox_id, "assigned_to_profile_id": member_id, "_deleted": None},
+                )
+                for message in message_mailbox_states:
+                    await self.statemgr.invalidate(message)
+
+                message_action_executes = await self.statemgr.find_all(
+                    "message_action_execute",
+                    where={"profile_id": member_id, "_deleted": None}
+                )
+                for message_action_execute in message_action_executes:
+                    await self.statemgr.invalidate(message_action_execute)
+        else:
+            for member_id in member_ids:
+                # find all messages in the mailbox
+                for message in all_message:
+                    new_message_mailbox_state = self.init_resource(
+                        "message_mailbox_state",
+                        _id=UUID_GENR(),
+                        mailbox_id=mailbox_id,
+                        message_id=message._id,
+                        assigned_to_profile_id=member_id,
+                    )
+                    await self.statemgr.insert(new_message_mailbox_state)
+
+    @action("get-message-mailbox", resources="message")
+    async def get_message_mailbox(self, message_id, mailbox_id):
+        return await self.statemgr.find_one(
+            "message",
+            where={"_id": message_id, "sender_mailbox_id": mailbox_id, "_deleted": None}
+        )
+
+    async def check_message_mailbox(self, message_id, mailbox_id):
+        return await self.statemgr.exist(
+            "message",
+            where={"_id": message_id, "sender_mailbox_id": mailbox_id, "_deleted": None}
+        )
+
+    @action("link-message", resources="message")
+    async def link_message(self, right_message_id, left_message_id, mailbox_id, link_type):
+
+        if not self.check_message_mailbox(message_id=right_message_id, mailbox_id=mailbox_id):
+            raise ValueError(f"Message {right_message_id} is not in mailbox {mailbox_id}")
+        
+        if not self.check_message_mailbox(message_id=left_message_id, mailbox_id=mailbox_id):
+            raise ValueError(f"Message {left_message_id} is not in mailbox {mailbox_id}")
+        
+        message_link_exist = await self.statemgr.exist(
+            "message_link",
+            where={"right_message_id": right_message_id, 
+                   "left_message_id": left_message_id,
+                   "mailbox_id": mailbox_id,
+                   "_deleted": None}
+        )
+        if message_link_exist:
+            raise ValueError("Link message has existed")
+
+        message_link = self.init_resource(
+            "message_link",
+            _id=UUID_GENR(),
+            right_message_id=right_message_id,
+            left_message_id=left_message_id,
+            mailbox_id=mailbox_id,
+            link_type=link_type
+        )
+
+        await self.statemgr.insert(message_link)
+
+        return message_link
+    
+    @action("unlink-message", resources="message")
+    async def unlink_message(self, right_message_id, left_message_id, mailbox_id, link_type):
+        message_link_exist = await self.statemgr.find_one(
+            "message_link",
+            where={"right_message_id": right_message_id, 
+                   "left_message_id": left_message_id,
+                   "mailbox_id": mailbox_id,
+                   "_deleted": None}
+        )
+        if not message_link_exist:
+            raise ValueError("Message link is not existed")
+
+        await self.statemgr.invalidate(message_link_exist)
+
+    # =======================================
+    # CATEGORY METHOD
+    # =======================================
+
+    @action("create-category", resources="category")
+    async def create_category(self, data, profile_id):
+        category = self.init_resource(
+            "category",
+            serialize_mapping(data),
+            _id=UUID_GENR(),
+        )
+
+        await self.statemgr.insert(category)
+
+        return category
+    
+    @action("update-category", resources="category")
+    async def update_category(self, data):
+        """Update a category."""
+        category = self.rootobj
+        category_result = await self.statemgr.update(category, **serialize_mapping(data))
+
+        return category_result
+
+    @action("remove-category", resources="category")
+    async def remove_category(self, category_id, profile_id):
+        # Delete all message-category associations for this category
+        messages = await self.statemgr.find_all(
+            "message",
+            where={"category_id": category_id}
+        )
+        for message in messages:
+            await self.statemgr.update(message, category_id=None)
+
+        # Remove category by category_id
+        category = await self.statemgr.find_one(
+            "category",
+            where={"_id": category_id},
+        )
+        await self.statemgr.invalidate(category)
+
+    @action("add-message-to-category", resources="category")
+    async def add_message_to_category(self, mailbox_id, category_id, message_ids):
+        message_category_exist = []
+        for message_id in message_ids:
+            message = await self.statemgr.find_one(
+                "message",
+                where={"_id": message_id,"sender_mailbox_id": mailbox_id, "_deleted": None},
+            )
+            if message.category_id is None:
+                await self.statemgr.update(message, category_id=category_id)
+            else:
+                message_category_exist.append(message_id)
+        
+        return {
+            "message_category": category_id,
+            "message_category_exist": message_category_exist,
+            "message_category_added": list(set(message_ids) - set(message_category_exist))
+        }
+        
+    @action("remove-message-from-category", resources="category")
+    async def remove_message_from_category(self, mailbox_id, category_id, profile_id, message_ids):
+        for message_id in message_ids:
+            message = await self.statemgr.find_one(
+                "message",
+                where={"_id": message_id, "_deleted": None},
+            )
+            if message:
+                await self.statemgr.update(message, category_id=None)
+
+    # =======================================
+    # TAG METHOD
+    # =======================================
 
     @action("tag-created", resources="tag")
     async def create_tag(self, *, data):
@@ -434,233 +929,8 @@ class RFX2DMessageAggregate(Aggregate):
             )
             await self.statemgr.invalidate(message_tag)
 
-    @action("create-category", resources="category")
-    async def create_category(self, data, profile_id):
-        category = self.init_resource(
-            "category",
-            serialize_mapping(data),
-            _id=UUID_GENR(),
-        )
-
-        await self.statemgr.insert(category)
-
-        return category
-    
-    @action("update-category", resources="category")
-    async def update_category(self, data):
-        """Update a category."""
-        category = self.rootobj
-        category_result = await self.statemgr.update(category, **serialize_mapping(data))
-
-        return category_result
-
-    @action("remove-category", resources="category")
-    async def remove_category(self, category_id, profile_id):
-        # Delete all message-category associations for this category
-        messages = await self.statemgr.find_all(
-            "message",
-            where={"category_id": category_id}
-        )
-        for message in messages:
-            await self.statemgr.update(message, category_id=None)
-
-        # Remove category by category_id
-        category = await self.statemgr.find_one(
-            "category",
-            where={"_id": category_id},
-        )
-        await self.statemgr.invalidate(category)
-
-    # ======================================================
-    # MAILBOX METHODS
-    # ======================================================
-
-    @action("create-mailbox", resources="mailbox")
-    async def create_mailbox(self, data, profile_id):
-        profile_ids = data.get("profile_ids", [])
-        profile_ids.append(profile_id)  # Ensure creator always has access
-
-        mailbox_record = self.init_resource(
-            "mailbox",
-            _id=UUID_GENR(),
-            name=data.get("name"),
-            profile_id=profile_id,
-            telecom_phone=data.get("telecom_phone"),
-            telecom_email=data.get("telecom_email"),
-            description=data.get("description"),
-            url=data.get("url"),
-            mailbox_type=data.get("mailbox_type"),
-        )
-
-        await self.statemgr.insert(mailbox_record)
-
-        for pid in profile_ids:
-            if pid != profile_id:
-                mailbox_member = self.init_resource(
-                    "mailbox_member",
-                    _id=UUID_GENR(),
-                    mailbox_id=mailbox_record._id, 
-                    member_id=pid,
-                    role="VIEWER"
-                )
-                await self.statemgr.insert(mailbox_member)
-            else:
-                mailbox_member = self.init_resource(
-                    "mailbox_member",
-                    _id=UUID_GENR(),
-                    mailbox_id=mailbox_record._id, 
-                    member_id=pid,
-                    role="OWNER"
-                )
-                await self.statemgr.insert(mailbox_member)
-
-        return mailbox_record
-
-    @action("remove-mailbox", resources="mailbox")
-    async def remove_mailbox(self, mailbox_id, profile_id):
-        mailbox_member = await self.statemgr.find_one(
-            "mailbox_member",
-            where={"mailbox_id": mailbox_id, "profile_id": profile_id},
-        )
-
-        if mailbox_member is None:
-            raise ValueError("Mailbox not found or access denied")
-        
-        # if the user is not the owner, just invalidate their membership. If they are the owner, invalidate all memberships and the mailbox itself.
-        if mailbox_member.role != "OWNER":
-            await self.statemgr.invalidate(mailbox_member)
-        else:
-            mailbox_members = await self.statemgr.find_all(
-                "mailbox_member",
-                where={"mailbox_id": mailbox_id},
-            )
-            for member in mailbox_members:
-                await self.statemgr.invalidate(member)
-        
-            mailbox = await self.statemgr.find_one(
-                "mailbox",
-                where={"_id": mailbox_id, "profile_id": profile_id},
-            )
-            await self.statemgr.invalidate(mailbox)
-
-        # mailbox_messages = await self.statemgr.find_all(
-        #     "message_mailbox_state",
-        #     where={"mailbox_id": mailbox_id},
-        # )
-        # for m in mailbox_messages:
-        #     await self.statemgr.invalidate(m)
-
-        return mailbox
-    
-    @action("add-member-to-mailbox", resources="mailbox")
-    async def add_member_to_mailbox(self, mailbox_id, profile_id, member_added_ids):
-
-        # check if profile_id is owner of the mailbox
-        mailbox_owner = await self.statemgr.find_one(
-            "mailbox_member",
-            where={"mailbox_id": mailbox_id, "member_id": profile_id, "role": "OWNER"},
-        )
-        if mailbox_owner is None:
-            raise ValueError("Only mailbox owner can add members")
-        
-        for member_id in member_added_ids:
-            # check if member added is already a member of the mailbox
-            mailbox_member_exists = await self.statemgr.exist(
-                "mailbox_member",
-                where={"mailbox_id": mailbox_id, "member_id": member_id},
-            )
-            if mailbox_member_exists:    
-                member_added_ids.remove(mailbox_member_exists.member_id)        
-                continue
-
-            mailbox_member = self.init_resource(
-                "mailbox_member",
-                _id=UUID_GENR(),
-                mailbox_id=mailbox_id,
-                member_id=member_id,
-                role="VIEWER"
-            )
-
-            await self.statemgr.insert(mailbox_member)
-        
-        await self.sync_to_message_mailbox_state(mailbox_id, member_added_ids, True)
-
-    # @action("remove-mailbox-message", resources="mailbox")
-    # async def remove_mailbox_message(self, mailbox_message_id, profile_id):
-    #     mailbox_message = await self.statemgr.find_one(
-    #         "message_mailbox_state",
-    #         where={"_id": mailbox_message_id, "profile_id": profile_id},
-    #     )
-    #     await self.statemgr.invalidate(mailbox_message)
-
-    #     return mailbox_message
-
-    @action("add-message-to-category", resources="category")
-    async def add_message_to_category(self, mailbox_id, category_id, message_ids):
-        message_category_exist = []
-        for message_id in message_ids:
-            message = await self.statemgr.find_one(
-                "message",
-                where={"_id": message_id,"sender_mailbox_id": mailbox_id, "_deleted": None},
-            )
-            if message.category_id is None:
-                await self.statemgr.update(message, category_id=category_id)
-            else:
-                message_category_exist.append(message_id)
-        
-        return {
-            "message_category": category_id,
-            "message_category_exist": message_category_exist,
-            "message_category_added": list(set(message_ids) - set(message_category_exist))
-        }
-        
-    @action("remove-message-from-category", resources="category")
-    async def remove_message_from_category(self, mailbox_id, category_id, profile_id, message_ids):
-        for message_id in message_ids:
-            message = await self.statemgr.find_one(
-                "message",
-                where={"_id": message_id, "_deleted": None},
-            )
-            if message:
-                await self.statemgr.update(message, category_id=None)
-        
-    async def sync_to_message_mailbox_state(self, mailbox_id, member_ids, add):
-        """
-            Sync message mailbox state for messages in the mailbox.
-            If have new member added to the mailbox, add message mailbox state for the member for all messages in the mailbox.
-            If have member removed from the mailbox, remove message mailbox state for the member for all messages in the mailbox.   
-        """
-        # This is a placeholder for the actual implementation of syncing message mailbox state.
-        # The actual implementation would depend on the specific requirements and data model of the application.
-        all_message_of_mailbox = await self.statemgr.find_all(
-            "message",
-            where={"sender_mailbox_id": mailbox_id, "_deleted": None},
-        )
-
-        if add == False:
-            for member_id in member_ids:
-                message_mailbox_states = await self.statemgr.find_all(
-                    "message_mailbox_state",
-                    where={"mailbox_id": mailbox_id, "_deleted": None, "assigned_to_profile_id": member_id},
-                )
-                for message in message_mailbox_states:
-                    await self.statemgr.invalidate(message)
-        else:
-            for member_id in member_ids:
-                # find all messages in the mailbox
-                for message in all_message_of_mailbox:
-                    new_message_mailbox_state = self.init_resource(
-                        "message_mailbox_state",
-                        _id=UUID_GENR(),
-                        mailbox_id=mailbox_id,
-                        message_id=message._id,
-                        assigned_to_profile_id=member_id,
-                    )
-                    await self.statemgr.insert(new_message_mailbox_state)
-
-
     # =======================================
-    # ACTION METHODS
+    # ACTION METHOD
     # =======================================
 
     @action("register-action", resources="mailbox")
@@ -1083,57 +1353,4 @@ class RFX2DMessageAggregate(Aggregate):
             "error": callback_payload.get("error")
         }
 
-    # def _check_action_executed(self, message_id, mailbox_id):
-    #     """Check if action is executed by any profile for the message in the context of the mailbox."""
-
-    async def check_message_mailbox(self, message_id, mailbox_id):
-        return await self.statemgr.exist(
-            "message",
-            where={"_id": message_id, "sender_mailbox_id": mailbox_id, "_deleted": None}
-        )
-
-    @action("link-message", resources="message")
-    async def link_message(self, right_message_id, left_message_id, mailbox_id, link_type):
-
-        if not self.check_message_mailbox(message_id=right_message_id, mailbox_id=mailbox_id):
-            raise ValueError(f"Message {right_message_id} is not in mailbox {mailbox_id}")
-        
-        if not self.check_message_mailbox(message_id=left_message_id, mailbox_id=mailbox_id):
-            raise ValueError(f"Message {left_message_id} is not in mailbox {mailbox_id}")
-        
-        message_link_exist = await self.statemgr.exist(
-            "message_link",
-            where={"right_message_id": right_message_id, 
-                   "left_message_id": left_message_id,
-                   "mailbox_id": mailbox_id,
-                   "_deleted": None}
-        )
-        if message_link_exist:
-            raise ValueError("Link message has existed")
-
-        message_link = self.init_resource(
-            "message_link",
-            _id=UUID_GENR(),
-            right_message_id=right_message_id,
-            left_message_id=left_message_id,
-            mailbox_id=mailbox_id,
-            link_type=link_type
-        )
-
-        await self.statemgr.insert(message_link)
-
-        return message_link
     
-    @action("unlink-message", resources="message")
-    async def unlink_message(self, right_message_id, left_message_id, mailbox_id, link_type):
-        message_link_exist = await self.statemgr.find_one(
-            "message_link",
-            where={"right_message_id": right_message_id, 
-                   "left_message_id": left_message_id,
-                   "mailbox_id": mailbox_id,
-                   "_deleted": None}
-        )
-        if not message_link_exist:
-            raise ValueError("Message link is not existed")
-
-        await self.statemgr.invalidate(message_link_exist)

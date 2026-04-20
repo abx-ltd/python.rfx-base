@@ -52,8 +52,8 @@ def extract_template_context(payload, *, default_locale: str = "en") -> Dict[str
     return {
         "tenant_id": payload.get("tenant_id"),
         "app_id": payload.get("app_id"),
-        "locale": payload.get("locale", default_locale),
-        "channel": payload.get("channel"),
+        "locale": payload.get("template_locale", default_locale),
+        "channel": payload.get("template_channel"),
     }
 
 
@@ -71,13 +71,13 @@ async def determine_processing_mode(
         return ProcessingModeEnum.IMMEDIATE
 
     # High priority messages
-    if payload.get("priority") == "high":
+    if payload.get("priority") == "HIGH":
         return ProcessingModeEnum.SYNC
 
     # Template-based messages with client rendering can be fast
-    strategy = payload.get("render_strategy")
-    if strategy == RenderStrategyEnum.CLIENT.value:
-        return ProcessingModeEnum.SYNC
+    # strategy = payload.get("render_strategy")
+    # if strategy == RenderStrategyEnum.CLIENT.value:
+    #     return ProcessingModeEnum.SYNC
 
     # Default to async for complex rendering
     return ProcessingModeEnum.ASYNC

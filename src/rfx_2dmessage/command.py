@@ -6,7 +6,8 @@ from fluvius.data.exceptions import ItemNotFoundError
 from fluvius.domain.activity import ActivityType
 from fluvius.error import BadRequestError
 from .domain import RFX2DMessageDomain
-from .types import DirectionTypeEnum
+from .types import DirectionTypeEnum, ProcessingModeEnum
+from typing import Any, Dict
 
 from . import datadef, config, logger, helper
 
@@ -32,14 +33,10 @@ class CreateMailbox(Command):
 
         mailbox_result = await agg.create_mailbox(data=payload, profile_id=profile_id)
 
-        # yield agg.create_response(
-        #     {
-        #         "Message": "Mailbox created successfully"
-        #     },
-        #     serialize_mapping(mailbox_result),
-        #     _type="message-response"
-        # )
-
+        yield agg.create_response(
+            serialize_mapping(mailbox_result),
+            _type="message-response"
+        )
 
 class RemoveMailbox(Command):
     class Meta:
@@ -74,77 +71,34 @@ class AddMemberToMailbox(Command):
         profile_id = agg.get_context().profile_id
         payload = serialize_mapping(payload)
 
-        result = await agg.add_member_to_mailbox(mailbox_id=mailbox_id, 
-                                                 profile_id=profile_id, 
-                                                 member_added_ids=payload.get("profile_added_ids", [])
-                                                 )
+        await agg.add_member_to_mailbox(mailbox_id=mailbox_id, 
+                                        profile_id=profile_id, 
+                                        member_ids=payload.get("profile_added_ids", []),
+                                        assign_all_message=payload.pop("assign_all_message", False)
+                                        )
 
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
+class RemoveMemberFromMailbox(Command):
+    Data = datadef.RemoveMemberFromMailboxPayload
 
-# class RemoveMemberFromMailbox(Command):
-#     class Meta:
-#         key = "remove-member-from-mailbox"
-#         resources = ("mailbox",)
-#         tags = ["mailbox", "member", "remove"]
-#         auth_required = True
+    class Meta:
+        key = "remove-member-from-mailbox"
+        resources = ("mailbox",)
+        tags = ["mailbox", "member", "remove"]
+        auth_required = True
     
-#     async def _process(self, agg, stm, payload):
-#         mailbox_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-#         payload = serialize_mapping(payload)
+    async def _process(self, agg, stm, payload):
+        mailbox_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
+        payload = serialize_mapping(payload)
 
-#         result = await agg.remove_member_from_mailbox(mailbox_id=mailbox_id, 
-#                                                  profile_id=profile_id, 
-#                                                  member_ids=payload.get("profile_ids", [])
-#                                                  )
+        await agg.remove_member_from_mailbox(mailbox_id=mailbox_id, 
+                                            profile_id=profile_id, 
+                                            member_ids=payload.get("profile_ids", [])
+                                            )
 
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
-
-
-# class CreateMailboxMessage(Command):
-#     Data = datadef.CreateMailboxMessagePayload
-
-#     class Meta:
-#         key = "create-mailbox-message"
-#         resources = ("mailbox",)
-#         tags = ["mailbox", "message", "create"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         mailbox_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-
-#         result = await agg.create_mailbox_message(data=payload, mailbox_id=mailbox_id, profile_id=profile_id)
-
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
-
-
-# class RemoveMailboxMessage(Command):
-#     class Meta:
-#         key = "remove-mailbox-message"
-#         resources = ("mailbox",)
-#         tags = ["mailbox", "message", "remove"]
-#         auth_required = True
-
-#     async def _process(self, agg, stm, payload):
-#         mailbox_message_id = agg.get_aggroot().identifier
-#         profile_id = agg.get_context().profile_id
-
-#         result = await agg.remove_mailbox_message(mailbox_message_id=mailbox_message_id, profile_id=profile_id)
-
-#         yield agg.create_response(
-#             serialize_mapping(result),
-#             _type="message-response",
-#         )
+# =======================================
+# MESSAGE METHOD
+# =======================================
 
 class SendMessageToMailbox(Command):
     """
@@ -174,11 +128,6 @@ class SendMessageToMailbox(Command):
         # 0. Check profile is owner or contributor of the mailbox
         await agg.check_owner_contributor_mailbox(profile_id=profile_id, mailbox_id=mailbox_id)
 
-        # if send_all:
-        #     members = await agg.get_all_members_in_mailbox(mailbox_id=mailbox_id)
-        #     for member in members:
-        #         recipients.append(member.member_id)
-
         # 1. Get recipients
         members = await stm.find_all("mailbox_member", where={"mailbox_id": mailbox_id})
         if send_all:
@@ -207,30 +156,31 @@ class SendMessageToMailbox(Command):
         await agg.add_message_recipient(message_id=message_id, mailbox_id=mailbox_id)
 
         # 5. Assign message_mailbox_state for each recipient
-        await agg.assign_message_recipient(message_id=message_id, mailbox_id=mailbox_id, recipients=recipients)
+        for recipient in recipients:
+            await agg.assign_message(message_id=message_id, mailbox_id=mailbox_id, assignee_profile_id=recipient)
 
         # 6. Determine processing mode and get client
         processing_mode, client = await helper.get_processing_mode_and_client(
             agg, message_payload
         )
 
-        # # 7. Process message content
-        # message = await helper.determine_and_process_message(
-        #     agg, message_id, message_payload, processing_mode
-        # )
+        # 7. Process message content
+        message = await helper.determine_and_process_message(
+            agg, message_id, message_payload, processing_mode
+        )
 
-        # user_ids = await stm.get_user_ids_from_profile_ids(recipients)
+        user_ids = await stm.get_user_ids_from_profile_ids(recipients)
 
-        # # 8. Notify recipients
-        # helper.notify_recipients(
-        #     client,
-        #     recipients,
-        #     user_ids,
-        #     "message",
-        #     message_id,
-        #     message,
-        #     processing_mode,
-        # )
+        # 8. Notify recipients
+        helper.notify_recipients(
+            client,
+            recipients,
+            user_ids,
+            "message",
+            message_id,
+            message,
+            processing_mode,
+        )
 
         # 9. Create response
         response_data = serialize_mapping(message_result)
@@ -240,208 +190,25 @@ class SendMessageToMailbox(Command):
             _type="message-response",
         )
 
-# =======================================
-# TAG METHOD
-# =======================================
+# class RemoveMessage(Command):
+#     """
+#     Send a notification message to recipients in a mailbox.
 
-class CreateTag(Command):
-    """Create a new tag for the current user"""
-    Data = datadef.CreateTagPayload
+#     Supports both template-based and direct content messages.
+#     """
 
-    class Meta:
-        key = "create-tag"
-        resource_init = True
-        resources = ("tag",)
-        tags = ["tag", "create"]
-        auth_required = True
-        policy_required = False
+#     Data = datadef.RemoveMessagePayload
 
-    async def _process(self, agg, stm, payload):
-        result = await agg.create_tag(data=payload)
+#     class Meta:
+#         key = "remove-message-from-mailbox"
+#         resources = ("message",)
+#         tags = ["message", "mailbox"]
+#         auth_required = True
+#         policy_required = False
 
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
-
-class UpdateTag(Command):
-    """Update a tag."""
-
-    Data = datadef.UpdateTagPayload
-
-    class Meta:
-        key = "update-tag"
-        resources = ("tag",)
-        tags = ["tag", "update"]
-        auth_required = True
-        policy_required = False
-
-    async def _process(self, agg, stm, payload):
-        result = await agg.update_tag(data=payload)
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
-
-
-class RemoveTag(Command):
-    """Remove a tag."""
-
-    class Meta:
-        key = "remove-tag"
-        resources = ("tag",)
-        tags = ["tag", "remove"]
-        auth_required = True
-        policy_required = False
-
-    async def _process(self, agg, stm, payload):
-        tag_id = agg.get_aggroot().identifier
-        
-        # await agg.remove_message_tag(tag_id=tag._id)
-        await agg.remove_message_tag_from_tag(tag_id=tag_id)
-        await agg.remove_tag(tag_id=tag_id)
-
-class AddMessageTag(Command):
-    """Add a message to a tag"""
-
-    Data = datadef.AddMessageTagPayload
-
-    class Meta:
-        key = "add-message-tag"
-        resources = ("message",)
-        tags = ["message", "tag"]
-        auth_required = True
-
-    Data = datadef.AddMessageTagPayload
-
-    async def _process(self, agg, stm, payload):
-        message_id = agg.get_aggroot().identifier
-        payload = serialize_mapping(payload)
-        tag_ids = payload.get("tag_ids", [])
-
-        await agg.add_message_tag(message_id=message_id, tag_ids=tag_ids)
-
-class RemoveMessageTag(Command):
-    """Remove a message from a tag."""
-
-    Data = datadef.RemoveMessageTagPayload
-
-    class Meta:
-        key = "remove-message-tag"
-        resources = ("message",)
-        tags = ["message", "tag"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        message_id = agg.get_aggroot().identifier
-        payload = serialize_mapping(payload)
-        tag_ids = payload.get("tag_ids", [])
-
-        await agg.remove_message_tag(message_id=message_id, tag_ids=tag_ids)
-
-class CreateCategory(Command):
-    Data = datadef.CreateCategoryPayload
-
-    class Meta:
-        key = "create-category"
-        resources = ("category",)
-        resource_init = True
-        tags = ["category", "create"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        profile_id = agg.get_context().profile_id
-
-        result = await agg.create_category(data=payload, profile_id=profile_id)
-
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
-
-class UpdateCategory(Command):
-    Data = datadef.UpdateCategoryPayload
-
-    class Meta:
-        key = "update-category"
-        resources = ("category",)
-        tags = ["category", "update"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        result = await agg.update_category(data=payload)
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
-
-class RemoveCategory(Command):
-
-    class Meta:
-        key = "remove-category"
-        resources = ("category",)
-        tags = ["category", "remove"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        category_id = agg.get_aggroot().identifier
-        profile_id = agg.get_context().profile_id
-
-        await agg.remove_category(category_id=category_id, profile_id=profile_id)
-
-class AddMessageCategory(Command):
-    Data = datadef.AddMessageCategoryPayload
-
-    class Meta:
-        key = "add-message-category"
-        resources = ("category",)
-        tags = ["message", "category"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        category_id = agg.get_aggroot().identifier
-
-        payload = serialize_mapping(payload)
-        message_ids = payload.get("message_ids", [])
-        mailbox_id = payload.get("mailbox_id")
-
-        result = await agg.add_message_to_category(mailbox_id=mailbox_id, 
-                                                   category_id=category_id, 
-                                                   message_ids=message_ids)
-
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
-
-class RemoveMessageCategory(Command):
-
-    Data = datadef.RemoveMessageCategoryPayload
-
-    class Meta:
-        key = "remove-message-category"
-        resources = ("category",)
-        tags = ["message", "category"]
-        auth_required = True
-
-    async def _process(self, agg, stm, payload):
-        category_id = agg.get_aggroot().identifier
-        profile_id = agg.get_context().profile_id
-
-        payload = serialize_mapping(payload)
-        message_ids = payload.get("message_ids", [])
-        mailbox_id = payload.get("mailbox_id")
-
-        result = await agg.remove_message_from_category(mailbox_id=mailbox_id, 
-                                                        category_id=category_id, 
-                                                        profile_id=profile_id, 
-                                                        message_ids=message_ids)
-
-        yield agg.create_response(
-            serialize_mapping(result),
-            _type="message-response",
-        )
-
+#     async def _process(self, agg, stm, payload):
+#         message_id = agg.get_aggroot().identifier
+#         profile_id = agg.get_context().profile_id
 
 class AssignMessage(Command):
     """Assign handling of a message for a mailbox."""
@@ -456,35 +223,37 @@ class AssignMessage(Command):
 
     async def _process(self, agg, stm, payload):
         message_id = agg.get_aggroot().identifier
+        mailbox_id=payload.mailbox_id
+        assignee_profile_id=payload.assignee_profile_id
 
         result = await agg.assign_message(
             message_id=message_id,
-            mailbox_id=payload.mailbox_id,
-            assignee_profile_id=payload.assignee_profile_id,
+            mailbox_id=mailbox_id,
+            assignee_profile_id=assignee_profile_id,
         )
 
-        # # Determine processing mode and get client
-        # processing_mode, client = await helper.get_processing_mode_and_client(
-        #     agg, message_payload
-        # )
+        message = await agg.get_message_mailbox(message_id=message_id, mailbox_id=mailbox_id)
 
-        # # Process message content
-        # message = await helper.determine_and_process_message(
-        #     agg, message_id, message_payload, processing_mode
-        # )
+        processing_mode = ProcessingModeEnum.SYNC
 
-        # user_ids = await stm.get_user_ids_from_profile_ids(recipients)
+        context = agg.get_context()
+        client = context.service_proxy.mqtt_client
 
-        # # Notify recipients
-        # helper.notify_recipients(
-        #     client,
-        #     recipients,
-        #     user_ids,
-        #     "message",
-        #     message_id,
-        #     message,
-        #     processing_mode,
-        # )
+        recipients = [assignee_profile_id]
+        user_ids = await stm.get_user_ids_from_profile_ids(recipients)
+        
+        message = await agg.map_message_to_dict(message)
+        
+        # Notify recipients
+        helper.notify_recipients(
+            client,
+            recipients,
+            user_ids,
+            "message",
+            message_id,
+            message,
+            processing_mode,
+        )
 
         yield agg.create_activity(
             logroot=agg.get_aggroot(),
@@ -619,7 +388,7 @@ class UploadAttachmentMetadata(Command):
     Data = datadef.UploadAttachmentMetadataPayload
 
     class Meta:
-        key = "upload-attachment-metadata"
+        key = "upload-attachment"
         resources = ("message",)
         tags = ["message", "attachment"]
         auth_required = True
@@ -631,6 +400,237 @@ class UploadAttachmentMetadata(Command):
             message_id=message_id,
             data=payload,
         )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class MarkReadMessage(Command):
+    Data = datadef.MarkReadMessagePayload
+
+    class Meta:
+        key = "mark-read-message"
+        resources = ("message",)
+        tags = ["message", "attachment"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        message_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
+        payload = serialize_mapping(payload)
+
+        result = await agg.mark_message_is_read(
+            mailbox_id=payload.pop("mailbox_id", None),
+            message_id=message_id,
+            profile_id=profile_id,
+            is_read=payload.pop("read", True)
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+# =======================================
+# TAG METHOD
+# =======================================
+
+class CreateTag(Command):
+    """Create a new tag for the current user"""
+    Data = datadef.CreateTagPayload
+
+    class Meta:
+        key = "create-tag"
+        resource_init = True
+        resources = ("tag",)
+        tags = ["tag", "create"]
+        auth_required = True
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.create_tag(data=payload)
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class UpdateTag(Command):
+    """Update a tag."""
+
+    Data = datadef.UpdateTagPayload
+
+    class Meta:
+        key = "update-tag"
+        resources = ("tag",)
+        tags = ["tag", "update"]
+        auth_required = True
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.update_tag(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class RemoveTag(Command):
+    """Remove a tag."""
+
+    class Meta:
+        key = "remove-tag"
+        resources = ("tag",)
+        tags = ["tag", "remove"]
+        auth_required = True
+        policy_required = False
+
+    async def _process(self, agg, stm, payload):
+        tag_id = agg.get_aggroot().identifier
+        
+        # await agg.remove_message_tag(tag_id=tag._id)
+        await agg.remove_message_tag_from_tag(tag_id=tag_id)
+        await agg.remove_tag(tag_id=tag_id)
+
+class AddMessageTag(Command):
+    """Add a message to a tag"""
+
+    Data = datadef.AddMessageTagPayload
+
+    class Meta:
+        key = "add-message-tag"
+        resources = ("message",)
+        tags = ["message", "tag"]
+        auth_required = True
+
+    Data = datadef.AddMessageTagPayload
+
+    async def _process(self, agg, stm, payload):
+        message_id = agg.get_aggroot().identifier
+        payload = serialize_mapping(payload)
+        tag_ids = payload.get("tag_ids", [])
+
+        await agg.add_message_tag(message_id=message_id, tag_ids=tag_ids)
+
+class RemoveMessageTag(Command):
+    """Remove a message from a tag."""
+
+    Data = datadef.RemoveMessageTagPayload
+
+    class Meta:
+        key = "remove-message-tag"
+        resources = ("message",)
+        tags = ["message", "tag"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        message_id = agg.get_aggroot().identifier
+        payload = serialize_mapping(payload)
+        tag_ids = payload.get("tag_ids", [])
+
+        await agg.remove_message_tag(message_id=message_id, tag_ids=tag_ids)
+
+# =======================================
+# CATEGORY METHOD
+# =======================================
+
+class CreateCategory(Command):
+    Data = datadef.CreateCategoryPayload
+
+    class Meta:
+        key = "create-category"
+        resources = ("category",)
+        resource_init = True
+        tags = ["category", "create"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+
+        result = await agg.create_category(data=payload, profile_id=profile_id)
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class UpdateCategory(Command):
+    Data = datadef.UpdateCategoryPayload
+
+    class Meta:
+        key = "update-category"
+        resources = ("category",)
+        tags = ["category", "update"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.update_category(data=payload)
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class RemoveCategory(Command):
+
+    class Meta:
+        key = "remove-category"
+        resources = ("category",)
+        tags = ["category", "remove"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        category_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
+
+        await agg.remove_category(category_id=category_id, profile_id=profile_id)
+
+class AddMessageCategory(Command):
+    Data = datadef.AddMessageCategoryPayload
+
+    class Meta:
+        key = "add-message-category"
+        resources = ("category",)
+        tags = ["message", "category"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        category_id = agg.get_aggroot().identifier
+
+        payload = serialize_mapping(payload)
+        message_ids = payload.get("message_ids", [])
+        mailbox_id = payload.get("mailbox_id")
+
+        result = await agg.add_message_to_category(mailbox_id=mailbox_id, 
+                                                   category_id=category_id, 
+                                                   message_ids=message_ids)
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class RemoveMessageCategory(Command):
+
+    Data = datadef.RemoveMessageCategoryPayload
+
+    class Meta:
+        key = "remove-message-category"
+        resources = ("category",)
+        tags = ["message", "category"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        category_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
+
+        payload = serialize_mapping(payload)
+        message_ids = payload.get("message_ids", [])
+        mailbox_id = payload.get("mailbox_id")
+
+        result = await agg.remove_message_from_category(mailbox_id=mailbox_id, 
+                                                        category_id=category_id, 
+                                                        profile_id=profile_id, 
+                                                        message_ids=message_ids)
 
         yield agg.create_response(
             serialize_mapping(result),

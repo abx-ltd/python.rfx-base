@@ -30,6 +30,9 @@ from .types import (
     ContentTypeEnum,
     MessageTypeEnum,
     PriorityLevelEnum,
+    DeliveryStatusEnum,
+    RenderStatusEnum,
+    RenderStrategyEnum    
 )
 
 if TYPE_CHECKING:
@@ -54,16 +57,27 @@ class Message(TableBase):
     subject: Mapped[Optional[str]] = mapped_column(String(1024))
     preview: Mapped[Optional[str]] = mapped_column(Text)
     content: Mapped[Optional[str]] = mapped_column(Text)
+
     rendered_content: Mapped[Optional[str]] = mapped_column(Text)
     content_type: Mapped[Optional[ContentTypeEnum]] = mapped_column(
         SQLEnum(
-            ContentTypeEnum,
+            ContentTypeEnum, 
             name="contenttypeenum",
             schema=SCHEMA,
             native_enum=True,
             values_callable=lambda enum: [e.value for e in enum],
         )
     )
+    render_strategy: Mapped[Optional[RenderStrategyEnum]] = mapped_column(
+        SQLEnum(RenderStrategyEnum, name="renderstrategyenum", schema=SCHEMA)
+    )
+    render_status: Mapped[Optional[RenderStatusEnum]] = mapped_column(
+        SQLEnum(RenderStatusEnum, name="renderstatusenum", schema=SCHEMA)
+    )
+    rendered_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+    render_error: Mapped[Optional[str]] = mapped_column(Text)
 
     is_important: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
     expirable: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
@@ -117,14 +131,9 @@ class Message(TableBase):
         back_populates="message", cascade="all, delete-orphan"
     )
 
-    # message_tags = relationship(
-    #     "MessageTag",
-    #     back_populates="message"
-    # )
+    delivery_status: Mapped[DeliveryStatusEnum] = mapped_column(
+        SQLEnum(DeliveryStatusEnum, name="deliverystatusenum", schema=SCHEMA),
+        default=DeliveryStatusEnum.PENDING,
+        nullable=True,
+    )
 
-    # tags: Mapped[List["Tag"]] = relationship(
-    #     "Tag",
-    #     secondary=f"{SCHEMA}.message_tag",
-    #     back_populates="messages",
-    #     viewonly=True
-    # )

@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 class MessageTag(TableBase):
     __tablename__ = "message_tag"
-    __table_args__ = (Index("idx_message_tag_tag_id", "tag_id"),
-                    {"schema": SCHEMA},)
+    __table_args__ = (Index("idx_message_tag_tag_id", "tag_id", "message_id", unique=True), 
+                      {"schema": SCHEMA}, )
 
     message_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.message._id", ondelete="CASCADE"), primary_key=True
@@ -53,7 +53,7 @@ class Tag(TableBase):
 
     __tablename__ = "tag"
     __table_args__ = (
-            Index("uq_tag_mailbox_key_deleted","mailbox_id","key","_deleted",unique=True),
+            Index("uq_tag_mailbox_key_deleted","mailbox_id","key","_deleted", unique=True),
             {"schema": SCHEMA}
     )
     key: Mapped[str] = mapped_column(String(255), nullable=True)
