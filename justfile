@@ -3,11 +3,17 @@ import "../../justlib/python.just"
 import "../../justlib/postgres.just"
 
 mod alembic "../../justlib/alembic.just"
-import '.command/jucmd/release.just'
+mod release_cmd ".command/jucmd/release.just"
 
 # List of just commands
 @default:
     just --list
+
+release RELEASE_TYPE="print" RELEASE_LABEL="none":
+    just release_cmd::release "{{RELEASE_TYPE}}" "{{RELEASE_LABEL}}"
+
+@release-force RELEASE_TYPE="print" RELEASE_LABEL="none":
+    just release_cmd::release-force "{{RELEASE_TYPE}}" "{{RELEASE_LABEL}}"
 
 run-local:
     uvicorn app_main:app --host 0.0.0.0 --reload --reload-dir="./src" --reload-dir="../../lib/fluvius"

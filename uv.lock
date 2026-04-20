@@ -528,7 +528,7 @@ wheels = [
 
 [[package]]
 name = "flctl"
-version = "0.1.0"
+version = "0.3.5"
 source = { editable = "../../lib/flctl" }
 dependencies = [
     { name = "click" },
@@ -542,12 +542,12 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1.8" },
-    { name = "fluvius", editable = "../../lib/fluvius" },
+    { name = "fluvius", git = "ssh://gh_abx/abx-ltd/fluvius-py.git?rev=releases%2Fgh%2Flatest" },
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "pandas", specifier = ">=2.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "sh", specifier = ">=2.0.0" },
-    { name = "trogon", marker = "extra == 'tui'" },
+    { name = "trogon", marker = "extra == 'tui'", specifier = ">=0.6.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -558,8 +558,8 @@ dev = [
 
 [[package]]
 name = "fluvius"
-version = "0.7.5"
-source = { editable = "../../lib/fluvius" }
+version = "0.8.2"
+source = { git = "ssh://gh_abx/abx-ltd/fluvius-py.git?rev=releases%2Fgh%2Flatest#5de03791ec8609f6a12b76779d1719b123efcbaf" }
 dependencies = [
     { name = "aiohttp" },
     { name = "aioredis" },
@@ -596,57 +596,6 @@ dependencies = [
     { name = "ulid-py" },
     { name = "urllib3" },
     { name = "whenever" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.13.4" },
-    { name = "aioredis", specifier = ">=2.0.0" },
-    { name = "arq", specifier = ">=0.26.3" },
-    { name = "asyncpg", specifier = ">=0.30.0" },
-    { name = "blinker", specifier = ">=1.9.0" },
-    { name = "casbin", specifier = ">=1.41.0" },
-    { name = "cbor2", specifier = ">=5.6.0" },
-    { name = "click", specifier = ">=8.1.8" },
-    { name = "croniter", specifier = ">=6.0.0" },
-    { name = "fastapi" },
-    { name = "fastapi-mcp", specifier = ">=0.3.3" },
-    { name = "fsspec", specifier = ">=2025.3.2" },
-    { name = "greenlet", specifier = ">=3.3.0" },
-    { name = "h11", specifier = ">=0.16.0" },
-    { name = "iso8601" },
-    { name = "jsonschema", specifier = ">=4.20.0" },
-    { name = "jsonurl-py", specifier = ">=0.4.0" },
-    { name = "mcp", specifier = ">=1.23.0" },
-    { name = "msgspec", specifier = ">=0.18.0" },
-    { name = "nats-py", specifier = ">=2.0.0" },
-    { name = "pipe", specifier = ">=2.2" },
-    { name = "pydantic", extras = ["email"], specifier = ">=2.11.4" },
-    { name = "pypika" },
-    { name = "pyrsistent", specifier = ">=0.20.0" },
-    { name = "python-dateutil", specifier = ">=2.9.0.post0" },
-    { name = "python-multipart", specifier = ">=0.0.22" },
-    { name = "requests", specifier = ">=2.32.4" },
-    { name = "ruff", specifier = ">=0.9.1" },
-    { name = "sh", specifier = ">=2.0.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.37" },
-    { name = "sqlmodel" },
-    { name = "starlette", specifier = ">=0.49.1" },
-    { name = "ulid-py", specifier = ">=1.1.0" },
-    { name = "urllib3", specifier = ">=2.6.3" },
-    { name = "whenever", specifier = ">=0.7.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pandas" },
-    { name = "pyinstrument", specifier = ">=5.0.1" },
-    { name = "pytest", specifier = ">=8.3.5" },
-    { name = "pytest-asyncio", specifier = ">=0.26.0" },
-    { name = "pytest-html", specifier = ">=4.1.1" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "sanic-testing", specifier = ">=24.6.0" },
-    { name = "yappi", specifier = ">=1.6.10" },
 ]
 
 [[package]]
