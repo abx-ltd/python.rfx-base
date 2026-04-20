@@ -153,6 +153,86 @@ org_member_view = PGView(
     """
 )
 
+org_user_view = PGView(
+    schema=SCHEMA,
+    signature="_org_user",
+    definition=f"""
+    SELECT
+        usr._created,
+        usr._creator,
+        usr._deleted,
+        usr._etag,
+        usr._id,
+        usr._updated,
+        usr._updater,
+        usr._realm,
+        usr._id AS user_id,
+        profile._id AS profile_id,
+        profile.organization_id,
+        organization.name AS organization_name,
+        usr.username,
+        usr.name__given,
+        usr.name__middle,
+        usr.name__family,
+        usr.telecom__email,
+        usr.telecom__phone,
+        usr.status AS user_status,
+        profile.status AS profile_status,
+        COALESCE(profile_role.role_keys, ARRAY[]::varchar[]) AS profile_roles,
+        COALESCE(policy_counts.policy_count, 0) AS policy_count
+    FROM "{SCHEMA}"."user" AS usr
+    JOIN "{SCHEMA}".profile AS profile
+        ON usr._id = profile.user_id
+    JOIN "{SCHEMA}".organization AS organization
+        ON profile.organization_id = organization._id
+    LEFT JOIN (
+        SELECT profile_id, array_agg(role_key) AS role_keys
+        FROM "{SCHEMA}".profile_role
+        WHERE _deleted IS NULL
+        GROUP BY profile_id
+    ) AS profile_role
+        ON profile._id = profile_role.profile_id
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS policy_count
+        FROM "{POLICY_SCHEMA}"._policy__user_profile AS policy
+        WHERE policy.org = organization._id::character varying(255)
+            AND policy._deleted IS NULL
+    ) AS policy_counts ON true;
+    """
+)
+
+user_org_view = PGView(
+    schema=SCHEMA,
+    signature="_user_org",
+    definition=f"""
+    SELECT
+        MIN(profile._created) AS _created,
+        profile.user_id,
+        profile.organization_id,
+        organization.name AS organization_name,
+        organization.business_name,
+        organization.organization_code,
+        organization.status AS organization_status,
+        organization.active AS organization_active,
+        array_agg(DISTINCT profile.realm) AS profile_realms,
+        COALESCE(array_agg(DISTINCT pro_rol.role_key) FILTER (WHERE pro_rol.role_key IS NOT NULL), ARRAY[]::varchar[]) AS profile_roles
+    FROM "{SCHEMA}".profile AS profile
+    JOIN "{SCHEMA}".organization AS organization
+        ON profile.organization_id = organization._id
+    LEFT JOIN "{SCHEMA}".profile_role AS pro_rol
+        ON profile._id = pro_rol.profile_id AND pro_rol._deleted IS NULL
+    WHERE profile._deleted IS NULL
+    GROUP BY
+        profile.user_id,
+        profile.organization_id,
+        organization.name,
+        organization.business_name,
+        organization.organization_code,
+        organization.status,
+        organization.active;
+    """
+)
+
 policy_user_profile_view = PGView(
     schema=POLICY_SCHEMA,
     signature="_policy__user_profile",
@@ -357,6 +437,8 @@ def register_pg_entities(allow):
         policy_idm_profile_view,
         user_profile_domain_view,
         org_member_view,
+        org_user_view,
+        user_org_view,
     ])
 
 register_pg_entities(os.environ.get('REGISTER_PG_ENTITIES'))

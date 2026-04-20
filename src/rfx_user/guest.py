@@ -52,7 +52,7 @@ class IDMGuestAuth:
         """
         Send verification code via email using rfx_notify domain
         """
-        recipient_name = full_name or "Guest"
+        recipient_name = full_name or email
 
         notify_client = getattr(self.app.state, config.NOTIFY_CLIENT, None)
         if not notify_client:
@@ -114,10 +114,10 @@ class IDMGuestAuth:
             # User info claims
             "email": email,
             "email_verified": True,
-            "name": fullname,
+            "name": fullname or email,
             "preferred_username": "guest",
-            "given_name": fullname.split()[0] if fullname else "Guest",
-            "family_name": fullname.split()[-1] if fullname and len(fullname.split()) > 1 else "User",
+            "given_name": (fullname or email).split()[0] if (fullname or email) else "Guest",
+            "family_name": (fullname or email).split()[-1] if (fullname or email) and len((fullname or email).split()) > 1 else "User",
 
             # Guest-specific claims
             "typ": "ID",
@@ -313,7 +313,7 @@ class IDMGuestAuth:
                             _id=UUID_GENR(),
                             email=email,
                             phone=verification.phone,
-                            full_name=verification.full_name or "Guest",
+                            full_name=verification.full_name or email,
                             session_id=session_id,
                             email_verified=True,
                             last_active_at=current_time
@@ -324,7 +324,7 @@ class IDMGuestAuth:
                     guest_payload = self.generate_guest_payload(
                         guest_user_id=str(guest_user._id),
                         email=email,
-                        fullname=guest_user.full_name or "Guest",
+                        fullname=guest_user.full_name or email,
                         session_id=session_id,
                         phone=guest_user.phone
                     )

@@ -372,6 +372,61 @@ class ProfileListQuery(DomainQueryResource):
     policy_count: int = StringField("Policy Count")
 
 
+@resource("organization-user")
+class OrgUserQuery(DomainQueryResource):
+    """List users within an organization context using the _org_user view"""
+
+    class Meta(DomainQueryResource.Meta):
+        allow_item_view = False
+        allow_list_view = True
+
+        backend_model = "_org_user"
+        resource = "user"
+        policy_required = True
+        scope_required = scope.OrgProfileListScopeSchema
+
+    name__family: str = StringField("Family Name")
+    name__middle: Optional[str] = StringField("Middle Name")
+    name__given: str = StringField("Given Name")
+    username: str = StringField("Username")
+    telecom__email: str = StringField("Email")
+    telecom__phone: str = StringField("Phone")
+
+    user_id: UUID_TYPE = UUIDField("User ID")
+    profile_id: UUID_TYPE = UUIDField("Profile ID")
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    organization_name: str = StringField("Organization Name")
+    user_status: str = StringField("User Status")
+    profile_status: str = StringField("Profile Status")
+    profile_roles: str = StringField("Roles", array=True)
+    policy_count: int = StringField("Policy Count")
+
+
+@resource("user-organization")
+class UserOrgQuery(DomainQueryResource):
+    """List organizations a user belongs to using the _user_org view"""
+
+    class Meta(DomainQueryResource.Meta):
+        allow_item_view = False
+        allow_list_view = True
+
+        backend_model = "_user_org"
+        resource = "organization"
+        policy_required = True
+        scope_required = scope.ProfileListScopeSchema
+
+    organization_id: UUID_TYPE = UUIDField("Organization ID")
+    organization_name: str = StringField("Organization Name")
+    business_name: Optional[str] = StringField("Business Name")
+    organization_code: Optional[str] = StringField("Organization Code")
+    organization_status: str = StringField("Organization Status")
+    organization_active: bool = BooleanField("Organization Active")
+
+    user_id: UUID_TYPE = UUIDField("User ID")
+    profile_realms: str = StringField("Realms", array=True)
+    profile_roles: str = StringField("Roles", array=True)
+
+
 @resource("profile-detail")
 class ProfileDetailQuery(DomainQueryResource):
     """List current profile's user"""

@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import Base, PolicyBase, SCHEMA, POLICY_SCHEMA
-from .types import ProfileStatusEnum
+from .types import ProfileStatusEnum, UserStatusEnum
 
 
 class UserProfileView(Base):
@@ -177,6 +177,38 @@ class OrgMemberView(Base):
         )
 
 
+class OrgUserView(Base):
+    """
+    ORM mapping for the materialized `_org_user` view that powers
+    read-heavy organizational user queries. The view joins `user`,
+    `profile`, and `organization` tables.
+    """
+
+    __tablename__ = "_org_user"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_name: Mapped[Optional[str]] = mapped_column(String(255))
+    username: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__given: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__middle: Mapped[Optional[str]] = mapped_column(String(1024))
+    name__family: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__email: Mapped[Optional[str]] = mapped_column(String(1024))
+    telecom__phone: Mapped[Optional[str]] = mapped_column(String(1024))
+    user_status: Mapped[str] = mapped_column(String)
+    profile_status: Mapped[str] = mapped_column(String)
+    profile_roles: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
+    policy_count: Mapped[int] = mapped_column(nullable=False)
+
+    def __repr__(self) -> str:
+        return (
+            f"<OrgUserView(user_id={self.user_id}, profile_id={self.profile_id}, "
+            f"organization_id={self.organization_id})>"
+        )
+
+
 class PolicyUserProfileView(PolicyBase, PolicySchema):
     """
     ORM mapping for the `_policy__user_profile` view used to materialize Casbin
@@ -209,3 +241,29 @@ class UserProfileDomainView(Base):
     realm: Mapped[Optional[str]] = mapped_column(String(1024))
     is_super_admin: Mapped[bool] = mapped_column(Boolean, nullable=False)
     domains: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
+
+
+class UserOrgView(Base):
+    """
+    ORM mapping for the materialized `_user_org` view that powers
+    user-organization mapping queries.
+    """
+
+    __tablename__ = "_user_org"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    organization_name: Mapped[Optional[str]] = mapped_column(String(255))
+    business_name: Mapped[Optional[str]] = mapped_column(String(255))
+    organization_code: Mapped[Optional[str]] = mapped_column(String(255))
+    organization_status: Mapped[str] = mapped_column(String)
+    organization_active: Mapped[Optional[bool]] = mapped_column(Boolean)
+    profile_realms: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
+    profile_roles: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
+
+    def __repr__(self) -> str:
+        return (
+            f"<UserOrgView(user_id={self.user_id}, "
+            f"organization_id={self.organization_id})>"
+        )
