@@ -28,7 +28,15 @@ class WorkPackage(TableBase):
     """Work package templates stored in ``rfx_client.work_package``."""
 
     __tablename__ = "work_package"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = (
+        Index(
+            "uq_work_package_name_active",
+            "work_package_name",
+            unique=True,
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        {"schema": SCHEMA},
+    )
 
     work_package_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -70,6 +78,12 @@ class WorkItem(TableBase):
         Index(
             "idx_wi_type",
             "type",
+            postgresql_where=text("(_deleted IS NULL)"),
+        ),
+        Index(
+            "uq_work_item_name_active",
+            "name",
+            unique=True,
             postgresql_where=text("(_deleted IS NULL)"),
         ),
         {"schema": SCHEMA},
