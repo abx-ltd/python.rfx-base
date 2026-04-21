@@ -1,2 +1,2 @@
-## Changes since 0.5.0
+## Changes since 0.5.1
 

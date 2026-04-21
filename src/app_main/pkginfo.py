@@ -1,6 +1,6 @@
 __name__ = 'rfx-base'
 __title__ = 'RFX Base Platform'
-__version__ = '0.5.0'
+__version__ = '0.5.1'
 __author__ = 'RFX JSC'
 __author_email__ = ''
 __description__ = 'Backend platform for RFX JSC projects built on Fluvius with DDD and CQRS—foundational domain modules for identity, messaging, client workflows, and enterprise integrations.'
