@@ -180,7 +180,7 @@ class UpdateMailboxPayload(DataModel):
 
 class AddMemberToMailboxPayload(DataModel):
     """Payload for adding a member to a mailbox"""
-    profile_ids: List[UUID_TYPE] = Field(None, description="Profile IDs of the members to add")
+    profile_ids: List[UUID_TYPE] = Field(default_factory=list, description="Profile IDs of the members to add")
     assign_all_message: Optional[bool] = Field(default=False, description="Assign all message in mailbox for new members")
 
 class RemoveMemberFromMailboxPayload(DataModel):

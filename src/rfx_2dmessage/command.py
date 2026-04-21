@@ -73,7 +73,7 @@ class AddMemberToMailbox(Command):
 
         await agg.add_member_to_mailbox(mailbox_id=mailbox_id, 
                                         profile_id=profile_id, 
-                                        member_ids=payload.get("profile_added_ids", []),
+                                        member_ids=payload.pop("profile_ids", []),
                                         assign_all_message=payload.pop("assign_all_message", False)
                                         )
 

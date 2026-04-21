@@ -61,6 +61,8 @@ class MailboxListQuery(DomainQueryResource):
     mailbox_type: Optional[str] = StringField("mailbox_type")  
 
     member_id: UUID_TYPE = UUIDField("member_id")
+    members_info: Optional[List[Dict[str, Any]]] = JSONField("members_info")
+
     # members: Dict = JSONField("members")
     # tags: Optional[List[Dict[str, Any]]] = JSONField("tags")
     # categories: Optional[List[Dict[str, Any]]] = JSONField("categories")
@@ -96,6 +98,43 @@ class MailboxFolderCount(DomainQueryResource):
     archived_count: int = IntegerField("Archive message count")
     total_count: int = IntegerField("Total message count")
     
+@resource("mailbox-participants")
+class MailboxParticipantsQuery(DomainQueryResource):
+    @classmethod
+    def base_query(cls, context, scope):
+        profile_id = context.profile._id
+        return {
+            "mailbox_id": scope["mailbox_id"],
+            # "member_id": profile_id,
+        }
+    
+    class Meta(DomainQueryResource.Meta):
+        include_all = False
+        allow_meta_view = True
+        allow_item_view = True
+        allow_list_view = True
+        auth_required = True
+
+        scope_required = scope.MailboxScope
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater', 'member_id')
+
+        backend_model = "_mailbox_member"
+    
+    member_id: UUID_TYPE = UUIDField("Mailbox member id")
+
+    # Mailbox identity fields
+    mailbox_id: Optional[UUID_TYPE] = UUIDField("Mailbox ID")
+
+    mailbox_profile_id: Optional[UUID_TYPE] = UUIDField("Owner mailbox")
+
+    name__given: str = StringField("Name given")
+    name__family: str = StringField("Name family")
+    telecom__email: str = StringField("Telecom email")
+    telecom__phone: str = StringField("Telecom phone")
+
+    role: str = StringField("Role")
+
+    joined_at: str = StringField("Joined at")
 
 @resource("mailbox-message")
 class MailboxMessageQuery(DomainQueryResource):
@@ -244,24 +283,25 @@ class MessageCategoryQuery(DomainQueryResource):
     def base_query(cls, context, scope):
         profile_id = context.profile._id
         return {
-            "mailbox_id": scope["mailbox_id"],
+            "category_id": scope["category_id"],
             "assigned_to_profile_id": profile_id,
         }
 
     class Meta(DomainQueryResource.Meta):
-        include_all = True
+        include_all = False
         allow_meta_view = True
         allow_item_view = True
         allow_list_view = True
         auth_required = True
 
-        scope_required = scope.MailboxScope
-        backend_model = "_message_category"
+        scope_required = scope.CategoryScope
+        backend_model = "_message_detail"
 
-        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+        # excluded_fields = ('_creator', '_deleted', '_etag', '_updater', 'assigned_to_profile_id')
 
+    category_id: str = UUIDField("category_id")
     mailbox_id: str = UUIDField("mailbox_id")
-    mailbox_name: str = StringField("mailbox_name")
+    # mailbox_name: str = StringField("mailbox_name")
 
     assigned_to_profile_id: Optional[str] = UUIDField("assigned_to_profile_id") 
     sender_name: Optional[str] = StringField("Sender name")
@@ -269,18 +309,20 @@ class MessageCategoryQuery(DomainQueryResource):
     message_id: str = UUIDField("message_id")
     folder: str = StringField("folder")
     is_starred: Optional[bool] = BooleanField("is_starred")
-    priority: str = StringField("priority")
+    sender_id: str = UUIDField("sender_id")
+    # priority: str = StringField("priority")
     status: Optional[str] = StringField("status")
+    # is_important: bool = BooleanField("is_important")
     message_type: str = StringField("message_type")
-    is_important: bool = BooleanField("is_important")
     subject: Optional[str] = StringField("subject")
     content: Optional[str] = StringField("content")
-    message_created_at: datetime = DatetimeField("message_created_at")
-    category_id: str = StringField("category_id")
+    content_type: Optional[str] = StringField("Content Type")
+    # # _created: datetime = DatetimeField("message_created_at")
+    # # category_id: str = StringField("category_id")
     category_name: str = StringField("category_name")
     category_key: str = StringField("category_key")
     tags: Optional[List[Dict[str, Any]]] = JSONField("tags")
-    category_id: Optional[str] = UUIDField("category_id")
+    # # category_id: Optional[str] = UUIDField("category_id")
     attachments: Optional[List[Dict[str, Any]]] = JSONField("attachments")
 
 @resource("message-detail")

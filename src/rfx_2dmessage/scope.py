@@ -8,3 +8,6 @@ from fluvius.data import UUID_TYPE
 class MailboxScope(BaseModel):
     mailbox_id: UUID_TYPE = UUIDField("Mailbox ID")
 
+class CategoryScope(BaseModel):
+    category_id: UUID_TYPE = UUIDField("Category ID")
+

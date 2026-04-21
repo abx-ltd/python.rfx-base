@@ -10,6 +10,7 @@ message_detail_view = PGView(
         mm._id AS mailbox_message_id,
 
         mm.mailbox_id,
+        mb.name AS mailbox_name,
 
         mm.message_id,
         mm.assigned_to_profile_id,
@@ -57,6 +58,7 @@ message_detail_view = PGView(
         m.message_type,
         m.expirable,
         m.expiration_date,
+        m.is_important,
 
         -- =========================
         -- CATEGORY (FIXED)
@@ -152,6 +154,9 @@ message_detail_view = PGView(
             ),
             '[]'::jsonb
         ) AS actions,
+
+        mm.read_at,
+        mm._created AS is_assigned_at,
 
         mm._created,
         mm._updated,

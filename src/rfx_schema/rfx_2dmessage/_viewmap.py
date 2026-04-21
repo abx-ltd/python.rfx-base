@@ -58,9 +58,39 @@ class MailboxView(Base):
 
     member_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     members: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
+    members_info: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
     # categories: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
     # tags: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)
 
+class MailboxMemberView(Base):
+    """
+    ORM mapping for `_mailbox_member` VIEW.
+
+    This view represents:
+    - 1 row per (mailbox_id, member_id)
+    - includes mailbox info + member profile + role
+    """
+
+    __tablename__ = "_mailbox_member"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    mailbox_member_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+
+    mailbox_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    member_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+
+    mailbox_name: Mapped[str] = mapped_column(String)
+    mailbox_type: Mapped[Optional[str]] = mapped_column(String)
+    mailbox_profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+
+    name__given: Mapped[Optional[str]] = mapped_column(String)
+    name__family: Mapped[Optional[str]] = mapped_column(String)
+    telecom__email: Mapped[Optional[str]] = mapped_column(String)
+    telecom__phone: Mapped[Optional[str]] = mapped_column(String)
+
+    role: Mapped[Optional[str]] = mapped_column(String)
+
+    joined_at: Mapped[Optional[str]] = mapped_column() 
 
 class MessageView(Base):
     """
