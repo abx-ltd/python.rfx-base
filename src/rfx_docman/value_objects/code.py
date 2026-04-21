@@ -15,10 +15,13 @@ class CodeBase:
     EXAMPLE: ClassVar[str] = ""
 
     def __post_init__(self):
+        if not isinstance(self.value, str):
+            raise ValueError(f"{self.NAME} must be a string")
+
         normalized = self.value.strip().upper()
         object.__setattr__(self, "value", normalized)
 
-        if not self.PATTERN.match(normalized):
+        if not self.PATTERN.fullmatch(normalized):
             raise ValueError(
                 f"{self.NAME} must match {self.PATTERN.pattern} "
                 f"(example: {self.EXAMPLE})"
@@ -35,7 +38,7 @@ class CodeBase:
     def _pydantic_validate(cls, value: str) -> "CodeBase":
         try:
             return cls(value)
-        except ValueError as exc:
+        except (ValueError, TypeError) as exc:
             raise PydanticCustomError(
                 "invalid_code", "{message}", {"message": str(exc)}
             ) from exc

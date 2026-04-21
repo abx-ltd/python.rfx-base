@@ -137,6 +137,8 @@ class CreateEntryPayload(DataModel):
     @model_validator(mode="after")
     def validate_logic_by_type(self):
         if self.type == EntryTypeEnum.FOLDER:
+            if "." in str(self.name):
+                raise ValueError("FOLDER name cannot contain '.'")
             if self.media_entry_id is not None:
                 raise ValueError("FOLDER cannot have media_entry_id.")
         else:

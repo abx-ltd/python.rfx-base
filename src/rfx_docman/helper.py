@@ -2,10 +2,86 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
+
+from asyncpg import UniqueViolationError
+from fluvius.error import BadRequestError
 
 from ._meta import config
 from .types import EntryTypeEnum
+
+
+async def ensure_parent_hierarchy(
+    statemgr: Any,
+    *,
+    cabinet_id: Any,
+    parent_path: str,
+    init_resource: Callable[..., Any],
+    id_generator: Callable[[], Any],
+) -> Any | None:
+    """Ensure full folder hierarchy exists for parent_path and return last parent."""
+    if not parent_path:
+        return None
+
+    parent = None
+    current_parent_path = ""
+
+    for segment in parent_path.split("/"):
+        current_path = (
+            segment if not current_parent_path else f"{current_parent_path}/{segment}"
+        )
+        existing = await statemgr.exist(
+            "entry",
+            where={"cabinet_id": cabinet_id, "path": current_path},
+        )
+        if existing:
+            if existing.type != EntryTypeEnum.FOLDER:
+                raise BadRequestError(
+                    "D10.001",
+                    f"Parent path '{current_path}' exists but is not a folder",
+                )
+            parent = existing
+            current_parent_path = current_path
+            continue
+
+        folder = init_resource(
+            "entry",
+            {
+                "cabinet_id": cabinet_id,
+                "parent_path": current_parent_path,
+                "name": segment,
+                "type": EntryTypeEnum.FOLDER,
+                "media_entry_id": None,
+                "is_virtual": True,
+            },
+            _id=id_generator(),
+        )
+        try:
+            await statemgr.insert(folder)
+            await insert_entry_ancestor_rows(
+                statemgr,
+                entry_id=folder._id,
+                parent_id=parent._id if parent else None,
+            )
+            parent = folder
+        except UniqueViolationError:
+            # Concurrent create of same folder path: re-fetch and continue.
+            existing = await statemgr.exist(
+                "entry",
+                where={"cabinet_id": cabinet_id, "path": current_path},
+            )
+            if not existing:
+                raise
+            if existing.type != EntryTypeEnum.FOLDER:
+                raise BadRequestError(
+                    "D10.001",
+                    f"Parent path '{current_path}' exists but is not a folder",
+                )
+            parent = existing
+
+        current_parent_path = current_path
+
+    return parent
 
 
 def split_path(path: str) -> tuple[str, str]:

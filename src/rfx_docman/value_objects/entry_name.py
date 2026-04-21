@@ -79,7 +79,7 @@ class FolderName:
             raise ValueError("Folder name cannot be empty")
         if len(name) > _NAME_MAX_LEN:
             raise ValueError(f"Folder name cannot exceed {_NAME_MAX_LEN} characters")
-        if not self._ALLOWED.match(name):
+        if not self._ALLOWED.fullmatch(name):
             raise ValueError(
                 "Folder name may only contain letters, digits, hyphens, underscores and spaces"
             )

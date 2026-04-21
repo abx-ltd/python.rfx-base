@@ -6,6 +6,7 @@ from fastapi import Request
 from fastapi.responses import FileResponse
 from fluvius.fastapi.auth import auth_required
 from fluvius.media import MediaInterface
+from fluvius.data.exceptions import ItemNotFoundError
 from pipe import Pipe
 from starlette.background import BackgroundTask
 
@@ -28,10 +29,10 @@ async def _build_folder_archive(
     async with statemgr.transaction():
         root = await statemgr.fetch("entry", entry_id)
         if not root:
-            raise ValueError(f"Entry with id {entry_id} not found")
+            raise ItemNotFoundError(f"Entry with id {entry_id} not found")
 
         if root.type != EntryTypeEnum.FOLDER:
-            raise ValueError("entry_id must be a folder")
+            raise ItemNotFoundError("entry_id must be a folder")
 
         root_path = str(root.path or "")
         root_name = str(root.name or "folder")

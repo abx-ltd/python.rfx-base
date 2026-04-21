@@ -6,6 +6,8 @@ from fluvius.data import serialize_mapping, UUID_GENR
 from . import helper
 from .types import EntryTypeEnum
 from .value_objects import CabinetCode, CategoryCode, ShelfCode
+from fluvius.data.exceptions import DuplicateEntryError, ItemNotFoundError
+from fluvius.error import BadRequestError
 
 
 class RFXDocmanAggregate(Aggregate):
@@ -14,71 +16,6 @@ class RFXDocmanAggregate(Aggregate):
     def _serialize(self, data):
         """Convert payload objects to plain mappings used by state manager."""
         return serialize_mapping(data)
-
-    async def _ensure_parent_hierarchy(self, *, cabinet_id, parent_path: str):
-        """Ensure full folder hierarchy exists for parent_path and return last parent."""
-        if not parent_path:
-            return None
-
-        parent = None
-        current_parent_path = ""
-
-        for segment in parent_path.split("/"):
-            current_path = (
-                segment
-                if not current_parent_path
-                else f"{current_parent_path}/{segment}"
-            )
-            existing = await self.statemgr.exist(
-                "entry",
-                where={"cabinet_id": cabinet_id, "path": current_path},
-            )
-            if existing:
-                if existing.type != EntryTypeEnum.FOLDER:
-                    raise ValueError(
-                        f"Parent path '{current_path}' exists but is not a folder"
-                    )
-                parent = existing
-                current_parent_path = current_path
-                continue
-
-            folder = self.init_resource(
-                "entry",
-                {
-                    "cabinet_id": cabinet_id,
-                    "parent_path": current_parent_path,
-                    "name": segment,
-                    "type": EntryTypeEnum.FOLDER,
-                    "media_entry_id": None,
-                    "is_virtual": True,
-                },
-                _id=UUID_GENR(),
-            )
-            try:
-                await self.statemgr.insert(folder)
-                await helper.insert_entry_ancestor_rows(
-                    self.statemgr,
-                    entry_id=folder._id,
-                    parent_id=parent._id if parent else None,
-                )
-                parent = folder
-            except UniqueViolationError:
-                # Concurrent create of same folder path: re-fetch and continue.
-                existing = await self.statemgr.exist(
-                    "entry",
-                    where={"cabinet_id": cabinet_id, "path": current_path},
-                )
-                if not existing:
-                    raise
-                if existing.type != EntryTypeEnum.FOLDER:
-                    raise ValueError(
-                        f"Parent path '{current_path}' exists but is not a folder"
-                    )
-                parent = existing
-
-            current_parent_path = current_path
-
-        return parent
 
     @action("realm-created", resources="realm")
     async def create_realm(self, /, data):
@@ -179,8 +116,9 @@ class RFXDocmanAggregate(Aggregate):
         shelf_code = ShelfCode(str(shelf.code))
 
         if not category_code.belongs_to(shelf_code):
-            raise ValueError(
-                f"Category code {category_code} must belong to shelf {shelf_code}"
+            raise BadRequestError(
+                "D10.002",
+                f"Category code {category_code} must belong to shelf {shelf_code}",
             )
 
         record = self.init_resource(
@@ -219,8 +157,9 @@ class RFXDocmanAggregate(Aggregate):
         category_code = CategoryCode(str(category.code))
 
         if not cabinet_code.belongs_to(category_code):
-            raise ValueError(
-                f"Cabinet code {cabinet_code} must belong to category {category_code}"
+            raise BadRequestError(
+                "D10.003",
+                f"Cabinet code {cabinet_code} must belong to category {category_code}",
             )
 
         record = self.init_resource(
@@ -264,9 +203,12 @@ class RFXDocmanAggregate(Aggregate):
         try:
             async with self.statemgr.transaction():
                 # Stage 1: ensure destination parent chain exists.
-                parent = await self._ensure_parent_hierarchy(
+                parent = await helper.ensure_parent_hierarchy(
+                    self.statemgr,
                     cabinet_id=cabinet._id,
                     parent_path=parent_path,
+                    init_resource=self.init_resource,
+                    id_generator=UUID_GENR,
                 )
 
                 # Stage 2: resolve path conflicts. A virtual folder can be promoted
@@ -283,7 +225,10 @@ class RFXDocmanAggregate(Aggregate):
                     ):
                         await self.statemgr.update(existing, is_virtual=False)
                         return await self.statemgr.fetch("entry", existing._id)
-                    raise ValueError(f"An entry already exists at path '{target_path}'")
+                    raise DuplicateEntryError(
+                        "E00.001",
+                        f"An entry already exists at path '{target_path}'",
+                    )
 
                 # Stage 3: insert entry and closure rows.
                 record = self.init_resource(
@@ -314,7 +259,10 @@ class RFXDocmanAggregate(Aggregate):
             ):
                 await self.statemgr.update(existing, is_virtual=False)
                 return await self.statemgr.fetch("entry", existing._id)
-            raise ValueError(f"An entry already exists at path '{target_path}'")
+            raise DuplicateEntryError(
+                "E00.001",
+                f"An entry already exists at path '{target_path}'",
+            )
 
     @action("entry-updated", resources="entry")
     async def update_entry(self, /, data):
@@ -345,9 +293,12 @@ class RFXDocmanAggregate(Aggregate):
                     parent = None
                     if parent_changed:
                         # Stage 3: ensure destination parent chain exists.
-                        parent = await self._ensure_parent_hierarchy(
+                        parent = await helper.ensure_parent_hierarchy(
+                            self.statemgr,
                             cabinet_id=dest_cabinet_id,
                             parent_path=new_parent_path,
+                            init_resource=self.init_resource,
+                            id_generator=UUID_GENR,
                         )
 
                     # Stage 4: move descendant rows (folders only) and update root row.
@@ -368,7 +319,10 @@ class RFXDocmanAggregate(Aggregate):
                             new_parent_id=parent._id if parent else None,
                         )
             except UniqueViolationError:
-                raise ValueError(f"An entry already exists at path '{new_path}'")
+                raise DuplicateEntryError(
+                    "E00.001",
+                    f"An entry already exists at path '{new_path}'",
+                )
         else:
             # No move semantics; plain field update.
             await self.statemgr.update(entry, **updates)
@@ -422,9 +376,12 @@ class RFXDocmanAggregate(Aggregate):
         # and closure inserts are always committed or rolled back together.
         async with self.statemgr.transaction():
             # Stage 2: ensure destination parent hierarchy exists.
-            dest_parent = await self._ensure_parent_hierarchy(
+            dest_parent = await helper.ensure_parent_hierarchy(
+                self.statemgr,
                 cabinet_id=dest_cabinet_id,
                 parent_path=dest_parent_path,
+                init_resource=self.init_resource,
+                id_generator=UUID_GENR,
             )
 
             # Stage 3: destination path must be unique.
@@ -433,8 +390,9 @@ class RFXDocmanAggregate(Aggregate):
                 where={"cabinet_id": dest_cabinet_id, "path": dest_path},
             )
             if existing:
-                raise ValueError(
-                    f"An entry already exists at destination path '{dest_path}'"
+                raise DuplicateEntryError(
+                    "E00.001",
+                    f"An entry already exists at destination path '{dest_path}'",
                 )
 
             if entry.type != EntryTypeEnum.FOLDER:
@@ -532,7 +490,10 @@ class RFXDocmanAggregate(Aggregate):
                 )
 
             if new_root is None:
-                raise RuntimeError("copy_entry: subtree clone produced no root — check entry_ancestor self-link for entry %s" % entry._id)
+                raise RuntimeError(
+                    "copy_entry: subtree clone produced no root — check entry_ancestor self-link for entry %s"
+                    % entry._id
+                )
             return await self.statemgr.fetch("entry", new_root._id)
 
     # =========================================================================
@@ -580,7 +541,7 @@ class RFXDocmanAggregate(Aggregate):
 
         tag = await self.statemgr.fetch("tag", tag_id)
         if not tag:
-            raise ValueError(f"Tag '{tag_id}' does not exist")
+            raise ItemNotFoundError("E00.006", f"Tag '{tag_id}' does not exist")
 
         record = self.init_resource(
             "entry_tag",
@@ -600,7 +561,10 @@ class RFXDocmanAggregate(Aggregate):
             "entry_tag", where={"entry_id": entry._id, "tag_id": tag_id}
         )
         if not link:
-            raise ValueError(f"Tag '{tag_id}' is not attached to this entry")
+            raise ItemNotFoundError(
+                "E00.006",
+                f"Tag '{tag_id}' is not attached to this entry",
+            )
 
         await helper.delete_entry_tag_link(
             self.statemgr,
