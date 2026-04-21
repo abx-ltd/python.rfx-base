@@ -188,7 +188,6 @@ class OrgUserView(Base):
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     organization_name: Mapped[Optional[str]] = mapped_column(String(255))
     username: Mapped[Optional[str]] = mapped_column(String(1024))
@@ -198,13 +197,11 @@ class OrgUserView(Base):
     telecom__email: Mapped[Optional[str]] = mapped_column(String(1024))
     telecom__phone: Mapped[Optional[str]] = mapped_column(String(1024))
     user_status: Mapped[str] = mapped_column(String)
-    profile_status: Mapped[str] = mapped_column(String)
-    profile_roles: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
-    policy_count: Mapped[int] = mapped_column(nullable=False)
+    profile_realms: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
 
     def __repr__(self) -> str:
         return (
-            f"<OrgUserView(user_id={self.user_id}, profile_id={self.profile_id}, "
+            f"<OrgUserView(user_id={self.user_id}, "
             f"organization_id={self.organization_id})>"
         )
 

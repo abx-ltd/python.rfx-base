@@ -327,7 +327,7 @@ class UserProfileQuery(DomainQueryResource):
         backend_model = "_profile_list"
         resource = "profile"
         policy_required = True
-        scope_required = scope.ProfileListScopeSchema
+        scope_required = scope.UserScopeSchema
 
     name__family: str = StringField("Family Name")
     name__given: str = StringField("Given Name")
@@ -355,7 +355,7 @@ class ProfileListQuery(DomainQueryResource):
         backend_model = "_org_member"
         resource = "profile"
         policy_required = True
-        scope_required = scope.OrgProfileListScopeSchema
+        scope_required = scope.OrganizationScopeSchema
 
     name__family: str = StringField("Family Name")
     name__middle: Optional[str] = StringField("Middle Name")
@@ -383,7 +383,7 @@ class OrgUserQuery(DomainQueryResource):
         backend_model = "_org_user"
         resource = "user"
         policy_required = True
-        scope_required = scope.OrgProfileListScopeSchema
+        scope_required = scope.OrganizationScopeSchema
 
     name__family: str = StringField("Family Name")
     name__middle: Optional[str] = StringField("Middle Name")
@@ -393,13 +393,10 @@ class OrgUserQuery(DomainQueryResource):
     telecom__phone: str = StringField("Phone")
 
     user_id: UUID_TYPE = UUIDField("User ID")
-    profile_id: UUID_TYPE = UUIDField("Profile ID")
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     organization_name: str = StringField("Organization Name")
     user_status: str = StringField("User Status")
-    profile_status: str = StringField("Profile Status")
-    profile_roles: str = StringField("Roles", array=True)
-    policy_count: int = StringField("Policy Count")
+    profile_realms: str = StringField("Realms", array=True)
 
 
 @resource("user-organization")
@@ -413,7 +410,7 @@ class UserOrgQuery(DomainQueryResource):
         backend_model = "_user_org"
         resource = "organization"
         policy_required = True
-        scope_required = scope.ProfileListScopeSchema
+        scope_required = scope.UserScopeSchema
 
     organization_id: UUID_TYPE = UUIDField("Organization ID")
     organization_name: str = StringField("Organization Name")
@@ -492,7 +489,7 @@ class ProfileRole(DomainQueryResource):
 
         resource = "profile"
         policy_required = True
-        scope_required = scope.ProfileRoleScopeSchema
+        scope_required = scope.ProfileScopeSchema
 
     id: UUID_TYPE = PrimaryID("Profile ID")
     profile_id: str = StringField("Profile Id")
@@ -561,7 +558,7 @@ class SentInvitationQuery(DomainQueryResource):
         resource = "invitation"
         backend_model = "invitation"
         policy_required = True
-        # scope_required = scope.SentInvitationScopeSchema
+        # scope_required = scope.OrganizationScopeSchema
 
     id: UUID_TYPE = PrimaryID("Invitation ID")
     sender_id: UUID_TYPE = UUIDField("Sender User ID")

@@ -167,7 +167,6 @@ org_user_view = PGView(
         usr._updater,
         usr._realm,
         usr._id AS user_id,
-        profile._id AS profile_id,
         profile.organization_id,
         organization.name AS organization_name,
         usr.username,
@@ -177,27 +176,32 @@ org_user_view = PGView(
         usr.telecom__email,
         usr.telecom__phone,
         usr.status AS user_status,
-        profile.status AS profile_status,
-        COALESCE(profile_role.role_keys, ARRAY[]::varchar[]) AS profile_roles,
-        COALESCE(policy_counts.policy_count, 0) AS policy_count
+        array_agg(DISTINCT profile.realm) AS profile_realms
     FROM "{SCHEMA}"."user" AS usr
     JOIN "{SCHEMA}".profile AS profile
         ON usr._id = profile.user_id
     JOIN "{SCHEMA}".organization AS organization
         ON profile.organization_id = organization._id
-    LEFT JOIN (
-        SELECT profile_id, array_agg(role_key) AS role_keys
-        FROM "{SCHEMA}".profile_role
-        WHERE _deleted IS NULL
-        GROUP BY profile_id
-    ) AS profile_role
-        ON profile._id = profile_role.profile_id
-    LEFT JOIN LATERAL (
-        SELECT COUNT(*) AS policy_count
-        FROM "{POLICY_SCHEMA}"._policy__user_profile AS policy
-        WHERE policy.org = organization._id::character varying(255)
-            AND policy._deleted IS NULL
-    ) AS policy_counts ON true;
+    WHERE usr._deleted IS NULL AND profile._deleted IS NULL
+    GROUP BY
+        usr._id,
+        usr._created,
+        usr._creator,
+        usr._deleted,
+        usr._etag,
+        usr._id,
+        usr._updated,
+        usr._updater,
+        usr._realm,
+        profile.organization_id,
+        organization.name,
+        usr.username,
+        usr.name__given,
+        usr.name__middle,
+        usr.name__family,
+        usr.telecom__email,
+        usr.telecom__phone,
+        usr.status;
     """
 )
 
@@ -206,7 +210,14 @@ user_org_view = PGView(
     signature="_user_org",
     definition=f"""
     SELECT
-        MIN(profile._created) AS _created,
+        organization._id,
+        organization._created,
+        organization._creator,
+        organization._updated,
+        organization._updater,
+        organization._deleted,
+        organization._etag,
+        organization._realm,
         profile.user_id,
         profile.organization_id,
         organization.name AS organization_name,
@@ -225,6 +236,14 @@ user_org_view = PGView(
     GROUP BY
         profile.user_id,
         profile.organization_id,
+        organization._id,
+        organization._created,
+        organization._creator,
+        organization._updated,
+        organization._updater,
+        organization._deleted,
+        organization._etag,
+        organization._realm,
         organization.name,
         organization.business_name,
         organization.organization_code,
