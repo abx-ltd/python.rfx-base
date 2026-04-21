@@ -96,20 +96,24 @@ message_mailbox_view = PGView(
         ) AS tags,
 
         -- =========================
-        -- ATTACHMENTS
+        -- ATTACHMENTS (FIXED)
         -- =========================
         COALESCE(
             (
                 SELECT jsonb_agg(
                     jsonb_build_object(
-                        'attachment_id', ma._id,
-                        'file_name', ma.file_name
+                        'attachment_id', ma.media_entry_id,
+                        'file_name', me.filename,
+                        'media_type', ma.media_type,
+                        'display_order', ma.display_order,
+                        'is_primary', ma.is_primary
                     )
-                    ORDER BY ma._created
+                    ORDER BY ma.display_order NULLS LAST
                 )
                 FROM {config.RFX_2DMESSAGE_SCHEMA}.message_attachment ma
+                JOIN "cpo-media"."media-entry" me
+                    ON me._id = ma.media_entry_id
                 WHERE ma.message_id = m._id
-                AND ma._deleted IS NULL
             ),
             '[]'::jsonb
         ) AS attachments,

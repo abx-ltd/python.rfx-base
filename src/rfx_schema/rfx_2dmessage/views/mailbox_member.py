@@ -9,7 +9,7 @@ mailbox_member_view = PGView(
         -- =========================
         -- RELATION KEY
         -- =========================
-        mb._id,
+        p._id,
         mm.mailbox_id,
         mm.member_id,
 

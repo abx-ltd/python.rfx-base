@@ -388,17 +388,21 @@ class UploadAttachmentMetadata(Command):
     Data = datadef.UploadAttachmentMetadataPayload
 
     class Meta:
-        key = "upload-attachment"
+        key = "attach-file"
         resources = ("message",)
         tags = ["message", "attachment"]
         auth_required = True
+        description = "Attach file to message after upload"
+        policy_required = False
 
     async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
         message_id = agg.get_aggroot().identifier
 
-        result = await agg.upload_attachment_metadata(
+        result = await agg.attach_file_to_message(
             message_id=message_id,
             data=payload,
+            profile_id=profile_id,
         )
 
         yield agg.create_response(

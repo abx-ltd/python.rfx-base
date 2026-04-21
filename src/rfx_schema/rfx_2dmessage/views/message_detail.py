@@ -93,17 +93,25 @@ message_detail_view = PGView(
             (
                 SELECT jsonb_agg(
                     jsonb_build_object(
-                        'attachment_id', ma._id,
-                        'file_id', ma.file_id,
-                        'file_name', ma.file_name,
-                        'storage_key', ma.storage_key,
+                        'attachment_id', ma.media_entry_id,
+
+                        -- từ media_entry
+                        'file_name', me.filename,
+
+                        -- từ message_attachment
                         'media_type', ma.media_type,
-                        'size_bytes', ma.size_bytes,
-                        'checksum', ma.checksum,
-                        'download_policy', ma.download_policy
+                        'display_order', ma.display_order,
+                        'is_primary', ma.is_primary
+
+                        -- optional nếu bạn có
+                        -- 'download_policy', me.download_policy
                     )
+                    ORDER BY ma.display_order NULLS LAST, me.filename
                 )
                 FROM {config.RFX_2DMESSAGE_SCHEMA}.message_attachment ma
+                JOIN "cpo-media"."media-entry" me
+                    ON me._id = ma.media_entry_id
+                    AND me._deleted IS NULL
                 WHERE ma.message_id = m._id
                 AND ma._deleted IS NULL
             ),

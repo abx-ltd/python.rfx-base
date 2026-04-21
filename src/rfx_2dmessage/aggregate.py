@@ -533,9 +533,9 @@ class RFX2DMessageAggregate(Aggregate):
             "linked": True,
         }
     
-    @action("attachment-metadata-uploaded", resources="message")
-    async def upload_attachment_metadata(self, message_id, data):
-        """Register uploaded attachment metadata for a message."""
+    @action("attach-file", resources="message")
+    async def attach_file_to_message(self, message_id, data, profile_id):
+        """Register uploaded file for a message."""
 
         # Check if message is sent by profile_id
         message = await self.statemgr.find_one(
@@ -544,19 +544,13 @@ class RFX2DMessageAggregate(Aggregate):
         )
         if message is None:
             raise ValueError("D00.466", f"Message not found or not sent by profile: {message_id}")
+        
+        attachment_data = serialize_mapping(data)
+        attachment_data["message_id"] = message_id
 
         attachment = self.init_resource(
             "message_attachment",
-            {
-                "message_id": message_id,
-                "file_id": getattr(data, "file_id", None),
-                "file_name": data.filename,
-                "storage_key": data.storage_key,
-                "media_type": data.media_type,
-                "size_bytes": data.size_bytes,
-                "checksum": data.checksum,
-                "download_policy": getattr(data, "download_policy", None),
-            },
+            attachment_data,
             _id=UUID_GENR(),
         )
         await self.statemgr.insert(attachment)

@@ -242,12 +242,9 @@ class LinkRelatedMessagePayload(DataModel):
 
 class UploadAttachmentMetadataPayload(DataModel):
     """Payload for registering uploaded attachment metadata."""
-
-    storage_key: str = Field(..., description="Storage key for the uploaded attachment")
-    filename: str = Field(..., description="Original filename of the uploaded attachment")
-    media_type: Optional[str] = Field(None, description="Media type or MIME type of the attachment")
-    size_bytes: Optional[int] = Field(None, description="Attachment file size in bytes")
-    checksum: Optional[str] = Field(None, description="Optional checksum for the uploaded attachment")
+    media_entry_id: UUID_TYPE
+    media_type: Optional[str] = None  # 'document', 'image', 'video', 'audio'
+    is_primary: Optional[bool] = False
 
 class MarkReadMessagePayload(DataModel):
     mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID for the target mailbox view")
