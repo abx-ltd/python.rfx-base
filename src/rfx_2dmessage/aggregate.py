@@ -59,7 +59,7 @@ class RFX2DMessageAggregate(Aggregate):
     async def remove_mailbox(self, mailbox_id, profile_id):
         mailbox_member = await self.statemgr.find_one(
             "mailbox_member",
-            where={"mailbox_id": mailbox_id, "profile_id": profile_id},
+            where={"mailbox_id": mailbox_id, "member_id": profile_id},
         )
 
         if mailbox_member is None:
@@ -68,7 +68,7 @@ class RFX2DMessageAggregate(Aggregate):
         # if the user is not the owner, just invalidate their membership. If they are the owner, invalidate all memberships and the mailbox itself.
         if mailbox_member.role != "OWNER":
             await self.statemgr.invalidate(mailbox_member)
-            messages = await self.statemg.find_all(
+            messages = await self.statemgr.find_all(
                 "message_mailbox_state",
                 where={"mailbox_id":mailbox_id, "assigned_to_profile_id":profile_id, "_deleted":None}
             )
@@ -151,7 +151,7 @@ class RFX2DMessageAggregate(Aggregate):
             )
             await self.statemgr.invalidate(mailbox)
 
-        return mailbox
+        # return mailbox
     
     @action("add-member-to-mailbox", resources="mailbox")
     async def add_member_to_mailbox(self, mailbox_id, profile_id, member_ids, assign_all_message):

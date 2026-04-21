@@ -61,7 +61,6 @@ class MailboxListQuery(DomainQueryResource):
     mailbox_type: Optional[str] = StringField("mailbox_type")  
 
     member_id: UUID_TYPE = UUIDField("member_id")
-    members_info: Optional[List[Dict[str, Any]]] = JSONField("members_info")
 
     # members: Dict = JSONField("members")
     # tags: Optional[List[Dict[str, Any]]] = JSONField("tags")
@@ -228,10 +227,11 @@ class MessageTagQuery(DomainQueryResource):
         scope_required = scope.MailboxScope
         backend_model = "_message_tag"
 
-        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater', 'tag_id')
 
     mailbox_id: str = UUIDField("mailbox_id")
     mailbox_name: str = StringField("mailbox_name")
+    tag_id: Optional[str] = UUIDField("tag_id")
 
     assigned_to_profile_id: Optional[str] = UUIDField("assigned_to_profile_id") 
     sender_name: Optional[str] = StringField("Sender name")
@@ -310,7 +310,7 @@ class MessageCategoryQuery(DomainQueryResource):
     folder: str = StringField("folder")
     is_starred: Optional[bool] = BooleanField("is_starred")
     sender_id: str = UUIDField("sender_id")
-    # priority: str = StringField("priority")
+    priority: str = StringField("priority")
     status: Optional[str] = StringField("status")
     # is_important: bool = BooleanField("is_important")
     message_type: str = StringField("message_type")

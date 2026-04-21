@@ -68,13 +68,17 @@ message_detail_view = PGView(
         cat.key AS category_key,
 
         -- =========================
-        -- TAGS
+        -- TAGS (N-N, mailbox scoped)
         -- =========================
         COALESCE(
             (
-                SELECT jsonb_agg(mt.tag_id ORDER BY mt.tag_id)
+                SELECT jsonb_agg(jsonb_build_object(
+                    'tag_id', t._id,
+                    'key', t.key,
+                    'name', t.name
+                ) ORDER BY t.name)
                 FROM {config.RFX_2DMESSAGE_SCHEMA}.message_tag mt
-                JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t
+                JOIN {config.RFX_2DMESSAGE_SCHEMA}.tag t 
                     ON t._id = mt.tag_id
                 AND t.mailbox_id = mm.mailbox_id
                 AND t._deleted IS NULL

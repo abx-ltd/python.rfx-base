@@ -6,10 +6,10 @@ message_tag_view= PGView(
     signature="_message_tag",
     definition=f"""
     SELECT
+        m._id AS _id,
         -- =========================
         -- MESSAGE_TAG RELATION
         -- =========================
-        t._id,
         mt._id AS message_tag_id,
         mt.message_id,
         mt.tag_id,
