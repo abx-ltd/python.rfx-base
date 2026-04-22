@@ -1075,8 +1075,8 @@ class RFX2DMessageAggregate(Aggregate):
         if not action:
             raise ValueError("Action not found")
 
-        action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
-        if action_type_val != "ATOMIC":
+        action_type_val = action.action_type.value
+        if action_type_val != ActionTypeEnum.ATOMIC.value:
             raise ValueError("Action is not an atomic action")
 
         # Create action execution record
@@ -1119,7 +1119,7 @@ class RFX2DMessageAggregate(Aggregate):
             raise ValueError("Action not found")
 
         action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
-        if action_type_val != "FORM":
+        if action_type_val != ActionTypeEnum.FORM:
             raise ValueError("Action is not a form action")
 
         # Validate form data against schema
@@ -1168,10 +1168,10 @@ class RFX2DMessageAggregate(Aggregate):
         action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
         execution_mode_val = action.execution_mode.value if isinstance(action.execution_mode, ExecutionModeEnum) else action.execution_mode
         
-        if action_type_val != "EMBEDDED":
+        if action_type_val != ActionTypeEnum.EMBEDDED:
             raise ValueError("Action is not an embedded action")
 
-        if execution_mode_val != "EMBED":
+        if execution_mode_val != ExecutionModeEnum.EMBED:
             raise ValueError("Action execution mode is not EMBED")
 
         if not action.embedded_json:

@@ -298,9 +298,9 @@ class SchemaConfigPayload(DataModel):
 
     # fields: List[FieldFormConfigPayload] = Field(..., description="List of field definitions for the form schema")
 
-    form_key: str
-    name: str
-    desc: str
+    form_key: str = Field(..., description="Key of the form")
+    name: str = Field(..., description="Name of the form")
+    desc: str = Field(..., description="Description of the form")
     element_keys: tuple
     
 class ResponseConfigPayload(DataModel):
