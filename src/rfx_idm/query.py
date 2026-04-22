@@ -294,6 +294,7 @@ class UserQuery(DomainQueryResource):
     verified_email: Optional[str] = StringField("Verified Email")
     verified_phone: Optional[str] = StringField("Verified Phone")
     is_super_admin: bool = BooleanField("Is Super Admin")
+    user_type: Optional[str] = StringField("User Type")
     status: str = EnumField("Status")
 
 

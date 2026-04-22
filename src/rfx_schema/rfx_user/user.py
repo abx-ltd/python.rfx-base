@@ -65,6 +65,7 @@ class User(TableBase):
     verified_email: Mapped[Optional[str]] = mapped_column(String(1024))
     verified_phone: Mapped[Optional[str]] = mapped_column(String(1024))
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    user_type: Mapped[Optional[str]] = mapped_column(String(50))
 
     status: Mapped[UserStatusEnum] = mapped_column(
         SQLEnum(
