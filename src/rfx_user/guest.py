@@ -147,7 +147,7 @@ class IDMGuestAuth:
                     full_name = payload.name.strip() if payload.name else None
 
                     # Check rate limiting - count recent requests from this email
-                    rate_limit_cutoff = timestamp().replace(tzinfo=None) - timedelta(minutes=config.RATE_LIMIT_WINDOW_MINUTES)
+                    rate_limit_cutoff = timestamp() - timedelta(minutes=config.RATE_LIMIT_WINDOW_MINUTES)
                     recent_requests = await self.statemgr.find_all(
                         "guest_verification",
                         where={
@@ -164,7 +164,7 @@ class IDMGuestAuth:
 
                     # Generate verification code
                     code = generate_verification_code()
-                    expires_at = timestamp().replace(tzinfo=None) + timedelta(minutes=config.VERIFICATION_TTL_MINUTES)
+                    expires_at = timestamp() + timedelta(minutes=config.VERIFICATION_TTL_MINUTES)
 
                     # Get client IP address
                     client_ip = request.client.host if request.client else None
@@ -261,7 +261,7 @@ class IDMGuestAuth:
                         )
 
                     # Check expiration
-                    current_time = timestamp().replace(tzinfo=None)
+                    current_time = timestamp()
                     if verification.expires_at < current_time:
                         await self.statemgr.update(verification, verified=False)
                         raise BadRequestError("G200-402", "Verification code has expired")
@@ -390,7 +390,7 @@ class IDMGuestAuth:
                 if guest_payload:
                     try:
                         guest_user = await self.statemgr.fetch("guest_user", guest_payload["sub"])
-                        current_time = timestamp().replace(tzinfo=None)
+                        current_time = timestamp()
                         await self.statemgr.update(guest_user, last_active_at=current_time)
                     except Exception as e:
                         logger.warn(f"[GUEST AUTH] Failed to update logout time: {e}")
