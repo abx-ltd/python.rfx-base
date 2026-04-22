@@ -896,3 +896,21 @@ class UnlinkMessage(Command):
             mailbox_id=mailbox_id, 
             link_type=link_type
         )
+
+# class CreateCollection(Command):
+#     """Create a new collection"""
+
+#     class Meta:
+#         key = 'create-collection'
+#         name = 'Create Collection'
+#         resources = None
+#         tags = ["form", "collection", "create"]
+#         auth_required = True
+#         description = "Create a new collection for organizing documents"
+#         resource_init = True
+
+#     Data = datadef.CreateCollectionData
+
+#     async def _process(self, agg, stm, payload):
+#         collection = await agg.create_collection(payload)
+#         yield agg.create_response(serialize_mapping(collection), _type="form-response")

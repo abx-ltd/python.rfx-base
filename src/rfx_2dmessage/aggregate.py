@@ -178,9 +178,9 @@ class RFX2DMessageAggregate(Aggregate):
             # check if member added is already a member of the mailbox
             mailbox_member_exists = await self.statemgr.exist(
                 "mailbox_member",
-                where={"mailbox_id": mailbox_id, "member_id": member_id},
+                where={"mailbox_id": mailbox_id, "member_id": member_id, "_deleted": None},
             )
-            if mailbox_member_exists and mailbox_member_exists._deleted is None:    
+            if mailbox_member_exists:    
                 member_ids.remove(mailbox_member_exists.member_id)        
                 continue
             # else:
@@ -1007,7 +1007,7 @@ class RFX2DMessageAggregate(Aggregate):
                 action_type=action_type.value,
                 execution_mode=execution_mode.value,
                 description=action_data.get("description"),
-                authorization=action_data.get("authorization", None),
+                authorization=action_data.get("authorization_json",None),
             )
             await self.statemgr.insert(action)
 
@@ -1403,4 +1403,21 @@ class RFX2DMessageAggregate(Aggregate):
             "error": callback_payload.get("error")
         }
 
-    
+    @action("collection-created")
+    async def create_collection(self, data):
+        """Create a new collection"""
+        collection = self.init_resource(
+            "collection",
+            _id=self.aggroot.identifier,
+            collection_key=data.collection_key,
+            collection_name=data.collection_name,
+            desc=data.desc,
+            owner_id=data.owner_id,
+            organization_id=data.organization_id,
+        )
+        await self.statemgr.insert(collection)
+        return {
+            "collection_id": str(self.aggroot.identifier),
+            "collection_key": collection.collection_key,
+            "collection_name": collection.collection_name,
+        }

@@ -276,13 +276,16 @@ class EndpointConfigPayload(DataModel):
 class FieldFormConfigPayload(DataModel):
     """Payload for configuring a single field in a form schema."""
 
-    name: str = Field(..., description="Name of the field")
-    key: str = Field(..., description="Key of the field for form data mapping")
-    type: str = Field(..., description="Data type of the field (e.g. string, number, boolean)")
-    label: Optional[str] = Field(None, description="Display label for the field")
-    required: bool = Field(False, description="Whether the field is required")
-    options: Optional[List[Dict[str, Any]]] = Field(None, description="Optional list of options for select fields")
-
+    # name: str = Field(..., description="Name of the field")
+    # key: str = Field(..., description="Key of the field for form data mapping")
+    # type: str = Field(..., description="Data type of the field (e.g. string, number, boolean)")
+    # label: Optional[str] = Field(None, description="Display label for the field")
+    # required: bool = Field(False, description="Whether the field is required")
+    # options: Optional[List[Dict[str, Any]]] = Field(None, description="Optional list of options for select fields")
+    form_key: str
+    name: str
+    desc: str
+    element_keys: tuple
 class FieldResponseConfigPayload(DataModel):
     """Payload for configuring a single field in the response data mapping."""
     
@@ -293,8 +296,13 @@ class FieldResponseConfigPayload(DataModel):
 class SchemaConfigPayload(DataModel):
     """Payload for configuring a schema for form actions."""
 
-    fields: List[FieldFormConfigPayload] = Field(..., description="List of field definitions for the form schema")
+    # fields: List[FieldFormConfigPayload] = Field(..., description="List of field definitions for the form schema")
 
+    form_key: str
+    name: str
+    desc: str
+    element_keys: tuple
+    
 class ResponseConfigPayload(DataModel):
     """Payload for configuring response handling for an action."""
 
@@ -420,3 +428,12 @@ class LinkMessagePayload(DataModel):
     mailbox_id: UUID_TYPE = Field(..., description="ID of the mailbox of the action")
     left_message_id: UUID_TYPE = Field(..., description="ID of the message link")
     link_type: str = Field(default=MessageLinkTypeEnum.RELATED, description="Message link type")
+
+# Collection Commands
+class CreateCollectionData(DataModel):
+    """Data for creating a new collection"""
+    collection_key: str
+    collection_name: str
+    desc: Optional[str] = None
+    owner_id: Optional[UUID_TYPE] = None
+    organization_id: Optional[str] = None
