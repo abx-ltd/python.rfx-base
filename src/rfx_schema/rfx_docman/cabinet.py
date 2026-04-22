@@ -38,6 +38,13 @@ class Cabinet(TableBase):
             unique=True,
             postgresql_where=text("_deleted IS NULL"),
         ),
+        Index(
+            "uq_cabinet_category_name_active",
+            "category_id",
+            "name",
+            unique=True,
+            postgresql_where=text("_deleted IS NULL"),
+        ),
         {"schema": SCHEMA},
     )
 

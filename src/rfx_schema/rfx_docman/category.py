@@ -38,6 +38,13 @@ class Category(TableBase):
             unique=True,
             postgresql_where=text("_deleted IS NULL"),
         ),
+        Index(
+            "uq_category_shelf_name_active",
+            "shelf_id",
+            "name",
+            unique=True,
+            postgresql_where=text("_deleted IS NULL"),
+        ),
         {"schema": SCHEMA},
     )
 
