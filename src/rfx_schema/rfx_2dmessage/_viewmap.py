@@ -352,4 +352,5 @@ class MailboxFolderView(Base):
     inbox_count: Mapped[int] = mapped_column(Integer)
     trashed_count: Mapped[int] = mapped_column(Integer)
     archived_count: Mapped[int] = mapped_column(Integer)
+    starred_count: Mapped[int] = mapped_column(Integer)
     total_count: Mapped[int] = mapped_column(Integer)

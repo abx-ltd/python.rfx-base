@@ -102,11 +102,15 @@ message_mailbox_view = PGView(
             (
                 SELECT jsonb_agg(
                     jsonb_build_object(
-                        'attachment_id', ma.media_entry_id,
-                        'file_name', me.filename,
-                        'media_type', ma.media_type,
+                        'id', ma.media_entry_id,
+                        'name', me.filename,
+                        'filemime', me.filemime,
+                        'length', me.length,
+                        'type', ma.media_type,
                         'display_order', ma.display_order,
-                        'is_primary', ma.is_primary
+                        'is_primary', ma.is_primary,
+                        'created', ma._created,
+                        'updated', ma._updated
                     )
                     ORDER BY ma.display_order NULLS LAST
                 )

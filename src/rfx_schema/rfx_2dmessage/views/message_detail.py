@@ -93,15 +93,19 @@ message_detail_view = PGView(
             (
                 SELECT jsonb_agg(
                     jsonb_build_object(
-                        'attachment_id', ma.media_entry_id,
+                        'id', ma.media_entry_id,
 
                         -- từ media_entry
-                        'file_name', me.filename,
+                        'name', me.filename,
+                        'filemime', me.filemime,
+                        'length', me.length,
 
                         -- từ message_attachment
-                        'media_type', ma.media_type,
+                        'type', ma.media_type,
                         'display_order', ma.display_order,
-                        'is_primary', ma.is_primary
+                        'is_primary', ma.is_primary,
+                        'created', ma._created,
+                        'updated', ma._updated
 
                         -- optional nếu bạn có
                         -- 'download_policy', me.download_policy
@@ -126,7 +130,7 @@ message_detail_view = PGView(
                         'message_id', m2._id,
                         'subject', m2.subject,
                         'content', m2.content,
-                        'message_type', m2.message_type,
+                        'type', m2.message_type,
                         'created_at', m2._created,
                         'link_type', ml.link_type
                     )

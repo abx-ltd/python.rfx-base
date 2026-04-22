@@ -14,10 +14,20 @@ from .types import(MessageCategoryEnum,
                    ExecutionModeEnum, 
                    DisplayModeEnum, 
                    CallbackModeEnnum,
-                   MessageLinkTypeEnum
+                   MessageLinkTypeEnum,
+                   MediaTypeEnum
 )
 # class CreateMessagePayload(BaseModel):
-#     ...
+#     ...T
+
+class UploadAttachmentMetadataPayload(DataModel):
+    """Payload for registering uploaded attachment metadata."""
+    media_entry_id: UUID_TYPE = Field(..., description="ID of the media entry")
+    type: Optional[MediaTypeEnum] = Field(
+        default=MediaTypeEnum.DOCUMENT,
+        description="Type of document.",
+    )
+    is_primary: Optional[bool] = Field(True, description="is primary")
 
 class SendMessageToMailboxPayload(DataModel):
     """
@@ -44,6 +54,8 @@ class SendMessageToMailboxPayload(DataModel):
 
     message_type: str = Field("NOTIFICATION", description="Type of message")
     priority: str = Field("MEDIUM", description="Message priority")
+
+    # attachments: Optional[List[UploadAttachmentMetadataPayload]] = Field(None, description="Upload attachment file")
 
 # DTO for response Message
 class Notification(DataModel):
@@ -174,7 +186,6 @@ class UpdateMailboxPayload(DataModel):
     telecom_phone: Optional[str] = Field(None, description="Phone number for SMS mailbox")
     telecom_email: Optional[str] = Field(None, description="Email address for mailbox")
     description: Optional[str] = Field(None, description="Optional description")
-    resource: Optional[str] = Field(None, description="External resource source key")
     url: Optional[str] = Field(None, description="Callback or service URL")
     mailbox_type: Optional[str] = Field(None, description="Type of mailbox (EMAIL,SMS,NOTIFICATION etc)")
 
@@ -238,13 +249,6 @@ class LinkRelatedMessagePayload(DataModel):
 
     related_message_id: UUID_TYPE = Field(..., description="ID of the related message")
     link_type: Optional[str] = Field("related", description="Type of relation between messages")
-
-
-class UploadAttachmentMetadataPayload(DataModel):
-    """Payload for registering uploaded attachment metadata."""
-    media_entry_id: UUID_TYPE
-    media_type: Optional[str] = None  # 'document', 'image', 'video', 'audio'
-    is_primary: Optional[bool] = False
 
 class MarkReadMessagePayload(DataModel):
     mailbox_id: UUID_TYPE = Field(..., description="Mailbox ID for the target mailbox view")
@@ -323,6 +327,34 @@ class EmbeddedConfigPayload(DataModel):
 class RegisterActionPayload(DataModel):
     """Payload for registering or updating an action definition."""
 
+    # action_key: str = Field(..., description="Unique key for the action within the mailbox")
+    # name: str = Field(..., description="Display name for the action")
+    # description: Optional[str] = Field(None, description="Optional description of the action")
+
+    # execution_mode: ExecutionModeEnum = Field(
+    #     default=ExecutionModeEnum.API, 
+    #     description="Execution mode for the action: API or EMBED"
+    # )
+
+    # action_type: Optional[ActionTypeEnum] = Field(
+    #     default=ActionTypeEnum.ATOMIC, 
+    #     description="Type of action: atomic, form, or embedded")
+
+    # authorization_json: Optional[Dict[str, Any]] = Field(None, description="Optional JSON schema for action authorization parameters")
+
+    # Schema for form actions, require if action_type is FORM and execution_mode is API
+    schema: Optional[SchemaConfigPayload] = Field(None, description="Schema definition for form actions")
+
+    # Endpoint configuration, require if action_type is ATOMIC or FORM and execution_mode is API
+    endpoint: Optional[EndpointConfigPayload] = Field(None, description="Configuration for API endpoint, depending on execution mode")
+
+    # Embedded configuration, require if action_type is EMBEDDED and execution_mode is EMBED
+    embedded: Optional[EmbeddedConfigPayload] = Field(None, description="Configuration for embedded actions, such as URL, dimensions, and callback handling")
+
+    # Response configuration
+    response: ResponseConfigPayload = Field(None, description="Response configuration with success/error messages and fields")
+
+class CreateActionPayload(DataModel):
     action_key: str = Field(..., description="Unique key for the action within the mailbox")
     name: str = Field(..., description="Display name for the action")
     description: Optional[str] = Field(None, description="Optional description of the action")
@@ -338,17 +370,6 @@ class RegisterActionPayload(DataModel):
 
     authorization_json: Optional[Dict[str, Any]] = Field(None, description="Optional JSON schema for action authorization parameters")
 
-    # Schema for form actions, require if action_type is FORM and execution_mode is API
-    schema: Optional[SchemaConfigPayload] = Field(None, description="Schema definition for form actions")
-
-    # Endpoint configuration, require if action_type is ATOMIC or FORM and execution_mode is API
-    endpoint: Optional[EndpointConfigPayload] = Field(None, description="Configuration for API endpoint, depending on execution mode")
-
-    # Embedded configuration, require if action_type is EMBEDDED and execution_mode is EMBED
-    embedded: EmbeddedConfigPayload = Field(None, description="Configuration for embedded actions, such as URL, dimensions, and callback handling")
-
-    # Response configuration
-    response: ResponseConfigPayload = Field(None, description="Response configuration with success/error messages and fields")
 
 class ExecuteAtomicActionPayload(DataModel):
     """Payload for executing an atomic action."""

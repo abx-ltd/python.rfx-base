@@ -54,6 +54,19 @@ class RFX2DMessageAggregate(Aggregate):
                 await self.statemgr.insert(mailbox_member)
 
         return mailbox_record
+    
+    @action("update-mailbox", resources="mailbox")
+    async def update_mailbox(self, mailbox_id, data, profile_id):
+        mailbox = await self.statemgr.find_one(
+            "mailbox",
+            where={"_id": mailbox_id, "profile_id": profile_id, "_deleted": None}
+        )
+        if mailbox is None:
+            raise ValueError(f"Mailbox with id {mailbox_id} is not exist")
+        
+        mailbox_result = await self.statemgr.update(mailbox, **serialize_mapping(data))
+
+        return mailbox_result
 
     @action("remove-mailbox", resources="mailbox")
     async def remove_mailbox(self, mailbox_id, profile_id):
@@ -150,8 +163,6 @@ class RFX2DMessageAggregate(Aggregate):
                 where={"_id": mailbox_id, "profile_id": profile_id, "_deleted": None},
             )
             await self.statemgr.invalidate(mailbox)
-
-        # return mailbox
     
     @action("add-member-to-mailbox", resources="mailbox")
     async def add_member_to_mailbox(self, mailbox_id, profile_id, member_ids, assign_all_message):
@@ -246,6 +257,19 @@ class RFX2DMessageAggregate(Aggregate):
         )
 
         await self.statemgr.insert(message)
+
+        # if data.attachments is not None:
+        #     attachment_data = serialize_mapping(data.get("atta"))
+        #     attachment_data["message_id"] = message._id
+
+        #     attachment = self.init_resource(
+        #         "message_attachment",
+        #         attachment_data.pop["attachments",],
+        #         _id=UUID_GENR(),
+        #     )
+        #     await self.statemgr.insert(attachment)
+
+        #     return serialize_mapping(attachment)
 
         return message
     
@@ -550,8 +574,11 @@ class RFX2DMessageAggregate(Aggregate):
 
         attachment = self.init_resource(
             "message_attachment",
-            attachment_data,
             _id=UUID_GENR(),
+            message_id=message_id,
+            media_entry_id=attachment_data.get("media_entry_id") ,
+            media_type=attachment_data.get("type",None),
+            is_primary=attachment_data.get("is_primary",True),
         )
         await self.statemgr.insert(attachment)
 
@@ -927,37 +954,29 @@ class RFX2DMessageAggregate(Aggregate):
     # ACTION METHOD
     # =======================================
 
-    @action("register-action", resources="mailbox")
-    async def register_action(self, mailbox_id, action_data, profile_id):
-        """Register or update an action definition for a mailbox."""
-
+    @action("create-action", resources="mailbox")
+    async def create_action(self, mailbox_id, action_data, profile_id):
         # Validate action payload structure
         action_key = action_data["action_key"]
         action_type = action_data["action_type"]
         execution_mode = action_data["execution_mode"]
 
+        # Normalize action_type and execution_mode to string values
+        action_type_val = action_type.value if isinstance(action_type, ActionTypeEnum) else action_type
+        execution_mode_val = execution_mode.value if isinstance(execution_mode, ExecutionModeEnum) else execution_mode
+
         # Validate action type and execution mode constraints
-        if action_type == ActionTypeEnum.ATOMIC:
-            if execution_mode != ExecutionModeEnum.API:
+        if action_type_val == ActionTypeEnum.ATOMIC.value:
+            if execution_mode_val != ExecutionModeEnum.API.value:
                 raise ValueError("Atomic actions must use API execution mode")
-            
-            if "endpoint" not in action_data:
-                raise ValueError("Atomic actions require an endpoint")
-            
-        elif action_type == ActionTypeEnum.FORM:
-            if execution_mode != ExecutionModeEnum.API:
+        elif action_type_val == ActionTypeEnum.FORM.value:
+            if execution_mode_val != ExecutionModeEnum.API.value:
                 raise ValueError("Form actions must use API execution mode")
-            if "schema" not in action_data:
-                raise ValueError("Form actions require a schema")
-            if "endpoint" not in action_data:
-                raise ValueError("Form actions require an endpoint")
-        elif action_type == ActionTypeEnum.EMBEDDED:
-            if execution_mode != ExecutionModeEnum.EMBED:
+        elif action_type_val == ActionTypeEnum.EMBEDDED.value:
+            if execution_mode_val != ExecutionModeEnum.EMBED.value:
                 raise ValueError("Embedded actions must use embed execution mode")
-            if "embedded" not in action_data:
-                raise ValueError("Embedded actions require embedded content")
         else:
-            raise ValueError(f"Invalid action type: {action_type}")
+            raise ValueError(f"Invalid action type: {action_type_val}")
 
         # Check if action already exists
         existing_action = await self.statemgr.exist(
@@ -968,25 +987,8 @@ class RFX2DMessageAggregate(Aggregate):
                 "_deleted": None
             }
         )
-
+        
         if existing_action:
-            # # Update existing action
-            # action_data["execution_mode"] = ExecutionModeEnum(execution_mode)
-            # action_data["action_type"] = ActionTypeEnum(action_type)
-
-            # # Handle nested JSON fields
-            # if "endpoint" in execution:
-            #     action_data["endpoint_json"] = execution["endpoint"]
-            #     action_data["embedded_json"] = None
-            # elif "embed" in execution:
-            #     action_data["embedded_json"] = execution["embedded"]
-            #     action_data["endpoint_json"] = None
-
-            # if "authorization" in execution:
-            #     action_data["authorization"] = execution["authorization"]
-
-            # await self.statemgr.update(existing_action, action_data)
-            # action = existing_action
             raise ValueError(f"Action with key {action_key} already exists for mailbox {mailbox_id}. Use update action endpoint to modify the action.")
         else:
             # Create new action
@@ -997,19 +999,64 @@ class RFX2DMessageAggregate(Aggregate):
                 action_key=action_key,
                 name=action_data["name"],
                 action_type=action_type.value,
-                description=action_data.get("description"),
                 execution_mode=execution_mode.value,
-                endpoint_json=action_data.get("endpoint", None),
-                embedded_json=action_data.get("embedded", None),
+                description=action_data.get("description"),
                 authorization=action_data.get("authorization", None),
-                schema_json=action_data.get("schema", None),
-                response_json=action_data["response"]
             )
             await self.statemgr.insert(action)
 
         return {
             "action_id": action._id,
             "action_key": action_key,
+            "status": "registered"
+        }
+
+
+    @action("register-action", resources="message_action")
+    async def register_action(self, action_id, action_data, profile_id):
+        """Register or update an action definition for a mailbox."""
+
+        action = await self.statemgr.find_one(
+            "message_action",
+            where={"_id": action_id, "_deleted": None}
+        )
+        
+        # Normalize action_type and execution_mode (handle both enum and string)
+        action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
+        execution_mode_val = action.execution_mode.value if isinstance(action.execution_mode, ExecutionModeEnum) else action.execution_mode
+        
+        # Validate action type and execution mode constraints
+        if action_type_val == ActionTypeEnum.ATOMIC.value:
+            if execution_mode_val != ExecutionModeEnum.API.value:
+                raise ValueError("Atomic actions must use API execution mode")
+            
+            if "endpoint" not in action_data:
+                raise ValueError("Atomic actions require an endpoint")
+            
+        elif action_type_val == ActionTypeEnum.FORM.value:
+            if execution_mode_val != ExecutionModeEnum.API.value:
+                raise ValueError("Form actions must use API execution mode")
+            if "schema" not in action_data:
+                raise ValueError("Form actions require a schema")
+            if "endpoint" not in action_data:
+                raise ValueError("Form actions require an endpoint")
+        elif action_type_val == ActionTypeEnum.EMBEDDED.value:
+            if execution_mode_val != ExecutionModeEnum.EMBED.value:
+                raise ValueError("Embedded actions must use embed execution mode")
+            if "embedded" not in action_data:
+                raise ValueError("Embedded actions require embedded content")
+        else:
+            raise ValueError(f"Invalid action type: {action_type_val}")
+        
+        await self.statemgr.update(action,
+                                   endpoint_json=action_data.get("endpoint", None),
+                                   embedded_json=action_data.get("embedded", None),
+                                   schema_json=action_data.get("schema", None),
+                                   response_json=action_data["response"])
+
+        return {
+            "action_id": action._id,
+            "action_key": action.action_key,
             "status": "registered"
         }
 
@@ -1024,7 +1071,8 @@ class RFX2DMessageAggregate(Aggregate):
         if not action:
             raise ValueError("Action not found")
 
-        if action.action_type.value != "ATOMIC":
+        action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
+        if action_type_val != "ATOMIC":
             raise ValueError("Action is not an atomic action")
 
         # Create action execution record
@@ -1066,7 +1114,8 @@ class RFX2DMessageAggregate(Aggregate):
         if not action:
             raise ValueError("Action not found")
 
-        if action.action_type.name != "FORM":
+        action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
+        if action_type_val != "FORM":
             raise ValueError("Action is not a form action")
 
         # Validate form data against schema
@@ -1112,10 +1161,13 @@ class RFX2DMessageAggregate(Aggregate):
         if not action:
             raise ValueError("Action not found")
 
-        if action.action_type.value != "EMBEDDED":
+        action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
+        execution_mode_val = action.execution_mode.value if isinstance(action.execution_mode, ExecutionModeEnum) else action.execution_mode
+        
+        if action_type_val != "EMBEDDED":
             raise ValueError("Action is not an embedded action")
 
-        if action.execution_mode.value != "EMBED":
+        if execution_mode_val != "EMBED":
             raise ValueError("Action execution mode is not EMBED")
 
         if not action.embedded_json:

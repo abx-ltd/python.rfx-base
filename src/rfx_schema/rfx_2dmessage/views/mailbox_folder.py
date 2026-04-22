@@ -18,6 +18,7 @@ mailbox_folder_view = PGView(
             COUNT(*) FILTER (WHERE mm.folder = 'inbox') AS inbox_count,
             COUNT(*) FILTER (WHERE mm.folder = 'trash') AS trashed_count,
             COUNT(*) FILTER (WHERE mm.folder = 'archived') AS archived_count,
+            COUNT(*) FILTER (WHERE mm.is_starred = TRUE) AS starred_count,
 
             -- optional tổng
             COUNT(*) AS total_count,

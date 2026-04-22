@@ -44,7 +44,7 @@ class MailboxListQuery(DomainQueryResource):
         allow_list_view = True
         auth_required = True
 
-        excluded_fields = ('_creator', '_deleted', '_etag', '_updater', 'member_id')
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater', 'member_id', 'mailbox_id')
 
         backend_model = "_mailbox"
 
@@ -58,7 +58,7 @@ class MailboxListQuery(DomainQueryResource):
     telecom_email: Optional[str] = StringField("telecom_email")
     description: Optional[str] = StringField("description")
     url: Optional[str] = StringField("url")
-    mailbox_type: Optional[str] = StringField("mailbox_type")  
+    type: Optional[str] = StringField("mailbox_type")  
 
     member_id: UUID_TYPE = UUIDField("member_id")
 
@@ -95,6 +95,7 @@ class MailboxFolderCount(DomainQueryResource):
     inbox_count: int = IntegerField("Inbox message count")
     trashed_count: int = IntegerField("Trash message count")
     archived_count: int = IntegerField("Archive message count")
+    starred_count: int = IntegerField("Starred message count")
     total_count: int = IntegerField("Total message count")
     
 @resource("mailbox-participants")

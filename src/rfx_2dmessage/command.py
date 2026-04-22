@@ -38,6 +38,29 @@ class CreateMailbox(Command):
             _type="message-response"
         )
 
+class UpdateMailbox(Command):
+    Data = datadef.UpdateMailboxPayload
+
+    class Meta:
+            key = "update-mailbox"
+            resources = ("mailbox",)
+            tags = ["mailbox", "update"]
+            auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        mailbox_id = agg.get_aggroot().identifier
+        profile_id = agg.get_context().profile_id
+
+        mailbox_result = await agg.update_mailbox(mailbox_id=mailbox_id,
+                                                  data=payload, 
+                                                  profile_id=profile_id)
+
+        yield agg.create_response(
+            serialize_mapping(mailbox_result),
+            _type="message-response"
+        )
+
+
 class RemoveMailbox(Command):
     class Meta:
         key = "remove-mailbox"
@@ -381,7 +404,6 @@ class SetPriority(Command):
             _type="message-response",
         )
 
-
 class UploadAttachmentMetadata(Command):
     """Register metadata for an uploaded attachment."""
 
@@ -645,14 +667,14 @@ class RemoveMessageCategory(Command):
 # ACTION METHODS
 # =======================================
 
-class RegisterAction(Command):
-    """Register or update an action definition for a mailbox."""
-    Data = datadef.RegisterActionPayload
+class CreateAction(Command):
+    """Create an action definition for a mailbox."""
+    Data = datadef.CreateActionPayload
 
     class Meta:
-        key = "register-action"
+        key = "create-action"
         resources = ("mailbox",)
-        tags = ["action", "register"]
+        tags = ["action", "create"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -661,8 +683,35 @@ class RegisterAction(Command):
 
         payload = serialize_mapping(payload)
 
-        result = await agg.register_action(
+        result = await agg.create_action(
             mailbox_id=mailbox_id,
+            action_data=payload,
+            profile_id=profile_id
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class RegisterAction(Command):
+    """Register or update an action definition for a mailbox."""
+    Data = datadef.RegisterActionPayload
+
+    class Meta:
+        key = "register-action"
+        resources = ("message_action",)
+        tags = ["action", "register"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        action_id = agg.get_aggroot().identifier  # Mailbox is the aggregate root
+
+        payload = serialize_mapping(payload)
+
+        result = await agg.register_action(
+            action_id=action_id,
             action_data=payload,
             profile_id=profile_id
         )
