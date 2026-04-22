@@ -1021,18 +1021,16 @@ class RFX2DMessageAggregate(Aggregate):
             where={"_id": action_id, "_deleted": None}
         )
         
-        # Normalize action_type and execution_mode (handle both enum and string)
-        action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
-        execution_mode_val = action.execution_mode.value if isinstance(action.execution_mode, ExecutionModeEnum) else action.execution_mode
-        
+        # # Normalize action_type and execution_mode (handle both enum and string)
+        action_type_val = action.action_type.value
+        execution_mode_val = action.execution_mode.value
+
         # Validate action type and execution mode constraints
         if action_type_val == ActionTypeEnum.ATOMIC.value:
             if execution_mode_val != ExecutionModeEnum.API.value:
                 raise ValueError("Atomic actions must use API execution mode")
-            
             if "endpoint" not in action_data:
                 raise ValueError("Atomic actions require an endpoint")
-            
         elif action_type_val == ActionTypeEnum.FORM.value:
             if execution_mode_val != ExecutionModeEnum.API.value:
                 raise ValueError("Form actions must use API execution mode")

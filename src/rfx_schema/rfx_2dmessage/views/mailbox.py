@@ -21,7 +21,7 @@ mailbox_view = PGView(
         mb.telecom_email,
         mb.description,
         mb.url,
-        mb.mailbox_type,
+        mb.mailbox_type AS type,
 
         -- =========================
         -- MEMBER (SCALAR - FILTER)

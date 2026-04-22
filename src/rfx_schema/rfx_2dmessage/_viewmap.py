@@ -52,7 +52,7 @@ class MailboxView(Base):
     description: Mapped[Optional[str]] = mapped_column(String)
     url: Mapped[Optional[str]] = mapped_column(String)
 
-    mailbox_type: Mapped[Optional[MailBoxTypeEnum]] = mapped_column(
+    type: Mapped[Optional[MailBoxTypeEnum]] = mapped_column(
         SQLEnum(MailBoxTypeEnum, name="mailboxtypeenum", schema=SCHEMA)
     )
 
