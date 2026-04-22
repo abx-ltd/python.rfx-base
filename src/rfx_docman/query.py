@@ -4,6 +4,7 @@ from fluvius.data import UUID_TYPE
 from fluvius.query import DomainQueryManager, DomainQueryResource
 from fluvius.query.field import (
     BooleanField,
+    DatetimeField,
     PrimaryID,
     StringField,
     UUIDField,
@@ -169,7 +170,6 @@ class TagQuery(DomainQueryResource):
         allow_meta_view = True
 
         backend_model = "tag"
-        # scope_required = scope.TagScopeSchema
 
     id: UUID_TYPE = PrimaryID("Tag ID")
     name: str = StringField("Name")
@@ -196,3 +196,34 @@ class RealmMetaQuery(DomainQueryResource):
     realm_id: UUID_TYPE = UUIDField("Realm ID")
     key: str = StringField("Meta Key")
     value: str = StringField("Meta Value")
+
+
+@resource("entry-bin")
+class EntryBinQuery(DomainQueryResource):
+    """Entry bin queries for soft-deleted entries."""
+
+    class Meta(DomainQueryResource.Meta):
+        resource = "entry-bin"
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+
+        backend_model = "_entry_bin"
+        scope_required = scope.EntryScopeSchema
+
+    id: UUID_TYPE = PrimaryID("Entry ID")
+    deleted_at: Optional[str] = DatetimeField("Deleted At")
+    realm_id: UUID_TYPE = UUIDField("Realm ID")
+    cabinet_id: UUID_TYPE = UUIDField("Cabinet ID")
+    parent_path: Optional[str] = StringField("Parent Path")
+    path: str = StringField("Path")
+    name: str = StringField("Name")
+    type: str = StringField("Type")
+    status: Optional[str] = StringField("Status")
+    media_entry_id: Optional[UUID_TYPE] = UUIDField("Media Entry ID")
+    filemime: Optional[str] = StringField("MIME Type")
+    length: Optional[int] = IntegerField("Length")
+    child_entry_count: Optional[int] = IntegerField("Child Entry Count")
+    is_virtual: bool = BooleanField("Is Virtual")
+    tags: Optional[list] = JSONField("Tags", default=None)

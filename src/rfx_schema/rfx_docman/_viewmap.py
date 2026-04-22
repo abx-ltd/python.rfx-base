@@ -1,10 +1,11 @@
 from __future__ import annotations
+from datetime import datetime
 import uuid
 from typing import Optional
 
 from fluvius.casbin import PolicySchema
 
-from sqlalchemy import BigInteger, Boolean, Integer, String
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -84,6 +85,30 @@ class EntryView(TableBase):
     __tablename__ = "_entry"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
+    realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    cabinet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)
+    path: Mapped[str] = mapped_column(String(2561), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    type: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    is_virtual: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    media_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    filemime: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    length: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    child_entry_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    tags: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
+
+
+class EntryBinView(TableBase):
+    """Entry bin view for soft-deleted entries."""
+
+    __tablename__ = "_entry_bin"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     realm_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     cabinet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     parent_path: Mapped[str] = mapped_column(String(2048), nullable=False)

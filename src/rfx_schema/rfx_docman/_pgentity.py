@@ -163,6 +163,74 @@ entry_view = PGView(
     """,
 )
 
+entry_bin_view = PGView(
+    schema=config.RFX_DOCMAN_SCHEMA,
+    signature="_entry_bin",
+    definition=f"""
+    SELECT
+        e._created,
+        e._creator,
+        e._etag,
+        e._id,
+        e._updated,
+        e._updater,
+        NULL::timestamp with time zone AS _deleted,
+        e._deleted AS deleted_at,
+        e._realm,
+        cb.realm_id,
+        e.cabinet_id,
+        e.parent_path,
+        e.path,
+        e.name,
+        e.type,
+        e.status,
+        e.media_entry_id,
+        me.filename,
+        me.filehash,
+        me.filemime,
+        me.length,
+        CASE
+            WHEN e.type = 'FOLDER'::"{config.RFX_DOCMAN_SCHEMA}".entrytypeenum
+                THEN COALESCE(child_agg.child_entry_count, 0)
+            ELSE 0
+        END AS child_entry_count,
+        COALESCE(tag_agg.tags, '[]'::json) AS tags,
+        e.is_virtual
+    FROM "{config.RFX_DOCMAN_SCHEMA}".entry e
+    JOIN "{config.RFX_DOCMAN_SCHEMA}".cabinet cb
+      ON cb._id = e.cabinet_id
+     AND cb._deleted IS NULL
+    LEFT JOIN "{MEDIA_SCHEMA}"."media-entry" me
+      ON me._id = e.media_entry_id
+    LEFT JOIN LATERAL (
+        SELECT json_agg(
+            json_build_object(
+                'id', t._id,
+                'name', t.name,
+                'color', t.color,
+                'icon', t.icon
+            )
+            ORDER BY t.name
+        ) AS tags
+        FROM "{config.RFX_DOCMAN_SCHEMA}".entry_tag et
+        JOIN "{config.RFX_DOCMAN_SCHEMA}".tag t
+          ON t._id = et.tag_id
+         AND t._deleted IS NULL
+        WHERE et.entry_id = e._id
+    ) tag_agg ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int AS child_entry_count
+        FROM "{config.RFX_DOCMAN_SCHEMA}".entry_ancestor ea
+        JOIN "{config.RFX_DOCMAN_SCHEMA}".entry c
+          ON c._id = ea.descendant_id
+         AND c._deleted IS NULL
+        WHERE ea.ancestor_id = e._id
+          AND ea.depth = 1
+    ) child_agg ON TRUE
+    WHERE e._deleted IS NOT NULL
+    """,
+)
+
 
 def register_pg_entities(allow):
     allow_flag = str(allow).lower() in ("1", "true", "yes", "on")
@@ -176,6 +244,7 @@ def register_pg_entities(allow):
             category_view,
             cabinet_view,
             entry_view,
+            entry_bin_view,
         ]
     )
 
