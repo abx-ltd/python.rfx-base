@@ -372,9 +372,33 @@ class UserQuery(DomainQueryResource):
     verified_email: Optional[str] = StringField("Verified Email")
     verified_phone: Optional[str] = StringField("Verified Phone")
     is_super_admin: bool = BooleanField("Is Super Admin")
-    user_type: Optional[str] = StringField("User Type")
     status: str = EnumField("Status")
 
+@resource("user-with-type")
+class UserQuery(DomainQueryResource):
+    """List current user's basic info"""
+
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_meta_view = True
+        backend_model = "user"
+
+        resource = "user"
+        policy_required = True
+
+    id: UUID_TYPE = PrimaryID("User ID")
+    name__family: str = StringField("Family Name")
+    name__given: str = StringField("Given Name")
+    telecom__email: str = StringField("Email")
+    telecom__phone: str = StringField("Phone")
+    username: str = StringField("Username")
+    verified_email: Optional[str] = StringField("Verified Email")
+    verified_phone: Optional[str] = StringField("Verified Phone")
+    is_super_admin: bool = BooleanField("Is Super Admin")
+    user_type: Optional[str] = StringField("User Type")
+    status: str = EnumField("Status")
 
 @resource("profile")
 class ProfileQuery(DomainQueryResource):
