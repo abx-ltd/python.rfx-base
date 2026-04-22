@@ -180,9 +180,15 @@ class RFX2DMessageAggregate(Aggregate):
                 "mailbox_member",
                 where={"mailbox_id": mailbox_id, "member_id": member_id},
             )
-            if mailbox_member_exists:    
+            if mailbox_member_exists and mailbox_member_exists._deleted is None:    
                 member_ids.remove(mailbox_member_exists.member_id)        
                 continue
+            # else:
+            #     mailbox_member_exists_deleted = await self.statemgr.find_one(
+            #         "mailbox_member",
+            #         where={"mailbox_id": mailbox_id, "member_id": member_id,},
+            #     )
+            #     await self.statemgr.update(mailbox_member_exists_deleted, _deleted=None)
 
             mailbox_member = self.init_resource(
                 "mailbox_member",

@@ -374,6 +374,29 @@ class MessageQuery(DomainQueryResource):
     linked_messages: Optional[dict] = JSONField("Linked message")
     actions: Optional[dict] = JSONField("Actions")
 
+@resource("action")
+class ActionQuery(DomainQueryResource):
+    @classmethod
+    def base_query(cls, context, scope):
+        # profile_id = context.profile._id
+        return {
+            "mailbox_id": scope["mailbox_id"],
+            # "assigned_to_profile_id": profile_id,
+        }
+    
+    class Meta(DomainQueryResource.Meta):
+        include_all = True
+        allow_meta_view = True
+        allow_item_view = True
+        allow_list_view = True
+        auth_required = True
+
+        scope_required = scope.MailboxScope
+        backend_model = "message_action"
+
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater', '_iid')
+
+    mailbox_id: UUID_TYPE = UUIDField("Mailbox ID")
 # @resource("get-embedded-action-callback")
 # class GetEmbeddedActionCallback(DomainQueryResource):
 #     """Get callback configuration for an embedded action execution."""
