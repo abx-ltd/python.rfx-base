@@ -720,10 +720,10 @@ class RFXClientAggregate(Aggregate):
             where=dict(
                 member_id=member_id,
                 project_id=project._id,
-                role=role
+                # role=role
             ))
         if exist_member:
-            return None
+            return exist_member
 
         """Add member to project"""
         record = self.init_resource(
