@@ -84,13 +84,12 @@ class ActionExecutionStatus(Enum):
     """
     Status of action execution.
     """
-
-    PENDING = "PENDING"  # Execution started but not completed
-    COMPLETED = "COMPLETED"  # Execution finished successfully
-    FAILED = "FAILED"  # Execution failed
-    CANCELLED = "CANCELLED"  # Execution was cancelled
-    ERROR = "ERROR"  # Execution completed with error  
-
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"
+    CANCELLED = "CANCELLED"
+    FAILED = "FAILED"
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
 
 class HTTPMethodEnum(Enum):
     """
