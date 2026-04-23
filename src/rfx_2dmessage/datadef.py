@@ -301,7 +301,7 @@ class SchemaConfigPayload(DataModel):
     form_key: str = Field(..., description="Key of the form")
     name: str = Field(..., description="Name of the form")
     desc: str = Field(..., description="Description of the form")
-    element_keys: tuple
+    elements: Dict = Field(None, description="Element of this form")
     
 class ResponseConfigPayload(DataModel):
     """Payload for configuring response handling for an action."""

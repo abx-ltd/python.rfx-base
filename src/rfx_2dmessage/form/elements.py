@@ -5,15 +5,6 @@ from enum import Enum
 
 from fluvius.dform.element import DataElementModel
 
-class PersonalInfoElement(DataElementModel):
-    """Personal information element for collecting name, DOB, etc."""
-    first_name: str = Field(description="First name")
-    
-    class Meta:
-        key = "personal-info"
-        title = "Personal Information"
-        description = "Collects personal information including name and date of birth"
-
 class ShortAnswerElement(DataElementModel):
     value: str = Field(default="", description="Short answer text")
 
@@ -46,17 +37,42 @@ class CheckboxElement(DataElementModel):
         key = "checkbox"
         title = "Checkbox"
 
-class DropdownElement(DataElementModel):
-    value: str = Field(default="")
-    options: list[str] = Field(default_factory=list)
-
+class TextInputElementModel(DataElementModel):
+    """A simple text input element"""
+    value: str = Field(default="", description="The text input value")
+    placeholder: Optional[str] = Field(default=None, description="Placeholder text")
+    max_length: Optional[int] = Field(default=None, description="Maximum character length")
+    
     class Meta:
-        key = "dropdown"
-        title = "Dropdown"
-class text(DataElementModel):
-    text: str = Field(description="text")
+        key = "text-input"
+        title = "Text Input"
+        description = "A single-line text input element"
+        table_name = "text_input_element"
 
+
+class NumberInputElementModel(DataElementModel):
+    """A number input element with min/max bounds"""
+    value: float = Field(default=0.0, description="The numeric value")
+    min_value: Optional[float] = Field(default=None, description="Minimum allowed value")
+    max_value: Optional[float] = Field(default=None, description="Maximum allowed value")
+    step: Optional[float] = Field(default=1.0, description="Step increment")
+    
     class Meta:
-        key = "text"
-        title = "lable"
-        description = "File input for text"
+        key = "number-input"
+        title = "Number Input"
+        description = "A numeric input element with optional bounds"
+        table_name = "number_input_element"
+
+
+class SelectElementModel(DataElementModel):
+    """A select/dropdown element"""
+    value: str = Field(default="", description="The selected value")
+    options: List[str] = Field(default_factory=list, description="Available options")
+    allow_multiple: bool = Field(default=False, description="Allow multiple selections")
+    
+    class Meta:
+        key = "select"
+        title = "Select"
+        description = "A dropdown selection element"
+        table_name = "select_element"
+

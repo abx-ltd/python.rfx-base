@@ -1118,7 +1118,7 @@ class RFX2DMessageAggregate(Aggregate):
         if not action:
             raise ValueError("Action not found")
 
-        action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
+        action_type_val = action.action_type.value
         if action_type_val != ActionTypeEnum.FORM:
             raise ValueError("Action is not a form action")
 
@@ -1165,8 +1165,8 @@ class RFX2DMessageAggregate(Aggregate):
         if not action:
             raise ValueError("Action not found")
 
-        action_type_val = action.action_type.value if isinstance(action.action_type, ActionTypeEnum) else action.action_type
-        execution_mode_val = action.execution_mode.value if isinstance(action.execution_mode, ExecutionModeEnum) else action.execution_mode
+        action_type_val = action.action_type.value
+        execution_mode_val = action.execution_mode.value
         
         if action_type_val != ActionTypeEnum.EMBEDDED:
             raise ValueError("Action is not an embedded action")
