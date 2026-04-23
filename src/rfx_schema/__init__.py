@@ -20,6 +20,7 @@ from .rfx_qr import RFXQRConnector
 from .rfx_todo import RFXTodoConnector
 from .rfx_template import RFXTemplateConnector
 from .rfx_docman import RFXDocmanConnector
+from .rfx_2dmessage import RFX2DMessageConnector
 
 DOMAIN_CONNECTORS = {
     "user": IDMConnector,
@@ -33,6 +34,7 @@ DOMAIN_CONNECTORS = {
     "todo": RFXTodoConnector,
     "template": RFXTemplateConnector,
     "docman": RFXDocmanConnector,
+    "2dmessage": RFX2DMessageConnector
 }
 # Domain connectors are now managed within their respective submodules
 # to avoid circular imports.
