@@ -24,6 +24,7 @@ from rfx_schema.rfx_qr import RFXQRConnector
 from rfx_schema.rfx_todo import RFXTodoConnector
 from rfx_schema.rfx_template import RFXTemplateConnector
 from rfx_schema.rfx_docman import RFXDocmanConnector
+from rfx_schema.rfx_2dmessage import RFX2DMessageConnector
 from rfx_schema.rfx_hatchet import RFXHatchetConnector
 
 DOMAIN_CONNECTORS = {
@@ -38,6 +39,7 @@ DOMAIN_CONNECTORS = {
     "todo": RFXTodoConnector,
     "template": RFXTemplateConnector,
     "docman": RFXDocmanConnector,
+    "2dmessage": RFX2DMessageConnector,
     "hatchet": RFXHatchetConnector,
 }
 # this is the Alembic Config object, which provides

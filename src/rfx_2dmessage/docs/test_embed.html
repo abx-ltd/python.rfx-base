@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Mock Sign Document App</h2>
+    <button onclick="completeSigning()">Complete Signing</button>
+
+    <script>
+    async function completeSigning() {
+        // 1. Get the execution_id from the URL (your backend added this to the query params)
+        const urlParams = new URLSearchParams(window.location.search);
+        const executionId = urlParams.get('execution_id');
+        const actionId = "action_005"; // Match your action ID
+        const messageId = "msg_123";   // Replace with actual or dynamic message ID
+
+        const payload = {
+            event: "SIGNING_COMPLETE",
+            status: "success",
+            data: {
+                record_id: "signed_doc_999",
+                signed_at: new Date().toISOString()
+            }
+        };
+
+        try {
+            // 2. Call your Python Backend directly
+            const response = await fetch("http://localhost:8000/record-embedded-action-result", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message_id: messageId,
+                    action_id: actionId,
+                    execution_id: executionId,
+                    callback_payload: payload,
+                    profile_id: "user_01"
+                })
+            });
+
+            if (response.ok) {
+                alert("Success! You can close this tab.");
+                window.close(); // Close the tab after success
+            }
+        } catch (err) {
+            console.error("Failed to notify backend", err);
+        }
+    }
+    </script>
+</body>
+</html>
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mock Training Portal</title>
+    <style>
+        body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f2f5; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+        h2 { color: #1c1e21; }
+        button { background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background: #218838; }
+        button:disabled { background: #ccc; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Module: Safety Training</h2>
+        <p>Click the button below to certify that you have completed the required materials.</p>
+        <button id="finishBtn" onclick="completeTraining()">Complete Training</button>
+    </div>
+
+    <script>
+    async function completeTraining() {
+        const btn = document.getElementById('finishBtn');
+        btn.disabled = true;
+        btn.innerText = "Saving Progress...";
+
+        // 1. Get IDs from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const executionId = urlParams.get('execution_id');
+        
+        // These should be passed in your URL or hardcoded for testing
+        const actionId = "04a9a7de-408c-462d-a143-61d2d2fe08e3"; 
+        const messageId = "56bf2c0b-5f37-49a5-bf50-91fddb5e5bb3"; 
+
+        // 2. IMPORTANT: The event name MUST match your JSON: "TRAINING_COMPLETE"
+        const payload = {
+            event: "TRAINING_COMPLETE", 
+            status: "success",
+            data: {
+                record_id: "cert_" + Math.floor(Math.random() * 10000),
+                completion_date: new Date().toISOString(),
+                score: 100
+            }
+        };
+
+        try {
+            // 3. Notify your local FastAPI backend
+            const response = await fetch("http://localhost:8000/record-embedded-action-result", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message_id: messageId,
+                    action_id: actionId,
+                    execution_id: executionId,
+                    callback_payload: payload,
+                    profile_id: "profile_001"
+                })
+            });
+
+            if (response.ok) {
+                alert("Success! Training recorded. You may close this tab.");
+                window.close();
+            } else {
+                const error = await response.json();
+                alert("Error: " + JSON.stringify(error));
+                btn.disabled = false;
+                btn.innerText = "Complete Training";
+            }
+        } catch (err) {
+            console.error("Connection failed:", err);
+            alert("Could not reach your backend at localhost:8000. Check CORS and ensure the app is running.");
+            btn.disabled = false;
+            btn.innerText = "Complete Training";
+        }
+    }
+    </script>
+</body>
+</html>
