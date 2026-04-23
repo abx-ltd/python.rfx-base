@@ -947,11 +947,10 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(work_item, **serialize_mapping(data))
 
     @action("work-item-invalidated", resources="work_item")
-    async def invalidate_work_item(self, /, data):
+    async def invalidate_work_item(self):
         """Invalidate work item"""
         work_item = self.rootobj
         await self.statemgr.invalidate(work_item)
-        return work_item
 
     # =========== Work Item Deliverable (Work Item Context) ============
     @action("work-item-deliverable-created", resources="work_item")

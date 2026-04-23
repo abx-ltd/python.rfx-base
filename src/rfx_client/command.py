@@ -1588,7 +1588,10 @@ class DeleteWorkItem(Command):
 
     async def _process(self, agg, stm, payload):
         """Delete work item"""
-        await agg.invalidate_work_item(data=payload)
+        await agg.invalidate_work_item()
+        yield agg.create_response(
+            {"status": "OK"}, _type="work-item-type-response"
+        )
 
 
 class CreateWorkItemType(Command):
