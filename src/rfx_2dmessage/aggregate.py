@@ -1459,3 +1459,4 @@ class RFX2DMessageAggregate(Aggregate):
             "collection_key": collection.collection_key,
             "collection_name": collection.collection_name,
         }
+    

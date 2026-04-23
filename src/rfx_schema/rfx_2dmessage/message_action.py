@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import (
     ARRAY,
     Boolean,
+    Index,
     CheckConstraint,
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
     String,
     UniqueConstraint,
-    func,
+    text,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -91,8 +92,7 @@ class MessageAction(TableBase):
 
     __tablename__ = "message_action"
     __table_args__ = (
-        UniqueConstraint("mailbox_id", "action_key", name="uq_action_per_mailbox"),
-
+        Index("uq_action_per_mailbox", "mailbox_id", "action_key", unique=True, postgresql_where=text("_deleted IS NULL")),
         CheckConstraint(
             "(action_type IN ('atomic','form') AND execution_mode = 'api') OR "
             "(action_type = 'embedded' AND execution_mode = 'embed')",

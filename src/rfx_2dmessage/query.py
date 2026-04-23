@@ -394,7 +394,7 @@ class ActionQuery(DomainQueryResource):
         scope_required = scope.MailboxScope
         backend_model = "message_action"
 
-        excluded_fields = ('_creator', '_deleted', '_etag', '_updater', '_iid')
+        excluded_fields = ('_iid',)
 
     mailbox_id: UUID_TYPE = UUIDField("Mailbox ID")
 # @resource("get-embedded-action-callback")

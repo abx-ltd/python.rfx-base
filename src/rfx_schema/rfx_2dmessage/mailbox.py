@@ -15,6 +15,7 @@ from sqlalchemy import (
     JSON,
     Index,
     UniqueConstraint,
+    text
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -55,7 +56,7 @@ class Mailbox(TableBase):
 class MailboxMember(TableBase):
     __tablename__ = "mailbox_member"
     __table_args__ = ({"schema": SCHEMA},
-                      Index("ix_mailbox_member", "mailbox_id", "member_id", unique=True),
+                      Index("ix_mailbox_member_active", "mailbox_id", "member_id", unique=True, postgresql_where=text("_deleted IS NULL")),
     )
     mailbox_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.mailbox._id"), nullable=False
