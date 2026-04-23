@@ -4,7 +4,7 @@ from fluvius.error import BadRequestError, NotFoundError, UnprocessableError
 from fluvius.data import serialize_mapping, UUID_GENR, logger
 from fluvius.helper import timestamp
 from .helper import parse_duration_for_db
-from rfx_schema.rfx_client.types import SyncStatusEnum, InquiryStatusEnum, RecordStatusEnum
+from rfx_schema.rfx_client.types import SyncStatusEnum, InquiryStatusEnum, RecordStatusEnum, ProjectWorkPackageStatusEnum
 from . import config
 
 
@@ -1089,15 +1089,10 @@ class RFXClientAggregate(Aggregate):
     @action("project-work-package-updated", resources="project")
     async def update_project_work_package(self, /, data):
         """Update project work package"""
-        project_work_package = await self.statemgr.find_one(
+        project_work_package = await self.statemgr.fetch(
             "project_work_package",
-            where=dict(
-                _id=data.project_work_package_id, project_id=self.aggroot.identifier
-            ),
+            str(data.project_work_package_id)
         )
-
-        if not project_work_package:
-            raise NotFoundError("A00.404", "Project work package not found")
 
         update_data = serialize_mapping(data)
         update_data.pop("project_work_package_id", None)
@@ -1105,18 +1100,35 @@ class RFXClientAggregate(Aggregate):
         await self.statemgr.update(project_work_package, **update_data)
         return project_work_package
 
+    @action("project-work-package-status-updated", resources="project")
+    async def update_project_work_package_status(self, /, data):
+        """Update project work package status"""
+        project_work_package = await self.statemgr.fetch(
+            "project_work_package",
+            str(data.project_work_package_id)
+        )
+
+        # Validation logic: Ensure status is valid
+        try:
+            target_status = ProjectWorkPackageStatusEnum(data.status)
+        except ValueError:
+            raise BadRequestError("A00.400", f"Invalid status: {data.status}")
+
+        # Example validation: Don't allow moving back to DRAFT from ACTIVE
+        if project_work_package.status == ProjectWorkPackageStatusEnum.ACTIVE and target_status == ProjectWorkPackageStatusEnum.DRAFT:
+            raise UnprocessableError("A00.422", "Cannot move work package back to DRAFT once it is ACTIVE")
+
+        await self.statemgr.update(project_work_package, status=target_status.value)
+        return project_work_package
+
     @action("project-work-package-updated-with-work-items", resources="project")
     async def update_project_work_package_with_work_items(self, /, data):
         """Update project work package and sync work items"""
 
-        project_work_package = await self.statemgr.find_one(
+        project_work_package = await self.statemgr.fetch(
             "project_work_package",
-            where=dict(
-                _id=data.project_work_package_id, project_id=self.aggroot.identifier
-            ),
+            str(data.project_work_package_id)
         )
-        if not project_work_package:
-            raise NotFoundError("A00.404", "Project work package not found")
 
         existing_links = await self.statemgr.find_all(
             "project_work_package_work_item",

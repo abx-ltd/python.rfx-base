@@ -319,6 +319,11 @@ class UpdateProjectWorkPackagePayload(DataModel):
     work_package_complexity_level: Optional[int] = None
 
 
+class UpdateProjectWorkPackageStatusPayload(DataModel):
+    project_work_package_id: UUID_TYPE
+    status: str
+
+
 class UpdateProjectWorkPackageWithWorkItemsPayload(DataModel):
     project_work_package_id: UUID_TYPE
     work_package_name: Optional[str] = Field(max_length=255)

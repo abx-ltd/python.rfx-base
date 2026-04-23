@@ -828,6 +828,46 @@ class CreateProjectWorkPackageRelationShip(Command):
             serialize_mapping(result), _type="project-work-package-response"
         )
 
+
+class UpdateProjectWorkPackageStatus(Command):
+    """Update Project Work Package Status"""
+
+    class Meta:
+        key = "update-project-work-package-status"
+        resources = ("project",)
+        tags = ["project", "work-package", "update", "status"]
+        auth_required = True
+        description = "Update project work package status"
+        policy_required = True
+        internal = True
+
+    Data = datadef.UpdateProjectWorkPackageStatusPayload
+
+    async def _process(self, agg, stm, payload):
+        """Update project work package status"""
+
+        profile_id = agg.get_context().profile_id
+        profile = await stm.get_profile(profile_id)
+
+        result = await agg.update_project_work_package_status(data=payload)
+
+        yield agg.create_activity(
+            logroot=agg.get_aggroot(),
+            message=f"{profile.name__given} {profile.name__family} updated work package {result.work_package_name} status to {payload.status}",
+            msglabel="update-project-work-package-status",
+            msgtype=ActivityType.USER_ACTION,
+            data={
+                "project_work_package_id": str(result._id),
+                "work_package_name": result.work_package_name,
+                "status": payload.status,
+                "updated_by": f"{profile.name__given} {profile.name__family}",
+            },
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result), _type="project-work-package-response"
+        )
+
 class AddTicketToProject(Command):
     class Meta:
         key = "add-ticket-to-project"
