@@ -283,6 +283,35 @@ class RemoveEntry(Command):
         await agg.remove_entry()
 
 
+class RestoreEntry(Command):
+    """Restore a soft-deleted entry from bin."""
+
+    class Meta:
+        key = "restore-entry"
+        resources = ("entry",)
+        tags = ["docman", "entry", "restore"]
+        auth_required = True
+        resource_init = True
+
+    async def _process(self, agg, stm, payload):
+        result = await agg.restore_entry(payload)
+        yield agg.create_response(serialize_mapping(result), _type="entry-response")
+
+
+class HardDeleteEntry(Command):
+    """Hard-delete a soft-deleted entry from bin."""
+
+    class Meta:
+        key = "hard-delete-entry"
+        resources = ("entry",)
+        tags = ["docman", "entry", "hard-delete"]
+        auth_required = True
+        resource_init = True
+
+    async def _process(self, agg, stm, payload):
+        await agg.hard_delete_entry(payload)
+
+
 class CopyEntry(Command):
     """Copy an entry subtree to destination cabinet/path."""
 

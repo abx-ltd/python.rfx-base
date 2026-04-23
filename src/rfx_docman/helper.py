@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from asyncpg import UniqueViolationError
+from fluvius.data.exceptions import DuplicateEntryError, ItemNotFoundError
 from fluvius.error import BadRequestError
 
 from ._meta import config
@@ -409,3 +410,195 @@ async def delete_entry_tag_link(
         tag_id,
         unwrapper=None,
     )
+
+
+async def _fetch_deleted_entry_root(
+    statemgr: Any,
+    *,
+    entry_id: Any,
+) -> Any:
+    rows = await statemgr.native_query(
+        f"""
+        SELECT _id, cabinet_id, path, type
+        FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+        WHERE _id = $1
+          AND _deleted IS NOT NULL
+        LIMIT 1
+        """,
+        entry_id,
+    )
+    if not rows:
+        raise ItemNotFoundError("E00.006", f"Deleted entry '{entry_id}' not found")
+    return rows[0]
+
+
+async def _fetch_deleted_subtree_rows(
+    statemgr: Any,
+    *,
+    cabinet_id: Any,
+    root_path: str,
+) -> list[Any]:
+    path_prefix = f"{root_path}/%"
+    return await statemgr.native_query(
+        f"""
+        SELECT _id, cabinet_id, parent_path, path
+        FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+        WHERE cabinet_id = $1
+          AND _deleted IS NOT NULL
+          AND (path = $2 OR path LIKE $3)
+        ORDER BY LENGTH(path) ASC, path ASC
+        """,
+        cabinet_id,
+        root_path,
+        path_prefix,
+    )
+
+
+async def restore_deleted_entry_subtree(
+    statemgr: Any,
+    *,
+    entry_id: Any,
+) -> int:
+    """Restore a deleted entry (and subtree for folders) using SQL/native_query."""
+    root = await _fetch_deleted_entry_root(statemgr, entry_id=entry_id)
+    deleted_rows = await _fetch_deleted_subtree_rows(
+        statemgr,
+        cabinet_id=root.cabinet_id,
+        root_path=str(root.path),
+    )
+    if not deleted_rows:
+        raise ItemNotFoundError("E00.006", f"Deleted entry '{entry_id}' not found")
+
+    restore_ids = [row._id for row in deleted_rows]
+    restore_paths = [str(row.path) for row in deleted_rows]
+
+    # Guard: any active path collision blocks restore.
+    conflicts = await statemgr.native_query(
+        f"""
+        SELECT path
+        FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+        WHERE cabinet_id = $1
+          AND _deleted IS NULL
+          AND path = ANY($2)
+        LIMIT 1
+        """,
+        root.cabinet_id,
+        restore_paths,
+    )
+    if conflicts:
+        raise DuplicateEntryError(
+            "E00.001",
+            f"Cannot restore because path '{conflicts[0].path}' already exists",
+        )
+
+    await statemgr.native_query(
+        f"""
+        UPDATE "{config.RFX_DOCMAN_SCHEMA}"."entry"
+           SET _deleted = NULL
+         WHERE _id = ANY($1)
+           AND _deleted IS NOT NULL
+        """,
+        restore_ids,
+        unwrapper=None,
+    )
+
+    # Rebuild closure rows from active parent chain (restored + existing).
+    await statemgr.native_query(
+        f"""
+        DELETE FROM "{config.RFX_DOCMAN_SCHEMA}"."entry_ancestor"
+         WHERE ancestor_id = ANY($1)
+            OR descendant_id = ANY($1)
+        """,
+        restore_ids,
+        unwrapper=None,
+    )
+
+    restored_rows = await statemgr.native_query(
+        f"""
+        SELECT _id, cabinet_id, parent_path, path
+        FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+        WHERE _id = ANY($1)
+          AND _deleted IS NULL
+        ORDER BY LENGTH(path) ASC, path ASC
+        """,
+        restore_ids,
+    )
+
+    for row in restored_rows:
+        parent_id = None
+        parent_path = str(row.parent_path or "")
+        if parent_path:
+            parent_rows = await statemgr.native_query(
+                f"""
+                SELECT _id
+                FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+                WHERE cabinet_id = $1
+                  AND path = $2
+                  AND _deleted IS NULL
+                LIMIT 1
+                """,
+                row.cabinet_id,
+                parent_path,
+            )
+            if not parent_rows:
+                raise BadRequestError(
+                    "D10.004",
+                    f"Cannot restore '{row.path}' because parent '{parent_path}' is missing",
+                )
+            parent_id = parent_rows[0]._id
+
+        await insert_entry_ancestor_rows(
+            statemgr,
+            entry_id=row._id,
+            parent_id=parent_id,
+        )
+
+    return len(restore_ids)
+
+
+async def hard_delete_deleted_entry_subtree(
+    statemgr: Any,
+    *,
+    entry_id: Any,
+) -> int:
+    """Hard-delete a deleted entry (and subtree) with direct SQL bypass."""
+    root = await _fetch_deleted_entry_root(statemgr, entry_id=entry_id)
+    deleted_rows = await _fetch_deleted_subtree_rows(
+        statemgr,
+        cabinet_id=root.cabinet_id,
+        root_path=str(root.path),
+    )
+    if not deleted_rows:
+        raise ItemNotFoundError("E00.006", f"Deleted entry '{entry_id}' not found")
+
+    delete_ids = [row._id for row in deleted_rows]
+
+    await statemgr.native_query(
+        f"""
+        DELETE FROM "{config.RFX_DOCMAN_SCHEMA}"."entry_tag"
+         WHERE entry_id = ANY($1)
+        """,
+        delete_ids,
+        unwrapper=None,
+    )
+
+    await statemgr.native_query(
+        f"""
+        DELETE FROM "{config.RFX_DOCMAN_SCHEMA}"."entry_ancestor"
+         WHERE ancestor_id = ANY($1)
+            OR descendant_id = ANY($1)
+        """,
+        delete_ids,
+        unwrapper=None,
+    )
+
+    await statemgr.native_query(
+        f"""
+        DELETE FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+         WHERE _id = ANY($1)
+           AND _deleted IS NOT NULL
+        """,
+        delete_ids,
+        unwrapper=None,
+    )
+    return len(delete_ids)

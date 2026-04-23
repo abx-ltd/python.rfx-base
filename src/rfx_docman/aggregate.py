@@ -353,6 +353,26 @@ class RFXDocmanAggregate(Aggregate):
                 entry_id=entry._id,
             )
 
+    @action("entry-restored", resources="entry")
+    async def restore_entry(self, /, data=None):
+        """Restore a deleted entry (and subtree) from bin."""
+        entry = self.rootobj
+        await helper.restore_deleted_entry_subtree(
+            self.statemgr,
+            entry_id=entry._id,
+        )
+        return await self.statemgr.fetch("entry", entry._id)
+
+    @action("entry-hard-deleted", resources="entry")
+    async def hard_delete_entry(self, /, data=None):
+        """Hard-delete a deleted entry (and subtree) from bin."""
+        entry = self.rootobj
+        deleted_count = await helper.hard_delete_deleted_entry_subtree(
+            self.statemgr,
+            entry_id=entry._id,
+        )
+        return {"entry_id": str(entry._id), "deleted_count": deleted_count}
+
     @action("entry-copied", resources="entry")
     async def copy_entry(self, /, data):
         """Copy an entry subtree to destination cabinet/path with closure rebuild.
