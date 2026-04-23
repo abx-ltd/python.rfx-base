@@ -721,6 +721,43 @@ class RegisterAction(Command):
             _type="message-response",
         )
 
+class UpdateAction(Command):
+
+    Data = datadef.UpdateActionPayload
+
+    class Meta:
+        key = "update-action"
+        resources = ("message_action",)
+        tags = ["action", "update"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        action_id = agg.get_aggroot().identifier  # Action is the aggregate root
+
+        result = await agg.update_action(
+            action_id=action_id,
+            action_data=payload,
+            profile_id=profile_id
+        )
+
+        yield agg.create_response(
+            serialize_mapping(result),
+            _type="message-response",
+        )
+
+class RemoveAction(Command):
+    class Meta:
+        key = "remove-action"
+        resources = ("message_action",)
+        tags = ["action", "remove"]
+        auth_required = True
+
+    async def _process(self, agg, stm, payload):
+        profile_id = agg.get_context().profile_id
+        action_id = agg.get_aggroot().identifier  # Action is the aggregate root
+
+        await agg.remove_action(action_id=action_id, profile_id=profile_id)
 
 class ExecuteAtomicAction(Command):
     """Execute an atomic action for a message."""

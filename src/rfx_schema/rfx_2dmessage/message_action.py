@@ -49,7 +49,7 @@ class MessageActionExecute(TableBase):
     )
 
     execution_mode: Mapped[ExecutionModeEnum] = mapped_column(
-        SQLEnum(ExecutionModeEnum, name="execution_mode", schema=SCHEMA),
+        SQLEnum(ExecutionModeEnum, name="executionmodeenum", schema=SCHEMA),
         nullable=False,
         default=ExecutionModeEnum.API
     ) # api | embed
@@ -120,14 +120,14 @@ class MessageAction(TableBase):
     action_key: Mapped[Optional[str]] = mapped_column(String(255))
     name: Mapped[Optional[str]] = mapped_column(String(1024))
     action_type: Mapped[ActionTypeEnum] = mapped_column(
-        SQLEnum(ActionTypeEnum, name="action_type", schema=SCHEMA),
+        SQLEnum(ActionTypeEnum, name="actiontypeenum", schema=SCHEMA),
         nullable=False
     ) # atomic | form | embedded
 
     description: Mapped[Optional[str]] = mapped_column(String(1024))
 
     execution_mode: Mapped[ExecutionModeEnum] = mapped_column(
-        SQLEnum(ExecutionModeEnum, name="execution_mode", schema=SCHEMA),
+        SQLEnum(ExecutionModeEnum, name="executionmodeenum", schema=SCHEMA),
         nullable=False
     ) # api | embed
 

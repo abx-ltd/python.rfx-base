@@ -372,12 +372,38 @@ class CreateActionPayload(DataModel):
         description="Execution mode for the action: API or EMBED"
     )
 
-    action_type: Optional[ActionTypeEnum] = Field(
+    action_type: ActionTypeEnum = Field(
         default=ActionTypeEnum.ATOMIC, 
         description="Type of action: atomic, form, or embedded")
 
     authorization_json: Optional[Dict[str, Any]] = Field(None, description="Optional JSON schema for action authorization parameters")
 
+class UpdateActionPayload(DataModel):
+    name: Optional[str] = Field(None, description="Display name for the action")
+    description: Optional[str] = Field(None, description="Optional description of the action")
+
+    # execution_mode: Optional[ExecutionModeEnum] = Field(
+    #     default=ExecutionModeEnum.API, 
+    #     description="Execution mode for the action: API or EMBED"
+    # )
+
+    # action_type: Optional[ActionTypeEnum] = Field(
+    #     default=ActionTypeEnum.ATOMIC, 
+    #     description="Type of action: atomic, form, or embedded")
+
+    authorization_json: Optional[Dict[str, Any]] = Field(None, description="Optional JSON schema for action authorization parameters")
+
+    # Schema for form actions, require if action_type is FORM and execution_mode is API
+    schema: Optional[SchemaConfigPayload] = Field(None, description="Schema definition for form actions")
+
+    # Endpoint configuration, require if action_type is ATOMIC or FORM and execution_mode is API
+    endpoint: Optional[EndpointConfigPayload] = Field(None, description="Configuration for API endpoint, depending on execution mode")
+
+    # Embedded configuration, require if action_type is EMBEDDED and execution_mode is EMBED
+    embedded: Optional[EmbeddedConfigPayload] = Field(None, description="Configuration for embedded actions, such as URL, dimensions, and callback handling")
+
+    # Response configuration
+    response: Optional[ResponseConfigPayload] = Field(None, description="Response configuration with success/error messages and fields")
 
 class ExecuteAtomicActionPayload(DataModel):
     """Payload for executing an atomic action."""

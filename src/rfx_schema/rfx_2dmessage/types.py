@@ -46,8 +46,8 @@ class ExecutionModeEnum(Enum):
     EMBED = "EMBED"
 
 class ActionTypeEnum(Enum):
-    FORM = "FORM"
     ATOMIC = "ATOMIC"
+    FORM = "FORM"
     EMBEDDED = "EMBEDDED"
 
 class ActionExecutionStatus(Enum):

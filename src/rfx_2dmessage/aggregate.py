@@ -1063,6 +1063,44 @@ class RFX2DMessageAggregate(Aggregate):
             "action_key": action.action_key,
             "status": "registered"
         }
+    
+    @action("update-action", resources="message_action")
+    async def update_action(self, action_id, action_data, profile_id):
+        action = self.rootobj
+
+        member_is_owner = await self.statemgr.exist(
+            "mailbox_member",
+            where={"mailbox_id": action.mailbox_id, "member_id": profile_id, "role": "OWNER"}
+        )
+        if member_is_owner is None:
+            raise ValueError(f"Profile {profile_id} is not owner of mailbox")
+
+        action_result = await self.statemgr.update(action, **serialize_mapping(action_data))
+
+        return action_result
+    
+    @action("remove-action", resources="message_action")
+    async def remove_action(self, action_id, profile_id):
+        action = self.rootobj
+
+        # Check member is owner of mailbox
+        member_is_owner = await self.statemgr.exist(
+            "mailbox_member",
+            where={"mailbox_id": action.mailbox_id, "member_id": profile_id, "role": "OWNER"}
+        )
+        if member_is_owner is None:
+            raise ValueError(f"Profile {profile_id} is not owner of mailbox")
+
+        # Delete action have executed for each message in mailbox
+        action_executed = await self.statemgr.find_all(
+            "message_action_execute",
+            where={"action_id": action_id, "context_mailbox_id": action.mailbox_id}
+        )
+        for action_exe in action_executed:
+            await self.statemgr.invalidate(action_exe)
+
+        # Delete action
+        await self.statemgr.invalidate(action)
 
     @action("execute-atomic-action", resources="message")
     async def execute_atomic_action(self, message_id, action_id, profile_id, mailbox_id):
@@ -1119,7 +1157,7 @@ class RFX2DMessageAggregate(Aggregate):
             raise ValueError("Action not found")
 
         action_type_val = action.action_type.value
-        if action_type_val != ActionTypeEnum.FORM:
+        if action_type_val != ActionTypeEnum.FORM.value:
             raise ValueError("Action is not a form action")
 
         # Validate form data against schema
@@ -1168,10 +1206,10 @@ class RFX2DMessageAggregate(Aggregate):
         action_type_val = action.action_type.value
         execution_mode_val = action.execution_mode.value
         
-        if action_type_val != ActionTypeEnum.EMBEDDED:
+        if action_type_val != ActionTypeEnum.EMBEDDED.value:
             raise ValueError("Action is not an embedded action")
 
-        if execution_mode_val != ExecutionModeEnum.EMBED:
+        if execution_mode_val != ExecutionModeEnum.EMBED.value:
             raise ValueError("Action execution mode is not EMBED")
 
         if not action.embedded_json:
