@@ -56,6 +56,7 @@ class ActionExecutionStatus(Enum):
     ERROR = "ERROR"
     CANCEL = "CANCEL"
     COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class HTTPMethodEnum(Enum):
