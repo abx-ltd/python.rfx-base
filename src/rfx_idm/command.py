@@ -62,17 +62,11 @@ class SyncUserMixin:
 class UserProvisionMixin:
     """Provides reusable logic for provisioning users in Keycloak and local system."""
 
-    async def _find_kc_user_by_identifiers(self, username=None, email=None):
+    async def _find_kc_user_by_identifiers(self, email=None):
         """Exact-match lookup in Keycloak by username then email."""
         kc_user = None
-        if username:
-            candidates = await kc_admin.find_user(username)
-            for u in candidates:
-                if u.username == username:
-                    kc_user = u
-                    break
 
-        if not kc_user and email:
+        if email:
             candidates = await kc_admin.find_user(email)
             for u in candidates:
                 if u.email == email:
@@ -226,7 +220,7 @@ class CreateUser(Command, UserProvisionMixin):
 
         # Create user in Keycloak
         kc_user = await self._find_kc_user_by_identifiers(
-            username=payload.username, email=payload.email
+            email=payload.email
         )
         user_already_in_kc = False
 
@@ -236,7 +230,7 @@ class CreateUser(Command, UserProvisionMixin):
             except BadRequestError as e:
                 if any(term in str(e).lower() for term in ["conflict", "exists", "already"]):
                     kc_user = await self._find_kc_user_by_identifiers(
-                        username=payload.username, email=payload.email
+                        email=payload.email
                     )
                     if not kc_user:
                         raise e
@@ -1113,7 +1107,7 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
 
         # Resolve the Keycloak user
         kc_user = await self._find_kc_user_by_identifiers(
-            username=payload.username, email=payload.telecom__email
+            email=payload.telecom__email
         )
         user_was_created = False
 
@@ -1152,7 +1146,7 @@ class CreateProfileUserInOrg(Command, UserProvisionMixin):
             except BadRequestError as e:
                 if any(term in str(e).lower() for term in ["conflict", "exists", "already"]):
                     kc_user = await self._find_kc_user_by_identifiers(
-                        username=payload.username, email=payload.telecom__email
+                        email=payload.telecom__email
                     )
                     if not kc_user:
                         raise e

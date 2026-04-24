@@ -11,9 +11,11 @@ from fluvius.query.field import (
     EnumField,
     PrimaryID,
 )
+from .integration import kc_admin
 from starlette.responses import RedirectResponse
 from fluvius.error import ForbiddenError, NotFoundError, BadRequestError
 from rfx_user import config as userconf
+from .integration import kc_admin
 from . import config
 
 from .state import IDMStateManager
@@ -251,7 +253,7 @@ async def reject_invitation(
 async def check_user_email(
     query_manager: IDMQueryManager, request: Request
 ):
-    """Check whether a user with the given email exists in the local database.
+    """Check whether a user with the given email exists in Keycloak.
 
     Query param:
         email (str): the email address to check.
@@ -259,17 +261,23 @@ async def check_user_email(
     Returns:
         {"exists": true|false}
     """
-    async with query_manager.data_manager.transaction():
-        email = request.query_params.get("email", None)
-        if not email:
-            return {"error": "email query parameter is required"}
+    email = request.query_params.get("email", None)
+    if not email:
+        return {"error": "email query parameter is required"}
 
-        email = email.strip().lower()
+    email = email.strip().lower()
 
-        exists = await query_manager.data_manager.find_all(
-            "user", where=dict(telecom__email=email)
-        )
-        return {"exists": bool(exists)}
+    kc_user = None
+    try:
+        candidates = await kc_admin.find_user(email)
+        for u in candidates:
+            if getattr(u, "email", None) == email:
+                kc_user = u
+                break
+    except Exception:
+        pass
+
+    return {"exists": bool(kc_user)}
 
 
 @resource("user")
