@@ -266,7 +266,7 @@ async def check_user_email(
 
         email = email.strip().lower()
 
-        exists = await query_manager.data_manager.exist(
+        exists = await query_manager.data_manager.find_all(
             "user", where=dict(telecom__email=email)
         )
         return {"exists": bool(exists)}
