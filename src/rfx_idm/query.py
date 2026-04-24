@@ -260,9 +260,11 @@ async def check_user_email(
         {"exists": true|false}
     """
     async with query_manager.data_manager.transaction():
-        email = request.query_params.get("email").strip().lower()
+        email = request.query_params.get("email", None)
         if not email:
             return {"error": "email query parameter is required"}
+
+        email = email.strip().lower()
 
         exists = await query_manager.data_manager.exist(
             "user", where=dict(telecom__email=email)
