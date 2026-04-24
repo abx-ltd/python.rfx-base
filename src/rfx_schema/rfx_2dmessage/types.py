@@ -54,7 +54,7 @@ class ActionExecutionStatus(Enum):
     PENDING = "PENDING"
     SUCCESS = "SUCCESS"
     ERROR = "ERROR"
-    CANCEL = "CANCEL"
+    CANCELLED = "CANCELLED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
