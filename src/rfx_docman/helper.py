@@ -419,7 +419,7 @@ async def _fetch_deleted_entry_root(
 ) -> Any:
     rows = await statemgr.native_query(
         f"""
-        SELECT _id, cabinet_id, path, type
+        SELECT _id, cabinet_id, parent_path, path, type
         FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
         WHERE _id = $1
           AND _deleted IS NOT NULL
@@ -469,8 +469,65 @@ async def restore_deleted_entry_subtree(
     if not deleted_rows:
         raise ItemNotFoundError("E00.006", f"Deleted entry '{entry_id}' not found")
 
-    restore_ids = [row._id for row in deleted_rows]
-    restore_paths = [str(row.path) for row in deleted_rows]
+    # Include deleted ancestor chain so restoring a node can also recover
+    # required parent folders when they are in bin.
+    rows_by_path: dict[str, Any] = {str(row.path): row for row in deleted_rows}
+    parent_path = str(root.parent_path or "")
+    while parent_path:
+        if parent_path in rows_by_path:
+            break
+
+        deleted_parent_rows = await statemgr.native_query(
+            f"""
+            SELECT _id, cabinet_id, parent_path, path, type
+            FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+            WHERE cabinet_id = $1
+              AND path = $2
+              AND _deleted IS NOT NULL
+            ORDER BY _deleted DESC
+            LIMIT 1
+            """,
+            root.cabinet_id,
+            parent_path,
+        )
+        if deleted_parent_rows:
+            deleted_parent = deleted_parent_rows[0]
+            parent_type = getattr(deleted_parent.type, "value", deleted_parent.type)
+            if str(parent_type) != EntryTypeEnum.FOLDER.value:
+                raise BadRequestError(
+                    "D10.004",
+                    f"Cannot restore because parent '{parent_path}' is not a folder",
+                )
+            rows_by_path[parent_path] = deleted_parent
+            parent_path = str(deleted_parent.parent_path or "")
+            continue
+
+        active_parent_rows = await statemgr.native_query(
+            f"""
+            SELECT _id
+            FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+            WHERE cabinet_id = $1
+              AND path = $2
+              AND _deleted IS NULL
+            LIMIT 1
+            """,
+            root.cabinet_id,
+            parent_path,
+        )
+        if active_parent_rows:
+            break
+
+        raise BadRequestError(
+            "D10.004",
+            f"Cannot restore '{root.path}' because parent '{parent_path}' is missing",
+        )
+
+    rows_to_restore = sorted(
+        rows_by_path.values(),
+        key=lambda row: (len(str(row.path)), str(row.path)),
+    )
+    restore_ids = [row._id for row in rows_to_restore]
+    restore_paths = [str(row.path) for row in rows_to_restore]
 
     # Guard: any active path collision blocks restore.
     conflicts = await statemgr.native_query(
@@ -491,16 +548,36 @@ async def restore_deleted_entry_subtree(
             f"Cannot restore because path '{conflicts[0].path}' already exists",
         )
 
-    await statemgr.native_query(
-        f"""
-        UPDATE "{config.RFX_DOCMAN_SCHEMA}"."entry"
-           SET _deleted = NULL
-         WHERE _id = ANY($1)
-           AND _deleted IS NOT NULL
-        """,
-        restore_ids,
-        unwrapper=None,
-    )
+    try:
+        await statemgr.native_query(
+            f"""
+            UPDATE "{config.RFX_DOCMAN_SCHEMA}"."entry"
+               SET _deleted = NULL
+             WHERE _id = ANY($1)
+               AND _deleted IS NOT NULL
+            """,
+            restore_ids,
+            unwrapper=None,
+        )
+    except UniqueViolationError:
+        # Concurrent create/restore can race with the pre-check above.
+        conflicts = await statemgr.native_query(
+            f"""
+            SELECT path
+            FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+            WHERE cabinet_id = $1
+              AND _deleted IS NULL
+              AND path = ANY($2)
+            LIMIT 1
+            """,
+            root.cabinet_id,
+            restore_paths,
+        )
+        conflict_path = conflicts[0].path if conflicts else "<unknown>"
+        raise DuplicateEntryError(
+            "E00.001",
+            f"Cannot restore because path '{conflict_path}' already exists",
+        )
 
     # Rebuild closure rows from active parent chain (restored + existing).
     await statemgr.native_query(
@@ -524,28 +601,35 @@ async def restore_deleted_entry_subtree(
         restore_ids,
     )
 
+    restored_path_to_id: dict[str, Any] = {
+        str(row.path): row._id for row in restored_rows
+    }
+
     for row in restored_rows:
         parent_id = None
         parent_path = str(row.parent_path or "")
         if parent_path:
-            parent_rows = await statemgr.native_query(
-                f"""
-                SELECT _id
-                FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
-                WHERE cabinet_id = $1
-                  AND path = $2
-                  AND _deleted IS NULL
-                LIMIT 1
-                """,
-                row.cabinet_id,
-                parent_path,
-            )
-            if not parent_rows:
-                raise BadRequestError(
-                    "D10.004",
-                    f"Cannot restore '{row.path}' because parent '{parent_path}' is missing",
+            # Fast path: parent is in the same restored subtree.
+            parent_id = restored_path_to_id.get(parent_path)
+            if parent_id is None:
+                parent_rows = await statemgr.native_query(
+                    f"""
+                    SELECT _id
+                    FROM "{config.RFX_DOCMAN_SCHEMA}"."entry"
+                    WHERE cabinet_id = $1
+                      AND path = $2
+                      AND _deleted IS NULL
+                    LIMIT 1
+                    """,
+                    row.cabinet_id,
+                    parent_path,
                 )
-            parent_id = parent_rows[0]._id
+                if not parent_rows:
+                    raise BadRequestError(
+                        "D10.004",
+                        f"Cannot restore '{row.path}' because parent '{parent_path}' is missing",
+                    )
+                parent_id = parent_rows[0]._id
 
         await insert_entry_ancestor_rows(
             statemgr,

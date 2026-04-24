@@ -288,7 +288,7 @@ class RestoreEntry(Command):
 
     class Meta:
         key = "restore-entry"
-        resources = ("entry",)
+        resources = ("entry-bin",)
         tags = ["docman", "entry", "restore"]
         auth_required = True
         resource_init = True
@@ -303,13 +303,16 @@ class HardDeleteEntry(Command):
 
     class Meta:
         key = "hard-delete-entry"
-        resources = ("entry",)
+        resources = ("entry-bin",)
         tags = ["docman", "entry", "hard-delete"]
         auth_required = True
         resource_init = True
 
     async def _process(self, agg, stm, payload):
-        await agg.hard_delete_entry(payload)
+        result = await agg.hard_delete_entry(payload)
+        yield agg.create_response(
+            serialize_mapping(result), _type="entry-hard-delete-response"
+        )
 
 
 class CopyEntry(Command):

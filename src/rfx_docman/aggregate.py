@@ -353,7 +353,7 @@ class RFXDocmanAggregate(Aggregate):
                 entry_id=entry._id,
             )
 
-    @action("entry-restored", resources="entry")
+    @action("entry-restored", resources="entry-bin")
     async def restore_entry(self, /, data=None):
         """Restore a deleted entry (and subtree) from bin."""
         entry = self.rootobj
@@ -363,7 +363,7 @@ class RFXDocmanAggregate(Aggregate):
         )
         return await self.statemgr.fetch("entry", entry._id)
 
-    @action("entry-hard-deleted", resources="entry")
+    @action("entry-hard-deleted", resources="entry-bin")
     async def hard_delete_entry(self, /, data=None):
         """Hard-delete a deleted entry (and subtree) from bin."""
         entry = self.rootobj
